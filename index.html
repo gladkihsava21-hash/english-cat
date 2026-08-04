@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Савелий — кот-репетитор английского</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- Шапка (видна после входа) -->
+<header id="topbar" class="topbar hidden">
+  <div class="topbar-inner">
+    <button class="brand" data-nav="dashboard">
+      <span class="brand-cat">🐈</span> Савелий
+    </button>
+    <nav class="nav">
+      <button class="nav-btn" data-nav="dashboard">Главная</button>
+      <button class="nav-btn" data-nav="dictionary">Словарь <span id="dict-count" class="badge">0</span></button>
+      <button class="nav-btn" data-nav="trainer">Карточки</button>
+      <button class="nav-btn" data-nav="chat">Чат с Савелием</button>
+    </nav>
+    <div class="user-chip">
+      <span id="user-level-chip" class="level-chip">—</span>
+      <span id="user-name-chip"></span>
+      <button id="logout-btn" class="link-btn" title="Выйти и сбросить (тест)">выйти</button>
+    </div>
+  </div>
+</header>
+
+<main id="app">
+
+  <!-- ЭКРАН: приветствие + регистрация -->
+  <section id="screen-welcome" class="screen">
+    <div class="hero">
+      <div class="hero-cat">
+        <div class="cat-avatar cat-big" id="hero-cat">🐈</div>
+        <div class="speech-bubble" id="hero-bubble">Мяу! Я Савелий — твой кот-репетитор. Научу тебя новым английским словам!</div>
+      </div>
+      <h1>Учи английские слова<br>с котом Савелием</h1>
+      <p class="hero-sub">Пройди тест — я определю твой словарный запас и буду подбирать слова точно под твой уровень. Мур!</p>
+
+      <div class="card auth-card">
+        <div class="tabs">
+          <button class="tab active" data-tab="register">Регистрация</button>
+          <button class="tab" data-tab="login">Вход</button>
+        </div>
+        <form id="auth-form">
+          <label>Имя
+            <input type="text" id="reg-name" placeholder="Как тебя зовут?" required maxlength="30">
+          </label>
+          <label id="email-row">Email
+            <input type="email" id="reg-email" placeholder="you@example.com">
+          </label>
+          <label id="pass-row">Пароль
+            <input type="password" id="reg-pass" placeholder="••••••••">
+          </label>
+          <button type="submit" class="btn btn-primary btn-wide" id="auth-submit">Создать аккаунт</button>
+          <p class="fine-print">Тестовая версия: данные хранятся только в твоём браузере.</p>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <!-- ЭКРАН: тест словарного запаса -->
+  <section id="screen-test" class="screen hidden">
+    <div class="narrow">
+      <div class="test-intro" id="test-intro">
+        <div class="cat-avatar cat-mid">🐈</div>
+        <h2 id="test-hello">Отлично! Теперь давай проверим твой словарный запас</h2>
+        <p>Я покажу <b>30 слов</b> — от простых к сложным. Честно отвечай, знаешь ты слово или нет (знаешь = помнишь перевод, а не «где-то видел»). Обманешь — подберу слишком сложные слова, мяу!</p>
+        <button class="btn btn-primary" id="start-test-btn">Начать тест</button>
+      </div>
+
+      <div class="test-run hidden" id="test-run">
+        <div class="progress"><div class="progress-fill" id="test-progress"></div></div>
+        <p class="test-counter" id="test-counter">1 / 30</p>
+        <div class="card word-quiz-card">
+          <p class="quiz-label">Знаешь это слово?</p>
+          <div class="quiz-word" id="quiz-word">apple</div>
+          <div class="quiz-buttons">
+            <button class="btn btn-ghost" id="btn-dont-know">Не знаю</button>
+            <button class="btn btn-primary" id="btn-know">Знаю</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="test-result hidden" id="test-result">
+        <div class="cat-avatar cat-mid">🐈</div>
+        <h2>Готово, мяу!</h2>
+        <div class="result-cards">
+          <div class="card result-card">
+            <p class="result-label">Твой уровень</p>
+            <p class="result-value" id="result-level">B1</p>
+            <p class="result-note" id="result-level-name">Средний</p>
+          </div>
+          <div class="card result-card">
+            <p class="result-label">Словарный запас</p>
+            <p class="result-value" id="result-vocab">~2400</p>
+            <p class="result-note">слов (примерно)</p>
+          </div>
+        </div>
+        <p class="savely-comment" id="result-comment"></p>
+        <button class="btn btn-primary" id="to-dashboard-btn">К подбору слов →</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ЭКРАН: главная / подбор слов -->
+  <section id="screen-dashboard" class="screen hidden">
+    <div class="wide">
+      <div class="dash-head">
+        <div class="cat-avatar cat-mid">🐈</div>
+        <div>
+          <h2 id="dash-greeting">Привет!</h2>
+          <p class="muted" id="dash-stats">Уровень B1 · ~2400 слов · в словаре 0 слов</p>
+        </div>
+      </div>
+
+      <div class="section-head">
+        <h3>Слова для тебя <span class="muted-small">(подобраны под твой уровень)</span></h3>
+        <button class="btn btn-ghost btn-small" id="refresh-words-btn">↻ Ещё слова</button>
+      </div>
+      <div class="word-grid" id="recommend-grid"></div>
+    </div>
+  </section>
+
+  <!-- ЭКРАН: словарь -->
+  <section id="screen-dictionary" class="screen hidden">
+    <div class="wide">
+      <div class="section-head">
+        <h2>Мой словарь</h2>
+        <button class="btn btn-primary btn-small" id="train-btn">Тренировать карточки →</button>
+      </div>
+
+      <form id="add-word-form" class="add-word-row">
+        <input type="text" id="add-word-en" placeholder="слово по-английски" required>
+        <input type="text" id="add-word-ru" placeholder="перевод" required>
+        <button type="submit" class="btn btn-ghost">+ Добавить</button>
+      </form>
+
+      <div id="dict-empty" class="empty-state hidden">
+        <div class="cat-avatar cat-mid">🐈</div>
+        <p>Словарь пока пуст. Добавь слова с главной страницы или попроси у меня в чате, мяу!</p>
+      </div>
+      <div class="dict-list" id="dict-list"></div>
+    </div>
+  </section>
+
+  <!-- ЭКРАН: тренажёр-карточки -->
+  <section id="screen-trainer" class="screen hidden">
+    <div class="narrow">
+      <div id="trainer-empty" class="empty-state hidden">
+        <div class="cat-avatar cat-mid">🐈</div>
+        <p>Нечего тренировать — словарь пуст! Сначала добавь слова.</p>
+        <button class="btn btn-primary" data-nav="dashboard">К подбору слов</button>
+      </div>
+
+      <div id="trainer-run" class="hidden">
+        <p class="test-counter" id="trainer-counter">1 / 10</p>
+        <div class="flashcard" id="flashcard">
+          <div class="flashcard-inner" id="flashcard-inner">
+            <div class="flashcard-face flashcard-front">
+              <p class="quiz-label">Помнишь перевод?</p>
+              <div class="quiz-word" id="flash-word">apple</div>
+              <p class="flip-hint">нажми, чтобы перевернуть</p>
+            </div>
+            <div class="flashcard-face flashcard-back">
+              <div class="quiz-word quiz-word-small" id="flash-translation">яблоко</div>
+              <p class="flash-example" id="flash-example"></p>
+            </div>
+          </div>
+        </div>
+        <div class="quiz-buttons" id="flash-buttons">
+          <button class="btn btn-ghost" id="flash-forgot">😿 Забыл</button>
+          <button class="btn btn-primary" id="flash-knew">😸 Помню</button>
+        </div>
+      </div>
+
+      <div id="trainer-done" class="hidden empty-state">
+        <div class="cat-avatar cat-mid">🐈</div>
+        <h2>Тренировка окончена!</h2>
+        <p id="trainer-score">Помнишь 7 из 10 — мур-мур!</p>
+        <div class="quiz-buttons">
+          <button class="btn btn-ghost" data-nav="dictionary">В словарь</button>
+          <button class="btn btn-primary" id="train-again-btn">Ещё раз</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ЭКРАН: чат с Савелием -->
+  <section id="screen-chat" class="screen hidden">
+    <div class="narrow chat-wrap">
+      <div class="chat-head">
+        <div class="cat-avatar cat-small">🐈</div>
+        <div>
+          <b>Савелий</b>
+          <p class="muted-small">кот-репетитор · онлайн</p>
+        </div>
+      </div>
+      <div class="chat-box" id="chat-box"></div>
+      <div class="chat-chips" id="chat-chips">
+        <button class="chip" data-chip="Дай новое слово">Дай новое слово</button>
+        <button class="chip" data-chip="Проверь меня">Проверь меня</button>
+        <button class="chip" data-chip="Как мои успехи?">Как мои успехи?</button>
+      </div>
+      <form class="chat-input-row" id="chat-form">
+        <input type="text" id="chat-input" placeholder="Напиши Савелию…" autocomplete="off">
+        <button type="submit" class="btn btn-primary">➤</button>
+      </form>
+    </div>
+  </section>
+
+</main>
+
+<script src="js/words.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
