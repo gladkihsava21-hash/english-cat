@@ -24,6 +24,8 @@
       <button class="nav-btn" data-nav="chat">Чат с Савелием</button>
     </nav>
     <div class="user-chip">
+      <span id="streak-chip" class="streak-chip hidden" title="Дней подряд">🔥0</span>
+      <span id="xp-chip" class="xp-chip" title="Очки">⭐ 0</span>
       <span id="user-level-chip" class="level-chip">—</span>
       <span id="user-name-chip"></span>
       <button id="logout-btn" class="link-btn" title="Выйти и сбросить (тест)">выйти</button>
@@ -119,6 +121,8 @@
           <p class="muted" id="dash-stats">Уровень B1 · ~2400 слов · в словаре 0 слов</p>
         </div>
       </div>
+
+      <div class="stats-grid" id="dash-widgets"></div>
 
       <div class="section-head">
         <h3>Слова для тебя <span class="muted-small">(подобраны под твой уровень)</span></h3>

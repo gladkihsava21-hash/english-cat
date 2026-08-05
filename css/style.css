@@ -245,6 +245,34 @@ body {
 .chat-input-row input:focus { border-color: var(--accent); }
 .chat-input-row .btn { padding: 12px 20px; }
 
+/* ---------- очки, звания, статистика ---------- */
+.xp-chip {
+  background: var(--accent-soft); color: var(--accent-dark); font-size: 12px;
+  font-weight: 800; padding: 3px 9px; border-radius: 20px; white-space: nowrap;
+}
+.streak-chip {
+  background: #FFE3E0; color: #D64533; font-size: 12px;
+  font-weight: 800; padding: 3px 9px; border-radius: 20px; white-space: nowrap;
+}
+.stats-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px; margin-bottom: 30px;
+}
+.stat-card { padding: 16px 18px; }
+.stat-label { color: var(--muted); font-weight: 800; font-size: 12px; text-transform: uppercase; letter-spacing: .4px; }
+.stat-value { font-weight: 900; font-size: 22px; margin: 4px 0 2px; }
+.stat-unit { font-size: 13px; font-weight: 700; color: var(--muted); }
+.stat-note { color: var(--muted); font-weight: 600; font-size: 12.5px; }
+.xp-bar { height: 7px; background: var(--accent-soft); border-radius: 10px; overflow: hidden; margin: 8px 0 6px; }
+.xp-bar-fill { height: 100%; background: var(--accent); border-radius: 10px; transition: width .3s; }
+.xp-earned { color: var(--accent-dark); font-weight: 900; font-size: 20px; margin-bottom: 8px; }
+
+.say-btn {
+  background: none; border: none; cursor: pointer; font-size: 15px;
+  padding: 2px 4px; border-radius: 8px; vertical-align: middle;
+}
+.say-btn:hover { background: var(--accent-soft); }
+
 /* ---------- тренировки ---------- */
 .ex-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
 .ex-card {
@@ -366,4 +394,9 @@ body {
   .quiz-word { font-size: 32px; }
   .result-cards { flex-direction: column; align-items: center; }
   .result-card { width: 100%; max-width: none; }
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .pair-item { font-size: 12.5px; padding: 10px 6px; }
+  .ws-cell { font-size: 13px; border-radius: 6px; }
+  .cw-cell input { font-size: 13px; }
+  .cat-boxes { flex-direction: column; }
 }

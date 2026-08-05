@@ -4,17 +4,68 @@ const STORAGE_KEY = "savelyState";
 let state = loadState();
 
 function loadState() {
+  let st = null;
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) st = JSON.parse(raw);
   } catch (e) { /* повреждённое состояние — начинаем заново */ }
-  return {
+  st = st || {
     user: null,          // { name, email }
     level: null,         // "A1".."C2"
     vocabEstimate: 0,
     dictionary: [],      // { w, t, ex, level, status: new|learning|learned, knew: 0, forgot: 0 }
     recommendSeen: [],   // слова, уже показанные в рекомендациях
   };
+  // миграция старых сохранений
+  st.xp = st.xp || 0;
+  st.activity = st.activity || {};   // "2026-08-05" -> очки за день
+  st.blitzBest = st.blitzBest || 0;
+  return st;
+}
+
+// ===== Очки и звания =====
+const RANKS = [
+  { xp: 0, name: "Котёнок" },
+  { xp: 100, name: "Юный кот" },
+  { xp: 250, name: "Кот-ученик" },
+  { xp: 500, name: "Умный кот" },
+  { xp: 1000, name: "Кот-знаток" },
+  { xp: 2000, name: "Кот-профессор" },
+  { xp: 4000, name: "Кот-полиглот" },
+];
+
+function rankInfo(xp) {
+  let cur = RANKS[0], next = null;
+  for (const r of RANKS) {
+    if (xp >= r.xp) cur = r;
+    else { next = r; break; }
+  }
+  const progress = next ? (xp - cur.xp) / (next.xp - cur.xp) : 1;
+  return { name: cur.name, next, progress };
+}
+
+function dayKey(dt = new Date()) {
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
+}
+
+function addXP(n) {
+  n = Math.max(0, Math.round(n));
+  if (!n) return;
+  state.xp += n;
+  state.activity[dayKey()] = (state.activity[dayKey()] || 0) + n;
+  saveState();
+  updateChrome();
+}
+
+function streakDays() {
+  const d = new Date();
+  let n = 0;
+  if (!state.activity[dayKey(d)]) d.setDate(d.getDate() - 1); // сегодня ещё не занимался
+  while (state.activity[dayKey(d)]) {
+    n++;
+    d.setDate(d.getDate() - 1);
+  }
+  return n;
 }
 
 function saveState() {
@@ -33,12 +84,24 @@ function show(screen) {
     b.classList.toggle("active", b.dataset.nav === screen ||
       (b.dataset.nav === "practice" && (screen === "trainer" || screen === "exercise")));
   });
+  if ("speechSynthesis" in window) speechSynthesis.cancel();
+  if (screen === "test") resetTestScreen();
   if (screen === "dashboard") renderDashboard();
   if (screen === "dictionary") renderDictionary();
   if (screen === "trainer") startTraining();
   if (screen === "practice") renderPracticeHub();
   if (screen === "chat") initChat();
   window.scrollTo(0, 0);
+}
+
+function resetTestScreen() {
+  document.getElementById("test-intro").classList.remove("hidden");
+  document.getElementById("test-run").classList.add("hidden");
+  document.getElementById("test-result").classList.add("hidden");
+  if (state.user) {
+    document.getElementById("test-hello").textContent =
+      `${state.user.name}, давай проверим твой словарный запас!`;
+  }
 }
 
 document.addEventListener("click", e => {
@@ -100,6 +163,14 @@ function updateChrome() {
   if (state.user) document.getElementById("user-name-chip").textContent = state.user.name;
   document.getElementById("user-level-chip").textContent = state.level || "—";
   document.getElementById("dict-count").textContent = state.dictionary.length;
+  const rank = rankInfo(state.xp);
+  const xpChip = document.getElementById("xp-chip");
+  xpChip.textContent = "⭐ " + state.xp;
+  xpChip.title = rank.name + (rank.next ? ` · до «${rank.next.name}» ${rank.next.xp - state.xp} очков` : "");
+  const s = streakDays();
+  const streakChip = document.getElementById("streak-chip");
+  streakChip.classList.toggle("hidden", s < 2);
+  streakChip.textContent = "🔥" + s;
 }
 
 // ===== Тест словарного запаса =====
@@ -167,7 +238,9 @@ function finishTest() {
   state.level = level;
   state.vocabEstimate = vocab;
   saveState();
+  addXP(25);
   updateChrome();
+  currentRecs = []; // после нового теста подберём слова заново
 
   document.getElementById("test-run").classList.add("hidden");
   document.getElementById("test-result").classList.remove("hidden");
@@ -220,8 +293,40 @@ function renderDashboard() {
     `Привет, ${state.user.name}! Мяу!`;
   document.getElementById("dash-stats").textContent =
     `Уровень ${state.level} (${LEVEL_NAMES[state.level]}) · словарный запас ~${state.vocabEstimate} слов · в словаре: ${state.dictionary.length}`;
+  renderDashWidgets();
   if (!currentRecs.length) currentRecs = pickRecommendations();
   renderRecGrid();
+}
+
+function renderDashWidgets() {
+  const learned = state.dictionary.filter(d => d.status === "learned").length;
+  const learning = state.dictionary.filter(d => d.status === "learning").length;
+  const fresh = state.dictionary.filter(d => d.status === "new").length;
+  const rank = rankInfo(state.xp);
+  const s = streakDays();
+  document.getElementById("dash-widgets").innerHTML = `
+    <div class="card stat-card">
+      <p class="stat-label">Звание</p>
+      <p class="stat-value">${rank.name}</p>
+      <div class="xp-bar"><div class="xp-bar-fill" style="width:${Math.round(rank.progress * 100)}%"></div></div>
+      <p class="stat-note">⭐ ${state.xp}${rank.next ? " · до «" + rank.next.name + "» ещё " + (rank.next.xp - state.xp) : ""}</p>
+    </div>
+    <div class="card stat-card">
+      <p class="stat-label">Слова</p>
+      <p class="stat-value">${learned} <span class="stat-unit">выучено</span></p>
+      <p class="stat-note">учу: ${learning} · новых: ${fresh}</p>
+    </div>
+    <div class="card stat-card">
+      <p class="stat-label">Стрик</p>
+      <p class="stat-value">🔥 ${s} <span class="stat-unit">${s === 1 ? "день" : s >= 2 && s <= 4 ? "дня" : "дней"}</span></p>
+      <p class="stat-note">${s ? "занимайся каждый день!" : "начни сегодня, мяу!"}</p>
+    </div>
+    <div class="card stat-card">
+      <p class="stat-label">Блиц-рекорд</p>
+      <p class="stat-value">⚡ ${state.blitzBest}</p>
+      <p class="stat-note"><button class="link-btn" id="retake-test-btn">перепройти тест уровня</button></p>
+    </div>`;
+  document.getElementById("retake-test-btn").addEventListener("click", () => show("test"));
 }
 
 function renderRecGrid() {
@@ -233,10 +338,11 @@ function renderRecGrid() {
     card.className = "card word-card";
     card.innerHTML = `
       <span class="w-level">${rec.level}</span>
-      <div class="w-en">${rec.w}</div>
+      <div class="w-en">${rec.w} <button class="say-btn" title="Произношение">🔊</button></div>
       <div class="w-ru">${rec.t}</div>
       <div class="w-ex">${rec.ex}</div>
     `;
+    card.querySelector(".say-btn").addEventListener("click", () => speak(rec.w));
     if (inDict.has(rec.w)) {
       const done = document.createElement("div");
       done.className = "added";
@@ -284,10 +390,11 @@ function renderDictionary() {
     const row = document.createElement("div");
     row.className = "dict-row";
     row.innerHTML = `
-      <span class="d-en">${d.w}</span>
+      <span class="d-en">${d.w} <button class="say-btn" title="Произношение">🔊</button></span>
       <span class="d-ru">${d.t}</span>
       <span class="d-status ${d.status}">${statusText[d.status]}</span>
     `;
+    row.querySelector(".say-btn").addEventListener("click", () => speak(d.w));
     const del = document.createElement("button");
     del.className = "d-del";
     del.title = "Удалить";
@@ -382,7 +489,7 @@ function answerFlash(knew) {
       real.status = "learning";
     }
   }
-  if (knew) trainScore++;
+  if (knew) { trainScore++; addXP(8); }
   saveState();
 
   trainIndex++;
@@ -462,6 +569,7 @@ function applyMark(mark) {
   if (mark.correct) {
     d.knew++;
     d.status = d.knew >= 3 ? "learned" : "learning";
+    addXP(10);
   } else {
     d.forgot++;
     d.knew = 0;
@@ -501,6 +609,8 @@ async function sendToSavely(text) {
           level: state.level,
           levelName: LEVEL_NAMES[state.level],
           vocab: state.vocabEstimate,
+          xp: state.xp,
+          rank: rankInfo(state.xp).name,
           dictionary: state.dictionary.map(d => ({ w: d.w, t: d.t, status: d.status })).slice(0, 40),
         },
         history: chatHistory.slice(-12),
@@ -567,6 +677,7 @@ function catReply(raw) {
     const real = state.dictionary.find(d => d.w === q.w);
     if (ok) {
       if (real) { real.knew++; real.status = real.knew >= 3 ? "learned" : "learning"; saveState(); }
+      addXP(10);
       catSay(`Мур-р, верно! «${q.w}» — ${q.t}. 😸 Ещё проверить? Скажи «проверь меня».`);
     } else {
       if (real) { real.forgot++; real.knew = 0; real.status = "learning"; saveState(); }
@@ -611,9 +722,11 @@ function catReply(raw) {
   }
 
   // — успехи
-  if (/(успех|прогресс|статистика|как я|уровень)/.test(text)) {
+  if (/(успех|прогресс|статистика|как я|уровень|очки|звание)/.test(text)) {
     const learned = state.dictionary.filter(d => d.status === "learned").length;
-    catSay(`Смотри: уровень ${state.level} (${LEVEL_NAMES[state.level]}), запас ~${state.vocabEstimate} слов. В словаре ${state.dictionary.length} слов, из них выучено ${learned}. ${learned > 3 ? "Горжусь тобой, мур!" : "Потренируй карточки — и цифры вырастут, мяу!"}`);
+    const rank = rankInfo(state.xp);
+    const s = streakDays();
+    catSay(`Смотри: уровень ${state.level} (${LEVEL_NAMES[state.level]}), запас ~${state.vocabEstimate} слов. В словаре ${state.dictionary.length} слов, выучено ${learned}. Звание: ${rank.name} (⭐ ${state.xp})${s >= 2 ? `, стрик 🔥 ${s} дн.` : ""}. ${learned > 3 ? "Горжусь тобой, мур!" : "Потренируйся в «Тренировках» — и цифры вырастут, мяу!"}`);
     return;
   }
 

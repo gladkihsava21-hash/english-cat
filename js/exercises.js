@@ -4,13 +4,32 @@
 
 const TTS_OK = "speechSynthesis" in window;
 
+// выбираем нормальный английский голос (грузятся асинхронно)
+let TTS_VOICE = null;
+function pickVoice() {
+  const vs = speechSynthesis.getVoices().filter(v => v.lang && v.lang.startsWith("en"));
+  TTS_VOICE = vs.find(v => /Samantha|Google US English|Daniel|Karen|Alex/i.test(v.name)) || vs[0] || null;
+}
+if (TTS_OK) {
+  pickVoice();
+  speechSynthesis.onvoiceschanged = pickVoice;
+}
+
 function speak(text) {
   if (!TTS_OK) return;
   speechSynthesis.cancel();
   const u = new SpeechSynthesisUtterance(text);
   u.lang = "en-US";
+  if (TTS_VOICE) u.voice = TTS_VOICE;
   u.rate = 0.92;
   speechSynthesis.speak(u);
+}
+
+// очки за подход (для экрана результата); общий счёт ведёт addXP из app.js
+let exSessionXP = 0;
+function award(n) {
+  exSessionXP += Math.round(n);
+  addXP(n);
 }
 
 document.getElementById("flash-audio").addEventListener("click", e => {
@@ -137,6 +156,8 @@ function renderPracticeHub() {
 function openExercise(id) {
   if (id === "flashcards") { show("trainer"); return; }
   currentExId = id;
+  exSessionXP = 0;
+  if (TTS_OK) speechSynthesis.cancel();
   show("exercise");
   const body = document.getElementById("exercise-body");
   const ex = EXERCISES.find(e => e.id === id);
@@ -162,6 +183,7 @@ function exFinish(correct, total, note = "") {
       <div class="cat-avatar cat-mid">🐈</div>
       <h2>Готово!</h2>
       <p>Верно ${correct} из ${total}. ${mood}</p>
+      ${exSessionXP ? `<p class="xp-earned">+${exSessionXP} ⭐</p>` : ""}
       ${note ? `<p class="muted-small">${note}</p>` : ""}
       <div class="quiz-buttons">
         <button class="btn btn-ghost" data-nav="practice">К тренировкам</button>
@@ -205,7 +227,7 @@ function runMCQ(rounds, opts = {}) {
         if (answered) return;
         answered = true;
         const ok = oi === r.correct;
-        if (ok) score++;
+        if (ok) { score++; award(10); }
         if (r.statWord) statUpdate(r.statWord, ok);
         b.classList.add(ok ? "right" : "wrong");
         box.children[r.correct].classList.add("right");
@@ -254,6 +276,7 @@ function runPairs(pairs, opts = {}) {
       if (word) statUpdate(word, ok);
       if (ok) {
         matched++;
+        award(8);
         b.classList.add("done");
         selL.el.classList.add("done");
         selL.el.classList.remove("sel");
@@ -314,7 +337,7 @@ function runType(rounds, opts = {}) {
       if (!val) return;
       done = true;
       const ok = r.check ? r.check(val) : normEn(val) === normEn(r.answer);
-      if (ok) score++;
+      if (ok) { score++; award(15); }
       if (r.statWord) statUpdate(r.statWord, ok);
       const fb = document.getElementById("type-feedback");
       fb.className = "type-feedback " + (ok ? "ok" : "err");
@@ -438,7 +461,7 @@ const EX_RUNNERS = {
       const finishRound = () => {
         const word = picked.map(x => x.ch).join("");
         const ok = word === p.w.toLowerCase();
-        if (ok) score++;
+        if (ok) { score++; award(15); }
         statUpdate(p.w, ok);
         const fb = document.getElementById("scr-feedback");
         fb.className = "type-feedback " + (ok ? "ok" : "err");
@@ -598,6 +621,7 @@ const EX_RUNNERS = {
       const missing = pool.filter(p => !used.includes(p));
       const fb = document.getElementById("pers-feedback");
       if (!missing.length) {
+        award(30);
         fb.className = "type-feedback ok";
         fb.textContent = "Все три слова на месте — мур-р! Покажи текст Савелию в чате, он оценит стиль.";
         setTimeout(() => exFinish(used.length, pool.length), 1600);
@@ -656,11 +680,13 @@ const EX_RUNNERS = {
         const isRecord = score > 0 && score >= best && score > (state.blitzBest || 0);
         state.blitzBest = best;
         saveState();
+        award(Math.round(score / 2));
         stage().innerHTML = `
           <div class="empty-state">
             <div class="cat-avatar cat-mid">🐈</div>
             <h2>Время, мяу!</h2>
             <p>Ты набрал <b>${score}</b> очков.${isRecord ? " Новый рекорд! 🏆" : ""}</p>
+            ${exSessionXP ? `<p class="xp-earned">+${exSessionXP} ⭐</p>` : ""}
             <p class="muted-small">Лучший результат: ${best}</p>
             <div class="quiz-buttons">
               <button class="btn btn-ghost" data-nav="practice">К тренировкам</button>
@@ -718,6 +744,7 @@ const EX_RUNNERS = {
         const ok = box.dataset.cat === selWord.wd.catKey;
         if (ok) {
           placed++;
+          award(8);
           const chip = document.createElement("span");
           chip.className = "cat-chip";
           chip.textContent = selWord.wd.w;
@@ -805,6 +832,7 @@ const EX_RUNNERS = {
           if (hit) {
             found.add(hit.w);
             statUpdate(hit.w, true);
+            award(12);
             line.forEach(x => x.classList.add("found"));
             document.getElementById("ws-t-" + hit.w).classList.add("ws-done");
             if (found.size === placedWords.length) {
@@ -922,6 +950,7 @@ const EX_RUNNERS = {
       });
       if (allOk) {
         placed.forEach(p => statUpdate(p.w, true));
+        award(15 * placed.length);
         setTimeout(() => exFinish(placed.length, placed.length), 700);
       }
     });

@@ -44,7 +44,8 @@ def build_prompt(payload):
         PERSONA,
         "",
         f"Ученик: {prof.get('name', '?')}, уровень {prof.get('level', '?')} "
-        f"({prof.get('levelName', '')}), словарный запас ~{prof.get('vocab', '?')} слов.",
+        f"({prof.get('levelName', '')}), словарный запас ~{prof.get('vocab', '?')} слов, "
+        f"звание «{prof.get('rank', 'Котёнок')}» ({prof.get('xp', 0)} очков).",
         f"Словарь ученика: {dic_str}",
         "",
         "Диалог (последние сообщения):",
