@@ -20,7 +20,7 @@
     <nav class="nav">
       <button class="nav-btn" data-nav="dashboard">Главная</button>
       <button class="nav-btn" data-nav="dictionary">Словарь <span id="dict-count" class="badge">0</span></button>
-      <button class="nav-btn" data-nav="trainer">Карточки</button>
+      <button class="nav-btn" data-nav="practice">Тренировки</button>
       <button class="nav-btn" data-nav="chat">Чат с Савелием</button>
     </nav>
     <div class="user-chip">
@@ -133,7 +133,7 @@
     <div class="wide">
       <div class="section-head">
         <h2>Мой словарь</h2>
-        <button class="btn btn-primary btn-small" id="train-btn">Тренировать карточки →</button>
+        <button class="btn btn-primary btn-small" id="train-btn">Тренировать →</button>
       </div>
 
       <form id="add-word-form" class="add-word-row">
@@ -148,6 +148,22 @@
       </div>
       <div class="dict-list" id="dict-list"></div>
     </div>
+  </section>
+
+  <!-- ЭКРАН: хаб тренировок -->
+  <section id="screen-practice" class="screen hidden">
+    <div class="wide">
+      <div class="section-head">
+        <h2>Тренировки</h2>
+        <p class="muted-small" id="practice-pool-note"></p>
+      </div>
+      <div class="ex-grid" id="practice-grid"></div>
+    </div>
+  </section>
+
+  <!-- ЭКРАН: запущенное упражнение -->
+  <section id="screen-exercise" class="screen hidden">
+    <div class="narrow" id="exercise-body"></div>
   </section>
 
   <!-- ЭКРАН: тренажёр-карточки -->
@@ -166,7 +182,8 @@
             <div class="flashcard-face flashcard-front">
               <p class="quiz-label">Помнишь перевод?</p>
               <div class="quiz-word" id="flash-word">apple</div>
-              <p class="flip-hint">нажми, чтобы перевернуть</p>
+              <button class="btn btn-ghost btn-small" id="flash-audio" type="button">🔊 Произношение</button>
+              <p class="flip-hint">нажми на карточку, чтобы перевернуть</p>
             </div>
             <div class="flashcard-face flashcard-back">
               <div class="quiz-word quiz-word-small" id="flash-translation">яблоко</div>
@@ -219,5 +236,6 @@
 
 <script src="js/words.js"></script>
 <script src="js/app.js"></script>
+<script src="js/exercises.js"></script>
 </body>
 </html>

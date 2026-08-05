@@ -22,7 +22,7 @@ function saveState() {
 }
 
 // ===== Навигация =====
-const screens = ["welcome", "test", "dashboard", "dictionary", "trainer", "chat"];
+const screens = ["welcome", "test", "dashboard", "dictionary", "trainer", "practice", "exercise", "chat"];
 
 function show(screen) {
   screens.forEach(s => {
@@ -30,11 +30,13 @@ function show(screen) {
   });
   document.getElementById("topbar").classList.toggle("hidden", !state.user || !state.level);
   document.querySelectorAll(".nav-btn").forEach(b => {
-    b.classList.toggle("active", b.dataset.nav === screen);
+    b.classList.toggle("active", b.dataset.nav === screen ||
+      (b.dataset.nav === "practice" && (screen === "trainer" || screen === "exercise")));
   });
   if (screen === "dashboard") renderDashboard();
   if (screen === "dictionary") renderDictionary();
   if (screen === "trainer") startTraining();
+  if (screen === "practice") renderPracticeHub();
   if (screen === "chat") initChat();
   window.scrollTo(0, 0);
 }
@@ -311,7 +313,7 @@ document.getElementById("add-word-form").addEventListener("submit", e => {
   renderDictionary();
 });
 
-document.getElementById("train-btn").addEventListener("click", () => show("trainer"));
+document.getElementById("train-btn").addEventListener("click", () => show("practice"));
 
 // ===== Тренажёр-карточки =====
 let trainQueue = [];
@@ -332,10 +334,14 @@ function startTraining() {
   empty.classList.add("hidden");
   run.classList.remove("hidden");
 
-  // сначала невыученные, потом остальные; максимум 10 за подход
+  // интервальное повторение (упрощённое): сначала невыученные,
+  // слова с ошибками — чаще; максимум 10 за подход
   const priority = { new: 0, learning: 1, learned: 2 };
   trainQueue = [...state.dictionary]
-    .sort((a, b) => priority[a.status] - priority[b.status] || Math.random() - 0.5)
+    .sort((a, b) =>
+      priority[a.status] - priority[b.status] ||
+      (b.forgot - b.knew) - (a.forgot - a.knew) ||
+      Math.random() - 0.5)
     .slice(0, 10);
   trainIndex = 0;
   trainScore = 0;
