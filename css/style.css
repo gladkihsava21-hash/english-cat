@@ -271,6 +271,16 @@ body {
   padding: 0 0 0 6px; opacity: .6; vertical-align: middle;
 }
 .msg-say:hover { opacity: 1; }
+
+.voice-settings { padding: 16px 18px; margin-bottom: 14px; }
+.vs-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+.vs-row label { font-weight: 800; font-size: 13px; min-width: 130px; }
+.vs-row select {
+  flex: 1; min-width: 160px; font-family: inherit; font-size: 13px; font-weight: 600;
+  padding: 8px 10px; border: 2px solid var(--border); border-radius: 10px; background: #fff; outline: none;
+}
+.vs-row select:focus { border-color: var(--accent); }
+.vs-row input[type="range"] { flex: 1; accent-color: var(--accent); }
 .chat-box {
   flex: 1; overflow-y: auto; background: #fff; border: 1px solid var(--border);
   border-radius: var(--radius); box-shadow: var(--shadow); padding: 18px;

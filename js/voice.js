@@ -6,15 +6,52 @@ const SR_CLS = window.SpeechRecognition || window.webkitSpeechRecognition;
 const STT_OK = !!SR_CLS;
 
 let RU_VOICE = null;
-function pickRuVoice() {
-  const vs = speechSynthesis.getVoices();
-  RU_VOICE =
-    vs.find(v => v.lang && v.lang.startsWith("ru") && /Milena|Google/i.test(v.name)) ||
-    vs.find(v => v.lang && v.lang.startsWith("ru")) || null;
+
+// настройки голоса (на устройство, не в аккаунт)
+let VOICE_PREFS = {};
+try { VOICE_PREFS = JSON.parse(localStorage.getItem("savelyVoicePrefs") || "{}"); } catch (e) {}
+function saveVoicePrefs() {
+  localStorage.setItem("savelyVoicePrefs", JSON.stringify(VOICE_PREFS));
+}
+
+// шуточные голоса макоси — не для репетитора
+const JUNK_VOICES = /Bad News|Bahh|Bells|Boing|Bubbles|Cellos|Organ|Trinoids|Whisper|Wobble|Zarvox|Jester|Albert|Fred|Junior|Ralph|Superstar|Good News|Kathy|Grandma|Grandpa|Rocko|Eddy|Flo|Reed|Sandy|Shelley/i;
+
+function voiceScore(v, langPrefix) {
+  let s = 0;
+  if (/Google/i.test(v.name)) s += 5;          // сетевые голоса Google — лучшие
+  if (!v.localService) s += 2;
+  if (/Enhanced|Premium|Natural/i.test(v.name)) s += 3;
+  if (langPrefix === "en") {
+    if (/Samantha/i.test(v.name)) s += 2;
+    if (v.lang === "en-US") s += 1;
+  }
+  if (JUNK_VOICES.test(v.name)) s -= 20;
+  return s;
+}
+
+function voicesFor(langPrefix) {
+  return speechSynthesis.getVoices()
+    .filter(v => v.lang && v.lang.toLowerCase().startsWith(langPrefix))
+    .sort((a, b) => voiceScore(b, langPrefix) - voiceScore(a, langPrefix));
+}
+
+function bestVoice(langPrefix) {
+  const vs = voicesFor(langPrefix);
+  if (!vs.length) return null;
+  const wanted = VOICE_PREFS[langPrefix];
+  return (wanted && vs.find(v => v.name === wanted)) || vs[0];
+}
+
+function refreshVoices() {
+  const en = bestVoice("en");
+  if (en) TTS_VOICE = en;
+  RU_VOICE = bestVoice("ru");
+  fillVoiceSelects();
 }
 if (TTS_OK) {
-  pickRuVoice();
-  speechSynthesis.onvoiceschanged = () => { pickVoice(); pickRuVoice(); };
+  refreshVoices();
+  speechSynthesis.onvoiceschanged = refreshVoices;
 }
 
 let voiceMode = false;
@@ -33,15 +70,19 @@ function speakSavely(text, onDone) {
   const segs = clean
     .split(/([A-Za-z][A-Za-z'’\- ]*[A-Za-z'’]|[A-Za-z])/g)
     .filter(s => s && s.trim());
-  const utters = segs.map(s => {
-    const en = /^[A-Za-z]/.test(s.trim());
-    const u = new SpeechSynthesisUtterance(s);
-    u.lang = en ? "en-US" : "ru-RU";
-    const v = en ? TTS_VOICE : RU_VOICE;
-    if (v) u.voice = v;
-    u.rate = en ? 0.95 : 1.04;
-    return u;
-  });
+  const mode = VOICE_PREFS.mode || "full";
+  const rateK = VOICE_PREFS.rate || 1;
+  const utters = segs
+    .filter(s => mode !== "en-only" || /^[A-Za-z]/.test(s.trim()))
+    .map(s => {
+      const en = /^[A-Za-z]/.test(s.trim());
+      const u = new SpeechSynthesisUtterance(s);
+      u.lang = en ? "en-US" : "ru-RU";
+      const v = en ? TTS_VOICE : RU_VOICE;
+      if (v) u.voice = v;
+      u.rate = (en ? 0.95 : 1.04) * rateK;
+      return u;
+    });
   if (!utters.length) { if (onDone) onDone(); return; }
   const last = utters[utters.length - 1];
   if (onDone) { last.onend = onDone; last.onerror = onDone; }
@@ -145,6 +186,60 @@ window.onCatMessage = (text, el) => {
   }
   if (voiceMode) speakSavely(text, maybeRestartMic);
 };
+
+// ===== Настройки голоса =====
+function fillVoiceSelects() {
+  const selRu = document.getElementById("vs-ru");
+  const selEn = document.getElementById("vs-en");
+  if (!selRu || !selEn) return;
+  const fill = (sel, langPrefix, current) => {
+    const vs = voicesFor(langPrefix);
+    sel.innerHTML = vs.length
+      ? vs.map(v => `<option value="${v.name}"${current && v.name === current.name ? " selected" : ""}>${v.name} (${v.lang})</option>`).join("")
+      : `<option value="">— голосов нет —</option>`;
+    sel.disabled = !vs.length;
+  };
+  fill(selRu, "ru", RU_VOICE);
+  fill(selEn, "en", TTS_VOICE);
+}
+
+(function initVoiceSettings() {
+  const btn = document.getElementById("voice-settings-btn");
+  const panel = document.getElementById("voice-settings");
+  if (!btn || !panel) return;
+  if (!TTS_OK) { btn.classList.add("hidden"); return; }
+  btn.addEventListener("click", () => {
+    panel.classList.toggle("hidden");
+    if (!panel.classList.contains("hidden")) fillVoiceSelects();
+  });
+  document.getElementById("vs-ru").addEventListener("change", e => {
+    VOICE_PREFS.ru = e.target.value; saveVoicePrefs(); refreshVoices();
+  });
+  document.getElementById("vs-en").addEventListener("change", e => {
+    VOICE_PREFS.en = e.target.value; saveVoicePrefs(); refreshVoices();
+  });
+  const modeSel = document.getElementById("vs-mode");
+  modeSel.value = VOICE_PREFS.mode || "full";
+  modeSel.addEventListener("change", e => {
+    VOICE_PREFS.mode = e.target.value; saveVoicePrefs();
+  });
+  const rate = document.getElementById("vs-rate");
+  rate.value = VOICE_PREFS.rate || 1;
+  rate.addEventListener("input", e => {
+    VOICE_PREFS.rate = parseFloat(e.target.value); saveVoicePrefs();
+  });
+  document.getElementById("vs-test-ru").addEventListener("click", () => {
+    speakSavely("Мяу! Привет, я Савелий, твой кот-репетитор.");
+  });
+  document.getElementById("vs-test-en").addEventListener("click", () => {
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance("Hello! Let's learn the word serendipity.");
+    u.lang = "en-US";
+    if (TTS_VOICE) u.voice = TTS_VOICE;
+    u.rate = 0.95 * (VOICE_PREFS.rate || 1);
+    speechSynthesis.speak(u);
+  });
+})();
 
 // кнопки
 (function initVoiceUI() {
