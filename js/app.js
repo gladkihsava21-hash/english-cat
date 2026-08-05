@@ -85,6 +85,7 @@ function show(screen) {
       (b.dataset.nav === "practice" && (screen === "trainer" || screen === "exercise")));
   });
   if ("speechSynthesis" in window) speechSynthesis.cancel();
+  if (screen !== "chat" && typeof deactivateVoice === "function") deactivateVoice();
   if (screen === "test") resetTestScreen();
   if (screen === "dashboard") renderDashboard();
   if (screen === "dictionary") renderDictionary();
@@ -294,8 +295,36 @@ function renderDashboard() {
   document.getElementById("dash-stats").textContent =
     `Уровень ${state.level} (${LEVEL_NAMES[state.level]}) · словарный запас ~${state.vocabEstimate} слов · в словаре: ${state.dictionary.length}`;
   renderDashWidgets();
+  renderWordOfDay();
   if (!currentRecs.length) currentRecs = pickRecommendations();
   renderRecGrid();
+}
+
+function renderWordOfDay() {
+  const box = document.getElementById("word-of-day");
+  const pool = WORDS[state.level] || WORDS.A1;
+  const days = Math.floor(Date.now() / 86400000);
+  const wd = pool[days % pool.length];
+  const inDict = state.dictionary.some(d => d.w.toLowerCase() === wd.w.toLowerCase());
+  box.innerHTML = `
+    <div class="card wod-card">
+      <span class="wod-label">🐾 Слово дня</span>
+      <div class="wod-main">
+        <b class="wod-word">${wd.w}</b>
+        <button class="say-btn" id="wod-say" title="Произношение">🔊</button>
+        <span class="wod-tr">— ${wd.t}</span>
+      </div>
+      <span class="w-ex">${wd.ex}</span>
+      ${inDict
+        ? `<span class="added">✓ в словаре</span>`
+        : `<button class="btn btn-primary btn-small" id="wod-add">+ В словарь</button>`}
+    </div>`;
+  document.getElementById("wod-say").addEventListener("click", () => speak(wd.w));
+  const add = document.getElementById("wod-add");
+  if (add) add.addEventListener("click", () => {
+    addToDictionary({ ...wd, level: state.level });
+    renderWordOfDay();
+  });
 }
 
 function renderDashWidgets() {
@@ -378,15 +407,38 @@ function addToDictionary(word) {
   updateChrome();
 }
 
+let dictFilter = "all";
+
+document.querySelectorAll(".dict-filter").forEach(btn => {
+  btn.addEventListener("click", () => {
+    dictFilter = btn.dataset.f;
+    document.querySelectorAll(".dict-filter").forEach(b => b.classList.toggle("active", b === btn));
+    renderDictionary();
+  });
+});
+
+document.getElementById("dict-search").addEventListener("input", renderDictionary);
+
 function renderDictionary() {
   updateChrome();
   const list = document.getElementById("dict-list");
   const empty = document.getElementById("dict-empty");
   list.innerHTML = "";
   empty.classList.toggle("hidden", state.dictionary.length > 0);
+  document.querySelector(".dict-controls").classList.toggle("hidden", !state.dictionary.length);
+
+  const q = document.getElementById("dict-search").value.trim().toLowerCase();
+  const items = state.dictionary.filter(d =>
+    (dictFilter === "all" || d.status === dictFilter) &&
+    (!q || d.w.toLowerCase().includes(q) || d.t.toLowerCase().includes(q)));
+
+  if (state.dictionary.length && !items.length) {
+    list.innerHTML = `<p class="muted-small" style="text-align:center">Ничего не нашлось, мяу.</p>`;
+    return;
+  }
 
   const statusText = { new: "новое", learning: "учу", learned: "выучено" };
-  state.dictionary.forEach((d, i) => {
+  items.forEach(d => {
     const row = document.createElement("div");
     row.className = "dict-row";
     row.innerHTML = `
@@ -394,17 +446,40 @@ function renderDictionary() {
       <span class="d-ru">${d.t}</span>
       <span class="d-status ${d.status}">${statusText[d.status]}</span>
     `;
-    row.querySelector(".say-btn").addEventListener("click", () => speak(d.w));
+    row.querySelector(".say-btn").addEventListener("click", e => {
+      e.stopPropagation();
+      speak(d.w);
+    });
     const del = document.createElement("button");
     del.className = "d-del";
     del.title = "Удалить";
     del.textContent = "✕";
-    del.addEventListener("click", () => {
-      state.dictionary.splice(i, 1);
+    del.addEventListener("click", e => {
+      e.stopPropagation();
+      const idx = state.dictionary.indexOf(d);
+      if (idx >= 0) state.dictionary.splice(idx, 1);
       saveState();
       renderDictionary();
     });
     row.appendChild(del);
+    // клик по строке — раскрыть детали (пример, определение)
+    row.addEventListener("click", () => {
+      const next = row.nextElementSibling;
+      if (next && next.classList.contains("dict-detail")) { next.remove(); return; }
+      document.querySelectorAll(".dict-detail").forEach(x => x.remove());
+      const info = (typeof wordInfo === "function" && wordInfo(d.w)) || {};
+      const ex = d.ex || info.ex;
+      if (!ex && !info.def) return;
+      const det = document.createElement("div");
+      det.className = "dict-detail";
+      det.innerHTML = `
+        ${info.def ? `<p>📖 ${info.def}</p>` : ""}
+        ${ex ? `<p>💬 <i>${ex}</i>${info.exr ? " — " + info.exr : ""}
+          <button class="say-btn" title="Озвучить пример">🔊</button></p>` : ""}`;
+      const sayEx = det.querySelector(".say-btn");
+      if (sayEx) sayEx.addEventListener("click", () => speak(ex));
+      row.after(det);
+    });
     list.appendChild(row);
   });
 }
@@ -535,6 +610,7 @@ function addMsg(text, who) {
   box.appendChild(div);
   box.scrollTop = box.scrollHeight;
   chatHistory.push({ who, text });
+  if (who === "cat" && typeof window.onCatMessage === "function") window.onCatMessage(text, div);
 }
 
 function catSay(text, delay = 0) {
@@ -559,7 +635,7 @@ function hideTyping() {
 function setChatEnabled(on) {
   document.getElementById("chat-input").disabled = !on;
   document.querySelector("#chat-form .btn").disabled = !on;
-  document.querySelectorAll(".chip").forEach(c => c.disabled = !on);
+  document.querySelectorAll("#chat-chips .chip").forEach(c => c.disabled = !on);
   if (on) document.getElementById("chat-input").focus();
 }
 
@@ -613,6 +689,7 @@ async function sendToSavely(text) {
           rank: rankInfo(state.xp).name,
           dictionary: state.dictionary.map(d => ({ w: d.w, t: d.t, status: d.status })).slice(0, 40),
         },
+        voice: typeof voiceMode !== "undefined" && voiceMode,
         history: chatHistory.slice(-12),
       }),
     });
@@ -654,7 +731,7 @@ document.getElementById("chat-form").addEventListener("submit", e => {
   sendToSavely(text);
 });
 
-document.querySelectorAll(".chip").forEach(chip => {
+document.querySelectorAll("#chat-chips .chip").forEach(chip => {
   chip.addEventListener("click", () => {
     if (chatBusy) return;
     sendToSavely(chip.dataset.chip);

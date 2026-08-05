@@ -124,6 +124,8 @@
 
       <div class="stats-grid" id="dash-widgets"></div>
 
+      <div id="word-of-day"></div>
+
       <div class="section-head">
         <h3>Слова для тебя <span class="muted-small">(подобраны под твой уровень)</span></h3>
         <button class="btn btn-ghost btn-small" id="refresh-words-btn">↻ Ещё слова</button>
@@ -145,6 +147,16 @@
         <input type="text" id="add-word-ru" placeholder="перевод" required>
         <button type="submit" class="btn btn-ghost">+ Добавить</button>
       </form>
+
+      <div class="dict-controls">
+        <input type="text" id="dict-search" placeholder="🔍 Поиск по словарю…">
+        <div class="dict-filters">
+          <button class="chip dict-filter active" data-f="all" type="button">все</button>
+          <button class="chip dict-filter" data-f="new" type="button">новые</button>
+          <button class="chip dict-filter" data-f="learning" type="button">учу</button>
+          <button class="chip dict-filter" data-f="learned" type="button">выучено</button>
+        </div>
+      </div>
 
       <div id="dict-empty" class="empty-state hidden">
         <div class="cat-avatar cat-mid">🐈</div>
@@ -218,10 +230,11 @@
     <div class="narrow chat-wrap">
       <div class="chat-head">
         <div class="cat-avatar cat-small">🐈</div>
-        <div>
+        <div class="chat-head-info">
           <b>Савелий</b>
           <p class="muted-small">кот-репетитор · онлайн</p>
         </div>
+        <button class="btn btn-ghost btn-small" id="voice-mode-btn" type="button">🎙️ Голосовой чат</button>
       </div>
       <div class="chat-box" id="chat-box"></div>
       <div class="chat-chips" id="chat-chips">
@@ -230,7 +243,9 @@
         <button class="chip" data-chip="Как мои успехи?">Как мои успехи?</button>
       </div>
       <form class="chat-input-row" id="chat-form">
-        <input type="text" id="chat-input" placeholder="Напиши Савелию…" autocomplete="off">
+        <button type="button" class="mic-btn" id="mic-btn" title="Сказать голосом">🎤</button>
+        <button type="button" class="stt-lang-btn" id="stt-lang-btn" title="Язык распознавания">RU</button>
+        <input type="text" id="chat-input" placeholder="Напиши или скажи Савелию…" autocomplete="off">
         <button type="submit" class="btn btn-primary">➤</button>
       </form>
     </div>
@@ -241,5 +256,6 @@
 <script src="js/words.js"></script>
 <script src="js/app.js"></script>
 <script src="js/exercises.js"></script>
+<script src="js/voice.js"></script>
 </body>
 </html>

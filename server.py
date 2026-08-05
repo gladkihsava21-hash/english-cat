@@ -47,9 +47,12 @@ def build_prompt(payload):
         f"({prof.get('levelName', '')}), словарный запас ~{prof.get('vocab', '?')} слов, "
         f"звание «{prof.get('rank', 'Котёнок')}» ({prof.get('xp', 0)} очков).",
         f"Словарь ученика: {dic_str}",
-        "",
-        "Диалог (последние сообщения):",
     ]
+    if payload.get("voice"):
+        lines.append("Ученик сейчас общается ГОЛОСОМ: твой ответ будет озвучен. "
+                     "Отвечай особенно коротко (1–2 предложения), без списков, скобок и смайликов.")
+    lines.append("")
+    lines.append("Диалог (последние сообщения):")
     for m in (payload.get("history") or [])[-12:]:
         role = "Ученик: " if m.get("who") == "user" else "Савелий: "
         lines.append(role + str(m.get("text", ""))[:500])

@@ -218,9 +218,59 @@ body {
 .flash-example { color: var(--muted); font-style: italic; font-weight: 600; font-size: 14px; }
 .quiz-buttons .btn:disabled { opacity: .45; cursor: default; transform: none; }
 
+/* ---------- слово дня ---------- */
+.wod-card {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  padding: 14px 20px; margin-bottom: 26px;
+}
+.wod-label { font-weight: 800; font-size: 12px; color: var(--accent-dark); text-transform: uppercase; letter-spacing: .4px; white-space: nowrap; }
+.wod-main { display: flex; align-items: center; gap: 6px; }
+.wod-word { font-weight: 900; font-size: 20px; }
+.wod-tr { font-weight: 700; color: var(--muted); }
+.wod-card .w-ex { flex: 1; min-width: 160px; }
+.wod-card .added { color: var(--green); font-weight: 800; font-size: 14px; }
+
+/* ---------- словарь: поиск и детали ---------- */
+.dict-controls { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; }
+.dict-controls input {
+  flex: 1; min-width: 180px; font-family: inherit; font-size: 14px;
+  padding: 10px 14px; border: 2px solid var(--border); border-radius: 12px; outline: none; background: #fff;
+}
+.dict-controls input:focus { border-color: var(--accent); }
+.dict-filters { display: flex; gap: 6px; }
+.dict-filter.active { background: var(--accent); color: #fff; }
+.dict-row { cursor: pointer; }
+.dict-detail {
+  background: var(--accent-soft); border-radius: 12px; padding: 10px 18px;
+  font-size: 14px; font-weight: 600; color: var(--ink); margin: -4px 8px 4px;
+}
+.dict-detail p { margin: 4px 0; }
+
 /* ---------- чат ---------- */
 .chat-wrap { display: flex; flex-direction: column; height: calc(100vh - 140px); min-height: 420px; }
 .chat-head { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.chat-head-info { flex: 1; }
+#voice-mode-btn.voice-active {
+  background: var(--accent); color: #fff; border-color: var(--accent);
+  animation: typingPulse 1.4s ease-in-out infinite;
+}
+.mic-btn, .stt-lang-btn {
+  font-family: inherit; cursor: pointer; border: 2px solid var(--border);
+  background: #fff; border-radius: 14px; transition: all .15s;
+}
+.mic-btn { font-size: 19px; padding: 8px 13px; }
+.mic-btn:hover, .stt-lang-btn:hover { border-color: var(--accent); }
+.mic-btn.listening {
+  background: #FBE7E7; border-color: var(--red);
+  animation: micPulse 1s ease-in-out infinite;
+}
+@keyframes micPulse { 50% { transform: scale(1.12); box-shadow: 0 0 0 6px rgba(224,91,91,.15); } }
+.stt-lang-btn { font-size: 12px; font-weight: 800; color: var(--muted); padding: 8px 10px; }
+.msg-say {
+  background: none; border: none; cursor: pointer; font-size: 13px;
+  padding: 0 0 0 6px; opacity: .6; vertical-align: middle;
+}
+.msg-say:hover { opacity: 1; }
 .chat-box {
   flex: 1; overflow-y: auto; background: #fff; border: 1px solid var(--border);
   border-radius: var(--radius); box-shadow: var(--shadow); padding: 18px;
