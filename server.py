@@ -258,6 +258,30 @@ class Api:
         return {"ok": True, "tutorName": tutor["name"]}
 
     @staticmethod
+    def student_restore(h, p):
+        """Ученик открыл сайт на другом устройстве по своей ссылке-коду."""
+        tutor = db.get_tutor_by_code(p.get("code"))
+        if not tutor:
+            return {"ok": False, "error": "Такой ссылки не существует."}
+        name = str(p.get("name", "")).strip().lower()
+        if not name:
+            return {"ok": False, "error": "Введи имя."}
+        # ищем уже существующего ученика этого репетитора с таким именем
+        for s in db.list_students(tutor["id"]):
+            if s["name"].strip().lower() == name:
+                return {"ok": True, "found": True, "token": s["token"],
+                        "state": db.student_state(s), "tutorName": tutor["name"]}
+        return {"ok": True, "found": False}
+
+    @staticmethod
+    def student_pull(h, p):
+        """Полное состояние по токену — для восстановления после чистки браузера."""
+        row = db.get_student_by_token(p.get("token"))
+        if not row:
+            return {"ok": False, "error": "unknown_student"}
+        return {"ok": True, "state": db.student_state(row)}
+
+    @staticmethod
     def student_join(h, p):
         tutor = db.get_tutor_by_code(p.get("code"))
         if not tutor:
@@ -313,6 +337,8 @@ ROUTES = {
     "/api/tutor/group/assign": Api.group_assign,
     "/api/join": Api.join_info,
     "/api/student/join": Api.student_join,
+    "/api/student/restore": Api.student_restore,
+    "/api/student/pull": Api.student_pull,
     "/api/student/sync": Api.student_sync,
     "/api/chat": Api.chat,
 }

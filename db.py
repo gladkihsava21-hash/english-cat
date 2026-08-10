@@ -314,6 +314,21 @@ def sync_student(token, state):
     return get_student_by_id(row["id"])
 
 
+def student_state(row):
+    """Состояние ученика для восстановления на новом устройстве."""
+    return {
+        "name": row["name"],
+        "level": row["level"],
+        "vocabEstimate": row["vocab"],
+        "xp": row["xp"],
+        "blitzBest": row["blitz_best"],
+        "goal": row["goal"] if "goal" in row.keys() else 50,
+        "dictionary": json.loads(row["dictionary"] or "[]"),
+        "activity": json.loads(row["activity"] or "{}"),
+        "achievements": json.loads((row["achievements"] if "achievements" in row.keys() else "[]") or "[]"),
+    }
+
+
 def set_student_note(tutor_id, student_id, note):
     conn().execute("UPDATE students SET note=? WHERE id=? AND tutor_id=?",
                    (str(note)[:2000], student_id, tutor_id))

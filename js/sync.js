@@ -54,10 +54,44 @@ const PENDING_JOIN_KEY = "savelyPendingJoin";
 async function joinTutor(name) {
   const inv = window.pendingInvite;
   if (!inv || studentToken()) return;
+
+  // Сначала пробуем узнать ученика: он мог заниматься на другом устройстве
+  // и просто открыть ту же ссылку с телефона. Иначе весь прогресс пропал бы,
+  // а у репетитора появился бы дубль.
+  try {
+    const found = await api("/api/student/restore", { code: inv.code, name });
+    if (found.ok && found.found && found.state) {
+      localStorage.setItem(STUDENT_TOKEN_KEY, found.token);
+      localStorage.setItem(TUTOR_NAME_KEY, found.tutorName || "");
+      adoptServerState(found.state);
+      window.pendingInvite = null;
+      return;
+    }
+  } catch (e) { /* офлайн — пойдём обычным путём */ }
+
   // Запоминаем намерение: если сервер сейчас недоступен, ученик иначе
   // навсегда остался бы вне кабинета репетитора и молча учился один.
   localStorage.setItem(PENDING_JOIN_KEY, JSON.stringify({ code: inv.code, name }));
   await tryPendingJoin();
+}
+
+/** Переносит прогресс с сервера в текущий браузер. */
+function adoptServerState(srv) {
+  state.level = srv.level || state.level;
+  state.vocabEstimate = srv.vocabEstimate || state.vocabEstimate;
+  state.xp = Math.max(state.xp || 0, srv.xp || 0);
+  state.blitzBest = Math.max(state.blitzBest || 0, srv.blitzBest || 0);
+  state.goal = srv.goal || state.goal;
+  state.achievements = [...new Set([...(state.achievements || []), ...(srv.achievements || [])])];
+  state.activity = Object.assign({}, srv.activity || {}, state.activity || {});
+  // слова с сервера дополняем локальными, не теряя ни те, ни другие
+  const byWord = new Map((srv.dictionary || []).map(d => [d.w.toLowerCase(), d]));
+  (state.dictionary || []).forEach(d => byWord.set(d.w.toLowerCase(), d));
+  state.dictionary = [...byWord.values()];
+  if (typeof srsInit === "function") state.dictionary.forEach(srsInit);
+  saveStateQuiet();
+  if (typeof updateChrome === "function") updateChrome();
+  if (typeof show === "function" && state.user && state.level) show("dashboard");
 }
 
 async function tryPendingJoin() {
