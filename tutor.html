@@ -32,10 +32,25 @@
           <input type="email" id="t-email" placeholder="you@example.com" required>
         </label>
         <label>Пароль
-          <input type="password" id="t-pass" placeholder="от 6 символов" required>
+          <input type="password" id="t-pass" placeholder="от 8 символов" required>
         </label>
         <button type="submit" class="btn btn-primary btn-wide" id="auth-submit">Войти</button>
         <p class="type-feedback err" id="auth-error"></p>
+        <button type="button" class="link-btn auth-forgot" id="forgot-btn">Забыли пароль?</button>
+      </form>
+
+      <form id="reset-form" class="hidden">
+        <p class="reset-note">Введите код восстановления — тот, что мы показали
+          при регистрации, и придумайте новый пароль.</p>
+        <label>Код восстановления
+          <input type="text" id="r-code" placeholder="ABCD-EFGH-JKLM" maxlength="14" required>
+        </label>
+        <label>Новый пароль
+          <input type="password" id="r-pass" placeholder="от 8 символов" required>
+        </label>
+        <button type="submit" class="btn btn-primary btn-wide">Сменить пароль</button>
+        <p class="type-feedback err" id="reset-error"></p>
+        <button type="button" class="link-btn auth-forgot" id="reset-back">← Вернуться ко входу</button>
       </form>
     </div>
   </div>
@@ -55,6 +70,7 @@
       </nav>
       <div class="user-chip">
         <span id="tutor-name"></span>
+        <button id="pass-btn" class="link-btn">пароль</button>
         <button id="logout-btn" class="link-btn">выйти</button>
       </div>
     </div>
@@ -185,10 +201,21 @@
   </div>
 </div>
 
+<div id="recovery-modal" class="modal hidden">
+  <div class="modal-card">
+    <h3>Сохраните код восстановления</h3>
+    <p class="reset-note">Это единственный способ вернуть доступ, если забудете
+      пароль — почтовой рассылки у нас нет. Запишите или сфотографируйте.</p>
+    <p class="recovery-code" id="recovery-value"></p>
+    <button class="btn btn-primary btn-wide" id="recovery-ok">Записал, продолжить</button>
+  </div>
+</div>
+
 <script src="js/util.js?v=6"></script>
 <script src="js/words.js?v=6"></script>
 <script src="js/images.js?v=6"></script>
 <script src="js/tutor.js?v=6"></script>
-  <script src="js/tutor-photos.js?v=6"></script>
+<script src="js/tutor-photos.js?v=6"></script>
+<script src="js/tutor-auth.js?v=6"></script>
 </body>
 </html>

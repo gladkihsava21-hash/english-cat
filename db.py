@@ -9,7 +9,7 @@ import os
 import secrets
 import sqlite3
 import threading
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 # На сервере база должна лежать ВНЕ папки с кодом: git pull при обновлении
 # не должен иметь ни малейшего шанса задеть прогресс учеников.
@@ -115,6 +115,10 @@ MIGRATIONS = [
     ("students", "note", "TEXT DEFAULT ''"),
     ("students", "goal", "INTEGER DEFAULT 50"),
     ("homework", "group_id", "INTEGER REFERENCES groups(id)"),
+    ("tutors", "failed_logins", "INTEGER DEFAULT 0"),
+    ("tutors", "locked_until", "TEXT"),
+    ("tutors", "recovery_code", "TEXT"),
+    ("tutors", "pass_changed_at", "TEXT"),
 ]
 
 
@@ -179,9 +183,9 @@ def create_tutor(name, email, password):
         code = new_invite_code()
     token = new_token()
     cur = conn().execute(
-        "INSERT INTO tutors (name, email, pass_hash, pass_salt, invite_code, token, created_at)"
-        " VALUES (?,?,?,?,?,?,?)",
-        (name.strip(), email, pass_hash, salt, code, token, now()),
+        "INSERT INTO tutors (name, email, pass_hash, pass_salt, invite_code, token,"
+        " created_at, recovery_code) VALUES (?,?,?,?,?,?,?,?)",
+        (name.strip(), email, pass_hash, salt, code, token, now(), new_recovery_code()),
     )
     conn().commit()
     return get_tutor_by_id(cur.lastrowid)
@@ -212,10 +216,24 @@ def get_tutor_by_code(code):
 
 
 def login_tutor(email, password):
+    """Возвращает (строка, ошибка). Ошибка — текст для человека либо None."""
     row = get_tutor_by_email(email)
-    if not row or not check_password(password, row["pass_hash"], row["pass_salt"]):
-        return None
-    return row
+    if not row:
+        # Отвечаем так же, как на верный email с неверным паролем: иначе
+        # по разнице ответов собирают список зарегистрированных почт
+        return None, "Неверный email или пароль."
+    left = login_lock_left(row)
+    if left:
+        mins = max(1, round(left / 60))
+        return None, "Слишком много попыток. Попробуй через %d мин." % mins
+    if not check_password(password, row["pass_hash"], row["pass_salt"]):
+        pause = note_failed_login(row["id"], row)
+        if pause:
+            mins = max(1, round(pause / 60))
+            return None, "Неверный пароль. Вход закрыт на %d мин." % mins
+        return None, "Неверный email или пароль."
+    clear_failed_logins(row["id"])
+    return row, None
 
 
 # ---------- группы ----------
@@ -759,3 +777,109 @@ def photo_public(row, for_tutor=False):
 
 def get_homework(hw_id):
     return conn().execute("SELECT * FROM homework WHERE id=?", (hw_id,)).fetchone()
+
+
+# ---------- защита входа ----------
+
+# Пароль репетитора открывает доступ к данным полусотни детей. Без задержки
+# его подбирают перебором за часы, поэтому после неудач вход закрывается.
+LOCK_STEPS = [(10, 30 * 60), (5, 5 * 60), (3, 30)]  # (неудач, пауза в секундах)
+
+
+def _parse_ts(value):
+    try:
+        return datetime.fromisoformat(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def login_lock_left(row):
+    """Сколько секунд осталось до разблокировки. 0 — можно пробовать."""
+    keys = row.keys()
+    if "locked_until" not in keys or not row["locked_until"]:
+        return 0
+    until = _parse_ts(row["locked_until"])
+    if not until:
+        return 0
+    left = (until - datetime.now(timezone.utc)).total_seconds()
+    return int(left) if left > 0 else 0
+
+
+def note_failed_login(tutor_id, row):
+    keys = row.keys()
+    fails = (row["failed_logins"] if "failed_logins" in keys else 0) or 0
+    fails += 1
+    pause = 0
+    for need, seconds in LOCK_STEPS:
+        if fails >= need:
+            pause = seconds
+            break
+    until = (datetime.now(timezone.utc) + timedelta(seconds=pause)).isoformat(
+        timespec="seconds") if pause else None
+    conn().execute("UPDATE tutors SET failed_logins=?, locked_until=? WHERE id=?",
+                   (fails, until, tutor_id))
+    conn().commit()
+    return pause
+
+
+def clear_failed_logins(tutor_id):
+    conn().execute(
+        "UPDATE tutors SET failed_logins=0, locked_until=NULL WHERE id=?", (tutor_id,))
+    conn().commit()
+
+
+def new_recovery_code():
+    """Код восстановления: три группы по четыре знака, диктуется голосом."""
+    alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+    return "-".join("".join(secrets.choice(alphabet) for _ in range(4)) for _ in range(3))
+
+
+def ensure_recovery_code(tutor_id):
+    row = conn().execute("SELECT recovery_code FROM tutors WHERE id=?", (tutor_id,)).fetchone()
+    if row and row["recovery_code"]:
+        return row["recovery_code"]
+    code = new_recovery_code()
+    conn().execute("UPDATE tutors SET recovery_code=? WHERE id=?", (code, tutor_id))
+    conn().commit()
+    return code
+
+
+def get_tutor_by_recovery(code):
+    code = str(code or "").strip().upper()
+    if len(code) < 8:
+        return None
+    return conn().execute(
+        "SELECT * FROM tutors WHERE recovery_code=?", (code,)).fetchone()
+
+
+def set_tutor_password(tutor_id, password):
+    """Меняем пароль и выдаём новый токен: старые сессии должны отвалиться,
+    иначе смена пароля после утечки ничего не даёт."""
+    pass_hash, salt = hash_password(password)
+    token = new_token()
+    conn().execute(
+        "UPDATE tutors SET pass_hash=?, pass_salt=?, token=?, failed_logins=0,"
+        " locked_until=NULL, pass_changed_at=? WHERE id=?",
+        (pass_hash, salt, token, now(), tutor_id))
+    conn().commit()
+    return token
+
+
+WEAK_PASSWORDS = {
+    "password", "123456", "12345678", "qwerty", "111111", "123456789",
+    "parol123", "qwerty123", "1q2w3e4r", "123123", "000000", "iloveyou",
+    "пароль", "йцукен", "secret123", "admin123",
+}
+
+
+def password_problem(password):
+    """Возвращает текст проблемы или None. Требования мягкие: репетитор —
+    не сисадмин, слишком жёсткие правила приведут к паролю на бумажке."""
+    p = str(password or "")
+    if len(p) < 8:
+        return "Пароль должен быть хотя бы из 8 символов."
+    if p.lower() in WEAK_PASSWORDS:
+        return "Этот пароль слишком известный — подберут за секунду."
+    if p.isdigit():
+        return "Только из цифр — ненадёжно. Добавь буквы."
+    return None

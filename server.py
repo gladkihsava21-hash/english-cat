@@ -114,18 +114,22 @@ class Api:
         name = str(p.get("name", "")).strip()
         email = str(p.get("email", "")).strip()
         password = str(p.get("password", ""))
-        if not name or not email or len(password) < 6:
-            return {"ok": False, "error": "Заполни имя, email и пароль от 6 символов."}
+        if not name or "@" not in email or "." not in email.split("@")[-1]:
+            return {"ok": False, "error": "Проверь имя и email."}
+        problem = db.password_problem(password)
+        if problem:
+            return {"ok": False, "error": problem}
         row = db.create_tutor(name, email, password)
         if not row:
             return {"ok": False, "error": "Такой email уже зарегистрирован."}
-        return {"ok": True, "token": row["token"], "tutor": db.tutor_public(row)}
+        return {"ok": True, "token": row["token"], "tutor": db.tutor_public(row),
+                "recoveryCode": row["recovery_code"]}
 
     @staticmethod
     def tutor_login(h, p):
-        row = db.login_tutor(str(p.get("email", "")), str(p.get("password", "")))
+        row, err = db.login_tutor(str(p.get("email", "")), str(p.get("password", "")))
         if not row:
-            return {"ok": False, "error": "Неверный email или пароль."}
+            return {"ok": False, "error": err or "Неверный email или пароль."}
         return {"ok": True, "token": row["token"], "tutor": db.tutor_public(row)}
 
     @staticmethod
@@ -343,6 +347,41 @@ class Api:
             "messages": [{"id": m["id"], "text": m["text"], "createdAt": m["created_at"]}
                          for m in msgs[:5]],
         }
+
+    @staticmethod
+    def tutor_password_change(h, p):
+        tutor = db.get_tutor_by_token(p.get("token"))
+        if not tutor:
+            return {"ok": False, "error": "unauthorized"}
+        if not db.check_password(str(p.get("oldPassword", "")),
+                                 tutor["pass_hash"], tutor["pass_salt"]):
+            return {"ok": False, "error": "Текущий пароль неверный."}
+        problem = db.password_problem(p.get("newPassword"))
+        if problem:
+            return {"ok": False, "error": problem}
+        token = db.set_tutor_password(tutor["id"], str(p.get("newPassword")))
+        return {"ok": True, "token": token,
+                "note": "Пароль изменён. На других устройствах придётся войти заново."}
+
+    @staticmethod
+    def tutor_password_reset(h, p):
+        """Сброс по коду восстановления — вместо писем на почту.
+        Почтовой рассылки у нас нет, а забытый пароль иначе не вернуть."""
+        row = db.get_tutor_by_recovery(p.get("recoveryCode"))
+        if not row:
+            return {"ok": False, "error": "Код не подошёл."}
+        problem = db.password_problem(p.get("newPassword"))
+        if problem:
+            return {"ok": False, "error": problem}
+        token = db.set_tutor_password(row["id"], str(p.get("newPassword")))
+        return {"ok": True, "token": token, "tutor": db.tutor_public(row)}
+
+    @staticmethod
+    def tutor_recovery_code(h, p):
+        tutor = db.get_tutor_by_token(p.get("token"))
+        if not tutor:
+            return {"ok": False, "error": "unauthorized"}
+        return {"ok": True, "recoveryCode": db.ensure_recovery_code(tutor["id"])}
 
     # --- фото домашки ---
 
@@ -589,6 +628,9 @@ ROUTES = {
     "/api/student/restore": Api.student_restore,
     "/api/student/pull": Api.student_pull,
     "/api/student/sync": Api.student_sync,
+    "/api/tutor/password": Api.tutor_password_change,
+    "/api/tutor/password/reset": Api.tutor_password_reset,
+    "/api/tutor/recovery": Api.tutor_recovery_code,
     "/api/student/photo": Api.student_photo_upload,
     "/api/student/photo/list": Api.student_photo_list,
     "/api/tutor/photos": Api.tutor_photo_list,

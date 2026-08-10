@@ -56,6 +56,10 @@ $("auth-form").addEventListener("submit", async e => {
   localStorage.setItem(TOKEN_KEY, res.token);
   tutor = res.tutor;
   openPanel();
+  // код восстановления показываем один раз — второго шанса не будет
+  if (res.recoveryCode && typeof showRecoveryCode === "function") {
+    showRecoveryCode(res.recoveryCode);
+  }
 });
 
 $("logout-btn").addEventListener("click", () => {
