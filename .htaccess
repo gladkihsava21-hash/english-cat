@@ -1,5 +1,5 @@
-# Конфигурация для обычного хостинга с Apache + mod_wsgi (Timeweb и др.).
-# На VPS этот файл не используется — там nginx, см. deploy/install.sh
+# Конфигурация для обычного хостинга с Apache (Timeweb и др.).
+# На VPS не используется — там nginx, см. deploy/install.sh
 
 # --- Что наружу не отдаём ни при каких условиях ---
 # База лежит выше публичной папки, но правило оставляем на случай,
@@ -14,27 +14,22 @@
     </IfModule>
 </FilesMatch>
 
-# Исходники Python наружу не нужны — кроме точки входа, её запускает Apache
-<FilesMatch "^(server|db)\.py$">
-    <IfModule mod_authz_core.c>
-        Require all denied
-    </IfModule>
-    <IfModule !mod_authz_core.c>
-        Order allow,deny
-        Deny from all
-    </IfModule>
-</FilesMatch>
-
 Options -Indexes
+DirectoryIndex index.html
 
 <IfModule mod_rewrite.c>
     RewriteEngine On
 
-    # --- Маршрутизация ---
-    # Весь трафик уходит в приложение: оно само решает, что API,
-    # а что статика (белый список файлов общий с server.py).
-    RewriteCond %{REQUEST_URI} !^/wsgi\.py
-    RewriteRule ^(.*)$ /wsgi.py/$1 [QSA,PT,L]
+    # Исходники Python по прямой ссылке не отдаём. Пока обработчик Python
+    # не включён, Apache показал бы их простым текстом.
+    # Внутреннюю переадресацию ниже это правило не задевает: там путь
+    # длиннее (/wsgi.py/api/...), а здесь шаблон закрыт на конце.
+    RewriteRule ^(server|db|wsgi)\.py$ - [R=404,L]
+
+    # В Python уходит только API. Всё остальное — статика, её Apache
+    # отдаёт сам: быстрее, и сайт продолжает открываться, даже если
+    # обработчик Python отключён или сломан.
+    RewriteRule ^(api/.*|health)$ /wsgi.py/$1 [QSA,PT,L]
 </IfModule>
 
 # --- Про HTTPS ---
