@@ -1,0 +1,46 @@
+# Конфигурация для обычного хостинга с Apache + mod_wsgi (Timeweb и др.).
+# На VPS этот файл не используется — там nginx, см. deploy/install.sh
+
+# --- Что наружу не отдаём ни при каких условиях ---
+# База лежит выше публичной папки, но правило оставляем на случай,
+# если её кто-то скопирует внутрь: там хеши паролей и токены репетитора.
+<FilesMatch "\.(db|db-wal|db-shm|sqlite|sqlite3|log)$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+# Исходники Python наружу не нужны — кроме точки входа, её запускает Apache
+<FilesMatch "^(server|db)\.py$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+Options -Indexes
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # --- Только HTTPS ---
+    # Идёт ПЕРВЫМ: правило ниже заканчивается на [L] и всё после него
+    # уже не выполнится. Без сертификата не работают ни микрофон,
+    # ни установка сайта на телефон.
+    RewriteCond %{HTTPS} !=on
+    RewriteCond %{HTTP:X-Forwarded-Proto} !=https
+    RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
+
+    # --- Маршрутизация ---
+    # Весь трафик уходит в приложение: оно само решает, что API,
+    # а что статика (белый список файлов общий с server.py).
+    RewriteCond %{REQUEST_URI} !^/wsgi\.py
+    RewriteRule ^(.*)$ /wsgi.py/$1 [QSA,PT,L]
+</IfModule>

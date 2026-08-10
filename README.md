@@ -22,7 +22,12 @@ python3 server.py
 Ученик — http://localhost:4210, панель — http://localhost:4210/tutor.html
 Ничего доустанавливать не нужно: только Python 3.
 
-## Установка на сервер
+## Установка на обычный хостинг (Timeweb и др.)
+
+Если хостинг с местом под сайт уже есть — VPS не нужен. Требуется тариф
+с Python и mod_wsgi. Пошагово: [deploy/TIMEWEB.md](deploy/TIMEWEB.md).
+
+## Установка на свой сервер (VPS)
 
 На чистом Ubuntu/Debian от root:
 
