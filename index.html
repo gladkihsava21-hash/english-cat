@@ -7,7 +7,12 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=2">
+  <link rel="stylesheet" href="css/style.css?v=4">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#FF8C42">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Савелий">
+  <link rel="apple-touch-icon" href="icon-192.png">
 </head>
 <body>
 
@@ -21,6 +26,7 @@
       <button class="nav-btn" data-nav="dashboard">Главная</button>
       <button class="nav-btn" data-nav="dictionary">Словарь <span id="dict-count" class="badge">0</span></button>
       <button class="nav-btn" data-nav="practice">Тренировки</button>
+      <button class="nav-btn" data-nav="achievements">Награды</button>
       <button class="nav-btn" data-nav="chat">Чат с Савелием</button>
     </nav>
     <div class="user-chip">
@@ -128,6 +134,11 @@
 
       <div id="homework-box" class="hidden"></div>
 
+      <div class="dash-cols">
+        <div id="due-box"></div>
+        <div id="leaderboard-box" class="hidden"></div>
+      </div>
+
       <div id="word-of-day"></div>
 
       <div class="section-head">
@@ -229,6 +240,17 @@
     </div>
   </section>
 
+  <!-- ЭКРАН: награды -->
+  <section id="screen-achievements" class="screen hidden">
+    <div class="wide">
+      <div class="section-head">
+        <h2>Награды</h2>
+        <p class="muted-small">Получено: <b id="ach-count">0</b></p>
+      </div>
+      <div class="ach-grid" id="ach-grid"></div>
+    </div>
+  </section>
+
   <!-- ЭКРАН: чат с Савелием -->
   <section id="screen-chat" class="screen hidden">
     <div class="narrow chat-wrap">
@@ -283,11 +305,22 @@
 
 </main>
 
-<script src="js/words.js?v=2"></script>
-<script src="js/images.js?v=2"></script>
-<script src="js/app.js?v=2"></script>
-<script src="js/exercises.js?v=2"></script>
-<script src="js/voice.js?v=2"></script>
-<script src="js/sync.js?v=2"></script>
+<script src="js/util.js?v=4"></script>
+<script src="js/words.js?v=4"></script>
+<script src="js/srs.js?v=4"></script>
+<script src="js/images.js?v=4"></script>
+<script src="js/app.js?v=4"></script>
+<script src="js/achievements.js?v=4"></script>
+<script src="js/exercises.js?v=4"></script>
+<script src="js/voice.js?v=4"></script>
+<script src="js/sync.js?v=4"></script>
+<script>
+  // офлайн-режим: сайт открывается без интернета и ставится на телефон
+  if ("serviceWorker" in navigator && location.protocol !== "file:") {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("sw.js").catch(() => { /* не критично */ });
+    });
+  }
+</script>
 </body>
 </html>

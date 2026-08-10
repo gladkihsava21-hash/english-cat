@@ -20,6 +20,13 @@ function loadState() {
   st.xp = st.xp || 0;
   st.activity = st.activity || {};   // "2026-08-05" -> очки за день
   st.blitzBest = st.blitzBest || 0;
+  st.goal = st.goal || 50;           // дневная цель в очках
+  st.achievements = st.achievements || [];
+  st.counters = st.counters || {};   // события для наград
+  st.modesTried = st.modesTried || [];
+  st.leaderboard = st.leaderboard || [];
+  // словам из старых версий добавляем поля интервального повторения
+  if (typeof srsInit === "function") st.dictionary.forEach(srsInit);
   return st;
 }
 
@@ -51,10 +58,18 @@ function dayKey(dt = new Date()) {
 function addXP(n) {
   n = Math.max(0, Math.round(n));
   if (!n) return;
+  const goal = state.goal || 50;
+  const before = state.activity[dayKey()] || 0;
   state.xp += n;
-  state.activity[dayKey()] = (state.activity[dayKey()] || 0) + n;
+  state.activity[dayKey()] = before + n;
+  // цель дня засчитывается один раз — в момент, когда её перешагнули
+  if (before < goal && before + n >= goal && typeof bump === "function") {
+    state.counters = state.counters || {};
+    state.counters.goalsHit = (state.counters.goalsHit || 0) + 1;
+  }
   saveState();
   updateChrome();
+  if (typeof checkAchievements === "function") checkAchievements();
 }
 
 function streakDays() {
@@ -73,8 +88,16 @@ function saveState() {
   if (typeof scheduleSync === "function") scheduleSync();
 }
 
+/** Сохранение без планирования синхронизации.
+ * Нужно для данных, ПРИШЕДШИХ с сервера (домашка, рейтинг): обычный
+ * saveState там замкнул бы петлю sync → save → sync каждые 3 секунды. */
+function saveStateQuiet() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
 // ===== Навигация =====
-const screens = ["welcome", "test", "dashboard", "dictionary", "trainer", "practice", "exercise", "chat"];
+const screens = ["welcome", "test", "dashboard", "dictionary", "trainer", "practice",
+                 "exercise", "achievements", "chat"];
 
 function show(screen) {
   screens.forEach(s => {
@@ -92,6 +115,7 @@ function show(screen) {
   if (screen === "dictionary") renderDictionary();
   if (screen === "trainer") startTraining();
   if (screen === "practice") renderPracticeHub();
+  if (screen === "achievements") renderAchievements();
   if (screen === "chat") initChat();
   window.scrollTo(0, 0);
 }
@@ -158,7 +182,13 @@ document.getElementById("logout-btn").addEventListener("click", () => {
     return;
   }
   clearTimeout(logoutTimer);
+  // Токен ученика стираем вместе с состоянием. Иначе после перезагрузки
+  // синхронизация отправит на сервер пустой снимок и затрёт репетитору
+  // весь прогресс этого ученика.
+  if (typeof stopSync === "function") stopSync();
   localStorage.removeItem(STORAGE_KEY);
+  localStorage.removeItem("savelyStudentToken");
+  localStorage.removeItem("savelyTutorName");
   location.reload();
 });
 
@@ -231,10 +261,15 @@ function finishTest() {
     if (testAnswers[lvl] / TEST_PER_LEVEL >= 0.6) level = lvl;
     else break;
   }
-  // оценка словарного запаса: доля знакомых слов уровня * примерный объём уровня
+  // Оценка словарного запаса. Считаем только до уровня, который ученик
+  // реально прошёл: иначе одно случайное «знаю» на слове C2 добавляло бы
+  // 1600 слов и завышало оценку в разы.
   let vocab = 0;
-  LEVELS.forEach(lvl => {
-    vocab += (testAnswers[lvl] / TEST_PER_LEVEL) * LEVEL_VOCAB_SIZE[lvl];
+  const reached = LEVELS.indexOf(level);
+  LEVELS.forEach((lvl, i) => {
+    const share = testAnswers[lvl] / TEST_PER_LEVEL;
+    // выше достигнутого уровня знания частичные — вклад уменьшаем
+    vocab += share * LEVEL_VOCAB_SIZE[lvl] * (i <= reached ? 1 : 0.25);
   });
   vocab = Math.round(vocab / 50) * 50;
 
@@ -274,9 +309,15 @@ function pickRecommendations() {
   const seen = new Set(state.recommendSeen);
 
   const poolMain = WORDS[lvl].filter(w => !inDict.has(w.w) && !seen.has(w.w)).map(w => ({ ...w, level: lvl }));
-  const poolNext = WORDS[nextLvl].filter(w => !inDict.has(w.w) && !seen.has(w.w)).map(w => ({ ...w, level: nextLvl }));
+  const mainPicks = sample(poolMain, 4);
+  // на C2 nextLvl совпадает с текущим — исключаем уже выбранное,
+  // иначе одно слово попадает на главную двумя карточками сразу
+  const takenNow = new Set(mainPicks.map(w => w.w));
+  const poolNext = WORDS[nextLvl]
+    .filter(w => !inDict.has(w.w) && !seen.has(w.w) && !takenNow.has(w.w))
+    .map(w => ({ ...w, level: nextLvl }));
 
-  let picks = [...sample(poolMain, 4), ...sample(poolNext, 2)];
+  let picks = [...mainPicks, ...sample(poolNext, 2)];
   // если свежие слова кончились — показываем уже виденные (но не из словаря)
   if (picks.length < RECOMMEND_COUNT) {
     const fallback = [...WORDS[lvl].map(w => ({ ...w, level: lvl })), ...WORDS[nextLvl].map(w => ({ ...w, level: nextLvl }))]
@@ -298,6 +339,8 @@ function renderDashboard() {
     `Уровень ${state.level} (${LEVEL_NAMES[state.level]}) · словарный запас ~${state.vocabEstimate} слов · в словаре: ${state.dictionary.length}`;
   renderDashWidgets();
   if (typeof renderHomework === "function") renderHomework();
+  renderDueBox();
+  renderLeaderboard();
   renderWordOfDay();
   if (!currentRecs.length) currentRecs = pickRecommendations();
   renderRecGrid();
@@ -314,11 +357,11 @@ function renderWordOfDay() {
       <div class="word-art word-art-small" style="background:${wordTint(wd.cat)}">${wordArt(wd.w, wd.cat)}</div>
       <span class="wod-label">🐾 Слово дня</span>
       <div class="wod-main">
-        <b class="wod-word">${wd.w}</b>
+        <b class="wod-word">${esc(wd.w)}</b>
         <button class="say-btn" id="wod-say" title="Произношение">🔊</button>
-        <span class="wod-tr">— ${wd.t}</span>
+        <span class="wod-tr">— ${esc(wd.t)}</span>
       </div>
-      <span class="w-ex">${wd.ex}</span>
+      <span class="w-ex">${esc(wd.ex)}</span>
       ${inDict
         ? `<span class="added">✓ в словаре</span>`
         : `<button class="btn btn-primary btn-small" id="wod-add">+ В словарь</button>`}
@@ -331,13 +374,31 @@ function renderWordOfDay() {
   });
 }
 
+function todayXP() {
+  return (state.activity && state.activity[dayKey()]) || 0;
+}
+
 function renderDashWidgets() {
   const learned = state.dictionary.filter(d => d.status === "learned").length;
   const learning = state.dictionary.filter(d => d.status === "learning").length;
   const fresh = state.dictionary.filter(d => d.status === "new").length;
   const rank = rankInfo(state.xp);
   const s = streakDays();
+  const goal = state.goal || 50;
+  const got = todayXP();
+  const goalPct = Math.min(100, Math.round((got / goal) * 100));
+  const achCount = (state.achievements || []).length;
+
   document.getElementById("dash-widgets").innerHTML = `
+    <div class="card stat-card goal-card">
+      <p class="stat-label">Цель на сегодня</p>
+      <p class="stat-value">${got} <span class="stat-unit">из ${goal} ⭐</span></p>
+      <div class="xp-bar"><div class="xp-bar-fill${goalPct >= 100 ? " done" : ""}" style="width:${goalPct}%"></div></div>
+      <p class="stat-note">${goalPct >= 100
+        ? "Цель выполнена — мур-р-р! 🎉"
+        : `осталось ${goal - got} очков`}
+        <button class="link-btn" id="goal-edit">изменить</button></p>
+    </div>
     <div class="card stat-card">
       <p class="stat-label">Звание</p>
       <p class="stat-value">${rank.name}</p>
@@ -355,11 +416,72 @@ function renderDashWidgets() {
       <p class="stat-note">${s ? "занимайся каждый день!" : "начни сегодня, мяу!"}</p>
     </div>
     <div class="card stat-card">
+      <p class="stat-label">Награды</p>
+      <p class="stat-value">🏅 ${achCount}</p>
+      <p class="stat-note"><button class="link-btn" data-nav="achievements">посмотреть все</button></p>
+    </div>
+    <div class="card stat-card">
       <p class="stat-label">Блиц-рекорд</p>
       <p class="stat-value">⚡ ${state.blitzBest}</p>
       <p class="stat-note"><button class="link-btn" id="retake-test-btn">перепройти тест уровня</button></p>
     </div>`;
+
   document.getElementById("retake-test-btn").addEventListener("click", () => show("test"));
+  document.getElementById("goal-edit").addEventListener("click", () => {
+    const opts = [30, 50, 80, 120];
+    const cur = opts.indexOf(state.goal || 50);
+    state.goal = opts[(cur + 1) % opts.length];
+    saveState();
+    renderDashWidgets();
+  });
+}
+
+/** Блок «пора повторить» — главный вход в занятие. */
+function renderDueBox() {
+  const box = document.getElementById("due-box");
+  if (!box) return;
+  if (!state.dictionary.length) { box.innerHTML = ""; return; }
+  const s = srsSummary(state.dictionary);
+  box.innerHTML = `
+    <div class="card due-card${s.due ? "" : " due-rest"}">
+      <span class="due-icon">${s.due ? "🔁" : "😺"}</span>
+      <div class="due-text">
+        <b>${s.due ? `Пора повторить: ${s.due} ${wordsWord(s.due)}` : "На сегодня всё повторено!"}</b>
+        <span class="muted-small">${s.due
+          ? "Савелий подобрал те, что начали забываться"
+          : (s.tomorrow ? `Завтра вернутся ${s.tomorrow} ${wordsWord(s.tomorrow)}` : "Добавь новых слов, и я напомню вовремя")}</span>
+      </div>
+      <button class="btn ${s.due ? "btn-primary" : "btn-ghost"}" data-nav="${s.due ? "trainer" : "dashboard"}">
+        ${s.due ? "Повторить" : "Отдыхаю"}
+      </button>
+    </div>`;
+}
+
+function wordsWord(n) {
+  const t = n % 10, h = n % 100;
+  if (t === 1 && h !== 11) return "слово";
+  if (t >= 2 && t <= 4 && (h < 12 || h > 14)) return "слова";
+  return "слов";
+}
+
+/** Рейтинг одноклассников — приходит с сервера при синхронизации. */
+function renderLeaderboard() {
+  const box = document.getElementById("leaderboard-box");
+  if (!box) return;
+  const rows = state.leaderboard || [];
+  if (rows.length < 2) { box.classList.add("hidden"); return; }
+  box.classList.remove("hidden");
+  const medal = p => p === 1 ? "🥇" : p === 2 ? "🥈" : p === 3 ? "🥉" : `${p}.`;
+  box.innerHTML = `
+    <div class="card lb-card">
+      <p class="stat-label">Рейтинг за неделю</p>
+      ${rows.map(r => `
+        <div class="lb-row${r.me ? " lb-me" : ""}">
+          <span class="lb-place">${medal(r.place)}</span>
+          <span class="lb-name">${r.me ? "Ты" : esc(r.name)}</span>
+          <span class="lb-xp">⭐ ${r.xpWeek}</span>
+        </div>`).join("")}
+    </div>`;
 }
 
 function renderRecGrid() {
@@ -374,9 +496,9 @@ function renderRecGrid() {
         <div class="word-art word-art-small" style="background:${wordTint(rec.cat)}">${wordArt(rec.w, rec.cat)}</div>
         <span class="w-level">${rec.level}</span>
       </div>
-      <div class="w-en">${rec.w} <button class="say-btn" title="Произношение">🔊</button></div>
-      <div class="w-ru">${rec.t}</div>
-      <div class="w-ex">${rec.ex}</div>
+      <div class="w-en">${esc(rec.w)} <button class="say-btn" title="Произношение">🔊</button></div>
+      <div class="w-ru">${esc(rec.t)}</div>
+      <div class="w-ex">${esc(rec.ex)}</div>
     `;
     card.querySelector(".say-btn").addEventListener("click", () => speak(rec.w));
     if (inDict.has(rec.w)) {
@@ -406,10 +528,12 @@ document.getElementById("refresh-words-btn").addEventListener("click", () => {
 // ===== Словарь =====
 function addToDictionary(word) {
   if (state.dictionary.some(d => d.w.toLowerCase() === word.w.toLowerCase())) return;
-  state.dictionary.push({
+  const rec = {
     w: word.w, t: word.t, ex: word.ex || "", level: word.level || state.level,
     status: "new", knew: 0, forgot: 0,
-  });
+  };
+  if (typeof srsInit === "function") srsInit(rec);
+  state.dictionary.push(rec);
   saveState();
   updateChrome();
 }
@@ -451,8 +575,8 @@ function renderDictionary() {
     row.className = "dict-row";
     row.innerHTML = `
       <span class="word-art word-art-tiny" style="background:${wordTint(info0.cat)}">${wordArt(d.w, info0.cat)}</span>
-      <span class="d-en">${d.w} <button class="say-btn" title="Произношение">🔊</button></span>
-      <span class="d-ru">${d.t}</span>
+      <span class="d-en">${esc(d.w)} <button class="say-btn" title="Произношение">🔊</button></span>
+      <span class="d-ru">${esc(d.t)}</span>
       <span class="d-status ${d.status}">${statusText[d.status]}</span>
     `;
     row.querySelector(".say-btn").addEventListener("click", e => {
@@ -482,8 +606,8 @@ function renderDictionary() {
       const det = document.createElement("div");
       det.className = "dict-detail";
       det.innerHTML = `
-        ${info.def ? `<p>📖 ${info.def}</p>` : ""}
-        ${ex ? `<p>💬 <i>${ex}</i>${info.exr ? " — " + info.exr : ""}
+        ${info.def ? `<p>📖 ${esc(info.def)}</p>` : ""}
+        ${ex ? `<p>💬 <i>${esc(ex)}</i>${info.exr ? " — " + esc(info.exr) : ""}
           <button class="say-btn" title="Озвучить пример">🔊</button></p>` : ""}`;
       const sayEx = det.querySelector(".say-btn");
       if (sayEx) sayEx.addEventListener("click", () => speak(ex));
@@ -525,15 +649,10 @@ function startTraining() {
   empty.classList.add("hidden");
   run.classList.remove("hidden");
 
-  // интервальное повторение (упрощённое): сначала невыученные,
-  // слова с ошибками — чаще; максимум 10 за подход
-  const priority = { new: 0, learning: 1, learned: 2 };
-  trainQueue = [...state.dictionary]
-    .sort((a, b) =>
-      priority[a.status] - priority[b.status] ||
-      (b.forgot - b.knew) - (a.forgot - a.knew) ||
-      Math.random() - 0.5)
-    .slice(0, 10);
+  // очередь строит SRS: просроченные повторы вперёд, новые — следом
+  trainQueue = typeof srsQueue === "function"
+    ? srsQueue(state.dictionary, 10)
+    : [...state.dictionary].slice(0, 10);
   trainIndex = 0;
   trainScore = 0;
   renderFlashcard();
@@ -567,16 +686,7 @@ document.getElementById("flashcard").addEventListener("click", () => {
 function answerFlash(knew) {
   const item = trainQueue[trainIndex];
   const real = state.dictionary.find(d => d.w === item.w);
-  if (real) {
-    if (knew) {
-      real.knew++;
-      real.status = real.knew >= 3 ? "learned" : "learning";
-    } else {
-      real.forgot++;
-      real.knew = 0;
-      real.status = "learning";
-    }
-  }
+  if (real) srsReview(real, knew);
   if (knew) { trainScore++; addXP(8); }
   saveState();
 
@@ -623,6 +733,7 @@ function addMsg(text, who) {
   box.appendChild(div);
   box.scrollTop = box.scrollHeight;
   chatHistory.push({ who, text });
+  if (who === "user" && typeof bump === "function") bump("chat");
   if (who === "cat" && typeof window.onCatMessage === "function") window.onCatMessage(text, div);
 }
 
@@ -655,15 +766,10 @@ function setChatEnabled(on) {
 function applyMark(mark) {
   const d = state.dictionary.find(x => x.w.toLowerCase() === String(mark.w || "").toLowerCase());
   if (!d) return;
-  if (mark.correct) {
-    d.knew++;
-    d.status = d.knew >= 3 ? "learned" : "learning";
-    addXP(10);
-  } else {
-    d.forgot++;
-    d.knew = 0;
-    d.status = "learning";
-  }
+  // статус и интервал считает только SRS — иначе проверка в чате
+  // объявляла бы слово выученным вразрез с расписанием повторений
+  srsReview(d, !!mark.correct);
+  if (mark.correct) addXP(10);
   saveState();
   updateChrome();
 }
@@ -765,12 +871,11 @@ function catReply(raw) {
     const correctParts = normalize(q.t).split(/[,;(]/)[0].trim();
     const ok = text.includes(correctParts) || correctParts.includes(text) && text.length > 2;
     const real = state.dictionary.find(d => d.w === q.w);
+    if (real) { srsReview(real, ok); saveState(); }
     if (ok) {
-      if (real) { real.knew++; real.status = real.knew >= 3 ? "learned" : "learning"; saveState(); }
       addXP(10);
       catSay(`Мур-р, верно! «${q.w}» — ${q.t}. 😸 Ещё проверить? Скажи «проверь меня».`);
     } else {
-      if (real) { real.forgot++; real.knew = 0; real.status = "learning"; saveState(); }
       catSay(`Мяу, не совсем. «${q.w}» — это «${q.t}». Пример: ${q.ex || "—"} Повторим позже!`);
     }
     return;
@@ -853,6 +958,14 @@ function catReply(raw) {
 
 // ===== Старт =====
 updateChrome();
+// Награды за уже достигнутое (например, после пополнения списка наград).
+// Проверку откладываем: achievements.js подключается ниже по странице,
+// на момент выполнения этой строки функции ещё нет.
+document.addEventListener("DOMContentLoaded", () => {
+  setTimeout(() => {
+    if (typeof checkAchievements === "function") checkAchievements();
+  }, 800);
+});
 if (state.user && state.level) {
   show("dashboard");
 } else if (state.user) {

@@ -2,6 +2,11 @@
 
 .wide { padding: 30px 20px 80px; }
 
+.conn-error {
+  background: #FBE7E7; color: var(--red); font-weight: 800; font-size: 14px;
+  border-radius: 14px; padding: 12px 18px; margin-bottom: 18px;
+}
+
 /* карточка ученика */
 .stu-card { margin-bottom: 12px; padding: 18px 20px; }
 .stu-main { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
@@ -38,6 +43,70 @@
 
 .stu-del { margin-top: 12px; font-size: 11px; }
 .link-btn.danger { color: var(--red); font-weight: 800; }
+
+/* группы */
+.group-bar { display: flex; gap: 12px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
+.group-chips { display: flex; gap: 6px; flex-wrap: wrap; flex: 1; }
+.group-chip { border-left: 4px solid var(--gc, var(--accent)); }
+.group-chip.active { background: var(--accent); color: #fff; }
+.group-chip b { opacity: .7; margin-left: 3px; }
+.group-add { display: flex; gap: 6px; }
+.group-add input {
+  font-family: inherit; font-size: 13px; padding: 8px 12px; width: 150px;
+  border: 2px solid var(--border); border-radius: 11px; outline: none; background: #fff;
+}
+.group-add input:focus { border-color: var(--accent); }
+
+.stu-group {
+  font-family: inherit; font-size: 12px; font-weight: 700; color: var(--muted);
+  padding: 4px 8px; border: 2px solid var(--border); border-radius: 9px;
+  background: #fff; outline: none; max-width: 130px;
+}
+.stu-group:focus { border-color: var(--accent); }
+.stu-actions { display: flex; align-items: center; gap: 14px; margin-top: 12px; }
+.stu-actions .stu-del { margin-top: 0; }
+
+/* карточка ученика */
+.modal {
+  position: fixed; inset: 0; z-index: 300; background: rgba(45,42,38,.55);
+  display: flex; align-items: flex-start; justify-content: center;
+  padding: 40px 16px; overflow-y: auto; backdrop-filter: blur(3px);
+}
+.modal-box {
+  position: relative; background: var(--bg); border-radius: 22px;
+  padding: 28px; max-width: 720px; width: 100%; box-shadow: 0 20px 60px rgba(0,0,0,.3);
+}
+.modal-close {
+  position: absolute; top: 16px; right: 18px; background: none; border: none;
+  font-size: 20px; cursor: pointer; color: var(--muted); padding: 4px 8px; border-radius: 8px;
+}
+.modal-close:hover { background: var(--accent-soft); color: var(--ink); }
+.modal-head { display: flex; align-items: center; gap: 14px; margin-bottom: 20px; }
+.modal-head .cat-avatar { margin: 0; }
+.modal-head h2 { font-weight: 900; font-size: 22px; }
+
+.act-strip { display: flex; gap: 3px; flex-wrap: wrap; margin-top: 6px; }
+.act { width: 15px; height: 15px; border-radius: 4px; background: #EFEAE3; display: block; }
+.act-1 { background: #FFD9B3; } .act-2 { background: #FFA96B; } .act-3 { background: var(--accent-dark); }
+
+.learned-word {
+  background: #E3F5EB; color: var(--green); font-size: 13px; font-weight: 700;
+  border-radius: 10px; padding: 4px 10px;
+}
+
+/* выданные домашки */
+.task-card { margin-bottom: 12px; padding: 18px 20px; }
+.task-card.task-overdue { border-left: 5px solid var(--red); }
+.task-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; }
+.task-title { font-size: 16px; font-weight: 900; }
+.task-stat { text-align: right; }
+.task-stat b { display: block; font-size: 19px; font-weight: 900; color: var(--accent-dark); }
+.task-rows { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0 8px; }
+.task-pupil { font-size: 12.5px; font-weight: 700; border-radius: 20px; padding: 4px 10px; background: var(--bg); }
+.task-pupil.ok { background: #E3F5EB; color: var(--green); }
+.task-pupil.no { background: #FFF0E4; color: var(--accent-dark); }
+.task-words { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 10px; }
+.task-word { font-size: 12px; font-weight: 700; color: var(--muted); background: var(--bg); border-radius: 8px; padding: 3px 8px; }
 
 /* форма домашки */
 .hw-form { padding: 22px 24px; }

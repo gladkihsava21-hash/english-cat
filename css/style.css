@@ -218,6 +218,59 @@ body {
 .flash-example { color: var(--muted); font-style: italic; font-weight: 600; font-size: 14px; }
 .quiz-buttons .btn:disabled { opacity: .45; cursor: default; transform: none; }
 
+/* ---------- повторение, цель, рейтинг ---------- */
+.dash-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 26px; align-items: start; }
+.dash-cols > div:only-child { grid-column: 1 / -1; }
+
+.due-card { display: flex; align-items: center; gap: 16px; padding: 16px 20px; border-left: 5px solid var(--accent); }
+.due-card.due-rest { border-left-color: var(--green); }
+.due-icon { font-size: 32px; }
+.due-text { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.due-text b { font-size: 16px; }
+
+.goal-card .xp-bar-fill.done { background: var(--green); }
+
+.lb-card { padding: 14px 18px; }
+.lb-row { display: flex; align-items: center; gap: 10px; padding: 5px 0; font-weight: 700; font-size: 14px; }
+.lb-row + .lb-row { border-top: 1px solid var(--border); }
+.lb-place { min-width: 26px; font-size: 15px; }
+.lb-name { flex: 1; }
+.lb-xp { color: var(--muted); font-weight: 800; }
+.lb-me { color: var(--accent-dark); }
+.lb-me .lb-xp { color: var(--accent-dark); }
+
+/* ---------- награды ---------- */
+.ach-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; }
+.ach-card {
+  padding: 16px; display: flex; flex-direction: column; align-items: center;
+  text-align: center; gap: 6px; opacity: .62;
+}
+.ach-card.ach-done { opacity: 1; }
+.ach-icon {
+  width: 56px; height: 56px; border-radius: 16px; font-size: 30px;
+  display: flex; align-items: center; justify-content: center;
+}
+.ach-name { font-size: 15px; font-weight: 900; }
+.ach-desc { font-size: 12.5px; color: var(--muted); font-weight: 600; line-height: 1.35; }
+.ach-got { font-size: 12px; font-weight: 900; text-transform: uppercase; letter-spacing: .5px; }
+.ach-progress { font-size: 12px; font-weight: 800; color: var(--muted); }
+.ach-card .xp-bar { width: 100%; margin: 4px 0 0; }
+
+.ach-toast {
+  position: fixed; left: 50%; bottom: 26px; z-index: 200;
+  transform: translate(-50%, 140%); transition: transform .38s cubic-bezier(.2,.9,.3,1.2);
+  display: flex; align-items: center; gap: 12px; max-width: 92vw;
+  background: var(--ink); color: #fff; border-radius: 18px;
+  padding: 12px 20px 12px 14px; box-shadow: 0 10px 34px rgba(0,0,0,.28);
+}
+.ach-toast.show { transform: translate(-50%, 0); }
+.ach-toast-icon {
+  width: 44px; height: 44px; border-radius: 13px; font-size: 24px;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.ach-toast b { display: block; font-size: 15px; }
+.ach-toast i { display: block; font-size: 12.5px; opacity: .75; font-style: normal; }
+
 /* ---------- домашка у ученика ---------- */
 .invite-note {
   background: var(--accent-soft); color: var(--accent-dark); font-weight: 700;
@@ -485,6 +538,9 @@ body {
   .result-cards { flex-direction: column; align-items: center; }
   .result-card { width: 100%; max-width: none; }
   .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .dash-cols { grid-template-columns: 1fr; }
+  .ach-grid { grid-template-columns: repeat(2, 1fr); }
+  .due-card { flex-wrap: wrap; }
   .pair-item { font-size: 12.5px; padding: 10px 6px; }
   .ws-cell { font-size: 13px; border-radius: 6px; }
   .cw-cell input { font-size: 13px; }

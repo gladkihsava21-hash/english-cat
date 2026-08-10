@@ -7,8 +7,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=2">
-  <link rel="stylesheet" href="css/tutor.css?v=2">
+  <link rel="stylesheet" href="css/style.css?v=4">
+  <link rel="stylesheet" href="css/tutor.css?v=4">
 </head>
 <body>
 
@@ -49,6 +49,7 @@
       <nav class="nav">
         <button class="nav-btn active" data-tab="students">Ученики <span id="stu-count" class="badge">0</span></button>
         <button class="nav-btn" data-tab="homework">Выдать домашку</button>
+        <button class="nav-btn" data-tab="tasks">Домашки</button>
         <button class="nav-btn" data-tab="invite">Ссылка для учеников</button>
       </nav>
       <div class="user-chip">
@@ -70,6 +71,15 @@
           <button class="chip stu-sort" data-sort="progress">по прогрессу</button>
         </div>
       </div>
+
+      <div class="group-bar">
+        <div class="group-chips" id="group-chips"></div>
+        <form class="group-add" id="group-add">
+          <input type="text" id="group-name" placeholder="новая группа" maxlength="60">
+          <button type="submit" class="btn btn-ghost btn-small">+ Группа</button>
+        </form>
+      </div>
+
       <div id="students-list"></div>
       <div id="students-empty" class="empty-state hidden">
         <div class="cat-avatar cat-mid">🐈</div>
@@ -98,7 +108,9 @@
         <div class="hw-picker">
           <div class="hw-pick-controls">
             <select id="hw-level"></select>
+            <select id="hw-topic"></select>
             <input type="text" id="hw-search" placeholder="🔍 поиск слова…">
+            <button type="button" class="chip" id="hw-pick-all">выбрать всё</button>
           </div>
           <div class="hw-words" id="hw-words"></div>
         </div>
@@ -112,6 +124,19 @@
         <div class="hw-selected" id="hw-selected"></div>
         <button class="btn btn-primary btn-wide" id="hw-send">Выдать домашку</button>
         <p class="type-feedback" id="hw-msg"></p>
+      </div>
+    </section>
+
+    <!-- Выданные домашки -->
+    <section id="tab-tasks" class="hidden">
+      <div class="section-head">
+        <h2>Выданные домашки</h2>
+        <p class="muted-small">Видно, кто сдал, а кто ещё нет</p>
+      </div>
+      <div id="tasks-list"></div>
+      <div id="tasks-empty" class="empty-state hidden">
+        <div class="cat-avatar cat-mid">🐈</div>
+        <p>Домашек пока нет. Выдайте первую на вкладке «Выдать домашку».</p>
       </div>
     </section>
 
@@ -131,8 +156,18 @@
   </main>
 </div>
 
-<script src="js/words.js?v=2"></script>
-<script src="js/images.js?v=2"></script>
-<script src="js/tutor.js?v=2"></script>
+
+<!-- Карточка ученика -->
+<div id="stu-modal" class="modal hidden">
+  <div class="modal-box">
+    <button class="modal-close" id="modal-close">✕</button>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<script src="js/util.js?v=4"></script>
+<script src="js/words.js?v=4"></script>
+<script src="js/images.js?v=4"></script>
+<script src="js/tutor.js?v=4"></script>
 </body>
 </html>

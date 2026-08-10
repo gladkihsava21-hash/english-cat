@@ -132,9 +132,77 @@ class Api:
         hw = db.list_homework(tutor["id"])
         students = []
         for s in db.list_students(tutor["id"]):
-            own = [x for x in hw if x["student_id"] in (None, s["id"])]
-            students.append(db.student_public(s, own))
-        return {"ok": True, "tutor": db.tutor_public(tutor), "students": students}
+            students.append(db.student_public(s, db.homework_for_student(hw, s)))
+        return {
+            "ok": True,
+            "tutor": db.tutor_public(tutor),
+            "students": students,
+            "groups": [db.group_public(g) for g in db.list_groups(tutor["id"])],
+            "homework": [{
+                "id": x["id"], "title": x["title"],
+                "studentId": x["student_id"], "groupId": x["group_id"],
+                "words": json.loads(x["words"] or "[]"),
+                "dueDate": x["due_date"], "createdAt": x["created_at"],
+            } for x in hw],
+        }
+
+    @staticmethod
+    def tutor_student_detail(h, p):
+        tutor = db.get_tutor_by_token(p.get("token"))
+        if not tutor:
+            return {"ok": False, "error": "unauthorized"}
+        row = db.get_student_by_id(int(p.get("studentId") or 0))
+        if not row or row["tutor_id"] != tutor["id"]:
+            return {"ok": False, "error": "not_found"}
+        hw = db.homework_for_student(db.list_homework(tutor["id"]), row)
+        return {"ok": True, "student": db.student_public(row, hw, detail=True)}
+
+    @staticmethod
+    def tutor_student_note(h, p):
+        tutor = db.get_tutor_by_token(p.get("token"))
+        if not tutor:
+            return {"ok": False, "error": "unauthorized"}
+        db.set_student_note(tutor["id"], int(p.get("studentId") or 0), p.get("note") or "")
+        return {"ok": True}
+
+    # --- группы ---
+
+    @staticmethod
+    def group_create(h, p):
+        tutor = db.get_tutor_by_token(p.get("token"))
+        if not tutor:
+            return {"ok": False, "error": "unauthorized"}
+        name = str(p.get("name", "")).strip()
+        if not name:
+            return {"ok": False, "error": "Введите название группы."}
+        row = db.create_group(tutor["id"], name, p.get("color"))
+        return {"ok": True, "group": db.group_public(row)}
+
+    @staticmethod
+    def group_update(h, p):
+        tutor = db.get_tutor_by_token(p.get("token"))
+        if not tutor:
+            return {"ok": False, "error": "unauthorized"}
+        db.update_group(tutor["id"], int(p.get("id") or 0), p.get("name"), p.get("color"))
+        return {"ok": True}
+
+    @staticmethod
+    def group_delete(h, p):
+        tutor = db.get_tutor_by_token(p.get("token"))
+        if not tutor:
+            return {"ok": False, "error": "unauthorized"}
+        db.delete_group(tutor["id"], int(p.get("id") or 0))
+        return {"ok": True}
+
+    @staticmethod
+    def group_assign(h, p):
+        tutor = db.get_tutor_by_token(p.get("token"))
+        if not tutor:
+            return {"ok": False, "error": "unauthorized"}
+        gid = p.get("groupId")
+        db.set_student_group(tutor["id"], int(p.get("studentId") or 0),
+                             int(gid) if gid else None)
+        return {"ok": True}
 
     @staticmethod
     def tutor_homework_create(h, p):
@@ -155,10 +223,11 @@ class Api:
                 })
         if not clean:
             return {"ok": False, "error": "Слова не распознаны."}
-        sid = p.get("studentId")
+        sid, gid = p.get("studentId"), p.get("groupId")
         row = db.create_homework(
             tutor["id"], str(p.get("title", "")), clean,
             student_id=int(sid) if sid else None,
+            group_id=int(gid) if gid else None,
             due_date=str(p.get("dueDate") or "") or None,
         )
         return {"ok": True, "id": row["id"]}
@@ -204,16 +273,18 @@ class Api:
         row = db.sync_student(p.get("token"), p.get("state") or {})
         if not row:
             return {"ok": False, "error": "unknown_student"}
-        hw = db.list_homework(row["tutor_id"], row["id"])
-        tasks = []
-        for x in hw:
-            tasks.append({
-                "id": x["id"],
-                "title": x["title"],
-                "words": json.loads(x["words"] or "[]"),
-                "dueDate": x["due_date"],
-            })
-        return {"ok": True, "homework": tasks}
+        hw = db.homework_for_student(db.list_homework(row["tutor_id"]), row)
+        tasks = [{
+            "id": x["id"],
+            "title": x["title"],
+            "words": json.loads(x["words"] or "[]"),
+            "dueDate": x["due_date"],
+        } for x in hw]
+        return {
+            "ok": True,
+            "homework": tasks,
+            "leaderboard": db.leaderboard(row),
+        }
 
     # --- чат ---
 
@@ -231,9 +302,15 @@ ROUTES = {
     "/api/tutor/register": Api.tutor_register,
     "/api/tutor/login": Api.tutor_login,
     "/api/tutor/students": Api.tutor_students,
+    "/api/tutor/student": Api.tutor_student_detail,
+    "/api/tutor/student/note": Api.tutor_student_note,
+    "/api/tutor/student/delete": Api.tutor_student_delete,
     "/api/tutor/homework": Api.tutor_homework_create,
     "/api/tutor/homework/archive": Api.tutor_homework_archive,
-    "/api/tutor/student/delete": Api.tutor_student_delete,
+    "/api/tutor/group/create": Api.group_create,
+    "/api/tutor/group/update": Api.group_update,
+    "/api/tutor/group/delete": Api.group_delete,
+    "/api/tutor/group/assign": Api.group_assign,
     "/api/join": Api.join_info,
     "/api/student/join": Api.student_join,
     "/api/student/sync": Api.student_sync,
@@ -290,7 +367,29 @@ class Handler(SimpleHTTPRequestHandler):
         if path == "/health":
             self._send_json({"ok": True})
             return
+        if not self._servable(path):
+            self.send_error(404, "Not Found")
+            return
         super().do_GET()
+
+    def list_directory(self, path):
+        # листинг каталогов раскрывает структуру проекта — не отдаём
+        self.send_error(404, "Not Found")
+        return None
+
+    @staticmethod
+    def _servable(path):
+        """Раздаём только фронтенд. База, серверный код и всё, чего нет
+        в белом списке, наружу не уходят — там хеши паролей и токены."""
+        name = path.lstrip("/")
+        if name in ("", "index.html", "tutor.html", "manifest.json", "sw.js",
+                    "icon-192.png", "icon-512.png", "favicon.ico"):
+            return True
+        if ".." in name or name.startswith("."):
+            return False
+        allowed_dir = name.startswith("css/") or name.startswith("js/")
+        allowed_ext = name.endswith((".css", ".js"))
+        return allowed_dir and allowed_ext
 
     def log_message(self, fmt, *args):
         # log_error передаёт первым аргументом код ответа, а не строку запроса —

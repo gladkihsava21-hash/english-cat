@@ -55,17 +55,16 @@ function shuffled(arr) {
 // need — обязательные поля (def/cat/exr): слова без них отфильтровываются.
 function trainPool(n, need = []) {
   const has = rec => rec && need.every(f => rec[f]);
-  const fromDict = state.dictionary
+  // порядок задаёт SRS: сначала то, что пора повторить
+  const ordered = typeof srsQueue === "function"
+    ? srsQueue(state.dictionary, state.dictionary.length)
+    : state.dictionary;
+  const fromDict = ordered
     .map(d => {
       const base = wordInfo(d.w) || {};
       return { ...base, ...d, ex: d.ex || base.ex, t: d.t || base.t, inDict: true };
     })
     .filter(has);
-  const prio = { new: 0, learning: 1, learned: 2 };
-  fromDict.sort((a, b) =>
-    prio[a.status] - prio[b.status] ||
-    (b.forgot - b.knew) - (a.forgot - a.knew) ||
-    Math.random() - 0.5);
   const picked = fromDict.slice(0, n);
   if (picked.length < n) {
     const inPool = new Set(picked.map(p => p.w.toLowerCase()));
@@ -92,14 +91,7 @@ function distractors(word, n, field) {
 function statUpdate(w, ok) {
   const d = state.dictionary.find(x => x.w.toLowerCase() === String(w).toLowerCase());
   if (!d) return;
-  if (ok) {
-    d.knew++;
-    d.status = d.knew >= 3 ? "learned" : "learning";
-  } else {
-    d.forgot++;
-    d.knew = 0;
-    d.status = "learning";
-  }
+  srsReview(d, ok);       // интервал следующего показа считает SRS
   saveState();
   updateChrome();
 }
@@ -155,6 +147,7 @@ function renderPracticeHub() {
 }
 
 function openExercise(id) {
+  if (typeof markMode === "function") markMode(id);
   if (id === "flashcards") { show("trainer"); return; }
   currentExId = id;
   exSessionXP = 0;
@@ -175,6 +168,10 @@ function stage() { return document.getElementById("ex-stage"); }
 
 function exFinish(correct, total, note = "") {
   const pct = total ? correct / total : 0;
+  if (typeof bump === "function") {
+    bump("exercises");
+    if (total > 0 && correct === total) bump("perfect");
+  }
   const mood = pct === 1 ? "Мур-р-р, идеально! 😻" :
     pct >= 0.7 ? "Отлично идём, мяу! 😸" :
     pct >= 0.4 ? "Неплохо, но повторим ещё. 🐾" :

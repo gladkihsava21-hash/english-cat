@@ -7,6 +7,7 @@ const TUTOR_NAME_KEY = "savelyTutorName";
 
 let syncTimer = null;
 let syncFailed = false;
+let syncStopped = false;
 
 function studentToken() {
   return localStorage.getItem(STUDENT_TOKEN_KEY) || "";
@@ -48,17 +49,35 @@ async function initInvite() {
 }
 
 // вызывается после регистрации ученика в app.js
+const PENDING_JOIN_KEY = "savelyPendingJoin";
+
 async function joinTutor(name) {
   const inv = window.pendingInvite;
   if (!inv || studentToken()) return;
+  // Запоминаем намерение: если сервер сейчас недоступен, ученик иначе
+  // навсегда остался бы вне кабинета репетитора и молча учился один.
+  localStorage.setItem(PENDING_JOIN_KEY, JSON.stringify({ code: inv.code, name }));
+  await tryPendingJoin();
+}
+
+async function tryPendingJoin() {
+  if (studentToken()) { localStorage.removeItem(PENDING_JOIN_KEY); return; }
+  const raw = localStorage.getItem(PENDING_JOIN_KEY);
+  if (!raw) return;
+  let pending;
+  try { pending = JSON.parse(raw); } catch (e) { localStorage.removeItem(PENDING_JOIN_KEY); return; }
   try {
-    const res = await api("/api/student/join", { code: inv.code, name });
+    const res = await api("/api/student/join", pending);
     if (res.ok) {
       localStorage.setItem(STUDENT_TOKEN_KEY, res.token);
       localStorage.setItem(TUTOR_NAME_KEY, res.tutorName || "");
+      localStorage.removeItem(PENDING_JOIN_KEY);
       window.pendingInvite = null;
+      pushProgress();
+    } else if (res.error && res.error.includes("не существует")) {
+      localStorage.removeItem(PENDING_JOIN_KEY);   // ссылка мертва, повторять нечего
     }
-  } catch (e) { /* офлайн — просто учимся локально */ }
+  } catch (e) { /* офлайн — попробуем при следующем запуске */ }
 }
 
 // ---- отправка прогресса ----
@@ -70,6 +89,8 @@ function snapshot() {
     xp: state.xp,
     streak: typeof streakDays === "function" ? streakDays() : 0,
     blitzBest: state.blitzBest,
+    goal: state.goal,
+    achievements: state.achievements || [],
     dictionary: state.dictionary.map(d => ({
       w: d.w, t: d.t, status: d.status, knew: d.knew, forgot: d.forgot,
     })),
@@ -79,11 +100,22 @@ function snapshot() {
 
 async function pushProgress() {
   const token = studentToken();
-  if (!token) return;
+  if (!token || syncStopped) return;
+  // пустое состояние на сервер не отправляем: это почти всегда признак
+  // сброса или сбоя, а UPDATE затрёт репетитору реальный прогресс
+  if (!state.user || (!state.dictionary.length && !state.xp)) return;
   try {
     const res = await api("/api/student/sync", { token, state: snapshot() });
     syncFailed = false;
     if (res.ok && Array.isArray(res.homework)) applyHomework(res.homework);
+    if (res.ok && Array.isArray(res.leaderboard)) {
+      const changed = JSON.stringify(state.leaderboard) !== JSON.stringify(res.leaderboard);
+      state.leaderboard = res.leaderboard;
+      if (changed) {
+        saveStateQuiet();
+        if (typeof renderLeaderboard === "function") renderLeaderboard();
+      }
+    }
   } catch (e) {
     syncFailed = true;
   }
@@ -91,9 +123,16 @@ async function pushProgress() {
 
 // прогресс копится и уходит пачкой — не дёргаем сервер на каждый клик
 function scheduleSync() {
-  if (!studentToken()) return;
+  if (syncStopped || !studentToken()) return;
   clearTimeout(syncTimer);
   syncTimer = setTimeout(pushProgress, 3000);
+}
+
+/** Полная остановка синхронизации — при выходе из аккаунта.
+ * Без неё уже запланированный push успел бы отправить пустое состояние. */
+function stopSync() {
+  syncStopped = true;
+  clearTimeout(syncTimer);
 }
 
 // ---- домашка ----
@@ -101,18 +140,46 @@ function scheduleSync() {
 let homeworkTasks = [];
 
 function applyHomework(tasks) {
+  const wasDone = new Set(state.homeworkDone || []);
+  const before = JSON.stringify(state.homework || []);
   homeworkTasks = tasks || [];
   state.homework = homeworkTasks;
-  saveState();
-  renderHomework();
+
+  // домашка считается сданной один раз — когда все её слова выучены
+  let newlyDone = false;
+  homeworkTasks.forEach(task => {
+    const { done, total } = homeworkProgress(task);
+    const key = String(task.id);
+    if (total && done >= total && !wasDone.has(key)) {
+      wasDone.add(key);
+      newlyDone = true;
+    }
+  });
+  state.homeworkDone = [...wasDone];
+
+  // saveStateQuiet, а не saveState: данные пришли с сервера, и обычное
+  // сохранение запустило бы очередную синхронизацию — и так по кругу
+  if (before !== JSON.stringify(homeworkTasks) || newlyDone) {
+    saveStateQuiet();
+    renderHomework();
+  }
+  // награду выдаём после сохранения — bump сам сохранит состояние
+  if (newlyDone && typeof bump === "function") bump("homework");
+}
+
+/** Слово засчитано в домашку, если ученик хотя бы раз верно его вспомнил.
+ * По статусу "learned" считать нельзя: SRS присваивает его только после
+ * четырёх повторов с интервалами 1-3-7-14 дней, то есть почти через месяц —
+ * домашку «к четвергу» было бы невозможно сдать в принципе. */
+function wordDoneForHomework(d) {
+  return !!d && ((d.knew || 0) >= 1 || (d.reps || 0) >= 1 || d.status === "learned");
 }
 
 function homeworkProgress(task) {
   const known = new Map(state.dictionary.map(d => [d.w.toLowerCase(), d]));
   let done = 0;
   task.words.forEach(w => {
-    const d = known.get(String(w.w).toLowerCase());
-    if (d && d.status === "learned") done++;
+    if (wordDoneForHomework(known.get(String(w.w).toLowerCase()))) done++;
   });
   return { done, total: task.words.length };
 }
@@ -134,9 +201,9 @@ function renderHomework() {
       <div class="card hw-card${finished ? " hw-done" : ""}">
         <div class="hw-head">
           <span class="hw-label">📋 Домашка от репетитора</span>
-          ${task.dueDate ? `<span class="hw-due">до ${task.dueDate}</span>` : ""}
+          ${task.dueDate ? `<span class="hw-due">до ${esc(task.dueDate)}</span>` : ""}
         </div>
-        <p class="hw-title">${task.title}</p>
+        <p class="hw-title">${esc(task.title)}</p>
         <div class="xp-bar"><div class="xp-bar-fill" style="width:${pct}%"></div></div>
         <p class="stat-note">${done} из ${total} слов выучено${finished ? " — готово, мяу! 🎉" : ""}</p>
         <button class="btn btn-primary btn-small" data-hw="${task.id}">Добавить слова и учить</button>
@@ -159,5 +226,12 @@ function renderHomework() {
 
 document.addEventListener("DOMContentLoaded", () => {
   initInvite();
+  if (studentToken()) pushProgress();
+  else tryPendingJoin();          // догоняем привязку, сорванную офлайном
+});
+
+// связь вернулась — повторяем то, что не удалось отправить
+window.addEventListener("online", () => {
+  tryPendingJoin();
   if (studentToken()) pushProgress();
 });
