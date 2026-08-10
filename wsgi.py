@@ -16,12 +16,23 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 if HERE not in sys.path:
     sys.path.insert(0, HERE)
 
-# Виртуальное окружение активируем прямо здесь: mod_wsgi не читает
+# Виртуальное окружение подключаем прямо здесь: mod_wsgi не читает
 # директивы из .htaccess, другого места просто нет.
-_VENV = os.path.join(os.path.dirname(HERE), "venv", "bin", "activate_this.py")
-if os.path.exists(_VENV):
-    with open(_VENV) as f:
-        exec(f.read(), {"__file__": _VENV})
+#
+# Самому проекту venv не нужен — он обходится стандартной библиотекой.
+# Блок оставлен на случай, если окружение всё же создадут.
+_VENV_DIR = os.environ.get("SAVELY_VENV") or os.path.join(os.path.dirname(HERE), "venv")
+_activate = os.path.join(_VENV_DIR, "bin", "activate_this.py")
+if os.path.exists(_activate):
+    with open(_activate) as f:
+        exec(f.read(), {"__file__": _activate})
+elif os.path.isdir(_VENV_DIR):
+    # модуль venv, в отличие от пакета virtualenv, activate_this.py не создаёт —
+    # подключаем site-packages руками, иначе окружение просто не увидят
+    import glob
+    for _sp in glob.glob(os.path.join(_VENV_DIR, "lib", "python*", "site-packages")):
+        if _sp not in sys.path:
+            sys.path.insert(0, _sp)
 
 # База обязана лежать ВЫШЕ публичной папки. Внутри неё Apache отдал бы
 # файл по прямой ссылке вместе с хешами паролей и токенами репетитора.
