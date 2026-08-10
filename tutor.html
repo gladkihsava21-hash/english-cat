@@ -133,6 +133,18 @@
         <h2>Выданные домашки</h2>
         <p class="muted-small">Видно, кто сдал, а кто ещё нет</p>
       </div>
+      <div class="card msg-form">
+        <p class="stat-label">Сообщение ученикам</p>
+        <p class="muted-small" style="margin-bottom:10px">Появится у них на главной — например, напомнить о занятии или похвалить.</p>
+        <div class="vs-row">
+          <select id="msg-target"></select>
+          <input type="text" id="msg-text" placeholder="Например: молодцы, кто сделал домашку! Остальных жду 😺" maxlength="500">
+          <button class="btn btn-primary" id="msg-send">Отправить</button>
+        </div>
+        <div id="msg-list"></div>
+        <p class="type-feedback" id="msg-status"></p>
+      </div>
+
       <div id="tasks-list"></div>
       <div id="tasks-empty" class="empty-state hidden">
         <div class="cat-avatar cat-mid">🐈</div>

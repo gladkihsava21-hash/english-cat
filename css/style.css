@@ -546,3 +546,15 @@ body {
   .cw-cell input { font-size: 13px; }
   .cat-boxes { flex-direction: column; }
 }
+
+/* сообщение от репетитора у ученика */
+#tutor-msg-box { margin-bottom: 20px; display: flex; flex-direction: column; gap: 10px; }
+.tmsg-card {
+  display: flex; gap: 14px; align-items: flex-start; padding: 14px 18px;
+  border-left: 5px solid var(--muted);
+}
+.tmsg-card.tmsg-new { border-left-color: var(--accent); background: #FFFBF6; }
+.tmsg-icon { font-size: 22px; }
+.tmsg-from { font-weight: 800; font-size: 12px; color: var(--accent-dark);
+             text-transform: uppercase; letter-spacing: .4px; }
+.tmsg-text { font-weight: 700; margin-top: 3px; }

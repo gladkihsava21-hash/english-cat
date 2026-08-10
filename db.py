@@ -66,7 +66,18 @@ CREATE TABLE IF NOT EXISTS homework (
     archived     INTEGER DEFAULT 0
 );
 
+CREATE TABLE IF NOT EXISTS notes_to_students (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    tutor_id     INTEGER NOT NULL REFERENCES tutors(id),
+    student_id   INTEGER REFERENCES students(id),
+    group_id     INTEGER REFERENCES groups(id),
+    text         TEXT NOT NULL,
+    created_at   TEXT NOT NULL,
+    archived     INTEGER DEFAULT 0
+);
+
 CREATE INDEX IF NOT EXISTS idx_students_tutor ON students(tutor_id);
+CREATE INDEX IF NOT EXISTS idx_notes_tutor ON notes_to_students(tutor_id);
 CREATE INDEX IF NOT EXISTS idx_homework_tutor ON homework(tutor_id);
 CREATE INDEX IF NOT EXISTS idx_groups_tutor ON groups(tutor_id);
 """
@@ -393,6 +404,47 @@ def archive_homework(tutor_id, hw_id):
         "UPDATE homework SET archived=1 WHERE id=? AND tutor_id=?", (hw_id, tutor_id)
     )
     conn().commit()
+
+
+# ---------- сообщения ученикам ----------
+
+def create_message(tutor_id, text, student_id=None, group_id=None):
+    cur = conn().execute(
+        "INSERT INTO notes_to_students (tutor_id, student_id, group_id, text, created_at)"
+        " VALUES (?,?,?,?,?)",
+        (tutor_id, student_id, group_id, str(text).strip()[:500], now()),
+    )
+    conn().commit()
+    return conn().execute(
+        "SELECT * FROM notes_to_students WHERE id=?", (cur.lastrowid,)).fetchone()
+
+
+def list_messages(tutor_id):
+    return conn().execute(
+        "SELECT * FROM notes_to_students WHERE tutor_id=? AND archived=0"
+        " ORDER BY created_at DESC", (tutor_id,)
+    ).fetchall()
+
+
+def archive_message(tutor_id, msg_id):
+    conn().execute("UPDATE notes_to_students SET archived=1 WHERE id=? AND tutor_id=?",
+                   (msg_id, tutor_id))
+    conn().commit()
+
+
+def messages_for_student(all_messages, student_row):
+    """Ученику видно адресованное лично ему, его группе или всем."""
+    out = []
+    for m in all_messages:
+        if m["student_id"] is not None:
+            if m["student_id"] == student_row["id"]:
+                out.append(m)
+        elif m["group_id"] is not None:
+            if student_row["group_id"] == m["group_id"]:
+                out.append(m)
+        else:
+            out.append(m)
+    return out
 
 
 # ---------- сериализация для API ----------

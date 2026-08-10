@@ -338,6 +338,7 @@ function renderDashboard() {
   document.getElementById("dash-stats").textContent =
     `Уровень ${state.level} (${LEVEL_NAMES[state.level]}) · словарный запас ~${state.vocabEstimate} слов · в словаре: ${state.dictionary.length}`;
   renderDashWidgets();
+  if (typeof renderTutorMessages === "function") renderTutorMessages();
   if (typeof renderHomework === "function") renderHomework();
   renderDueBox();
   renderLeaderboard();

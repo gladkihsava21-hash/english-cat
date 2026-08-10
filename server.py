@@ -138,6 +138,10 @@ class Api:
             "tutor": db.tutor_public(tutor),
             "students": students,
             "groups": [db.group_public(g) for g in db.list_groups(tutor["id"])],
+            "messages": [{"id": m["id"], "text": m["text"],
+                          "studentId": m["student_id"], "groupId": m["group_id"],
+                          "createdAt": m["created_at"]}
+                         for m in db.list_messages(tutor["id"])],
             "homework": [{
                 "id": x["id"], "title": x["title"],
                 "studentId": x["student_id"], "groupId": x["group_id"],
@@ -163,6 +167,28 @@ class Api:
         if not tutor:
             return {"ok": False, "error": "unauthorized"}
         db.set_student_note(tutor["id"], int(p.get("studentId") or 0), p.get("note") or "")
+        return {"ok": True}
+
+    @staticmethod
+    def tutor_message(h, p):
+        tutor = db.get_tutor_by_token(p.get("token"))
+        if not tutor:
+            return {"ok": False, "error": "unauthorized"}
+        text = str(p.get("text", "")).strip()
+        if not text:
+            return {"ok": False, "error": "Напишите текст сообщения."}
+        sid, gid = p.get("studentId"), p.get("groupId")
+        db.create_message(tutor["id"], text,
+                          student_id=int(sid) if sid else None,
+                          group_id=int(gid) if gid else None)
+        return {"ok": True}
+
+    @staticmethod
+    def tutor_message_archive(h, p):
+        tutor = db.get_tutor_by_token(p.get("token"))
+        if not tutor:
+            return {"ok": False, "error": "unauthorized"}
+        db.archive_message(tutor["id"], int(p.get("id") or 0))
         return {"ok": True}
 
     # --- группы ---
@@ -304,10 +330,13 @@ class Api:
             "words": json.loads(x["words"] or "[]"),
             "dueDate": x["due_date"],
         } for x in hw]
+        msgs = db.messages_for_student(db.list_messages(row["tutor_id"]), row)
         return {
             "ok": True,
             "homework": tasks,
             "leaderboard": db.leaderboard(row),
+            "messages": [{"id": m["id"], "text": m["text"], "createdAt": m["created_at"]}
+                         for m in msgs[:5]],
         }
 
     # --- чат ---
@@ -331,6 +360,8 @@ ROUTES = {
     "/api/tutor/student/delete": Api.tutor_student_delete,
     "/api/tutor/homework": Api.tutor_homework_create,
     "/api/tutor/homework/archive": Api.tutor_homework_archive,
+    "/api/tutor/message": Api.tutor_message,
+    "/api/tutor/message/archive": Api.tutor_message_archive,
     "/api/tutor/group/create": Api.group_create,
     "/api/tutor/group/update": Api.group_update,
     "/api/tutor/group/delete": Api.group_delete,

@@ -5,6 +5,7 @@ let tutor = null;
 let students = [];
 let groups = [];
 let tasks = [];
+let messages = [];
 let sortMode = "name";
 let groupFilter = "all";   // "all" | "none" | id группы
 let picked = [];           // слова для домашки
@@ -123,6 +124,7 @@ async function loadStudents() {
   students = res.students || [];
   groups = res.groups || [];
   tasks = res.homework || [];
+  messages = res.messages || [];
   $("tutor-name").textContent = tutor.name;
   $("stu-count").textContent = students.length;
   renderOverview();
@@ -130,6 +132,8 @@ async function loadStudents() {
   renderStudents();
   renderInvite();
   fillStudentSelect();
+  fillMsgTarget();
+  renderMessages();
   if (!$("tab-tasks").classList.contains("hidden")) renderTasks();
 }
 
@@ -466,6 +470,70 @@ function printReport(s, grp) {
   </body></html>`);
   win.document.close();
 }
+
+// ===== Сообщения ученикам =====
+
+function fillMsgTarget() {
+  const sel = $("msg-target");
+  const cur = sel.value;
+  sel.innerHTML = `<option value="">всем ученикам</option>` +
+    (groups.length
+      ? `<optgroup label="Группы">${groups.map(g =>
+          `<option value="g${g.id}">${esc(g.name)}</option>`).join("")}</optgroup>` : "") +
+    `<optgroup label="Ученики">${students.map(s =>
+      `<option value="${s.id}">${esc(s.name)}</option>`).join("")}</optgroup>`;
+  if (cur) sel.value = cur;
+}
+
+function renderMessages() {
+  const box = $("msg-list");
+  if (!box) return;
+  box.innerHTML = messages.length
+    ? messages.map(m => {
+        let who = "всем";
+        if (m.studentId) {
+          const s = students.find(x => x.id === m.studentId);
+          who = s ? s.name : "ученику";
+        } else if (m.groupId) {
+          const g = groupById(m.groupId);
+          who = g ? g.name : "группе";
+        }
+        return `
+          <div class="msg-row">
+            <span class="msg-to">${esc(who)}</span>
+            <span class="msg-text">${esc(m.text)}</span>
+            <button class="link-btn" data-msg="${m.id}">убрать</button>
+          </div>`;
+      }).join("")
+    : "";
+  box.querySelectorAll("[data-msg]").forEach(b => {
+    b.addEventListener("click", async () => {
+      await api("/api/tutor/message/archive", { token: token(), id: Number(b.dataset.msg) });
+      loadStudents();
+    });
+  });
+}
+
+$("msg-send").addEventListener("click", async () => {
+  const text = $("msg-text").value.trim();
+  const status = $("msg-status");
+  if (!text) {
+    status.className = "type-feedback err";
+    status.textContent = "Напишите текст сообщения.";
+    return;
+  }
+  const target = $("msg-target").value;
+  const res = await api("/api/tutor/message", {
+    token: token(), text,
+    studentId: target && !target.startsWith("g") ? target : null,
+    groupId: target.startsWith("g") ? target.slice(1) : null,
+  });
+  status.className = res.ok ? "type-feedback ok" : "type-feedback err";
+  status.textContent = res.ok
+    ? `Отправлено: ${$("msg-target").selectedOptions[0].textContent}. Ученики увидят на главной.`
+    : (res.error || "Не получилось.");
+  if (res.ok) { $("msg-text").value = ""; loadStudents(); }
+});
 
 // ===== Выданные домашки =====
 function renderTasks() {

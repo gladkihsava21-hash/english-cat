@@ -142,6 +142,11 @@ async function pushProgress() {
     const res = await api("/api/student/sync", { token, state: snapshot() });
     syncFailed = false;
     if (res.ok && Array.isArray(res.homework)) applyHomework(res.homework);
+    if (res.ok && Array.isArray(res.messages)) {
+      const changed = JSON.stringify(state.messages) !== JSON.stringify(res.messages);
+      state.messages = res.messages;
+      if (changed) { saveStateQuiet(); renderTutorMessages(); }
+    }
     if (res.ok && Array.isArray(res.leaderboard)) {
       const changed = JSON.stringify(state.leaderboard) !== JSON.stringify(res.leaderboard);
       state.leaderboard = res.leaderboard;
@@ -254,6 +259,28 @@ function renderHomework() {
       show("practice");
     });
   });
+}
+
+/** Сообщения от репетитора — на главной ученика, над домашкой. */
+function renderTutorMessages() {
+  const box = document.getElementById("tutor-msg-box");
+  if (!box) return;
+  const msgs = state.messages || [];
+  const seen = new Set(state.messagesSeen || []);
+  box.classList.toggle("hidden", !msgs.length);
+  if (!msgs.length) { box.innerHTML = ""; return; }
+  const who = localStorage.getItem(TUTOR_NAME_KEY) || "репетитор";
+  box.innerHTML = msgs.map(m => `
+    <div class="card tmsg-card${seen.has(String(m.id)) ? "" : " tmsg-new"}">
+      <span class="tmsg-icon">✉️</span>
+      <div class="tmsg-body">
+        <span class="tmsg-from">${esc(who)}${seen.has(String(m.id)) ? "" : " · новое"}</span>
+        <p class="tmsg-text">${esc(m.text)}</p>
+      </div>
+    </div>`).join("");
+  // помечаем прочитанными, чтобы «новое» не висело вечно
+  state.messagesSeen = msgs.map(m => String(m.id));
+  saveStateQuiet();
 }
 
 // ---- старт ----
