@@ -558,3 +558,4 @@ body {
 .tmsg-from { font-weight: 800; font-size: 12px; color: var(--accent-dark);
              text-transform: uppercase; letter-spacing: .4px; }
 .tmsg-text { font-weight: 700; margin-top: 3px; }
+.code-value { font-size: 20px; letter-spacing: 1px; color: var(--accent-dark); user-select: all; }

@@ -285,19 +285,19 @@ class Api:
 
     @staticmethod
     def student_restore(h, p):
-        """Ученик открыл сайт на другом устройстве по своей ссылке-коду."""
-        tutor = db.get_tutor_by_code(p.get("code"))
-        if not tutor:
-            return {"ok": False, "error": "Такой ссылки не существует."}
-        name = str(p.get("name", "")).strip().lower()
-        if not name:
-            return {"ok": False, "error": "Введи имя."}
-        # ищем уже существующего ученика этого репетитора с таким именем
-        for s in db.list_students(tutor["id"]):
-            if s["name"].strip().lower() == name:
-                return {"ok": True, "found": True, "token": s["token"],
-                        "state": db.student_state(s), "tutorName": tutor["name"]}
-        return {"ok": True, "found": False}
+        """Вход с другого устройства по ЛИЧНОМУ коду ученика.
+
+        По имени искать нельзя: код приглашения общий на весь класс,
+        а имена одноклассников видны в рейтинге — любой ученик мог бы
+        забрать чужой токен и весь прогресс.
+        """
+        row = db.get_student_by_restore_code(p.get("restoreCode"))
+        if not row:
+            return {"ok": False, "error": "Код не подошёл. Проверь его в профиле на своём устройстве."}
+        tutor = db.get_tutor_by_id(row["tutor_id"])
+        return {"ok": True, "found": True, "token": row["token"],
+                "state": db.student_state(row),
+                "tutorName": tutor["name"] if tutor else ""}
 
     @staticmethod
     def student_pull(h, p):
@@ -316,7 +316,8 @@ class Api:
         if not name:
             return {"ok": False, "error": "Введи имя."}
         row = db.create_student(tutor["id"], name)
-        return {"ok": True, "token": row["token"], "tutorName": tutor["name"]}
+        return {"ok": True, "token": row["token"], "tutorName": tutor["name"],
+                "restoreCode": row["restore_code"]}
 
     @staticmethod
     def student_sync(h, p):
@@ -409,8 +410,13 @@ class Handler(SimpleHTTPRequestHandler):
             return
         try:
             self._send_json(handler(self, payload))
-        except Exception as e:
-            self._send_json({"ok": False, "error": str(e)[:200]}, 500)
+        except (ValueError, TypeError, KeyError):
+            # неверные типы в запросе — это ошибка клиента, а не сервера;
+            # текст исключения наружу не отдаём
+            self._send_json({"ok": False, "error": "Некорректные данные запроса."}, 400)
+        except Exception:
+            import traceback; traceback.print_exc()
+            self._send_json({"ok": False, "error": "Внутренняя ошибка сервера."}, 500)
 
     def end_headers(self):
         # при разработке браузер не должен кэшировать css/js —

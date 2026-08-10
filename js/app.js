@@ -168,6 +168,33 @@ document.getElementById("auth-form").addEventListener("submit", e => {
 // подтверждение без системного confirm() — он блокируется во встроенных браузерах
 let logoutArmed = false;
 let logoutTimer = null;
+// вход по личному коду (перенос прогресса с другого устройства)
+document.getElementById("show-restore").addEventListener("click", () => {
+  document.getElementById("restore-card").classList.remove("hidden");
+  document.querySelector(".auth-card:not(#restore-card)").classList.add("hidden");
+});
+document.getElementById("hide-restore").addEventListener("click", () => {
+  document.getElementById("restore-card").classList.add("hidden");
+  document.querySelector(".auth-card:not(#restore-card)").classList.remove("hidden");
+});
+document.getElementById("restore-btn").addEventListener("click", async () => {
+  const msg = document.getElementById("restore-msg");
+  const code = document.getElementById("restore-code").value.trim();
+  if (!code) { msg.className = "type-feedback err"; msg.textContent = "Введи код."; return; }
+  msg.className = "type-feedback";
+  msg.textContent = "Проверяю…";
+  try {
+    const res = await restoreByCode(code);
+    if (!res.ok) { msg.className = "type-feedback err"; msg.textContent = res.error; return; }
+    msg.className = "type-feedback ok";
+    msg.textContent = "Готово! Прогресс перенесён.";
+    setTimeout(() => location.reload(), 900);
+  } catch (e) {
+    msg.className = "type-feedback err";
+    msg.textContent = "Сервер недоступен. Попробуй позже.";
+  }
+});
+
 document.getElementById("logout-btn").addEventListener("click", () => {
   const btn = document.getElementById("logout-btn");
   if (!logoutArmed) {
@@ -421,6 +448,12 @@ function renderDashWidgets() {
       <p class="stat-value">🏅 ${achCount}</p>
       <p class="stat-note"><button class="link-btn" data-nav="achievements">посмотреть все</button></p>
     </div>
+    ${state.restoreCode ? `
+    <div class="card stat-card">
+      <p class="stat-label">Код для входа</p>
+      <p class="stat-value code-value">${esc(state.restoreCode)}</p>
+      <p class="stat-note">введи его на телефоне, чтобы продолжить там же</p>
+    </div>` : ""}
     <div class="card stat-card">
       <p class="stat-label">Блиц-рекорд</p>
       <p class="stat-value">⚡ ${state.blitzBest}</p>

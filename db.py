@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS students (
     group_id     INTEGER REFERENCES groups(id),
     name         TEXT NOT NULL,
     token        TEXT NOT NULL UNIQUE,
+    restore_code TEXT,
     level        TEXT,
     vocab        INTEGER DEFAULT 0,
     xp           INTEGER DEFAULT 0,
@@ -85,6 +86,7 @@ CREATE INDEX IF NOT EXISTS idx_groups_tutor ON groups(tutor_id);
 # Колонки, добавленные после первого релиза. База репетитора с живыми
 # учениками должна переживать обновление, поэтому не пересоздаём таблицы.
 MIGRATIONS = [
+    ("students", "restore_code", "TEXT"),
     ("students", "group_id", "INTEGER REFERENCES groups(id)"),
     ("students", "achievements", "TEXT DEFAULT '[]'"),
     ("students", "note", "TEXT DEFAULT ''"),
@@ -198,7 +200,7 @@ def login_tutor(email, password):
 def create_group(tutor_id, name, color=None):
     cur = conn().execute(
         "INSERT INTO groups (tutor_id, name, color, created_at) VALUES (?,?,?,?)",
-        (tutor_id, name.strip()[:60] or "Группа", color or "#FF8C42", now()),
+        (tutor_id, name.strip()[:60] or "Группа", (color or "#FF8C42")[:16], now()),
     )
     conn().commit()
     return conn().execute("SELECT * FROM groups WHERE id=?", (cur.lastrowid,)).fetchone()
@@ -238,16 +240,37 @@ def set_student_group(tutor_id, student_id, group_id):
 
 # ---------- ученики ----------
 
+def new_restore_code():
+    """Личный код ученика для входа с другого устройства.
+    Отдельный от кода приглашения: тот общий на весь класс, и по нему
+    нельзя было бы отличить владельца аккаунта от одноклассника."""
+    alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+    return "-".join("".join(secrets.choice(alphabet) for _ in range(4)) for _ in range(2))
+
+
 def create_student(tutor_id, name):
     token = new_token()
+    code = new_restore_code()
+    while conn().execute("SELECT 1 FROM students WHERE restore_code=?", (code,)).fetchone():
+        code = new_restore_code()
     # last_seen остаётся пустым до первого занятия — иначе репетитор
     # увидит «был сегодня» у ученика, который только перешёл по ссылке
     cur = conn().execute(
-        "INSERT INTO students (tutor_id, name, token, created_at) VALUES (?,?,?,?)",
-        (tutor_id, name.strip()[:40], token, now()),
+        "INSERT INTO students (tutor_id, name, token, restore_code, created_at) VALUES (?,?,?,?,?)",
+        (tutor_id, name.strip()[:40], token, code, now()),
     )
     conn().commit()
     return get_student_by_id(cur.lastrowid)
+
+
+def get_student_by_restore_code(code):
+    if not code:
+        return None
+    clean = str(code).strip().upper().replace(" ", "")
+    if "-" not in clean and len(clean) == 8:
+        clean = clean[:4] + "-" + clean[4:]
+    return conn().execute(
+        "SELECT * FROM students WHERE restore_code=?", (clean,)).fetchone()
 
 
 def get_student_by_id(student_id):
@@ -327,8 +350,10 @@ def sync_student(token, state):
 
 def student_state(row):
     """Состояние ученика для восстановления на новом устройстве."""
+    keys = row.keys()
     return {
         "name": row["name"],
+        "restoreCode": row["restore_code"] if "restore_code" in keys else None,
         "level": row["level"],
         "vocabEstimate": row["vocab"],
         "xp": row["xp"],

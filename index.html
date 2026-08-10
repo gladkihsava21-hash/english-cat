@@ -53,6 +53,17 @@
 
       <p id="invite-note" class="invite-note hidden"></p>
 
+      <div class="card auth-card hidden" id="restore-card">
+        <h3 style="font-weight:900;margin-bottom:6px">Вход по личному коду</h3>
+        <p class="muted-small" style="margin-bottom:14px">Код показан на главной странице на том устройстве, где ты уже занимался.</p>
+        <label>Твой код
+          <input type="text" id="restore-code" placeholder="ABCD-2345" maxlength="12" autocomplete="off">
+        </label>
+        <button type="button" class="btn btn-primary btn-wide" id="restore-btn">Перенести прогресс</button>
+        <p class="type-feedback" id="restore-msg"></p>
+        <p class="fine-print"><button type="button" class="link-btn" id="hide-restore">← обычная регистрация</button></p>
+      </div>
+
       <div class="card auth-card">
         <div class="tabs">
           <button class="tab active" data-tab="register">Регистрация</button>
@@ -69,7 +80,8 @@
             <input type="password" id="reg-pass" placeholder="••••••••">
           </label>
           <button type="submit" class="btn btn-primary btn-wide" id="auth-submit">Создать аккаунт</button>
-          <p class="fine-print">Тестовая версия: данные хранятся только в твоём браузере.</p>
+          <p class="fine-print">Уже занимался на другом устройстве?
+            <button type="button" class="link-btn" id="show-restore">Войти по коду</button></p>
         </form>
       </div>
     </div>

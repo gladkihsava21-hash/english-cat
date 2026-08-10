@@ -55,28 +55,27 @@ async function joinTutor(name) {
   const inv = window.pendingInvite;
   if (!inv || studentToken()) return;
 
-  // Сначала пробуем узнать ученика: он мог заниматься на другом устройстве
-  // и просто открыть ту же ссылку с телефона. Иначе весь прогресс пропал бы,
-  // а у репетитора появился бы дубль.
-  try {
-    const found = await api("/api/student/restore", { code: inv.code, name });
-    if (found.ok && found.found && found.state) {
-      localStorage.setItem(STUDENT_TOKEN_KEY, found.token);
-      localStorage.setItem(TUTOR_NAME_KEY, found.tutorName || "");
-      adoptServerState(found.state);
-      window.pendingInvite = null;
-      return;
-    }
-  } catch (e) { /* офлайн — пойдём обычным путём */ }
-
   // Запоминаем намерение: если сервер сейчас недоступен, ученик иначе
   // навсегда остался бы вне кабинета репетитора и молча учился один.
   localStorage.setItem(PENDING_JOIN_KEY, JSON.stringify({ code: inv.code, name }));
   await tryPendingJoin();
 }
 
+/** Вход с другого устройства по личному коду ученика. */
+async function restoreByCode(code) {
+  const res = await api("/api/student/restore", { restoreCode: code });
+  if (!res.ok) return res;
+  localStorage.setItem(STUDENT_TOKEN_KEY, res.token);
+  localStorage.setItem(TUTOR_NAME_KEY, res.tutorName || "");
+  localStorage.removeItem(PENDING_JOIN_KEY);
+  state.user = state.user || { name: res.state.name || "Ученик", email: "" };
+  adoptServerState(res.state);
+  return res;
+}
+
 /** Переносит прогресс с сервера в текущий браузер. */
 function adoptServerState(srv) {
+  if (srv.restoreCode) state.restoreCode = srv.restoreCode;
   state.level = srv.level || state.level;
   state.vocabEstimate = srv.vocabEstimate || state.vocabEstimate;
   state.xp = Math.max(state.xp || 0, srv.xp || 0);
@@ -105,6 +104,8 @@ async function tryPendingJoin() {
     if (res.ok) {
       localStorage.setItem(STUDENT_TOKEN_KEY, res.token);
       localStorage.setItem(TUTOR_NAME_KEY, res.tutorName || "");
+      if (res.restoreCode) state.restoreCode = res.restoreCode;
+      saveStateQuiet();
       localStorage.removeItem(PENDING_JOIN_KEY);
       window.pendingInvite = null;
       pushProgress();

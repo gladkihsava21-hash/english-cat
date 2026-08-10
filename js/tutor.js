@@ -255,7 +255,7 @@ function renderStudents() {
               <option value="">без группы</option>
               ${groups.map(g => `<option value="${g.id}"${s.groupId === g.id ? " selected" : ""}>${esc(g.name)}</option>`).join("")}
             </select>
-            <span class="level-chip">${s.level || "—"}</span>
+            <span class="level-chip">${esc(s.level || "—")}</span>
             <span class="muted-small">⭐ ${s.xp || 0}</span>
           </div>
         </div>
@@ -357,7 +357,7 @@ async function openStudent(id) {
 
     <div class="stats-grid">
       <div class="card stat-card"><p class="stat-label">Уровень</p>
-        <p class="stat-value">${s.level || "—"}</p>
+        <p class="stat-value">${esc(s.level || "—")}</p>
         <p class="stat-note">~${s.vocab || 0} слов запаса</p></div>
       <div class="card stat-card"><p class="stat-label">Выучено</p>
         <p class="stat-value">${w.learned || 0}</p>
@@ -448,7 +448,7 @@ function printReport(s, grp) {
   <p class="sub">${esc(s.name)}${grp ? " · " + esc(grp.name) : ""} — английский язык, репетитор ${esc(tutor.name)}</p>
 
   <table>
-    <tr><td>Уровень по тесту</td><td>${s.level || "не определён"}</td></tr>
+    <tr><td>Уровень по тесту</td><td>${esc(s.level || "не определён")}</td></tr>
     <tr><td>Словарный запас (оценка)</td><td>~${s.vocab || 0} слов</td></tr>
     <tr><td>Слов в личном словаре</td><td>${w.total || 0}</td></tr>
     <tr><td>Из них выучено</td><td>${w.learned || 0}</td></tr>
