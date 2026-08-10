@@ -67,8 +67,11 @@ $("logout-btn").addEventListener("click", () => {
 document.querySelectorAll(".nav-btn").forEach(btn => {
   btn.addEventListener("click", () => {
     document.querySelectorAll(".nav-btn").forEach(b => b.classList.toggle("active", b === btn));
-    ["students", "homework", "tasks", "invite"].forEach(t => {
-      $("tab-" + t).classList.toggle("hidden", t !== btn.dataset.tab);
+    // Список вкладок берём из самих кнопок: захардкоженный перечень
+    // молча ломал каждую новую вкладку — она просто не открывалась
+    document.querySelectorAll(".nav-btn").forEach(b => {
+      const sec = $("tab-" + b.dataset.tab);
+      if (sec) sec.classList.toggle("hidden", b.dataset.tab !== btn.dataset.tab);
     });
     if (btn.dataset.tab === "tasks") renderTasks();
   });

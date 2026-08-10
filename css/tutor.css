@@ -188,3 +188,27 @@
   font-size: 12px; border-radius: 20px; padding: 3px 10px; white-space: nowrap;
 }
 .msg-text { flex: 1; font-weight: 600; }
+
+/* --- Фото домашки в панели --- */
+.photo-grid { display: grid; gap: 14px; }
+.photo-item {
+  background: #fff; border-radius: 18px; padding: 16px 18px;
+  border: 1px solid var(--line);
+}
+.photo-item.unseen { border-color: var(--accent); }
+.photo-item-head {
+  display: flex; align-items: center; gap: 10px;
+  flex-wrap: wrap; margin-bottom: 10px;
+}
+.photo-student { font-weight: 900; }
+.photo-when { color: var(--muted); font-weight: 700; font-size: 13px; }
+.photo-new {
+  background: var(--accent); color: #fff; font-weight: 900;
+  font-size: 11px; padding: 3px 9px; border-radius: 999px;
+  text-transform: uppercase; letter-spacing: .05em;
+}
+.photo-thumb {
+  max-width: 100%; border-radius: 12px; display: block;
+  margin: 10px 0; cursor: zoom-in;
+}
+.photo-item .photo-mistakes li { background: #F7F5F1; }

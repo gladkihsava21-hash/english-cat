@@ -82,6 +82,24 @@ CREATE TABLE IF NOT EXISTS notes_to_students (
     archived     INTEGER DEFAULT 0
 );
 
+-- Фото домашки: ученик снимает тетрадь, Савелий разбирает, репетитор смотрит.
+-- Само изображение лежит файлом рядом с базой, здесь только путь и разбор:
+--blob'ы раздули бы базу до сотен мегабайт за месяц.
+CREATE TABLE IF NOT EXISTS photo_homework (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    tutor_id     INTEGER NOT NULL REFERENCES tutors(id),
+    student_id   INTEGER NOT NULL REFERENCES students(id),
+    homework_id  INTEGER REFERENCES homework(id),
+    file_name    TEXT NOT NULL,
+    comment      TEXT DEFAULT '',
+    check_status TEXT NOT NULL DEFAULT 'pending',
+    check_result TEXT DEFAULT '',
+    seen_by_tutor INTEGER DEFAULT 0,
+    created_at   TEXT NOT NULL,
+    archived     INTEGER DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_photo_tutor ON photo_homework(tutor_id);
 CREATE INDEX IF NOT EXISTS idx_students_tutor ON students(tutor_id);
 CREATE INDEX IF NOT EXISTS idx_notes_tutor ON notes_to_students(tutor_id);
 CREATE INDEX IF NOT EXISTS idx_homework_tutor ON homework(tutor_id);
@@ -609,3 +627,135 @@ def leaderboard(student_row, limit=12):
         if mine:
             top = top[:limit - 1] + [mine]
     return top
+
+
+# ---------- фото домашки ----------
+
+# Картинки лежат рядом с базой, а не в public_html: иначе любой,
+# угадавший имя файла, посмотрел бы тетрадь чужого ребёнка.
+PHOTO_DIR = os.path.join(os.path.dirname(os.path.abspath(DB_PATH)), "photos")
+
+
+def save_photo_file(data: bytes, ext: str = "jpg") -> str:
+    """Кладём файл под случайным именем и возвращаем это имя."""
+    os.makedirs(PHOTO_DIR, exist_ok=True)
+    try:
+        os.chmod(PHOTO_DIR, 0o700)
+    except OSError:
+        pass
+    name = "%s.%s" % (secrets.token_hex(16), ext if ext in ("jpg", "png", "webp") else "jpg")
+    path = os.path.join(PHOTO_DIR, name)
+    with open(path, "wb") as f:
+        f.write(data)
+    try:
+        os.chmod(path, 0o600)
+    except OSError:
+        pass
+    return name
+
+
+def photo_path(file_name: str):
+    """Путь к файлу по имени из базы. Имя из базы, но проверяем всё равно:
+    если оно когда-нибудь придёт снаружи, «..» уведёт за пределы папки."""
+    safe = os.path.basename(str(file_name or ""))
+    if not safe or safe.startswith("."):
+        return None
+    full = os.path.normpath(os.path.join(PHOTO_DIR, safe))
+    if not full.startswith(PHOTO_DIR + os.sep) or not os.path.isfile(full):
+        return None
+    return full
+
+
+def create_photo_homework(tutor_id, student_id, file_name, homework_id=None, comment=""):
+    cur = conn().execute(
+        "INSERT INTO photo_homework (tutor_id, student_id, homework_id, file_name,"
+        " comment, check_status, created_at) VALUES (?,?,?,?,?,?,?)",
+        (tutor_id, student_id, homework_id, file_name,
+         str(comment or "")[:500], "pending", now()),
+    )
+    conn().commit()
+    return get_photo(cur.lastrowid)
+
+
+def get_photo(photo_id):
+    return conn().execute(
+        "SELECT * FROM photo_homework WHERE id=?", (photo_id,)
+    ).fetchone()
+
+
+def set_photo_check(photo_id, status, result):
+    conn().execute(
+        "UPDATE photo_homework SET check_status=?, check_result=? WHERE id=?",
+        (status, json.dumps(result, ensure_ascii=False), photo_id),
+    )
+    conn().commit()
+
+
+def photos_for_student(student_id, limit=20):
+    return conn().execute(
+        "SELECT * FROM photo_homework WHERE student_id=? AND archived=0"
+        " ORDER BY id DESC LIMIT ?", (student_id, limit)
+    ).fetchall()
+
+
+def photos_for_tutor(tutor_id, limit=200):
+    return conn().execute(
+        "SELECT p.*, s.name AS student_name FROM photo_homework p"
+        " JOIN students s ON s.id = p.student_id"
+        " WHERE p.tutor_id=? AND p.archived=0 ORDER BY p.id DESC LIMIT ?",
+        (tutor_id, limit)
+    ).fetchall()
+
+
+def mark_photo_seen(tutor_id, photo_id):
+    conn().execute(
+        "UPDATE photo_homework SET seen_by_tutor=1 WHERE id=? AND tutor_id=?",
+        (photo_id, tutor_id),
+    )
+    conn().commit()
+
+
+def archive_photo(tutor_id, photo_id):
+    """Удаляем и файл: тетради детей не должны копиться вечно."""
+    row = conn().execute(
+        "SELECT file_name FROM photo_homework WHERE id=? AND tutor_id=?",
+        (photo_id, tutor_id),
+    ).fetchone()
+    if not row:
+        return False
+    full = photo_path(row["file_name"])
+    if full:
+        try:
+            os.remove(full)
+        except OSError:
+            pass
+    conn().execute(
+        "UPDATE photo_homework SET archived=1 WHERE id=? AND tutor_id=?",
+        (photo_id, tutor_id),
+    )
+    conn().commit()
+    return True
+
+
+def photo_public(row, for_tutor=False):
+    out = {
+        "id": row["id"],
+        "homeworkId": row["homework_id"],
+        "comment": row["comment"],
+        "status": row["check_status"],
+        "createdAt": row["created_at"],
+    }
+    try:
+        out["result"] = json.loads(row["check_result"] or "null")
+    except (ValueError, TypeError):
+        out["result"] = None
+    if for_tutor:
+        keys = row.keys()
+        out["studentName"] = row["student_name"] if "student_name" in keys else ""
+        out["studentId"] = row["student_id"]
+        out["seen"] = bool(row["seen_by_tutor"])
+    return out
+
+
+def get_homework(hw_id):
+    return conn().execute("SELECT * FROM homework WHERE id=?", (hw_id,)).fetchone()

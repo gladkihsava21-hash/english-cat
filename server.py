@@ -5,12 +5,14 @@
 Сайт:    http://localhost:4210
 Панель:  http://localhost:4210/tutor.html
 """
+import base64
 import json
 import os
 import re
 import shutil
 import subprocess
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+import urllib.request
 from urllib.parse import urlparse
 
 import db
@@ -342,6 +344,123 @@ class Api:
                          for m in msgs[:5]],
         }
 
+    # --- фото домашки ---
+
+    @staticmethod
+    def student_photo_upload(h, p):
+        """Ученик присылает фото тетради. Разбор — если есть ключ API;
+        без ключа фото всё равно уходит репетитору, это уже полезно."""
+        row = db.get_student_by_token(p.get("token"))
+        if not row:
+            return {"ok": False, "error": "unknown_student"}
+
+        raw = str(p.get("image") or "")
+        if "," in raw and raw.startswith("data:"):
+            head, raw = raw.split(",", 1)
+            media = head.split(";")[0].replace("data:", "") or "image/jpeg"
+        else:
+            media = "image/jpeg"
+        if media not in ("image/jpeg", "image/png", "image/webp"):
+            return {"ok": False, "error": "Такой формат не подойдёт — нужен JPEG или PNG."}
+        try:
+            blob = base64.b64decode(raw, validate=True)
+        except Exception:
+            return {"ok": False, "error": "Файл не распознан, попробуй снять ещё раз."}
+        if not 1024 <= len(blob) <= 8 * 1024 * 1024:
+            return {"ok": False, "error": "Фото должно быть от 1 КБ до 8 МБ."}
+
+        ext = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp"}[media]
+        name = db.save_photo_file(blob, ext)
+
+        hw_id, task_title = p.get("homeworkId"), ""
+        if hw_id:
+            hw = db.get_homework(int(hw_id)) if hasattr(db, "get_homework") else None
+            if hw and hw["tutor_id"] == row["tutor_id"]:
+                task_title = hw["title"]
+            else:
+                hw_id = None
+
+        photo = db.create_photo_homework(
+            row["tutor_id"], row["id"], name,
+            homework_id=int(hw_id) if hw_id else None,
+            comment=p.get("comment", ""),
+        )
+
+        try:
+            result = check_homework_photo(
+                blob, media, level=row["level"] or "A1", task_title=task_title)
+            db.set_photo_check(photo["id"], "done", result)
+        except Exception as e:
+            reason = str(e)
+            status = "no_ai" if "no_api_key" in reason else "failed"
+            db.set_photo_check(photo["id"], status, None)
+            if status == "failed":
+                import traceback; traceback.print_exc()
+
+        return {"ok": True, "photo": db.photo_public(db.get_photo(photo["id"]))}
+
+    @staticmethod
+    def student_photo_list(h, p):
+        row = db.get_student_by_token(p.get("token"))
+        if not row:
+            return {"ok": False, "error": "unknown_student"}
+        return {"ok": True,
+                "photos": [db.photo_public(x) for x in db.photos_for_student(row["id"])]}
+
+    @staticmethod
+    def tutor_photo_list(h, p):
+        tutor = db.get_tutor_by_token(p.get("token"))
+        if not tutor:
+            return {"ok": False, "error": "unauthorized"}
+        return {"ok": True,
+                "photos": [db.photo_public(x, for_tutor=True)
+                           for x in db.photos_for_tutor(tutor["id"])]}
+
+    @staticmethod
+    def tutor_photo_seen(h, p):
+        tutor = db.get_tutor_by_token(p.get("token"))
+        if not tutor:
+            return {"ok": False, "error": "unauthorized"}
+        db.mark_photo_seen(tutor["id"], int(p.get("id") or 0))
+        return {"ok": True}
+
+    @staticmethod
+    def tutor_photo_archive(h, p):
+        tutor = db.get_tutor_by_token(p.get("token"))
+        if not tutor:
+            return {"ok": False, "error": "unauthorized"}
+        return {"ok": db.archive_photo(tutor["id"], int(p.get("id") or 0))}
+
+    @staticmethod
+    def photo_fetch(h, p):
+        """Отдаём саму картинку — только своему репетитору или самому ученику.
+        Файл лежит вне публичной папки, попасть к нему можно лишь сюда."""
+        pid = int(p.get("id") or 0)
+        row = db.get_photo(pid)
+        if not row:
+            return {"ok": False, "error": "not_found"}
+
+        allowed = False
+        tutor = db.get_tutor_by_token(p.get("token"))
+        if tutor and tutor["id"] == row["tutor_id"]:
+            allowed = True
+        else:
+            student = db.get_student_by_token(p.get("token"))
+            if student and student["id"] == row["student_id"]:
+                allowed = True
+        if not allowed:
+            return {"ok": False, "error": "forbidden"}
+
+        full = db.photo_path(row["file_name"])
+        if not full:
+            return {"ok": False, "error": "not_found"}
+        with open(full, "rb") as f:
+            blob = f.read()
+        ext = os.path.splitext(full)[1].lstrip(".").lower()
+        media = {"png": "image/png", "webp": "image/webp"}.get(ext, "image/jpeg")
+        return {"ok": True, "image": "data:%s;base64,%s" % (
+            media, base64.b64encode(blob).decode("ascii"))}
+
     # --- чат ---
 
     @staticmethod
@@ -352,6 +471,102 @@ class Api:
             msg = str(e)
             return {"ok": False,
                     "error": "not_logged_in" if "not_logged_in" in msg else msg[:200]}
+
+
+# ---------- проверка фото домашки ----------
+
+ANTHROPIC_KEY = os.environ.get("ANTHROPIC_API_KEY", "").strip()
+# Sonnet берёт картинку до 2576 пикселей по длинной стороне, Haiku — только
+# 1568. На детском почерке эта разница решает: Haiku начинает путать буквы.
+VISION_MODEL = os.environ.get("SAVELY_VISION_MODEL", "claude-sonnet-5")
+
+CHECK_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "readable": {"type": "boolean"},
+        "summary": {"type": "string"},
+        "mistakes": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "wrong": {"type": "string"},
+                    "right": {"type": "string"},
+                    "why": {"type": "string"},
+                },
+                "required": ["wrong", "right", "why"],
+                "additionalProperties": False,
+            },
+        },
+        "praise": {"type": "string"},
+        "verdict": {"type": "string"},
+    },
+    "required": ["readable", "summary", "mistakes", "praise", "verdict"],
+    "additionalProperties": False,
+}
+
+CHECK_PROMPT = """Ты — Савелий, кот-репетитор английского. Перед тобой фото
+тетради ученика (русскоязычный школьник, уровень {level}).
+
+Разбери работу:
+- summary: что в работе написано и что ученик делал. Если фото не читается —
+  скажи об этом прямо и объясни, что переснять (свет, фокус, угол).
+- mistakes: КАЖДАЯ найденная ошибка. wrong — как написано, right — как надо,
+  why — короткое объяснение правила по-русски, понятное ребёнку.
+  Пустой список, если ошибок нет.
+- praise: что получилось хорошо. Не выдумывай — если хвалить нечего, отметь
+  хотя бы старание или аккуратность.
+- verdict: одна фраза для репетитора — общее впечатление и на что обратить
+  внимание на занятии.
+- readable: false, если разобрать почерк невозможно.
+
+Пиши по-русски, тепло и без сюсюканья. Английские слова — как в оригинале.
+{task}"""
+
+
+def check_homework_photo(image_bytes, media_type="image/jpeg", level="A1", task_title=""):
+    """Отдаём фото Claude и получаем разбор. Бросает исключение при проблеме —
+    вызывающий решает, что показать ученику."""
+    if not ANTHROPIC_KEY:
+        raise RuntimeError("no_api_key")
+
+    task = ("Задание, к которому эта работа: «%s».\n" % task_title) if task_title else ""
+    body = {
+        "model": VISION_MODEL,
+        "max_tokens": 2000,
+        "output_config": {"format": {"type": "json_schema", "schema": CHECK_SCHEMA}},
+        "messages": [{
+            "role": "user",
+            "content": [
+                {"type": "image", "source": {
+                    "type": "base64",
+                    "media_type": media_type,
+                    "data": base64.b64encode(image_bytes).decode("ascii"),
+                }},
+                {"type": "text", "text": CHECK_PROMPT.format(level=level, task=task)},
+            ],
+        }],
+    }
+    req = urllib.request.Request(
+        "https://api.anthropic.com/v1/messages",
+        data=json.dumps(body).encode("utf-8"),
+        headers={
+            "content-type": "application/json",
+            "x-api-key": ANTHROPIC_KEY,
+            "anthropic-version": "2023-06-01",
+        },
+    )
+    with urllib.request.urlopen(req, timeout=180) as resp:
+        data = json.loads(resp.read())
+
+    # Классификаторы могут отклонить запрос — это приходит как обычный 200
+    if data.get("stop_reason") == "refusal":
+        raise RuntimeError("refused")
+    text = next((b.get("text", "") for b in data.get("content", [])
+                 if b.get("type") == "text"), "")
+    if not text:
+        raise RuntimeError("empty_response")
+    return json.loads(text)
 
 
 ROUTES = {
@@ -374,6 +589,12 @@ ROUTES = {
     "/api/student/restore": Api.student_restore,
     "/api/student/pull": Api.student_pull,
     "/api/student/sync": Api.student_sync,
+    "/api/student/photo": Api.student_photo_upload,
+    "/api/student/photo/list": Api.student_photo_list,
+    "/api/tutor/photos": Api.tutor_photo_list,
+    "/api/tutor/photo/seen": Api.tutor_photo_seen,
+    "/api/tutor/photo/archive": Api.tutor_photo_archive,
+    "/api/photo": Api.photo_fetch,
     "/api/chat": Api.chat,
 }
 

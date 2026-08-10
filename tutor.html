@@ -7,8 +7,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=4">
-  <link rel="stylesheet" href="css/tutor.css?v=4">
+  <link rel="stylesheet" href="css/style.css?v=6">
+  <link rel="stylesheet" href="css/tutor.css?v=6">
 </head>
 <body>
 
@@ -50,6 +50,7 @@
         <button class="nav-btn active" data-tab="students">Ученики <span id="stu-count" class="badge">0</span></button>
         <button class="nav-btn" data-tab="homework">Выдать домашку</button>
         <button class="nav-btn" data-tab="tasks">Домашки</button>
+        <button class="nav-btn" data-tab="photos">Фото тетрадей <span id="photo-count" class="badge">0</span></button>
         <button class="nav-btn" data-tab="invite">Ссылка для учеников</button>
       </nav>
       <div class="user-chip">
@@ -153,6 +154,13 @@
     </section>
 
     <!-- Ссылка -->
+    <section id="tab-photos" class="hidden">
+      <h2 class="section-title">Фото домашних работ</h2>
+      <p class="section-note">Ученики присылают снимки тетрадей. Савелий разбирает
+        работу и показывает ошибки — вам остаётся проверить и обсудить на занятии.</p>
+      <div id="photo-list" class="photo-grid"></div>
+    </section>
+
     <section id="tab-invite" class="hidden">
       <div class="section-head"><h2>Ссылка для учеников</h2></div>
       <div class="card invite-card">
@@ -177,9 +185,10 @@
   </div>
 </div>
 
-<script src="js/util.js?v=4"></script>
-<script src="js/words.js?v=4"></script>
-<script src="js/images.js?v=4"></script>
-<script src="js/tutor.js?v=4"></script>
+<script src="js/util.js?v=6"></script>
+<script src="js/words.js?v=6"></script>
+<script src="js/images.js?v=6"></script>
+<script src="js/tutor.js?v=6"></script>
+  <script src="js/tutor-photos.js?v=6"></script>
 </body>
 </html>

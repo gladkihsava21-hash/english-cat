@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=4">
+  <link rel="stylesheet" href="css/style.css?v=6">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#FF8C42">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -149,6 +149,13 @@
       <div id="tutor-msg-box" class="hidden"></div>
 
       <div id="homework-box" class="hidden"></div>
+      <div id="photo-box"></div>
+      <div id="photo-cta" class="card photo-cta hidden">
+        <p class="photo-cta-text">Сделал домашку в тетради? Покажи Савелию —
+          он проверит и отправит результат репетитору.</p>
+        <input type="file" id="photo-input" accept="image/*" capture="environment" hidden>
+        <button class="btn btn-primary btn-wide" id="photo-btn">📸 Сфоткать домашку</button>
+      </div>
 
       <div class="dash-cols">
         <div id="due-box"></div>
@@ -321,15 +328,16 @@
 
 </main>
 
-<script src="js/util.js?v=4"></script>
-<script src="js/words.js?v=4"></script>
-<script src="js/srs.js?v=4"></script>
-<script src="js/images.js?v=4"></script>
-<script src="js/app.js?v=4"></script>
-<script src="js/achievements.js?v=4"></script>
-<script src="js/exercises.js?v=4"></script>
-<script src="js/voice.js?v=4"></script>
-<script src="js/sync.js?v=4"></script>
+<script src="js/util.js?v=6"></script>
+<script src="js/words.js?v=6"></script>
+<script src="js/srs.js?v=6"></script>
+<script src="js/images.js?v=6"></script>
+<script src="js/app.js?v=6"></script>
+<script src="js/achievements.js?v=6"></script>
+<script src="js/exercises.js?v=6"></script>
+<script src="js/voice.js?v=6"></script>
+<script src="js/sync.js?v=6"></script>
+  <script src="js/photo.js?v=6"></script>
 <script>
   // офлайн-режим: сайт открывается без интернета и ставится на телефон
   if ("serviceWorker" in navigator && location.protocol !== "file:") {
