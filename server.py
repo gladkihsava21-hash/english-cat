@@ -180,7 +180,7 @@ def ai_error_text(exc):
     if "refused" in msg:
         return "Савелий не смог ответить на это. Спроси иначе."
     if "no_api_key" in msg:
-        return "Умный чат выключен — нет ключа Claude API."
+        return "ai_off"
     import traceback; traceback.print_exc()
     return "Савелий задумался и не ответил. Попробуй ещё раз."
 
@@ -190,6 +190,9 @@ def ask_claude(payload):
     пробуем локальный CLI от подписки: удобно при разработке."""
     if ANTHROPIC_KEY:
         return ask_claude_api(payload)
+    if not os.path.exists(CLAUDE):
+        # ни ключа, ни CLI — это штатная ситуация на хостинге до оплаты API
+        raise RuntimeError("no_api_key")
     return ask_claude_cli(payload)
 
 

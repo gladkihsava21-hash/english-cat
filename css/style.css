@@ -530,17 +530,42 @@ body {
   .topbar-inner { flex-wrap: wrap; gap: 8px; padding: 8px 12px; }
   /* flex-basis: 100% обязателен — базовое `flex: 1` даёт basis 0%,
      из-за чего меню не переносится на свою строку и уезжает за экран */
-  .nav { order: 3; flex: 1 0 100%; overflow-x: auto; padding-bottom: 2px; }
-  .nav-btn { white-space: nowrap; }
+  /* Переносим пункты на вторую строку вместо горизонтальной прокрутки:
+     при скролле «Награды» и «Чат с Савелием» уезжали за край, и ученик
+     о них просто не узнавал — подсказки, что можно листать, не было */
+  .nav {
+    order: 3; flex: 1 0 100%; display: flex; flex-wrap: wrap;
+    justify-content: center; gap: 2px 4px; padding-bottom: 2px;
+  }
+  /* Палец ребёнка на телефоне промахивается по мелким целям.
+     Держим область нажатия около 44px, не раздувая сам текст. */
+  .nav-btn { white-space: nowrap; font-size: 13.5px; padding: 11px 12px; }
+  .link-btn { padding: 12px 6px; margin: -12px -6px; }
+  .stat-note .link-btn { display: inline-block; }
+  .btn-small { padding: 11px 16px; }
+  .word-card .btn { padding: 11px 14px; }
   .user-chip span#user-name-chip { display: none; }
   .hero h1 { font-size: 26px; }
   .quiz-word { font-size: 32px; }
   .result-cards { flex-direction: column; align-items: center; }
   .result-card { width: 100%; max-width: none; }
-  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  /* Шесть карточек по одной мерке занимали два экрана, а звание
+     переносилось на три строки. На телефоне ужимаем всё разом. */
+  .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .stat-card { padding: 12px 13px; }
+  .stat-label { font-size: 10.5px; letter-spacing: .3px; }
+  .stat-value { font-size: 19px; margin: 2px 0 1px; }
+  .stat-note { font-size: 12px; line-height: 1.35; }
+  .dash-head { gap: 12px; margin-bottom: 20px; }
+  .dash-head h2 { font-size: 21px; }
+  .dash-head .cat-avatar { width: 52px; height: 52px; font-size: 26px; }
   .dash-cols { grid-template-columns: 1fr; }
   .ach-grid { grid-template-columns: repeat(2, 1fr); }
-  .due-card { flex-wrap: wrap; }
+  /* На узком экране кнопка отжимала текст в колонку шириной в слово.
+     Складываем карточку по вертикали, кнопку — во всю ширину. */
+  .due-card { flex-wrap: wrap; row-gap: 12px; }
+  .due-text { flex: 1 0 calc(100% - 48px); }
+  .due-card .btn { flex: 1 0 100%; }
   .pair-item { font-size: 12.5px; padding: 10px 6px; }
   .ws-cell { font-size: 13px; border-radius: 6px; }
   .cw-cell input { font-size: 13px; }
