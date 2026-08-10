@@ -48,9 +48,18 @@ function srsInit(word) {
 function srsReview(word, ok) {
   srsInit(word);
   word.ease = word.ease || EASE_START;
+  const today = srsToday();
 
   if (ok) {
     word.knew = (word.knew || 0) + 1;
+    // Интервал двигаем не чаще раза в сутки. Иначе ученик, ткнув одно
+    // слово пять раз за минуту, объявлял бы его выученным на месяц —
+    // повторение через час ничего не доказывает про память.
+    if (word.lastReview === today) {
+      word.lastReview = today;
+      return word;
+    }
+    word.lastReview = today;
     word.reps = (word.reps || 0) + 1;
     word.ease = Math.min(EASE_MAX, word.ease + 0.1);
     // первые повторы идут по фиксированной лестнице, дальше — по лёгкости
@@ -60,6 +69,7 @@ function srsReview(word, ok) {
       word.interval = Math.min(180, Math.round((word.interval || 1) * word.ease));
     }
   } else {
+    word.lastReview = today;
     word.forgot = (word.forgot || 0) + 1;
     word.reps = 0;
     word.ease = Math.max(EASE_MIN, word.ease - 0.2);
@@ -104,7 +114,18 @@ function srsQueue(dictionary, limit = 10) {
   });
   future.sort((a, b) => a.due.localeCompare(b.due));
 
-  return [...overdue, ...fresh, ...future].slice(0, limit);
+  // Новым словам держим квоту: без неё большой словарь с ежедневными
+  // повторами никогда не пропускал бы новое слово в тренировку.
+  const newQuota = Math.max(1, Math.round(limit * 0.3));
+  const takeFresh = fresh.slice(0, Math.min(newQuota, fresh.length));
+  const rest = [...overdue, ...fresh.slice(takeFresh.length), ...future];
+  const out = [...overdue.slice(0, Math.max(0, limit - takeFresh.length)), ...takeFresh];
+  // добираем, если просроченных и новых не хватило на полный подход
+  for (const d of rest) {
+    if (out.length >= limit) break;
+    if (!out.includes(d)) out.push(d);
+  }
+  return out.slice(0, limit);
 }
 
 /** Сводка для главной: сколько слов ждёт повтора. */

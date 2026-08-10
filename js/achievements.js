@@ -31,7 +31,7 @@ const ACHIEVEMENTS = [
   { id: "perfect-50",     icon: "👑", tier: "gold",   name: "Безупречный",        desc: "50 идеальных тренировок",                metric: "perfect_rounds",  threshold: 50 },
   { id: "exercises-25",   icon: "💪", tier: "bronze", name: "Втянулся",           desc: "Пройти 25 тренировок",                   metric: "exercises_done",  threshold: 25 },
   { id: "exercises-100",  icon: "🥋", tier: "silver", name: "Сотня подходов",     desc: "Пройти 100 тренировок",                  metric: "exercises_done",  threshold: 100 },
-  { id: "all-modes",      icon: "🎪", tier: "gold",   name: "Универсал",          desc: "Попробовать все виды тренировок",        metric: "modes_tried",     threshold: 19 },
+  { id: "all-modes",      icon: "🎪", tier: "gold",   name: "Универсал",          desc: "Попробовать 15 видов тренировок",        metric: "modes_tried",     threshold: 15 },
 
   // блиц
   { id: "blitz-100",      icon: "⚡", tier: "bronze", name: "Разогнался",         desc: "Набрать 100 очков в блице",              metric: "blitz_score",     threshold: 100 },
@@ -105,9 +105,13 @@ function checkAchievements() {
 function bump(counter, by = 1) {
   state.counters = state.counters || {};
   state.counters[counter] = (state.counters[counter] || 0) + by;
-  const hour = new Date().getHours();
-  if (hour < 8) state.counters.earlyBird = 1;
-  if (hour >= 23) state.counters.nightOwl = 1;
+  // время суток отмечаем по факту ЗАНЯТИЯ, а не любого действия:
+  // ночное сообщение коту — не тренировка
+  if (counter === "exercises") {
+    const hour = new Date().getHours();
+    if (hour < 8) state.counters.earlyBird = 1;
+    if (hour >= 23) state.counters.nightOwl = 1;
+  }
   saveState();
   checkAchievements();
 }
@@ -117,6 +121,7 @@ function markMode(id) {
   if (!state.modesTried.includes(id)) {
     state.modesTried.push(id);
     saveState();
+    checkAchievements();   // иначе награда всплывала бы с задержкой
   }
 }
 

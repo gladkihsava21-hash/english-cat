@@ -322,9 +322,19 @@ def sync_student(token, state):
             "status": str(d.get("status", "new"))[:12],
             "knew": _as_int(d.get("knew"), 0, 0, 9999),
             "forgot": _as_int(d.get("forgot"), 0, 0, 9999),
+            # расписание повторений: без него переезд на другое устройство
+            # сбрасывал бы весь словарь в «пора повторить прямо сейчас»
+            "due": str(d.get("due") or "")[:12] or None,
+            "interval": _as_int(d.get("interval"), 0, 0, 3650),
+            "reps": _as_int(d.get("reps"), 0, 0, 9999),
+            "ease": min(3.0, max(1.0, float(d.get("ease") or 2.0))) if isinstance(d.get("ease"), (int, float)) else 2.0,
+            "lastReview": str(d.get("lastReview") or "")[:12] or None,
+            "seen": bool(d.get("seen")),
         })
     clean_activity = {}
-    for k, v in list(activity.items())[:400]:
+    # берём ПОСЛЕДНИЕ дни: срез сначала выбрасывал бы свежую активность
+    # и обнулял «очки за неделю» в панели репетитора
+    for k, v in sorted(activity.items())[-400:]:
         if isinstance(k, str) and len(k) <= 12:
             clean_activity[k] = _as_int(v, 0, 0, 100000)
     conn().execute(

@@ -282,23 +282,33 @@ document.getElementById("btn-know").addEventListener("click", () => answerTest(t
 document.getElementById("btn-dont-know").addEventListener("click", () => answerTest(false));
 
 function finishTest() {
-  // уровень = самый высокий, где известно >= 60% слов (и все уровни ниже тоже пройдены)
-  let level = "A1";
-  for (const lvl of LEVELS) {
-    if (testAnswers[lvl] / TEST_PER_LEVEL >= 0.6) level = lvl;
-    else break;
-  }
-  // Оценка словарного запаса. Считаем только до уровня, который ученик
-  // реально прошёл: иначе одно случайное «знаю» на слове C2 добавляло бы
-  // 1600 слов и завышало оценку в разы.
-  let vocab = 0;
-  const reached = LEVELS.indexOf(level);
+  // Уровень: самый высокий, где ученик знает хотя бы 60% слов И в среднем
+  // уверенно держит всё до него. Прежний вариант обрывался на первом же
+  // блоке ниже порога — один неудачный ответ на A1 отбрасывал с C2 на A1,
+  // хотя блок это всего 5 случайных слов.
+  let level = LEVELS[0];
   LEVELS.forEach((lvl, i) => {
     const share = testAnswers[lvl] / TEST_PER_LEVEL;
-    // выше достигнутого уровня знания частичные — вклад уменьшаем
-    vocab += share * LEVEL_VOCAB_SIZE[lvl] * (i <= reached ? 1 : 0.25);
+    const avgBelow = LEVELS.slice(0, i + 1)
+      .reduce((s, l) => s + testAnswers[l] / TEST_PER_LEVEL, 0) / (i + 1);
+    if (share >= 0.6 && avgBelow >= 0.65) level = lvl;
   });
-  vocab = Math.round(vocab / 50) * 50;
+  // Оценка словарного запаса: доля знакомых слов уровня × его объём.
+  // Никаких множителей «достигнут / не достигнут» — они делали оценку
+  // немонотонной: ученик, ответивший верно БОЛЬШЕ раз, мог получить
+  // запас меньше, чем тот, кто знал меньше.
+  let vocab = 0;
+  LEVELS.forEach(lvl => {
+    vocab += (testAnswers[lvl] / TEST_PER_LEVEL) * LEVEL_VOCAB_SIZE[lvl];
+  });
+  // Потолок по уровню: ученик, не знающий базовых слов, но угадавший
+  // несколько редких, иначе получал бы «уровень A1, запас 14800 слов».
+  let cap = 0;
+  LEVELS.forEach((lvl, i) => {
+    if (i <= LEVELS.indexOf(level)) cap += LEVEL_VOCAB_SIZE[lvl];
+    else if (i === LEVELS.indexOf(level) + 1) cap += LEVEL_VOCAB_SIZE[lvl] * 0.5;
+  });
+  vocab = Math.round(Math.min(vocab, cap) / 50) * 50;
 
   state.level = level;
   state.vocabEstimate = vocab;
@@ -670,6 +680,7 @@ let trainIndex = 0;
 let trainScore = 0;
 
 function startTraining() {
+  if (typeof markMode === "function") markMode("flashcards");
   const empty = document.getElementById("trainer-empty");
   const run = document.getElementById("trainer-run");
   const done = document.getElementById("trainer-done");
@@ -730,6 +741,11 @@ function answerFlash(knew) {
   } else {
     document.getElementById("trainer-run").classList.add("hidden");
     document.getElementById("trainer-done").classList.remove("hidden");
+    // карточки — такая же тренировка, как остальные упражнения
+    if (typeof bump === "function" && trainQueue.length) {
+      bump("exercises");
+      if (trainScore === trainQueue.length) bump("perfect");
+    }
     const phrases = trainScore === trainQueue.length
       ? "Идеально! Мур-р-р, ты машина!"
       : trainScore >= trainQueue.length * 0.7

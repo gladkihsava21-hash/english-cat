@@ -128,7 +128,10 @@ function snapshot() {
     achievements: state.achievements || [],
     dictionary: state.dictionary.map(d => ({
       w: d.w, t: d.t, status: d.status, knew: d.knew, forgot: d.forgot,
+      due: d.due, interval: d.interval, reps: d.reps, ease: d.ease,
+      lastReview: d.lastReview, seen: d.seen,
     })),
+    homeworkDone: state.homeworkDone || [],
     activity: state.activity,
   };
 }
@@ -186,13 +189,13 @@ function applyHomework(tasks) {
   state.homework = homeworkTasks;
 
   // домашка считается сданной один раз — когда все её слова выучены
-  let newlyDone = false;
+  let newlyDone = 0;
   homeworkTasks.forEach(task => {
     const { done, total } = homeworkProgress(task);
     const key = String(task.id);
     if (total && done >= total && !wasDone.has(key)) {
       wasDone.add(key);
-      newlyDone = true;
+      newlyDone++;
     }
   });
   state.homeworkDone = [...wasDone];
@@ -203,8 +206,8 @@ function applyHomework(tasks) {
     saveStateQuiet();
     renderHomework();
   }
-  // награду выдаём после сохранения — bump сам сохранит состояние
-  if (newlyDone && typeof bump === "function") bump("homework");
+  // награда за КАЖДУЮ сданную домашку, а не одна на синхронизацию
+  if (newlyDone && typeof bump === "function") bump("homework", newlyDone);
 }
 
 /** Слово засчитано в домашку, если ученик хотя бы раз верно его вспомнил.

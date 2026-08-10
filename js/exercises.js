@@ -168,9 +168,11 @@ function stage() { return document.getElementById("ex-stage"); }
 
 function exFinish(correct, total, note = "") {
   const pct = total ? correct / total : 0;
-  if (typeof bump === "function") {
+  // подход без единого вопроса не тренировка: иначе счётчик наград
+  // накручивался бы простым переоткрытием упражнения
+  if (total > 0 && typeof bump === "function") {
     bump("exercises");
-    if (total > 0 && correct === total) bump("perfect");
+    if (correct === total) bump("perfect");
   }
   const mood = pct === 1 ? "Мур-р-р, идеально! 😻" :
     pct >= 0.7 ? "Отлично идём, мяу! 😸" :
@@ -710,6 +712,7 @@ const EX_RUNNERS = {
         state.blitzBest = best;
         saveState();
         award(Math.round(score / 2));
+        if (typeof bump === "function") bump("exercises");
         stage().innerHTML = `
           <div class="empty-state">
             <div class="cat-avatar cat-mid">🐈</div>
