@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Панель репетитора — Савелий</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css?v=2">
+  <link rel="stylesheet" href="css/tutor.css?v=2">
+</head>
+<body>
+
+<!-- ВХОД -->
+<section id="screen-auth" class="screen">
+  <div class="hero">
+    <div class="cat-avatar cat-big">🐈‍⬛</div>
+    <h1>Панель репетитора</h1>
+    <p class="hero-sub">Смотри прогресс каждого ученика и выдавай домашку словами.</p>
+
+    <div class="card auth-card">
+      <div class="tabs">
+        <button class="tab active" data-mode="login">Вход</button>
+        <button class="tab" data-mode="register">Регистрация</button>
+      </div>
+      <form id="auth-form">
+        <label id="name-row" class="hidden">Имя
+          <input type="text" id="t-name" placeholder="Как вас зовут?" maxlength="60">
+        </label>
+        <label>Email
+          <input type="email" id="t-email" placeholder="you@example.com" required>
+        </label>
+        <label>Пароль
+          <input type="password" id="t-pass" placeholder="от 6 символов" required>
+        </label>
+        <button type="submit" class="btn btn-primary btn-wide" id="auth-submit">Войти</button>
+        <p class="type-feedback err" id="auth-error"></p>
+      </form>
+    </div>
+  </div>
+</section>
+
+<!-- ПАНЕЛЬ -->
+<div id="app" class="hidden">
+  <header class="topbar">
+    <div class="topbar-inner">
+      <button class="brand"><span class="brand-cat">🐈‍⬛</span> Савелий · панель</button>
+      <nav class="nav">
+        <button class="nav-btn active" data-tab="students">Ученики <span id="stu-count" class="badge">0</span></button>
+        <button class="nav-btn" data-tab="homework">Выдать домашку</button>
+        <button class="nav-btn" data-tab="invite">Ссылка для учеников</button>
+      </nav>
+      <div class="user-chip">
+        <span id="tutor-name"></span>
+        <button id="logout-btn" class="link-btn">выйти</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="wide">
+    <!-- Ученики -->
+    <section id="tab-students">
+      <div class="stats-grid" id="overview"></div>
+      <div class="section-head">
+        <h2>Ученики</h2>
+        <div class="dict-filters">
+          <button class="chip stu-sort active" data-sort="name">по имени</button>
+          <button class="chip stu-sort" data-sort="active">по активности</button>
+          <button class="chip stu-sort" data-sort="progress">по прогрессу</button>
+        </div>
+      </div>
+      <div id="students-list"></div>
+      <div id="students-empty" class="empty-state hidden">
+        <div class="cat-avatar cat-mid">🐈</div>
+        <p>Учеников пока нет. Откройте вкладку «Ссылка для учеников» и отправьте им ссылку.</p>
+      </div>
+    </section>
+
+    <!-- Домашка -->
+    <section id="tab-homework" class="hidden">
+      <div class="section-head"><h2>Выдать домашку</h2></div>
+      <div class="card hw-form">
+        <div class="vs-row">
+          <label for="hw-title">Название</label>
+          <input type="text" id="hw-title" placeholder="Например: слова к четвергу" maxlength="120">
+        </div>
+        <div class="vs-row">
+          <label for="hw-student">Кому</label>
+          <select id="hw-student"></select>
+        </div>
+        <div class="vs-row">
+          <label for="hw-due">Срок (необязательно)</label>
+          <input type="date" id="hw-due">
+        </div>
+
+        <p class="muted-small" style="margin:14px 0 8px">Выберите слова из базы или добавьте свои:</p>
+        <div class="hw-picker">
+          <div class="hw-pick-controls">
+            <select id="hw-level"></select>
+            <input type="text" id="hw-search" placeholder="🔍 поиск слова…">
+          </div>
+          <div class="hw-words" id="hw-words"></div>
+        </div>
+
+        <form class="add-word-row" id="hw-custom">
+          <input type="text" id="hw-own-en" placeholder="своё слово (англ.)">
+          <input type="text" id="hw-own-ru" placeholder="перевод">
+          <button type="submit" class="btn btn-ghost">+ Добавить</button>
+        </form>
+
+        <div class="hw-selected" id="hw-selected"></div>
+        <button class="btn btn-primary btn-wide" id="hw-send">Выдать домашку</button>
+        <p class="type-feedback" id="hw-msg"></p>
+      </div>
+    </section>
+
+    <!-- Ссылка -->
+    <section id="tab-invite" class="hidden">
+      <div class="section-head"><h2>Ссылка для учеников</h2></div>
+      <div class="card invite-card">
+        <p>Отправьте эту ссылку ученикам. Они откроют её, введут имя — и появятся в вашей панели.</p>
+        <div class="invite-link">
+          <input type="text" id="invite-url" readonly>
+          <button class="btn btn-primary" id="copy-link">Копировать</button>
+        </div>
+        <p class="muted-small">Код приглашения: <b id="invite-code"></b></p>
+        <p class="muted-small">Ученикам ничего не нужно устанавливать и придумывать пароль — достаточно открыть ссылку.</p>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script src="js/words.js?v=2"></script>
+<script src="js/images.js?v=2"></script>
+<script src="js/tutor.js?v=2"></script>
+</body>
+</html>

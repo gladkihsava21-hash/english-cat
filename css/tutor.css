@@ -1,0 +1,96 @@
+/* Панель репетитора — поверх общих стилей сайта */
+
+.wide { padding: 30px 20px 80px; }
+
+/* карточка ученика */
+.stu-card { margin-bottom: 12px; padding: 18px 20px; }
+.stu-main { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
+.stu-id { display: flex; align-items: center; gap: 12px; }
+.stu-name { font-size: 17px; font-weight: 900; }
+.stu-level { display: flex; align-items: center; gap: 10px; }
+
+.seen.good { color: var(--green); font-weight: 800; }
+.seen.bad { color: var(--red); font-weight: 800; }
+
+.stu-bars { margin: 14px 0 4px; }
+.stu-bar-row .xp-bar { margin-top: 6px; }
+
+.stu-hw { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.hw-chip {
+  background: var(--accent-soft); color: var(--accent-dark);
+  font-size: 12.5px; font-weight: 800; border-radius: 20px; padding: 4px 11px;
+}
+.hw-chip-done { background: #E3F5EB; color: var(--green); }
+
+.stu-weak { margin-top: 12px; }
+.stu-weak summary {
+  cursor: pointer; font-weight: 800; font-size: 13px; color: var(--muted);
+  padding: 4px 0;
+}
+.stu-weak summary:hover { color: var(--accent-dark); }
+.weak-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.weak-word {
+  background: #FBE7E7; color: var(--ink); font-size: 13px; font-weight: 700;
+  border-radius: 10px; padding: 4px 10px;
+}
+.weak-word i { color: var(--muted); font-weight: 600; }
+.weak-word b { color: var(--red); }
+
+.stu-del { margin-top: 12px; font-size: 11px; }
+.link-btn.danger { color: var(--red); font-weight: 800; }
+
+/* форма домашки */
+.hw-form { padding: 22px 24px; }
+.hw-form .vs-row label { min-width: 160px; }
+.hw-form input[type="text"], .hw-form input[type="date"], .hw-form select {
+  flex: 1; min-width: 170px; font-family: inherit; font-size: 14px; font-weight: 600;
+  padding: 9px 12px; border: 2px solid var(--border); border-radius: 11px;
+  background: #fff; outline: none;
+}
+.hw-form input:focus, .hw-form select:focus { border-color: var(--accent); }
+
+.hw-pick-controls { display: flex; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+.hw-words {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 8px; max-height: 320px; overflow-y: auto; padding: 4px;
+  background: var(--bg); border-radius: 14px;
+}
+.hw-word {
+  display: flex; align-items: center; gap: 9px; text-align: left;
+  font-family: inherit; background: #fff; border: 2px solid var(--border);
+  border-radius: 12px; padding: 8px 10px; cursor: pointer; transition: all .12s;
+}
+.hw-word:hover { border-color: var(--accent); }
+.hw-word.picked { border-color: var(--green); background: #E3F5EB; }
+.hw-word-art {
+  width: 32px; height: 32px; border-radius: 9px; font-size: 18px;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.hw-word-en { font-weight: 900; font-size: 14px; }
+.hw-word-ru { color: var(--muted); font-weight: 600; font-size: 12.5px; margin-left: auto; }
+
+.hw-selected { margin: 14px 0; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.hw-selected p { width: 100%; margin-bottom: 4px; }
+.picked-chip {
+  background: var(--accent-soft); color: var(--accent-dark); font-weight: 800;
+  font-size: 13px; border-radius: 20px; padding: 5px 12px; cursor: pointer;
+}
+.picked-chip i { color: var(--muted); font-weight: 600; }
+.picked-chip:hover { background: #FFD9B3; }
+
+/* ссылка-приглашение */
+.invite-card { padding: 24px; }
+.invite-card p { font-weight: 600; margin-bottom: 14px; }
+.invite-link { display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+.invite-link input {
+  flex: 1; min-width: 240px; font-family: inherit; font-size: 14px; font-weight: 700;
+  padding: 12px 14px; border: 2px solid var(--border); border-radius: 12px;
+  background: var(--bg); outline: none; color: var(--ink);
+}
+#invite-code { font-size: 18px; color: var(--accent-dark); letter-spacing: 2px; }
+
+@media (max-width: 720px) {
+  .stu-main { flex-direction: column; align-items: flex-start; }
+  .hw-form .vs-row { flex-direction: column; align-items: stretch; }
+  .hw-form .vs-row label { min-width: 0; }
+}

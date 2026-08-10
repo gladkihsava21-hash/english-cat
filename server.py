@@ -1,18 +1,24 @@
 #!/usr/bin/env python3
-# Сервер Савелия: статика + /api/chat через Claude Code CLI.
-# Работает от подписки (claude /login), API-ключ не нужен.
+"""Сервер Савелия: статика + API (репетиторы, ученики, домашка) + чат через Claude CLI.
+
+Запуск:  python3 server.py
+Сайт:    http://localhost:4210
+Панель:  http://localhost:4210/tutor.html
+"""
 import json
 import os
 import re
 import shutil
 import subprocess
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import urlparse
+
+import db
 
 PORT = 4210
 ROOT = os.path.dirname(os.path.abspath(__file__))
 CLAUDE = shutil.which("claude") or os.path.expanduser("~/.local/bin/claude")
 
-# чат — только разговор, инструменты коту не нужны
 NO_TOOLS = "Bash,Edit,Write,Read,Glob,Grep,WebFetch,WebSearch,Task,NotebookEdit,TodoWrite"
 
 PERSONA = (
@@ -23,7 +29,8 @@ PERSONA = (
     "(слово — перевод — короткий пример), объясняй значения и оттенки, проверяй слова из его словаря, "
     "отвечай на вопросы про английский. Предлагая слово, выбирай то, которого ещё нет в словаре ученика. "
     "Если ученик просит добавить слово (или соглашается на твоё предложение) — верни его в add_word. "
-    "Если ты проверял слово и ученик только что ответил — оцени ответ и верни результат в mark."
+    "Если ты проверял слово и ученик только что ответил — оцени ответ и верни результат в mark. "
+    "Ты общаешься со школьниками: только про английский и учёбу, без грубости и недетских тем."
 )
 
 FORMAT = (
@@ -33,6 +40,8 @@ FORMAT = (
     '"mark": null или {"w": "проверявшееся слово", "correct": true/false}}'
 )
 
+
+# ---------- чат ----------
 
 def build_prompt(payload):
     prof = payload.get("profile") or {}
@@ -89,34 +98,211 @@ def ask_claude(payload):
     }
 
 
+# ---------- API ----------
+
+class Api:
+    """Каждый метод получает (handler, payload) и возвращает dict."""
+
+    # --- репетитор ---
+
+    @staticmethod
+    def tutor_register(h, p):
+        name = str(p.get("name", "")).strip()
+        email = str(p.get("email", "")).strip()
+        password = str(p.get("password", ""))
+        if not name or not email or len(password) < 6:
+            return {"ok": False, "error": "Заполни имя, email и пароль от 6 символов."}
+        row = db.create_tutor(name, email, password)
+        if not row:
+            return {"ok": False, "error": "Такой email уже зарегистрирован."}
+        return {"ok": True, "token": row["token"], "tutor": db.tutor_public(row)}
+
+    @staticmethod
+    def tutor_login(h, p):
+        row = db.login_tutor(str(p.get("email", "")), str(p.get("password", "")))
+        if not row:
+            return {"ok": False, "error": "Неверный email или пароль."}
+        return {"ok": True, "token": row["token"], "tutor": db.tutor_public(row)}
+
+    @staticmethod
+    def tutor_students(h, p):
+        tutor = db.get_tutor_by_token(p.get("token"))
+        if not tutor:
+            return {"ok": False, "error": "unauthorized"}
+        hw = db.list_homework(tutor["id"])
+        students = []
+        for s in db.list_students(tutor["id"]):
+            own = [x for x in hw if x["student_id"] in (None, s["id"])]
+            students.append(db.student_public(s, own))
+        return {"ok": True, "tutor": db.tutor_public(tutor), "students": students}
+
+    @staticmethod
+    def tutor_homework_create(h, p):
+        tutor = db.get_tutor_by_token(p.get("token"))
+        if not tutor:
+            return {"ok": False, "error": "unauthorized"}
+        words = p.get("words") or []
+        if not isinstance(words, list) or not words:
+            return {"ok": False, "error": "Добавь хотя бы одно слово."}
+        clean = []
+        for w in words:
+            if isinstance(w, dict) and w.get("w"):
+                clean.append({
+                    "w": str(w.get("w"))[:60],
+                    "t": str(w.get("t", ""))[:100],
+                    "ex": str(w.get("ex", ""))[:200],
+                    "level": str(w.get("level", ""))[:4],
+                })
+        if not clean:
+            return {"ok": False, "error": "Слова не распознаны."}
+        sid = p.get("studentId")
+        row = db.create_homework(
+            tutor["id"], str(p.get("title", "")), clean,
+            student_id=int(sid) if sid else None,
+            due_date=str(p.get("dueDate") or "") or None,
+        )
+        return {"ok": True, "id": row["id"]}
+
+    @staticmethod
+    def tutor_homework_archive(h, p):
+        tutor = db.get_tutor_by_token(p.get("token"))
+        if not tutor:
+            return {"ok": False, "error": "unauthorized"}
+        db.archive_homework(tutor["id"], int(p.get("id") or 0))
+        return {"ok": True}
+
+    @staticmethod
+    def tutor_student_delete(h, p):
+        tutor = db.get_tutor_by_token(p.get("token"))
+        if not tutor:
+            return {"ok": False, "error": "unauthorized"}
+        db.delete_student(tutor["id"], int(p.get("studentId") or 0))
+        return {"ok": True}
+
+    # --- ученик ---
+
+    @staticmethod
+    def join_info(h, p):
+        tutor = db.get_tutor_by_code(p.get("code"))
+        if not tutor:
+            return {"ok": False, "error": "Такой ссылки не существует."}
+        return {"ok": True, "tutorName": tutor["name"]}
+
+    @staticmethod
+    def student_join(h, p):
+        tutor = db.get_tutor_by_code(p.get("code"))
+        if not tutor:
+            return {"ok": False, "error": "Такой ссылки не существует."}
+        name = str(p.get("name", "")).strip()
+        if not name:
+            return {"ok": False, "error": "Введи имя."}
+        row = db.create_student(tutor["id"], name)
+        return {"ok": True, "token": row["token"], "tutorName": tutor["name"]}
+
+    @staticmethod
+    def student_sync(h, p):
+        row = db.sync_student(p.get("token"), p.get("state") or {})
+        if not row:
+            return {"ok": False, "error": "unknown_student"}
+        hw = db.list_homework(row["tutor_id"], row["id"])
+        tasks = []
+        for x in hw:
+            tasks.append({
+                "id": x["id"],
+                "title": x["title"],
+                "words": json.loads(x["words"] or "[]"),
+                "dueDate": x["due_date"],
+            })
+        return {"ok": True, "homework": tasks}
+
+    # --- чат ---
+
+    @staticmethod
+    def chat(h, p):
+        try:
+            return ask_claude(p)
+        except Exception as e:
+            msg = str(e)
+            return {"ok": False,
+                    "error": "not_logged_in" if "not_logged_in" in msg else msg[:200]}
+
+
+ROUTES = {
+    "/api/tutor/register": Api.tutor_register,
+    "/api/tutor/login": Api.tutor_login,
+    "/api/tutor/students": Api.tutor_students,
+    "/api/tutor/homework": Api.tutor_homework_create,
+    "/api/tutor/homework/archive": Api.tutor_homework_archive,
+    "/api/tutor/student/delete": Api.tutor_student_delete,
+    "/api/join": Api.join_info,
+    "/api/student/join": Api.student_join,
+    "/api/student/sync": Api.student_sync,
+    "/api/chat": Api.chat,
+}
+
+
 class Handler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=ROOT, **kwargs)
 
+    def _send_json(self, obj, status=200):
+        body = json.dumps(obj, ensure_ascii=False).encode("utf-8")
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.end_headers()
+        self.wfile.write(body)
+
+    def do_OPTIONS(self):
+        self.send_response(204)
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.end_headers()
+
     def do_POST(self):
-        if self.path != "/api/chat":
-            self.send_error(404)
+        path = urlparse(self.path).path
+        handler = ROUTES.get(path)
+        if not handler:
+            self._send_json({"ok": False, "error": "not_found"}, 404)
             return
         try:
             length = int(self.headers.get("Content-Length") or 0)
             payload = json.loads(self.rfile.read(length) or b"{}")
-            resp = ask_claude(payload)
+        except Exception:
+            self._send_json({"ok": False, "error": "bad_json"}, 400)
+            return
+        try:
+            self._send_json(handler(self, payload))
         except Exception as e:
-            msg = str(e)
-            resp = {"ok": False,
-                    "error": "not_logged_in" if "not_logged_in" in msg else msg[:200]}
-        body = json.dumps(resp, ensure_ascii=False).encode("utf-8")
-        self.send_response(200)
-        self.send_header("Content-Type", "application/json; charset=utf-8")
-        self.send_header("Content-Length", str(len(body)))
-        self.end_headers()
-        self.wfile.write(body)
+            self._send_json({"ok": False, "error": str(e)[:200]}, 500)
+
+    def end_headers(self):
+        # при разработке браузер не должен кэшировать css/js —
+        # иначе правки не видны до ручной очистки кэша
+        if self.path.endswith((".css", ".js", ".html")) or self.path == "/":
+            self.send_header("Cache-Control", "no-store, must-revalidate")
+        super().end_headers()
+
+    def do_GET(self):
+        path = urlparse(self.path).path
+        if path == "/health":
+            self._send_json({"ok": True})
+            return
+        super().do_GET()
 
     def log_message(self, fmt, *args):
-        if "/api/" in (args[0] if args else ""):
+        # log_error передаёт первым аргументом код ответа, а не строку запроса —
+        # приводим к тексту, иначе поиск подстроки падает
+        line = str(args[0]) if args else ""
+        if "/api/" in line and "sync" not in line:
             super().log_message(fmt, *args)
 
 
 if __name__ == "__main__":
-    print(f"Савелий слушает на http://localhost:{PORT} (claude: {CLAUDE})")
+    db.init()
+    print(f"Савелий слушает на http://localhost:{PORT}")
+    print(f"Панель репетитора: http://localhost:{PORT}/tutor.html")
+    print(f"База: {db.DB_PATH}")
     ThreadingHTTPServer(("127.0.0.1", PORT), Handler).serve_forever()

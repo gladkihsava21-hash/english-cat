@@ -112,6 +112,7 @@ function normEn(s) {
 
 const EXERCISES = [
   { id: "flashcards", icon: "🃏", name: "Карточки", desc: "Слово ↔ перевод, с озвучкой" },
+  { id: "picture", icon: "🖼️", name: "Слово и картинка", desc: "Выбери слово по картинке" },
   { id: "matching", icon: "🔗", name: "Сопоставление", desc: "Соедини слово и перевод" },
   { id: "mcq", icon: "✅", name: "Выбор варианта", desc: "Выбери правильный перевод" },
   { id: "spelling", icon: "⌨️", name: "Ввод слова", desc: "Впиши слово по переводу" },
@@ -208,6 +209,7 @@ function runMCQ(rounds, opts = {}) {
       ${exProgress(i, rounds.length)}
       <div class="card word-quiz-card">
         <p class="quiz-label">${r.sub || ""}</p>
+        ${r.art ? `<div class="word-art word-art-mid" style="background:${wordTint(r.artCat)}">${r.art}</div>` : ""}
         <div class="${opts.smallPrompt ? "quiz-word quiz-word-small" : "quiz-word"}">${r.prompt || ""}</div>
         ${r.audioText ? `<button class="btn btn-ghost btn-small" id="mcq-audio">🔊 Прослушать</button>` : ""}
         <div class="mcq-options" id="mcq-options"></div>
@@ -307,6 +309,7 @@ function runType(rounds, opts = {}) {
       ${exProgress(i, rounds.length)}
       <div class="card word-quiz-card">
         <p class="quiz-label">${r.sub || ""}</p>
+        ${r.art ? `<div class="word-art word-art-mid" style="background:${wordTint(r.artCat)}">${r.art}</div>` : ""}
         <div class="quiz-word quiz-word-small">${r.prompt || ""}</div>
         ${r.audioText ? `<button class="btn btn-ghost btn-small" id="type-audio">🔊 Прослушать</button>` : ""}
         ${opts.textarea
@@ -359,6 +362,31 @@ function runType(rounds, opts = {}) {
 
 const EX_RUNNERS = {
 
+  // Показываем картинку — ученик выбирает слово.
+  // Берём только слова с собственным образом, иначе картинка ничего не подсказывает.
+  picture() {
+    const named = PICTURABLE;
+    const pool = trainPool(30).filter(p => named.has(p.w.toLowerCase())).slice(0, 8);
+    if (pool.length < 4) { EX_RUNNERS.mcq(); return; }
+    runMCQ(pool.map(p => {
+      const wrong = shuffled(LEVELS.flatMap(l => WORDS[l])
+        .filter(x => x.w !== p.w && named.has(x.w.toLowerCase())
+          && wordArt(x.w, x.cat) !== wordArt(p.w, p.cat)))
+        .slice(0, 3)
+        .map(x => x.w);
+      const options = shuffled([p.w, ...wrong]);
+      return {
+        sub: "Какое слово на картинке?",
+        prompt: "",
+        art: wordArt(p.w, p.cat),
+        artCat: p.cat,
+        options,
+        correct: options.indexOf(p.w),
+        statWord: p.w,
+      };
+    }));
+  },
+
   matching() {
     const pool = trainPool(5);
     runPairs(pool.map(p => ({ l: p.w, r: p.t, statWord: p.w })));
@@ -371,6 +399,8 @@ const EX_RUNNERS = {
       return {
         sub: "Выбери правильный перевод",
         prompt: p.w,
+        art: wordArt(p.w, p.cat),
+        artCat: p.cat,
         options,
         correct: options.indexOf(p.t),
         statWord: p.w,
@@ -383,6 +413,8 @@ const EX_RUNNERS = {
     runType(pool.map(p => ({
       sub: "Впиши слово по-английски",
       prompt: "«" + p.t + "»",
+      art: wordArt(p.w, p.cat),
+      artCat: p.cat,
       answer: p.w,
       statWord: p.w,
       hint: p.w[0].toUpperCase() + "… (" + p.w.length + " букв)",

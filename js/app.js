@@ -70,6 +70,7 @@ function streakDays() {
 
 function saveState() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  if (typeof scheduleSync === "function") scheduleSync();
 }
 
 // ===== Навигация =====
@@ -129,6 +130,7 @@ document.getElementById("auth-form").addEventListener("submit", e => {
   if (!name) return;
   state.user = { name, email: document.getElementById("reg-email").value.trim() };
   saveState();
+  if (typeof joinTutor === "function") joinTutor(name);
   updateChrome();
   if (state.level) {
     show("dashboard");
@@ -295,6 +297,7 @@ function renderDashboard() {
   document.getElementById("dash-stats").textContent =
     `Уровень ${state.level} (${LEVEL_NAMES[state.level]}) · словарный запас ~${state.vocabEstimate} слов · в словаре: ${state.dictionary.length}`;
   renderDashWidgets();
+  if (typeof renderHomework === "function") renderHomework();
   renderWordOfDay();
   if (!currentRecs.length) currentRecs = pickRecommendations();
   renderRecGrid();
@@ -308,6 +311,7 @@ function renderWordOfDay() {
   const inDict = state.dictionary.some(d => d.w.toLowerCase() === wd.w.toLowerCase());
   box.innerHTML = `
     <div class="card wod-card">
+      <div class="word-art word-art-small" style="background:${wordTint(wd.cat)}">${wordArt(wd.w, wd.cat)}</div>
       <span class="wod-label">🐾 Слово дня</span>
       <div class="wod-main">
         <b class="wod-word">${wd.w}</b>
@@ -366,7 +370,10 @@ function renderRecGrid() {
     const card = document.createElement("div");
     card.className = "card word-card";
     card.innerHTML = `
-      <span class="w-level">${rec.level}</span>
+      <div class="w-head">
+        <div class="word-art word-art-small" style="background:${wordTint(rec.cat)}">${wordArt(rec.w, rec.cat)}</div>
+        <span class="w-level">${rec.level}</span>
+      </div>
       <div class="w-en">${rec.w} <button class="say-btn" title="Произношение">🔊</button></div>
       <div class="w-ru">${rec.t}</div>
       <div class="w-ex">${rec.ex}</div>
@@ -439,9 +446,11 @@ function renderDictionary() {
 
   const statusText = { new: "новое", learning: "учу", learned: "выучено" };
   items.forEach(d => {
+    const info0 = (typeof wordInfo === "function" && wordInfo(d.w)) || {};
     const row = document.createElement("div");
     row.className = "dict-row";
     row.innerHTML = `
+      <span class="word-art word-art-tiny" style="background:${wordTint(info0.cat)}">${wordArt(d.w, info0.cat)}</span>
       <span class="d-en">${d.w} <button class="say-btn" title="Произношение">🔊</button></span>
       <span class="d-ru">${d.t}</span>
       <span class="d-status ${d.status}">${statusText[d.status]}</span>
@@ -534,6 +543,10 @@ function renderFlashcard() {
   const card = document.getElementById("flashcard");
   card.classList.remove("flipped");
   const item = trainQueue[trainIndex];
+  const info = (typeof wordInfo === "function" && wordInfo(item.w)) || {};
+  const art = document.getElementById("flash-art");
+  art.textContent = wordArt(item.w, info.cat);
+  art.style.background = wordTint(info.cat);
   document.getElementById("flash-word").textContent = item.w;
   document.getElementById("flash-translation").textContent = item.t;
   document.getElementById("flash-example").textContent = item.ex || "";

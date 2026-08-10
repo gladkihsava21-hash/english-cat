@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/style.css?v=2">
 </head>
 <body>
 
@@ -44,6 +44,8 @@
       </div>
       <h1>Учи английские слова<br>с котом Савелием</h1>
       <p class="hero-sub">Пройди тест — я определю твой словарный запас и буду подбирать слова точно под твой уровень. Мур!</p>
+
+      <p id="invite-note" class="invite-note hidden"></p>
 
       <div class="card auth-card">
         <div class="tabs">
@@ -124,6 +126,8 @@
 
       <div class="stats-grid" id="dash-widgets"></div>
 
+      <div id="homework-box" class="hidden"></div>
+
       <div id="word-of-day"></div>
 
       <div class="section-head">
@@ -196,7 +200,7 @@
         <div class="flashcard" id="flashcard">
           <div class="flashcard-inner" id="flashcard-inner">
             <div class="flashcard-face flashcard-front">
-              <p class="quiz-label">Помнишь перевод?</p>
+              <div class="word-art word-art-big" id="flash-art">🍎</div>
               <div class="quiz-word" id="flash-word">apple</div>
               <button class="btn btn-ghost btn-small" id="flash-audio" type="button">🔊 Произношение</button>
               <p class="flip-hint">нажми на карточку, чтобы перевернуть</p>
@@ -279,9 +283,11 @@
 
 </main>
 
-<script src="js/words.js"></script>
-<script src="js/app.js"></script>
-<script src="js/exercises.js"></script>
-<script src="js/voice.js"></script>
+<script src="js/words.js?v=2"></script>
+<script src="js/images.js?v=2"></script>
+<script src="js/app.js?v=2"></script>
+<script src="js/exercises.js?v=2"></script>
+<script src="js/voice.js?v=2"></script>
+<script src="js/sync.js?v=2"></script>
 </body>
 </html>
