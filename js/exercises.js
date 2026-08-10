@@ -752,7 +752,7 @@ const EX_RUNNERS = {
       <div class="cat-boxes">
         ${cats.map(c => `
           <div class="cat-box" data-cat="${c}">
-            <p class="cat-box-title">${CATEGORY_NAMES[c]}</p>
+            <p class="cat-box-title">${esc(CATEGORY_NAMES[c] || c)}</p>
             <div class="cat-box-items"></div>
           </div>`).join("")}
       </div>`;
