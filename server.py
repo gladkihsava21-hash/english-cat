@@ -73,7 +73,127 @@ def build_prompt(payload):
     return "\n".join(lines)
 
 
+def _clean_key(value):
+    """Ключ уходит в HTTP-заголовок, а туда можно только ASCII. Кривой ключ
+    (со случайной кириллицей из буфера обмена) иначе роняет каждый запрос
+    невнятной ошибкой кодировки."""
+    key = (value or "").strip()
+    if not key:
+        return ""
+    try:
+        key.encode("ascii")
+    except UnicodeEncodeError:
+        print("!! ANTHROPIC_API_KEY содержит недопустимые символы — ключ не принят")
+        return ""
+    return key
+
+
+def _read_key():
+    """Ключ берём из переменной окружения либо из файла рядом с базой.
+    На виртуальном хостинге переменные окружения задать негде — там
+    единственный рабочий способ положить ключ это файл вне public_html."""
+    env = os.environ.get("ANTHROPIC_API_KEY")
+    if env:
+        return _clean_key(env)
+    path = os.path.join(os.path.dirname(os.path.abspath(db.DB_PATH)), "api_key.txt")
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return _clean_key(f.read())
+    except OSError:
+        return ""
+
+
+ANTHROPIC_KEY = _read_key()
+if ANTHROPIC_KEY:
+    print("Ключ Claude API найден — умный чат и проверка фото включены")
+
+CHAT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "reply": {"type": "string"},
+        "add_word": {
+            "type": ["object", "null"],
+            "properties": {
+                "w": {"type": "string"}, "t": {"type": "string"},
+                "ex": {"type": "string"}, "level": {"type": "string"},
+            },
+            "required": ["w", "t"],
+            "additionalProperties": False,
+        },
+        "mark": {"type": ["string", "null"]},
+    },
+    "required": ["reply"],
+    "additionalProperties": False,
+}
+
+
+def ask_claude_api(payload):
+    """Чат через Claude API — так работает сайт на хостинге.
+    Haiku: ответы короткие, счёт выходит около 0,1 ₽ за сообщение."""
+    body = {
+        "model": os.environ.get("SAVELY_CHAT_MODEL", "claude-haiku-4-5"),
+        "max_tokens": 900,
+        "output_config": {"format": {"type": "json_schema", "schema": CHAT_SCHEMA}},
+        "messages": [{"role": "user", "content": build_prompt(payload)}],
+    }
+    req = urllib.request.Request(
+        "https://api.anthropic.com/v1/messages",
+        data=json.dumps(body).encode("utf-8"),
+        headers={
+            "content-type": "application/json",
+            "x-api-key": ANTHROPIC_KEY,
+            "anthropic-version": "2023-06-01",
+        },
+    )
+    with urllib.request.urlopen(req, timeout=90) as resp:
+        data = json.loads(resp.read())
+    if data.get("stop_reason") == "refusal":
+        raise RuntimeError("refused")
+    text = next((b.get("text", "") for b in data.get("content", [])
+                 if b.get("type") == "text"), "")
+    parsed = json.loads(text) if text else {}
+    if not parsed.get("reply"):
+        raise RuntimeError("empty result")
+    return {
+        "ok": True,
+        "reply": str(parsed["reply"]),
+        "add_word": parsed.get("add_word") or None,
+        "mark": parsed.get("mark") or None,
+    }
+
+
+def ai_error_text(exc):
+    """Переводим сбой ИИ в понятную строку. Текст исключения наружу не
+    отдаём: там бывают куски запроса и обрывки ключа."""
+    import urllib.error
+    msg = str(exc)
+    if isinstance(exc, urllib.error.HTTPError):
+        if exc.code == 401:
+            return "Ключ Claude API не принят — проверь ANTHROPIC_API_KEY."
+        if exc.code == 429:
+            return "Слишком много запросов к ИИ. Подожди минуту."
+        if exc.code >= 500:
+            return "ИИ временно недоступен, попробуй позже."
+        return "Запрос к ИИ отклонён (код %d)." % exc.code
+    if "not_logged_in" in msg:
+        return "not_logged_in"
+    if "refused" in msg:
+        return "Савелий не смог ответить на это. Спроси иначе."
+    if "no_api_key" in msg:
+        return "Умный чат выключен — нет ключа Claude API."
+    import traceback; traceback.print_exc()
+    return "Савелий задумался и не ответил. Попробуй ещё раз."
+
+
 def ask_claude(payload):
+    """Ключ API — основной путь (работает и на хостинге). Без ключа
+    пробуем локальный CLI от подписки: удобно при разработке."""
+    if ANTHROPIC_KEY:
+        return ask_claude_api(payload)
+    return ask_claude_cli(payload)
+
+
+def ask_claude_cli(payload):
     out = subprocess.run(
         [CLAUDE, "-p", build_prompt(payload), "--output-format", "json",
          "--model", "sonnet", "--disallowedTools", NO_TOOLS, "--max-turns", "3"],
@@ -507,14 +627,10 @@ class Api:
         try:
             return ask_claude(p)
         except Exception as e:
-            msg = str(e)
-            return {"ok": False,
-                    "error": "not_logged_in" if "not_logged_in" in msg else msg[:200]}
+            return {"ok": False, "error": ai_error_text(e)}
 
 
 # ---------- проверка фото домашки ----------
-
-ANTHROPIC_KEY = os.environ.get("ANTHROPIC_API_KEY", "").strip()
 # Sonnet берёт картинку до 2576 пикселей по длинной стороне, Haiku — только
 # 1568. На детском почерке эта разница решает: Haiku начинает путать буквы.
 VISION_MODEL = os.environ.get("SAVELY_VISION_MODEL", "claude-sonnet-5")
