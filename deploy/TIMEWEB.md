@@ -53,14 +53,14 @@ bash <(curl -sL https://raw.githubusercontent.com/gladkihsava21-hash/english-cat
 
 ## Где лежат данные
 
-База создаётся сама в `~/savely-data/savely.db` — **на уровень выше**
-публичной папки. Это принципиально: внутри `public_html` Apache отдал бы
-её по прямой ссылке вместе с хешами паролей и токенами репетитора.
+База создаётся сама в `~/ИМЯ-САЙТА/savely-data/savely.db` — рядом с
+`public_html`, но **не внутри**. Это принципиально: внутри публичной папки
+Apache отдал бы её по прямой ссылке вместе с хешами паролей и токенами.
 
 Резервная копия:
 
 ```bash
-cp ~/savely-data/savely.db ~/savely-backup-$(date +%F).db
+cp ~/kotsaveli/savely-data/savely.db ~/savely-backup-$(date +%F).db
 ```
 
 Делай её перед каждым обновлением — файл маленький, места не жалко.
@@ -73,7 +73,7 @@ cp ~/savely-data/savely.db ~/savely-backup-$(date +%F).db
 bash <(curl -sL https://raw.githubusercontent.com/gladkihsava21-hash/english-cat/main/deploy/timeweb-setup.sh) kotsaveli
 ```
 
-Папку `~/savely-data/` она не трогает — прогресс учеников остаётся на месте.
+Папку `savely-data/` она не трогает — прогресс учеников остаётся на месте.
 После обновления в панели нажать «Перезапустить приложение».
 
 ## Если что-то не работает

@@ -56,9 +56,31 @@ fi
 
 echo "==> Забираю код"
 TMP="$HOME/.savely-tmp-$$"
-rm -rf "$TMP"
-git clone --depth 1 "$REPO" "$TMP" >/dev/null 2>&1
-cp -a "$TMP"/. "$DEST"/
+rm -rf "$TMP"; mkdir -p "$TMP"
+
+fetch() {  # $1 — адрес, $2 — куда сохранить
+  if command -v curl >/dev/null 2>&1; then curl -sL "$1" -o "$2"
+  elif command -v wget >/dev/null 2>&1; then wget -qO "$2" "$1"
+  else echo "!! Нет ни curl, ни wget."; return 1; fi
+}
+
+if command -v git >/dev/null 2>&1; then
+  git clone --depth 1 "$REPO" "$TMP/repo" >/dev/null 2>&1
+  SRC="$TMP/repo"
+else
+  # На шаред-хостинге git бывает не установлен — берём архивом
+  echo "    git не найден, качаю архивом"
+  fetch "${REPO%.git}/archive/refs/heads/main.tar.gz" "$TMP/main.tar.gz"
+  tar -xzf "$TMP/main.tar.gz" -C "$TMP"
+  SRC="$TMP/english-cat-main"
+fi
+
+if [[ ! -f "$SRC/wsgi.py" ]]; then
+  echo "!! Код не скачался — проверь, есть ли на сервере интернет."
+  rm -rf "$TMP"; exit 1
+fi
+
+cp -a "$SRC"/. "$DEST"/
 rm -rf "$TMP"
 # В публичной папке нужен только сам сайт: истории git, инструкций
 # и скриптов установки там делать нечего
@@ -66,17 +88,20 @@ rm -rf "$DEST/.git" "$DEST/deploy" "$DEST/__pycache__" \
        "$DEST/README.md" "$DEST/.gitignore"
 
 echo "==> Папка для базы"
-# Выше публичной папки: внутри неё Apache отдал бы базу по прямой ссылке
-mkdir -p "$HOME/savely-data"
-chmod 700 "$HOME/savely-data"
+# Ровно там, где её ждёт wsgi.py: на уровень выше публичной папки.
+# Внутри public_html Apache отдал бы базу по прямой ссылке.
+DATA="$(dirname "$DEST")/savely-data"
+mkdir -p "$DATA"
+chmod 700 "$DATA"
+echo "    $DATA"
 
 echo "==> Проверяю, что приложение поднимается"
 cd "$DEST"
 if ! "$PY" - <<'CHECK'
 import os, sys
 sys.path.insert(0, ".")
-os.environ["SAVELY_DB"] = os.path.expanduser("~/savely-data/savely.db")
-import wsgi
+import wsgi  # путь к базе wsgi.py определяет сам — проверяем ровно то,
+             # что будет работать под mod_wsgi
 
 seen = {}
 body = b"".join(wsgi.application(
@@ -92,6 +117,9 @@ then
   exit 1
 fi
 
+echo
+echo "База: $DATA/savely.db"
+echo "Копия перед обновлением:  cp $DATA/savely.db ~/savely-backup.db"
 echo
 echo "Файлы на месте. Осталось в панели:"
 echo "  1. «Сайты» → шестерёнка у $SITE → версия Python 3.10"
