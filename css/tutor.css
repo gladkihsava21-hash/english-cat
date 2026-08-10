@@ -162,6 +162,16 @@
   .stu-main { flex-direction: column; align-items: flex-start; }
   .hw-form .vs-row { flex-direction: column; align-items: stretch; }
   .hw-form .vs-row label { min-width: 0; }
+  /* на телефоне поля не должны делить строку — текст обрезался */
+  .msg-form .vs-row { flex-direction: column; align-items: stretch; }
+  .msg-form input[type="text"], .msg-form select { width: 100%; }
+  .msg-row { flex-wrap: wrap; }
+  .group-bar { flex-direction: column; align-items: stretch; }
+  .group-add input { width: 100%; }
+  .modal { padding: 16px 10px; }
+  .modal-box { padding: 20px 16px; }
+  .task-head { flex-direction: column; }
+  .task-stat { text-align: left; }
 }
 
 /* сообщения ученикам */
