@@ -15,7 +15,9 @@ from urllib.parse import urlparse
 
 import db
 
-PORT = 4210
+PORT = int(os.environ.get("SAVELY_PORT", "4210"))
+# За nginx сервер слушает только localhost — снаружи он не должен быть виден
+HOST = os.environ.get("SAVELY_HOST", "")
 ROOT = os.path.dirname(os.path.abspath(__file__))
 CLAUDE = shutil.which("claude") or os.path.expanduser("~/.local/bin/claude")
 
@@ -467,4 +469,4 @@ if __name__ == "__main__":
     print(f"Савелий слушает на http://localhost:{PORT}")
     print(f"Панель репетитора: http://localhost:{PORT}/tutor.html")
     print(f"База: {db.DB_PATH}")
-    ThreadingHTTPServer(("127.0.0.1", PORT), Handler).serve_forever()
+    ThreadingHTTPServer((HOST or "127.0.0.1", PORT), Handler).serve_forever()

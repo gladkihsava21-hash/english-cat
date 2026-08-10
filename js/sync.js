@@ -289,7 +289,15 @@ function renderTutorMessages() {
 
 // ---- старт ----
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
+  // на витрине без сервера не дёргаем API вовсе — иначе каждая
+  // синхронизация упиралась бы в 404 хостинга
+  if (!(await apiAlive())) {
+    syncStopped = true;
+    const note = document.getElementById("demo-note");
+    if (note) note.classList.remove("hidden");
+    return;
+  }
   initInvite();
   if (studentToken()) pushProgress();
   else tryPendingJoin();          // догоняем привязку, сорванную офлайном

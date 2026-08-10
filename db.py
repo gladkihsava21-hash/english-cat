@@ -11,7 +11,12 @@ import sqlite3
 import threading
 from datetime import datetime, timezone
 
-DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "savely.db")
+# На сервере база должна лежать ВНЕ папки с кодом: git pull при обновлении
+# не должен иметь ни малейшего шанса задеть прогресс учеников.
+DB_PATH = os.environ.get(
+    "SAVELY_DB",
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "savely.db"),
+)
 _local = threading.local()
 
 SCHEMA = """

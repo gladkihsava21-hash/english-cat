@@ -17,3 +17,25 @@ function esc(value) {
 function html(strings, ...values) {
   return strings.reduce((out, s, i) => out + s + (i < values.length ? esc(values[i]) : ""), "");
 }
+
+/** Витрина без бэкенда (GitHub Pages и любая статика).
+ * Там нет server.py, поэтому панель репетитора, домашка и синхронизация
+ * работать не могут — сайт должен это честно объяснить, а не «зависать». */
+const STATIC_HOSTS = ["github.io", "githubusercontent.com", "netlify.app", "vercel.app"];
+
+function isStaticHost() {
+  if (location.protocol === "file:") return true;
+  return STATIC_HOSTS.some(h => location.hostname.endsWith(h));
+}
+
+/** Проверка живого API: один раз за загрузку страницы. */
+let _apiAlivePromise = null;
+function apiAlive() {
+  if (isStaticHost()) return Promise.resolve(false);
+  if (!_apiAlivePromise) {
+    _apiAlivePromise = fetch("health", { method: "GET" })
+      .then(r => r.ok)
+      .catch(() => false);
+  }
+  return _apiAlivePromise;
+}

@@ -559,3 +559,8 @@ body {
              text-transform: uppercase; letter-spacing: .4px; }
 .tmsg-text { font-weight: 700; margin-top: 3px; }
 .code-value { font-size: 20px; letter-spacing: 1px; color: var(--accent-dark); user-select: all; }
+
+.demo-note {
+  background: #EFEAE3; color: var(--muted); font-weight: 700; font-size: 13.5px;
+  border-radius: 14px; padding: 12px 18px; margin-bottom: 18px; line-height: 1.5;
+}

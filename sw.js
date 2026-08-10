@@ -2,20 +2,24 @@
 // Ученик может тренироваться в метро — прогресс уйдёт на сервер,
 // когда связь вернётся.
 
-const CACHE = "savely-v3";
+// ВАЖНО: версия должна совпадать с ?v= в index.html, иначе ученик
+// после обновления сайта получит из кэша старый код.
+const CACHE = "savely-v4";
 const ASSETS = [
   "./",
   "./index.html",
-  "./css/style.css?v=3",
-  "./js/words.js?v=3",
-  "./js/srs.js?v=3",
-  "./js/images.js?v=3",
-  "./js/app.js?v=3",
-  "./js/achievements.js?v=3",
-  "./js/exercises.js?v=3",
-  "./js/voice.js?v=3",
-  "./js/sync.js?v=3",
+  "./css/style.css?v=4",
+  "./js/util.js?v=4",
+  "./js/words.js?v=4",
+  "./js/srs.js?v=4",
+  "./js/images.js?v=4",
+  "./js/app.js?v=4",
+  "./js/achievements.js?v=4",
+  "./js/exercises.js?v=4",
+  "./js/voice.js?v=4",
+  "./js/sync.js?v=4",
   "./manifest.json",
+  "./icon-192.png",
 ];
 
 self.addEventListener("install", e => {

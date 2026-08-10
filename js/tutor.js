@@ -751,4 +751,27 @@ $("hw-send").addEventListener("click", async () => {
 fillLevels();
 renderWordPicker();
 renderPicked();
-if (token()) openPanel();
+
+// Витрина без бэкенда: панели тут работать негде, и лучше сказать это
+// прямо, чем показывать форму входа, которая всегда отвечает ошибкой.
+apiAlive().then(alive => {
+  if (alive) {
+    if (token()) openPanel();
+    return;
+  }
+  document.querySelector("#screen-auth .auth-card").innerHTML = `
+    <h3 style="font-weight:900;margin-bottom:10px">Панели тут нет — и это нормально</h3>
+    <p style="font-weight:600;line-height:1.55;margin-bottom:14px">
+      Вы открыли витрину проекта. Она показывает сайт ученика, но кабинет
+      репетитора работает только там, где запущен сервер: он хранит учеников,
+      прогресс и домашку.
+    </p>
+    <p class="muted-small" style="margin-bottom:10px">Чтобы открыть панель у себя:</p>
+    <ol style="font-weight:600;font-size:14px;line-height:1.7;padding-left:20px;margin-bottom:14px">
+      <li>Скачайте проект с GitHub</li>
+      <li>В папке проекта выполните <code>python3 server.py</code></li>
+      <li>Откройте <code>http://localhost:4210/tutor.html</code></li>
+    </ol>
+    <a class="btn btn-primary btn-wide" style="display:block;text-align:center;text-decoration:none"
+       href="index.html">Посмотреть сайт ученика →</a>`;
+});
