@@ -147,10 +147,18 @@ def conn():
 def init():
     c = conn()
     c.executescript(SCHEMA)
+    # Кто зарегистрировался ДО появления проверки почты, подтверждён по факту:
+    # запирать человеку кабинет задним числом нельзя, он ничего не нарушал
+    had_verify_column = "email_verified" in {
+        r["name"] for r in c.execute("PRAGMA table_info(tutors)")
+    }
+
     for table, column, decl in MIGRATIONS:
         have = {r["name"] for r in c.execute(f"PRAGMA table_info({table})")}
         if column not in have:
             c.execute(f"ALTER TABLE {table} ADD COLUMN {column} {decl}")
+            if table == "tutors" and column == "email_verified" and not had_verify_column:
+                c.execute("UPDATE tutors SET email_verified=1")
     c.commit()
 
 
