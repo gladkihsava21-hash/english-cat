@@ -238,3 +238,39 @@
   max-width: 420px; width: 100%;
 }
 .modal-card h3 { font-weight: 900; font-size: 20px; margin-bottom: 10px; }
+
+/* --- Подписка --- */
+.plan-chip {
+  background: var(--accent-soft); color: var(--accent-dark);
+  font-weight: 800; font-size: 12.5px; padding: 5px 11px; border-radius: 999px;
+}
+.plan-chip.plan-full { background: #FDE7E3; color: #C0392B; }
+.plan-card { background: #fff; border-radius: 20px; padding: 22px 24px; border: 1px solid var(--line); }
+.plan-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 14px; }
+.plan-name { font-size: 22px; font-weight: 900; }
+.plan-count { font-size: 30px; font-weight: 900; white-space: nowrap; }
+.plan-count span { font-size: 15px; font-weight: 700; color: var(--muted); }
+.plan-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+.plan-table { margin-top: 18px; display: grid; gap: 8px; }
+.plan-row {
+  display: flex; justify-content: space-between; gap: 12px; align-items: center;
+  background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px;
+}
+.plan-row.current { border-color: var(--accent); background: #FFFBF6; }
+.plan-row-name { font-weight: 900; flex: 1; }
+.plan-row-lim { color: var(--muted); font-weight: 700; font-size: 13.5px; }
+.plan-row-price { font-weight: 900; white-space: nowrap; }
+.xp-bar-fill.full { background: #C0392B; }
+
+/* --- Пароль и код --- */
+.pass-meter { display: block; height: 5px; background: var(--line); border-radius: 999px; margin-top: 8px; overflow: hidden; }
+.pass-meter-fill { display: block; height: 100%; width: 0; border-radius: 999px; transition: width .2s; background: #C0392B; }
+.pass-meter-fill[data-level="2"] { background: #E8A33D; }
+.pass-meter-fill[data-level="3"] { background: #7CB342; }
+.pass-meter-fill[data-level="4"] { background: #2E7D52; }
+.pass-hint, .plan-hint { display: block; font-size: 12.5px; font-weight: 700; color: var(--muted); margin-top: 6px; }
+.code-input {
+  font-size: 30px; font-weight: 900; letter-spacing: .35em; text-align: center;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+}
+.type-feedback.ok { color: #2E7D52; }

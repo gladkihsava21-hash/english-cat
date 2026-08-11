@@ -7,8 +7,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=9">
-  <link rel="stylesheet" href="css/tutor.css?v=9">
+  <link rel="stylesheet" href="css/style.css?v=10">
+  <link rel="stylesheet" href="css/tutor.css?v=10">
 </head>
 <body>
 
@@ -31,8 +31,14 @@
         <label>Email
           <input type="email" id="t-email" placeholder="you@example.com" required>
         </label>
+        <label id="count-row" class="hidden">Сколько у вас учеников?
+          <input type="number" id="t-count" min="1" max="500" placeholder="например, 20">
+          <span class="plan-hint" id="plan-hint"></span>
+        </label>
         <label>Пароль
           <input type="password" id="t-pass" placeholder="от 8 символов" required>
+          <span class="pass-meter"><span class="pass-meter-fill" id="pass-fill"></span></span>
+          <span class="pass-hint" id="pass-hint"></span>
         </label>
         <button type="submit" class="btn btn-primary btn-wide" id="auth-submit">Войти</button>
         <p class="type-feedback err" id="auth-error"></p>
@@ -67,7 +73,9 @@
         <button class="nav-btn" data-tab="tasks">Домашки</button>
         <button class="nav-btn" data-tab="photos">Фото тетрадей <span id="photo-count" class="badge">0</span></button>
         <button class="nav-btn" data-tab="invite">Ссылка для учеников</button>
+        <button class="nav-btn" data-tab="plan">Подписка</button>
       </nav>
+      <div class="plan-chip" id="plan-chip" title="Тариф и занятые места"></div>
       <div class="user-chip">
         <span id="tutor-name"></span>
         <button id="pass-btn" class="link-btn">пароль</button>
@@ -170,11 +178,40 @@
     </section>
 
     <!-- Ссылка -->
+    <section id="screen-verify" class="screen hidden">
+      <div class="hero">
+        <div class="cat-avatar cat-big">📬</div>
+        <h1>Подтвердите почту</h1>
+        <p class="hero-sub">Мы отправили шестизначный код на <b id="verify-email"></b>.
+          Без подтверждения кабинет не откроется — так чужой человек не сможет
+          зарегистрироваться на ваш адрес.</p>
+        <div class="card auth-card">
+          <form id="verify-form">
+            <label>Код из письма
+              <input type="text" id="v-code" inputmode="numeric" maxlength="6"
+                     placeholder="000000" class="code-input" required>
+            </label>
+            <button type="submit" class="btn btn-primary btn-wide">Подтвердить</button>
+            <p class="type-feedback err" id="verify-error"></p>
+            <p class="type-feedback ok" id="verify-note"></p>
+          </form>
+          <button type="button" class="link-btn auth-forgot" id="verify-resend">Отправить ещё раз</button>
+          <p class="reset-note" style="margin-top:14px">Письмо может попасть в «Спам» —
+            проверьте там, если не пришло за пару минут.</p>
+        </div>
+      </div>
+    </section>
+
     <section id="tab-photos" class="hidden">
       <h2 class="section-title">Фото домашних работ</h2>
       <p class="section-note">Ученики присылают снимки тетрадей. Савелий разбирает
         работу и показывает ошибки — вам остаётся проверить и обсудить на занятии.</p>
       <div id="photo-list" class="photo-grid"></div>
+    </section>
+
+    <section id="tab-plan" class="hidden">
+      <h2 class="section-title">Подписка</h2>
+      <div id="plan-box"></div>
     </section>
 
     <section id="tab-invite" class="hidden">
@@ -211,11 +248,12 @@
   </div>
 </div>
 
-<script src="js/util.js?v=9"></script>
-<script src="js/words.js?v=9"></script>
-<script src="js/images.js?v=9"></script>
-<script src="js/tutor.js?v=9"></script>
-<script src="js/tutor-photos.js?v=9"></script>
-<script src="js/tutor-auth.js?v=9"></script>
+<script src="js/util.js?v=10"></script>
+<script src="js/words.js?v=10"></script>
+<script src="js/images.js?v=10"></script>
+<script src="js/tutor.js?v=10"></script>
+<script src="js/tutor-photos.js?v=10"></script>
+<script src="js/tutor-auth.js?v=10"></script>
+<script src="js/tutor-verify.js?v=10"></script>
 </body>
 </html>

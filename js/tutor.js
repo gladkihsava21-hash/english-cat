@@ -31,6 +31,8 @@ document.querySelectorAll(".tab").forEach(tab => {
     authMode = tab.dataset.mode;
     document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t === tab));
     $("name-row").classList.toggle("hidden", authMode === "login");
+    const cr = $("count-row");
+    if (cr) cr.classList.toggle("hidden", authMode === "login");
     $("auth-submit").textContent = authMode === "login" ? "Войти" : "Создать кабинет";
     $("auth-error").textContent = "";
   });
@@ -41,10 +43,12 @@ $("auth-form").addEventListener("submit", async e => {
   const email = $("t-email").value.trim();
   const password = $("t-pass").value;
   const name = $("t-name").value.trim();
+  const countEl = $("t-count");
+  const studentCount = countEl ? Number(countEl.value) || 0 : 0;
   const path = authMode === "login" ? "/api/tutor/login" : "/api/tutor/register";
   let res;
   try {
-    res = await api(path, { email, password, name });
+    res = await api(path, { email, password, name, studentCount });
   } catch (err) {
     $("auth-error").textContent = "Сервер недоступен. Запущен ли server.py?";
     return;
@@ -55,6 +59,15 @@ $("auth-form").addEventListener("submit", async e => {
   }
   localStorage.setItem(TOKEN_KEY, res.token);
   tutor = res.tutor;
+  // Почта не подтверждена — панель не открываем: иначе регистрация
+  // на чужой адрес сразу даёт доступ к данным учеников
+  if (res.needVerify && typeof showVerifyScreen === "function") {
+    if (res.recoveryCode && typeof showRecoveryCode === "function") {
+      showRecoveryCode(res.recoveryCode);
+    }
+    showVerifyScreen(res.tutor && res.tutor.email);
+    return;
+  }
   openPanel();
   // код восстановления показываем один раз — второго шанса не будет
   if (res.recoveryCode && typeof showRecoveryCode === "function") {

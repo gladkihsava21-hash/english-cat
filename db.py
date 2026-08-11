@@ -119,6 +119,12 @@ MIGRATIONS = [
     ("tutors", "locked_until", "TEXT"),
     ("tutors", "recovery_code", "TEXT"),
     ("tutors", "pass_changed_at", "TEXT"),
+    ("tutors", "email_verified", "INTEGER DEFAULT 0"),
+    ("tutors", "verify_code", "TEXT"),
+    ("tutors", "verify_sent_at", "TEXT"),
+    ("tutors", "verify_tries", "INTEGER DEFAULT 0"),
+    ("tutors", "plan", "TEXT DEFAULT 'trial'"),
+    ("tutors", "student_limit", "INTEGER DEFAULT 5"),
 ]
 
 
@@ -605,12 +611,23 @@ def student_public(row, homework=None, detail=False):
 
 
 def tutor_public(row):
+    keys = row.keys()
+    plan_id = (row["plan"] if "plan" in keys else None) or "trial"
+    limit = (row["student_limit"] if "student_limit" in keys else 5) or 5
+    plan = plan_by_id(plan_id)
     return {
         "id": row["id"],
         "name": row["name"],
         "email": row["email"],
         "inviteCode": row["invite_code"],
         "createdAt": row["created_at"],
+        "plan": plan_id,
+        "planName": plan["name"],
+        "planPrice": plan["price"],
+        "studentLimit": limit,
+        "studentCount": student_count(row["id"]),
+        "extraPrice": EXTRA_STUDENT_PRICE,
+        "emailVerified": bool(row["email_verified"]) if "email_verified" in keys else True,
     }
 
 
@@ -883,3 +900,119 @@ def password_problem(password):
     if p.isdigit():
         return "Только из цифр — ненадёжно. Добавь буквы."
     return None
+
+
+# ---------- подтверждение почты ----------
+
+VERIFY_TTL = 30 * 60      # код живёт полчаса
+VERIFY_RESEND = 60        # не чаще раза в минуту
+VERIFY_MAX_TRIES = 8      # столько попыток ввода на один код
+
+
+def new_verify_code():
+    # шестизначный, диктуется голосом и легко вводится на телефоне
+    return "".join(secrets.choice("0123456789") for _ in range(6))
+
+
+def set_verify_code(tutor_id):
+    code = new_verify_code()
+    conn().execute(
+        "UPDATE tutors SET verify_code=?, verify_sent_at=?, verify_tries=0 WHERE id=?",
+        (code, now(), tutor_id))
+    conn().commit()
+    return code
+
+
+def seconds_since_verify_sent(row):
+    keys = row.keys()
+    if "verify_sent_at" not in keys or not row["verify_sent_at"]:
+        return None
+    sent = _parse_ts(row["verify_sent_at"])
+    if not sent:
+        return None
+    return (datetime.now(timezone.utc) - sent).total_seconds()
+
+
+def check_verify_code(tutor_id, code):
+    """Возвращает (успех, текст ошибки)."""
+    row = conn().execute("SELECT * FROM tutors WHERE id=?", (tutor_id,)).fetchone()
+    if not row:
+        return False, "Кабинет не найден."
+    if row["email_verified"]:
+        return True, None
+    if not row["verify_code"]:
+        return False, "Код не запрашивали. Нажми «Отправить ещё раз»."
+    age = seconds_since_verify_sent(row)
+    if age is None or age > VERIFY_TTL:
+        return False, "Код устарел. Запроси новый."
+    if (row["verify_tries"] or 0) >= VERIFY_MAX_TRIES:
+        return False, "Слишком много попыток. Запроси новый код."
+    if not secrets.compare_digest(str(code or "").strip(), row["verify_code"]):
+        conn().execute("UPDATE tutors SET verify_tries=verify_tries+1 WHERE id=?", (tutor_id,))
+        conn().commit()
+        left = VERIFY_MAX_TRIES - (row["verify_tries"] or 0) - 1
+        return False, "Код не подошёл. Осталось попыток: %d." % max(0, left)
+    conn().execute(
+        "UPDATE tutors SET email_verified=1, verify_code=NULL, verify_tries=0 WHERE id=?",
+        (tutor_id,))
+    conn().commit()
+    return True, None
+
+
+def is_verified(row):
+    keys = row.keys()
+    return bool(row["email_verified"]) if "email_verified" in keys else True
+
+
+# ---------- тарифы ----------
+
+# Себестоимость ученика ~10 ₽/мес (ИИ + сервер). Цены дают 10–20-кратный
+# запас: рост важнее выжимания, а поддержка и развитие тоже чего-то стоят.
+PLANS = [
+    {"id": "trial",    "limit": 5,  "price": 0,    "name": "Пробный"},
+    {"id": "start",    "limit": 15, "price": 690,  "name": "Старт"},
+    {"id": "practice", "limit": 30, "price": 1290, "name": "Практика"},
+    {"id": "school",   "limit": 60, "price": 1990, "name": "Школа"},
+]
+EXTRA_STUDENT_PRICE = 99
+
+
+def plan_by_id(plan_id):
+    for p in PLANS:
+        if p["id"] == plan_id:
+            return p
+    return PLANS[0]
+
+
+def plan_for_count(count):
+    for p in PLANS:
+        if count <= p["limit"]:
+            return p
+    return PLANS[-1]
+
+
+def set_plan_by_count(tutor_id, count):
+    plan = plan_for_count(max(0, int(count or 0)))
+    limit = max(plan["limit"], int(count or 0))
+    conn().execute("UPDATE tutors SET plan=?, student_limit=? WHERE id=?",
+                   (plan["id"], limit, tutor_id))
+    conn().commit()
+    return plan
+
+
+def student_count(tutor_id):
+    return conn().execute(
+        "SELECT COUNT(*) FROM students WHERE tutor_id=?", (tutor_id,)).fetchone()[0]
+
+
+def can_add_student(tutor_row):
+    keys = tutor_row.keys()
+    limit = (tutor_row["student_limit"] if "student_limit" in keys else 5) or 5
+    return student_count(tutor_row["id"]) < limit, limit
+
+
+def raise_student_limit(tutor_id, extra=1):
+    conn().execute(
+        "UPDATE tutors SET student_limit = COALESCE(student_limit, 5) + ? WHERE id=?",
+        (max(1, int(extra)), tutor_id))
+    conn().commit()

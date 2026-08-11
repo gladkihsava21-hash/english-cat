@@ -16,6 +16,7 @@ import urllib.request
 from urllib.parse import urlparse
 
 import db
+import mailer
 
 PORT = int(os.environ.get("SAVELY_PORT", "4210"))
 # За nginx сервер слушает только localhost — снаружи он не должен быть виден
@@ -162,6 +163,39 @@ def ask_claude_api(payload):
     }
 
 
+EMAIL_RE = re.compile(r"^[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}$")
+# Домены-«однодневки»: кабинет с таким адресом невозможно восстановить,
+# и владелец через неделю приходит с претензией, что потерял учеников
+THROWAWAY = {
+    "mailinator.com", "10minutemail.com", "guerrillamail.com", "tempmail.com",
+    "temp-mail.org", "yopmail.com", "trashmail.com", "sharklasers.com",
+    "getnada.com", "dropmail.me", "fakemail.net", "maildrop.cc",
+}
+
+
+def valid_email(email):
+    email = str(email or "").strip().lower()
+    if len(email) < 6 or len(email) > 254 or not EMAIL_RE.match(email):
+        return False
+    domain = email.rsplit("@", 1)[-1]
+    if domain in THROWAWAY:
+        return False
+    if ".." in email or email.startswith(".") or "@." in email:
+        return False
+    return True
+
+
+def verified_tutor(payload):
+    """(репетитор, ошибка). Пока почта не подтверждена, данные учеников
+    не отдаём: иначе регистрация на чужой адрес открывает чужой кабинет."""
+    tutor = db.get_tutor_by_token(payload.get("token"))
+    if not tutor:
+        return None, {"ok": False, "error": "unauthorized"}
+    if not db.is_verified(tutor):
+        return None, {"ok": False, "error": "need_verify"}
+    return tutor, None
+
+
 def ai_error_text(exc):
     """Переводим сбой ИИ в понятную строку. Текст исключения наружу не
     отдаём: там бывают куски запроса и обрывки ключа."""
@@ -237,29 +271,48 @@ class Api:
         name = str(p.get("name", "")).strip()
         email = str(p.get("email", "")).strip()
         password = str(p.get("password", ""))
-        if not name or "@" not in email or "." not in email.split("@")[-1]:
-            return {"ok": False, "error": "Проверь имя и email."}
+        if len(name) < 2:
+            return {"ok": False, "error": "Введи имя — хотя бы две буквы."}
+        if not valid_email(email):
+            return {"ok": False, "error": "Проверь адрес почты — на него придёт код."}
         problem = db.password_problem(password)
         if problem:
             return {"ok": False, "error": problem}
         row = db.create_tutor(name, email, password)
         if not row:
             return {"ok": False, "error": "Такой email уже зарегистрирован."}
+        # Тариф подбираем по заявленному числу учеников. Верим на слово:
+        # лимит всё равно проверяется по факту при добавлении ученика
+        try:
+            db.set_plan_by_count(row["id"], int(p.get("studentCount") or 0))
+            row = db.get_tutor_by_token(row["token"])
+        except (ValueError, TypeError):
+            pass
+        # Код отправляем сразу: без подтверждения кабинет не откроется,
+        # и лишний шаг «нажмите отправить» тут только раздражает
+        sent, send_error = True, None
+        try:
+            mailer.send_verify_code(row["email"], row["name"], db.set_verify_code(row["id"]))
+        except Exception:
+            import traceback; traceback.print_exc()
+            sent, send_error = False, "Письмо не ушло — нажми «Отправить ещё раз»."
         return {"ok": True, "token": row["token"], "tutor": db.tutor_public(row),
-                "recoveryCode": row["recovery_code"]}
+                "recoveryCode": row["recovery_code"],
+                "needVerify": True, "mailSent": sent, "mailError": send_error}
 
     @staticmethod
     def tutor_login(h, p):
         row, err = db.login_tutor(str(p.get("email", "")), str(p.get("password", "")))
         if not row:
             return {"ok": False, "error": err or "Неверный email или пароль."}
-        return {"ok": True, "token": row["token"], "tutor": db.tutor_public(row)}
+        return {"ok": True, "token": row["token"], "tutor": db.tutor_public(row),
+                "needVerify": not db.is_verified(row)}
 
     @staticmethod
     def tutor_students(h, p):
-        tutor = db.get_tutor_by_token(p.get("token"))
-        if not tutor:
-            return {"ok": False, "error": "unauthorized"}
+        tutor, err = verified_tutor(p)
+        if err:
+            return err
         hw = db.list_homework(tutor["id"])
         students = []
         for s in db.list_students(tutor["id"]):
@@ -283,9 +336,9 @@ class Api:
 
     @staticmethod
     def tutor_student_detail(h, p):
-        tutor = db.get_tutor_by_token(p.get("token"))
-        if not tutor:
-            return {"ok": False, "error": "unauthorized"}
+        tutor, err = verified_tutor(p)
+        if err:
+            return err
         row = db.get_student_by_id(int(p.get("studentId") or 0))
         if not row or row["tutor_id"] != tutor["id"]:
             return {"ok": False, "error": "not_found"}
@@ -294,17 +347,17 @@ class Api:
 
     @staticmethod
     def tutor_student_note(h, p):
-        tutor = db.get_tutor_by_token(p.get("token"))
-        if not tutor:
-            return {"ok": False, "error": "unauthorized"}
+        tutor, err = verified_tutor(p)
+        if err:
+            return err
         db.set_student_note(tutor["id"], int(p.get("studentId") or 0), p.get("note") or "")
         return {"ok": True}
 
     @staticmethod
     def tutor_message(h, p):
-        tutor = db.get_tutor_by_token(p.get("token"))
-        if not tutor:
-            return {"ok": False, "error": "unauthorized"}
+        tutor, err = verified_tutor(p)
+        if err:
+            return err
         text = str(p.get("text", "")).strip()
         if not text:
             return {"ok": False, "error": "Напишите текст сообщения."}
@@ -316,9 +369,9 @@ class Api:
 
     @staticmethod
     def tutor_message_archive(h, p):
-        tutor = db.get_tutor_by_token(p.get("token"))
-        if not tutor:
-            return {"ok": False, "error": "unauthorized"}
+        tutor, err = verified_tutor(p)
+        if err:
+            return err
         db.archive_message(tutor["id"], int(p.get("id") or 0))
         return {"ok": True}
 
@@ -326,9 +379,9 @@ class Api:
 
     @staticmethod
     def group_create(h, p):
-        tutor = db.get_tutor_by_token(p.get("token"))
-        if not tutor:
-            return {"ok": False, "error": "unauthorized"}
+        tutor, err = verified_tutor(p)
+        if err:
+            return err
         name = str(p.get("name", "")).strip()
         if not name:
             return {"ok": False, "error": "Введите название группы."}
@@ -337,25 +390,25 @@ class Api:
 
     @staticmethod
     def group_update(h, p):
-        tutor = db.get_tutor_by_token(p.get("token"))
-        if not tutor:
-            return {"ok": False, "error": "unauthorized"}
+        tutor, err = verified_tutor(p)
+        if err:
+            return err
         db.update_group(tutor["id"], int(p.get("id") or 0), p.get("name"), p.get("color"))
         return {"ok": True}
 
     @staticmethod
     def group_delete(h, p):
-        tutor = db.get_tutor_by_token(p.get("token"))
-        if not tutor:
-            return {"ok": False, "error": "unauthorized"}
+        tutor, err = verified_tutor(p)
+        if err:
+            return err
         db.delete_group(tutor["id"], int(p.get("id") or 0))
         return {"ok": True}
 
     @staticmethod
     def group_assign(h, p):
-        tutor = db.get_tutor_by_token(p.get("token"))
-        if not tutor:
-            return {"ok": False, "error": "unauthorized"}
+        tutor, err = verified_tutor(p)
+        if err:
+            return err
         gid = p.get("groupId")
         db.set_student_group(tutor["id"], int(p.get("studentId") or 0),
                              int(gid) if gid else None)
@@ -363,9 +416,9 @@ class Api:
 
     @staticmethod
     def tutor_homework_create(h, p):
-        tutor = db.get_tutor_by_token(p.get("token"))
-        if not tutor:
-            return {"ok": False, "error": "unauthorized"}
+        tutor, err = verified_tutor(p)
+        if err:
+            return err
         words = p.get("words") or []
         if not isinstance(words, list) or not words:
             return {"ok": False, "error": "Добавь хотя бы одно слово."}
@@ -391,17 +444,17 @@ class Api:
 
     @staticmethod
     def tutor_homework_archive(h, p):
-        tutor = db.get_tutor_by_token(p.get("token"))
-        if not tutor:
-            return {"ok": False, "error": "unauthorized"}
+        tutor, err = verified_tutor(p)
+        if err:
+            return err
         db.archive_homework(tutor["id"], int(p.get("id") or 0))
         return {"ok": True}
 
     @staticmethod
     def tutor_student_delete(h, p):
-        tutor = db.get_tutor_by_token(p.get("token"))
-        if not tutor:
-            return {"ok": False, "error": "unauthorized"}
+        tutor, err = verified_tutor(p)
+        if err:
+            return err
         db.delete_student(tutor["id"], int(p.get("studentId") or 0))
         return {"ok": True}
 
@@ -444,8 +497,12 @@ class Api:
         if not tutor:
             return {"ok": False, "error": "Такой ссылки не существует."}
         name = str(p.get("name", "")).strip()
-        if not name:
-            return {"ok": False, "error": "Введи имя."}
+        if len(name) < 2:
+            return {"ok": False, "error": "Введи имя — хотя бы две буквы."}
+        allowed, limit = db.can_add_student(tutor)
+        if not allowed:
+            return {"ok": False, "error":
+                    "У репетитора занято всё %d мест. Попроси её расширить тариф." % limit}
         row = db.create_student(tutor["id"], name)
         return {"ok": True, "token": row["token"], "tutorName": tutor["name"],
                 "restoreCode": row["restore_code"]}
@@ -505,6 +562,59 @@ class Api:
         if not tutor:
             return {"ok": False, "error": "unauthorized"}
         return {"ok": True, "recoveryCode": db.ensure_recovery_code(tutor["id"])}
+
+    @staticmethod
+    def tutor_plan(h, p):
+        tutor, err = verified_tutor(p)
+        if err:
+            return err
+        return {"ok": True, "tutor": db.tutor_public(tutor),
+                "plans": db.PLANS, "extraPrice": db.EXTRA_STUDENT_PRICE}
+
+    @staticmethod
+    def tutor_add_slot(h, p):
+        """Расширить лимит на N учеников. Оплата пока не подключена —
+        место открывается сразу, счёт выставляется вручную."""
+        tutor, err = verified_tutor(p)
+        if err:
+            return err
+        extra = max(1, min(50, int(p.get("count") or 1)))
+        db.raise_student_limit(tutor["id"], extra)
+        row = db.get_tutor_by_token(p.get("token"))
+        return {"ok": True, "tutor": db.tutor_public(row),
+                "charged": extra * db.EXTRA_STUDENT_PRICE}
+
+    # --- подтверждение почты ---
+
+    @staticmethod
+    def tutor_verify_send(h, p):
+        tutor = db.get_tutor_by_token(p.get("token"))
+        if not tutor:
+            return {"ok": False, "error": "unauthorized"}
+        if db.is_verified(tutor):
+            return {"ok": True, "already": True}
+        age = db.seconds_since_verify_sent(tutor)
+        if age is not None and age < db.VERIFY_RESEND:
+            wait = int(db.VERIFY_RESEND - age)
+            return {"ok": False, "error": "Подожди %d сек перед повторной отправкой." % wait}
+        code = db.set_verify_code(tutor["id"])
+        try:
+            how = mailer.send_verify_code(tutor["email"], tutor["name"], code)
+        except Exception:
+            import traceback; traceback.print_exc()
+            return {"ok": False,
+                    "error": "Не получилось отправить письмо. Проверь адрес или напиши нам."}
+        return {"ok": True, "sentVia": how}
+
+    @staticmethod
+    def tutor_verify_check(h, p):
+        tutor = db.get_tutor_by_token(p.get("token"))
+        if not tutor:
+            return {"ok": False, "error": "unauthorized"}
+        good, err = db.check_verify_code(tutor["id"], p.get("code"))
+        if not good:
+            return {"ok": False, "error": err}
+        return {"ok": True, "tutor": db.tutor_public(db.get_tutor_by_token(p.get("token")))}
 
     # --- фото домашки ---
 
@@ -571,26 +681,26 @@ class Api:
 
     @staticmethod
     def tutor_photo_list(h, p):
-        tutor = db.get_tutor_by_token(p.get("token"))
-        if not tutor:
-            return {"ok": False, "error": "unauthorized"}
+        tutor, err = verified_tutor(p)
+        if err:
+            return err
         return {"ok": True,
                 "photos": [db.photo_public(x, for_tutor=True)
                            for x in db.photos_for_tutor(tutor["id"])]}
 
     @staticmethod
     def tutor_photo_seen(h, p):
-        tutor = db.get_tutor_by_token(p.get("token"))
-        if not tutor:
-            return {"ok": False, "error": "unauthorized"}
+        tutor, err = verified_tutor(p)
+        if err:
+            return err
         db.mark_photo_seen(tutor["id"], int(p.get("id") or 0))
         return {"ok": True}
 
     @staticmethod
     def tutor_photo_archive(h, p):
-        tutor = db.get_tutor_by_token(p.get("token"))
-        if not tutor:
-            return {"ok": False, "error": "unauthorized"}
+        tutor, err = verified_tutor(p)
+        if err:
+            return err
         return {"ok": db.archive_photo(tutor["id"], int(p.get("id") or 0))}
 
     @staticmethod
@@ -747,6 +857,10 @@ ROUTES = {
     "/api/student/restore": Api.student_restore,
     "/api/student/pull": Api.student_pull,
     "/api/student/sync": Api.student_sync,
+    "/api/tutor/plan": Api.tutor_plan,
+    "/api/tutor/add-slot": Api.tutor_add_slot,
+    "/api/tutor/verify/send": Api.tutor_verify_send,
+    "/api/tutor/verify/check": Api.tutor_verify_check,
     "/api/tutor/password": Api.tutor_password_change,
     "/api/tutor/password/reset": Api.tutor_password_reset,
     "/api/tutor/recovery": Api.tutor_recovery_code,
