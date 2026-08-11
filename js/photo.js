@@ -61,7 +61,7 @@ function renderPhotoResult(p) {
 
 async function sendHomeworkPhoto(file, homeworkId) {
   if (photoBusy) return;
-  if (!state.serverToken) {
+  if (!studentToken()) {
     alert("Фото можно отправить только если ты зашёл по ссылке репетитора.");
     return;
   }
@@ -71,7 +71,7 @@ async function sendHomeworkPhoto(file, homeworkId) {
   try {
     const image = await shrinkPhoto(file);
     const res = await api("/api/student/photo", {
-      token: state.serverToken,
+      token: studentToken(),
       image,
       homeworkId: homeworkId || null,
       comment: "",
@@ -87,8 +87,8 @@ async function sendHomeworkPhoto(file, homeworkId) {
 
 async function loadMyPhotos() {
   const box = document.getElementById("photo-box");
-  if (!box || !state.serverToken) return;
-  const res = await api("/api/student/photo/list", { token: state.serverToken });
+  if (!box || !studentToken()) return;
+  const res = await api("/api/student/photo/list", { token: studentToken() });
   const photos = (res && res.photos) || [];
   if (!photos.length) { box.innerHTML = ""; return; }
   box.innerHTML = photos.slice(0, 3).map(p => `
@@ -108,7 +108,7 @@ function initPhotoHomework() {
   if (!input || !btn) return;
   // кнопка нужна только тем, кто зашёл по ссылке репетитора:
   // остальным отправлять фото некому
-  if (!state.serverToken) return;
+  if (!studentToken()) return;
   if (cta) cta.classList.remove("hidden");
   btn.addEventListener("click", () => input.click());
   input.addEventListener("change", () => {
