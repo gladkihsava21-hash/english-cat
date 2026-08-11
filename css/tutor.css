@@ -274,3 +274,12 @@
   font-family: ui-monospace, "SF Mono", Menlo, monospace;
 }
 .type-feedback.ok { color: #2E7D52; }
+
+/* --- Состояние подписки --- */
+.access-bar {
+  background: #FFF4E8; color: #9A6212; font-weight: 800; font-size: 14px;
+  padding: 12px 22px; text-align: center; line-height: 1.45;
+}
+.access-bar.warn { background: #FDF0DC; }
+.access-bar.stop { background: #FDE7E3; color: #A93226; }
+#paywall-plan .plan-name { font-size: 24px; margin-bottom: 4px; }

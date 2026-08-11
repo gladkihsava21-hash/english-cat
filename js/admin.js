@@ -17,6 +17,18 @@ let data = null;
 
 function money(n) { return (n || 0).toLocaleString("ru-RU") + " ₽"; }
 
+function accessTag(t) {
+  if (t.access === "paid") {
+    const d = Math.floor(t.paidDaysLeft);
+    return `<span class="at-tag paid">оплачено ${d} дн.</span>`;
+  }
+  if (t.access === "trial") {
+    const h = Math.ceil(t.trialHoursLeft);
+    return `<span class="at-tag trial">пробный, ${h > 24 ? Math.ceil(h/24) + " дн." : h + " ч."}</span>`;
+  }
+  return `<span class="at-tag stop">не оплачено</span>`;
+}
+
 function ago(iso) {
   if (!iso) return "ни разу";
   const days = Math.floor((Date.now() - new Date(iso + "T00:00:00")) / 864e5);
@@ -56,7 +68,8 @@ function renderTutors() {
       <div class="at-head">
         <div>
           <p class="at-name">${esc(t.name)}
-            ${t.verified ? "" : `<span class="at-warn">почта не подтверждена</span>`}</p>
+            ${t.verified ? "" : `<span class="at-warn">почта не подтверждена</span>`}
+            ${accessTag(t)}</p>
           <p class="muted-note">${esc(t.email)} · код ${esc(t.inviteCode)} ·
             с ${esc((t.createdAt || "").slice(0, 10))}</p>
         </div>
@@ -85,6 +98,7 @@ function renderTutors() {
         </details>` : `<p class="muted-note">Учеников ещё нет.</p>`}
 
       <div class="at-actions">
+        <button class="btn btn-primary btn-small" data-pay="${t.id}">Оплата на 30 дней</button>
         <select class="at-plan" data-plan="${t.id}">
           ${data.plans.map(p => `<option value="${p.id}"${p.id === t.plan ? " selected" : ""}>
             ${esc(p.name)} — ${p.price ? p.price + " ₽" : "бесплатно"}</option>`).join("")}
@@ -106,6 +120,14 @@ function renderTutors() {
       token: atoken(), tutorId: id,
       plan: document.querySelector(`[data-plan="${id}"]`).value,
       limit: Number(document.querySelector(`[data-limit="${id}"]`).value),
+    }));
+  }));
+
+  document.querySelectorAll("[data-pay]").forEach(b => b.addEventListener("click", async () => {
+    const days = prompt("На сколько дней продлить доступ?", "30");
+    if (days === null) return;
+    refresh(await api("/api/admin/pay", {
+      token: atoken(), tutorId: Number(b.dataset.pay), days: Number(days) || 0,
     }));
   }));
 

@@ -129,7 +129,9 @@ MIGRATIONS = [
     ("tutors", "verify_sent_at", "TEXT"),
     ("tutors", "verify_tries", "INTEGER DEFAULT 0"),
     ("tutors", "plan", "TEXT DEFAULT 'trial'"),
-    ("tutors", "student_limit", "INTEGER DEFAULT 5"),
+    ("tutors", "student_limit", "INTEGER DEFAULT 15"),
+    ("tutors", "trial_ends_at", "TEXT"),
+    ("tutors", "paid_until", "TEXT"),
 ]
 
 
@@ -164,6 +166,15 @@ def init():
             c.execute(f"ALTER TABLE {table} ADD COLUMN {column} {decl}")
             if table == "tutors" and column == "email_verified" and not had_verify_column:
                 c.execute("UPDATE tutors SET email_verified=1")
+            if table == "tutors" and column == "trial_ends_at":
+                # Кто регистрировался до появления триала, получает свои
+                # три дня с этого момента — а не блокировку задним числом
+                end = (datetime.now(timezone.utc)
+                       + timedelta(days=TRIAL_DAYS)).isoformat(timespec="seconds")
+                c.execute("UPDATE tutors SET trial_ends_at=? WHERE trial_ends_at IS NULL",
+                          (end,))
+                # тариф «trial» отменён — переводим на минимальный платный
+                c.execute("UPDATE tutors SET plan='start' WHERE plan='trial' OR plan IS NULL")
     c.commit()
 
 
@@ -625,7 +636,7 @@ def student_public(row, homework=None, detail=False):
 
 def tutor_public(row):
     keys = row.keys()
-    plan_id = (row["plan"] if "plan" in keys else None) or "trial"
+    plan_id = (row["plan"] if "plan" in keys else None) or "start"
     limit = (row["student_limit"] if "student_limit" in keys else 5) or 5
     plan = plan_by_id(plan_id)
     return {
@@ -641,6 +652,10 @@ def tutor_public(row):
         "studentCount": student_count(row["id"]),
         "extraPrice": EXTRA_STUDENT_PRICE,
         "emailVerified": bool(row["email_verified"]) if "email_verified" in keys else True,
+        "access": access_state(row),
+        "trialHoursLeft": trial_left(row),
+        "paidDaysLeft": paid_left(row),
+        "trialDays": TRIAL_DAYS,
     }
 
 
@@ -983,11 +998,11 @@ def is_verified(row):
 # Себестоимость ученика ~10 ₽/мес (ИИ + сервер). Цены дают 10–20-кратный
 # запас: рост важнее выжимания, а поддержка и развитие тоже чего-то стоят.
 PLANS = [
-    {"id": "trial",    "limit": 5,  "price": 0,    "name": "Пробный"},
     {"id": "start",    "limit": 15, "price": 690,  "name": "Старт"},
     {"id": "practice", "limit": 30, "price": 1290, "name": "Практика"},
     {"id": "school",   "limit": 60, "price": 1990, "name": "Школа"},
 ]
+TRIAL_DAYS = 3
 EXTRA_STUDENT_PRICE = 99
 
 
@@ -996,6 +1011,63 @@ def plan_by_id(plan_id):
         if p["id"] == plan_id:
             return p
     return PLANS[0]
+
+
+def trial_left(row):
+    """Сколько часов триала осталось. 0 — кончился."""
+    keys = row.keys()
+    if "trial_ends_at" not in keys or not row["trial_ends_at"]:
+        return 0
+    end = _parse_ts(row["trial_ends_at"])
+    if not end:
+        return 0
+    left = (end - datetime.now(timezone.utc)).total_seconds() / 3600
+    return max(0, round(left, 1))
+
+
+def paid_left(row):
+    """Сколько дней оплачено вперёд. 0 — не оплачено."""
+    keys = row.keys()
+    if "paid_until" not in keys or not row["paid_until"]:
+        return 0
+    end = _parse_ts(row["paid_until"])
+    if not end:
+        return 0
+    left = (end - datetime.now(timezone.utc)).total_seconds() / 86400
+    return max(0, round(left, 1))
+
+
+def access_state(row):
+    """Что сейчас с доступом: 'paid' | 'trial' | 'expired'."""
+    if paid_left(row) > 0:
+        return "paid"
+    if trial_left(row) > 0:
+        return "trial"
+    return "expired"
+
+
+def start_trial(tutor_id):
+    end = (datetime.now(timezone.utc) + timedelta(days=TRIAL_DAYS)).isoformat(timespec="seconds")
+    conn().execute("UPDATE tutors SET trial_ends_at=? WHERE id=?", (end, tutor_id))
+    conn().commit()
+    return end
+
+
+def set_paid_until(tutor_id, days):
+    """Продлеваем от большей из дат: сегодня или уже оплаченный срок —
+    иначе досрочная оплата съедала бы остаток предыдущей."""
+    row = conn().execute("SELECT paid_until FROM tutors WHERE id=?", (tutor_id,)).fetchone()
+    base = datetime.now(timezone.utc)
+    if row and row["paid_until"]:
+        cur = _parse_ts(row["paid_until"])
+        if cur and cur > base:
+            base = cur
+    end = (base + timedelta(days=max(0, int(days or 0)))).isoformat(timespec="seconds")
+    if int(days or 0) <= 0:
+        end = None
+    conn().execute("UPDATE tutors SET paid_until=? WHERE id=?", (end, tutor_id))
+    conn().commit()
+    return end
 
 
 def plan_for_count(count):
@@ -1126,7 +1198,9 @@ def admin_overview():
             active += 1
 
     revenue = 0
-    for r in c.execute("SELECT plan, student_limit FROM tutors"):
+    for r in c.execute("SELECT plan, student_limit, paid_until FROM tutors"):
+        if not r["paid_until"]:
+            continue
         plan = plan_by_id(r["plan"] or "trial")
         limit = r["student_limit"] or plan["limit"]
         extra = max(0, limit - plan["limit"])
@@ -1173,6 +1247,8 @@ def admin_tutors():
             "price": plan["price"] + extra * EXTRA_STUDENT_PRICE,
             "limit": limit, "students": len(kids), "activeWeek": active,
             "lastSeen": last, "inviteCode": t["invite_code"], "kids": kids,
+            "access": access_state(t), "trialHoursLeft": trial_left(t),
+            "paidDaysLeft": paid_left(t),
         })
     return out
 

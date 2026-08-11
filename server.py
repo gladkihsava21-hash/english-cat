@@ -193,6 +193,11 @@ def verified_tutor(payload):
         return None, {"ok": False, "error": "unauthorized"}
     if not db.is_verified(tutor):
         return None, {"ok": False, "error": "need_verify"}
+    if db.access_state(tutor) == "expired":
+        # Ученики при этом продолжают заниматься: они не виноваты, что
+        # репетитор не заплатил, а оборванный посреди четверти сервис
+        # хоронит репутацию быстрее, чем неоплата съедает деньги
+        return None, {"ok": False, "error": "need_payment"}
     return tutor, None
 
 
@@ -285,9 +290,10 @@ class Api:
         # лимит всё равно проверяется по факту при добавлении ученика
         try:
             db.set_plan_by_count(row["id"], int(p.get("studentCount") or 0))
-            row = db.get_tutor_by_token(row["token"])
         except (ValueError, TypeError):
             pass
+        db.start_trial(row["id"])
+        row = db.get_tutor_by_token(row["token"])
         # Код отправляем сразу: без подтверждения кабинет не откроется,
         # и лишний шаг «нажмите отправить» тут только раздражает
         sent, send_error = True, None
@@ -306,7 +312,8 @@ class Api:
         if not row:
             return {"ok": False, "error": err or "Неверный email или пароль."}
         return {"ok": True, "token": row["token"], "tutor": db.tutor_public(row),
-                "needVerify": not db.is_verified(row)}
+                "needVerify": not db.is_verified(row),
+                "access": db.access_state(row)}
 
     @staticmethod
     def tutor_students(h, p):
@@ -631,6 +638,15 @@ class Api:
         db.admin_delete_tutor(int(p.get("tutorId") or 0))
         return {"ok": True, "tutors": db.admin_tutors(), "overview": db.admin_overview()}
 
+    @staticmethod
+    def admin_pay(h, p):
+        """Отметить оплату вручную: платёжной системы пока нет,
+        владелец выставляет счёт сам и продлевает доступ здесь."""
+        if not db.admin_check(p.get("token")):
+            return {"ok": False, "error": "unauthorized"}
+        db.set_paid_until(int(p.get("tutorId") or 0), int(p.get("days") or 30))
+        return {"ok": True, "tutors": db.admin_tutors(), "overview": db.admin_overview()}
+
     # --- подтверждение почты ---
 
     @staticmethod
@@ -909,6 +925,7 @@ ROUTES = {
     "/api/admin/data": Api.admin_data,
     "/api/admin/plan": Api.admin_set_plan,
     "/api/admin/verify": Api.admin_verify,
+    "/api/admin/pay": Api.admin_pay,
     "/api/admin/delete": Api.admin_delete,
     "/api/tutor/plan": Api.tutor_plan,
     "/api/tutor/add-slot": Api.tutor_add_slot,

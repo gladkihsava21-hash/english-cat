@@ -61,6 +61,10 @@ $("auth-form").addEventListener("submit", async e => {
   tutor = res.tutor;
   // Почта не подтверждена — панель не открываем: иначе регистрация
   // на чужой адрес сразу даёт доступ к данным учеников
+  if (res.access === "expired" && typeof showPaywall === "function" && !res.needVerify) {
+    showPaywall(res.tutor);
+    return;
+  }
   if (res.needVerify && typeof showVerifyScreen === "function") {
     if (res.recoveryCode && typeof showRecoveryCode === "function") {
       showRecoveryCode(res.recoveryCode);
@@ -126,6 +130,10 @@ async function loadStudents() {
   let res;
   try {
     res = await api("/api/tutor/students", { token: token() });
+    if (res && res.error === "need_payment" && typeof showPaywall === "function") {
+      showPaywall(tutor);
+      return;
+    }
   } catch (e) {
     // без этого панель молча оставалась бы пустой и репетитор решил бы,
     // что учеников нет

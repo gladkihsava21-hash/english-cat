@@ -7,8 +7,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=11">
-  <link rel="stylesheet" href="css/tutor.css?v=11">
+  <link rel="stylesheet" href="css/style.css?v=12">
+  <link rel="stylesheet" href="css/tutor.css?v=12">
 </head>
 <body>
 
@@ -84,6 +84,7 @@
     </div>
   </header>
 
+  <div id="access-bar-slot"></div>
   <main class="wide">
     <!-- Ученики -->
     <section id="tab-students">
@@ -178,6 +179,23 @@
     </section>
 
     <!-- Ссылка -->
+    <section id="screen-paywall" class="screen hidden">
+      <div class="hero">
+        <div class="cat-avatar cat-big">🔒</div>
+        <h1>Пробный период закончился</h1>
+        <p class="hero-sub">Три дня прошли — надеемся, Савелий понравился.
+          Чтобы вернуть доступ к панели, оформите подписку.</p>
+        <div class="card auth-card">
+          <div id="paywall-plan"></div>
+          <p class="reset-note" style="margin-top:16px">Напишите нам, и мы вышлем счёт.
+            Доступ вернём сразу после оплаты.</p>
+          <p class="reset-note"><b>Ученики продолжают заниматься</b> — их прогресс
+            и словари никуда не делись.</p>
+          <button class="link-btn auth-forgot" id="paywall-logout">выйти</button>
+        </div>
+      </div>
+    </section>
+
     <section id="screen-verify" class="screen hidden">
       <div class="hero">
         <div class="cat-avatar cat-big">📬</div>
@@ -248,12 +266,12 @@
   </div>
 </div>
 
-<script src="js/util.js?v=11"></script>
-<script src="js/words.js?v=11"></script>
-<script src="js/images.js?v=11"></script>
-<script src="js/tutor.js?v=11"></script>
-<script src="js/tutor-photos.js?v=11"></script>
-<script src="js/tutor-auth.js?v=11"></script>
-<script src="js/tutor-verify.js?v=11"></script>
+<script src="js/util.js?v=12"></script>
+<script src="js/words.js?v=12"></script>
+<script src="js/images.js?v=12"></script>
+<script src="js/tutor.js?v=12"></script>
+<script src="js/tutor-photos.js?v=12"></script>
+<script src="js/tutor-auth.js?v=12"></script>
+<script src="js/tutor-verify.js?v=12"></script>
 </body>
 </html>

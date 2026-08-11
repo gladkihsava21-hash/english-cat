@@ -117,6 +117,8 @@ function renderPlan() {
     chip.textContent = `${t.planName} · ${used}/${limit}`;
     chip.classList.toggle("plan-full", left === 0);
   }
+  const slot = document.getElementById("access-bar-slot");
+  if (slot) slot.innerHTML = accessBanner(t);
   if (!box) return;
 
   box.innerHTML = `
@@ -169,4 +171,48 @@ async function loadPlan() {
 document.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll('[data-tab="plan"]').forEach(b => b.addEventListener("click", loadPlan));
   setTimeout(loadPlan, 1400);
+});
+
+// ---- триал и оплата ----
+
+function accessBanner(t) {
+  if (!t) return "";
+  if (t.access === "paid") {
+    const d = Math.floor(t.paidDaysLeft);
+    return d <= 5
+      ? `<div class="access-bar warn">Подписка заканчивается через ${d} дн. Продлите, чтобы не потерять доступ.</div>`
+      : "";
+  }
+  if (t.access === "trial") {
+    const h = Math.ceil(t.trialHoursLeft);
+    const text = h > 24 ? `${Math.ceil(h / 24)} дн.` : `${h} ч.`;
+    return `<div class="access-bar">Пробный период: осталось ${text}.
+      Дальше нужна подписка — тариф «${esc(t.planName)}», ${t.planPrice} ₽/мес.</div>`;
+  }
+  return `<div class="access-bar stop">Пробный период закончился. Оформите подписку,
+    чтобы вернуть доступ к панели. Ученики продолжают заниматься.</div>`;
+}
+
+function showPaywall(t) {
+  const app = document.getElementById("app");
+  const auth = document.getElementById("screen-auth");
+  const wall = document.getElementById("screen-paywall");
+  if (!wall) return;
+  if (app) app.classList.add("hidden");
+  if (auth) auth.classList.add("hidden");
+  wall.classList.remove("hidden");
+  const box = document.getElementById("paywall-plan");
+  if (box && t) {
+    box.innerHTML = `
+      <p class="plan-name">${esc(t.planName)} — ${t.planPrice} ₽/мес</p>
+      <p class="muted-note">до ${t.studentLimit} учеников · сейчас занимается ${t.studentCount}</p>`;
+  }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  const out = document.getElementById("paywall-logout");
+  if (out) out.addEventListener("click", () => {
+    localStorage.removeItem("savelyTutorToken");
+    location.reload();
+  });
 });

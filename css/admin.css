@@ -36,3 +36,8 @@
   .at-money { text-align: left; }
   .at-table { font-size: 12.5px; }
 }
+.at-tag { font-size: 11px; font-weight: 800; padding: 3px 9px; border-radius: 999px;
+          text-transform: uppercase; letter-spacing: .04em; }
+.at-tag.paid { background: #E4F3E9; color: #2E7D52; }
+.at-tag.trial { background: #FFF4E8; color: #9A6212; }
+.at-tag.stop { background: #FDE7E3; color: #A93226; }
