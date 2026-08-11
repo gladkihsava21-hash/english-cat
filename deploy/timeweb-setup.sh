@@ -81,11 +81,22 @@ if [[ ! -f "$SRC/wsgi.py" ]]; then
 fi
 
 cp -a "$SRC"/. "$DEST"/
-rm -rf "$TMP"
 # В публичной папке нужен только сам сайт: истории git, инструкций
 # и скриптов установки там делать нечего
+echo "==> Скрипты обслуживания"
+# Кладём в домашнюю папку, а не в public_html: оттуда их вычищает
+# следующее же обновление, и задача в cron перестала бы работать
+for f in backup.sh restore.sh; do
+  if [[ -f "$SRC/deploy/$f" ]]; then
+    cp "$SRC/deploy/$f" "$HOME/savely-$f"
+    chmod 700 "$HOME/savely-$f"
+  fi
+done
+echo "    $HOME/savely-backup.sh"
+
 rm -rf "$DEST/.git" "$DEST/deploy" "$DEST/__pycache__" \
        "$DEST/README.md" "$DEST/.gitignore"
+rm -rf "$TMP"
 
 echo "==> Папка для базы"
 # Ровно там, где её ждёт wsgi.py: на уровень выше публичной папки.
