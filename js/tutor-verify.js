@@ -224,3 +224,46 @@ document.addEventListener("DOMContentLoaded", () => {
     location.reload();
   });
 });
+
+// ---- первые шаги ----
+// Репетитор после регистрации попадал в пустую панель и сам догадывался,
+// что делать. Показываем три шага, пока они не пройдены.
+
+function renderOnboarding() {
+  const slot = document.getElementById("onboard-slot");
+  if (!slot || typeof students === "undefined") return;
+
+  const hasStudents = students.length > 0;
+  const hasHomework = typeof tasks !== "undefined" && tasks.length > 0;
+  const hasActive = students.some(s => (s.xpWeek || 0) > 0);
+
+  if (hasStudents && hasHomework && hasActive) { slot.innerHTML = ""; return; }
+
+  const step = (done, num, title, text, action) => `
+    <div class="ob-step${done ? " done" : ""}">
+      <span class="ob-num">${done ? "✓" : num}</span>
+      <div>
+        <p class="ob-title">${esc(title)}</p>
+        <p class="ob-text">${esc(text)}</p>
+        ${!done && action ? action : ""}
+      </div>
+    </div>`;
+
+  slot.innerHTML = `
+    <div class="onboard">
+      <p class="ob-head">С чего начать</p>
+      ${step(hasStudents, 1, "Позовите учеников",
+        "Скопируйте ссылку и отправьте им в чат. Ученику не нужен пароль — он откроет ссылку и введёт имя.",
+        `<button class="btn btn-primary btn-small" data-goto="invite">Взять ссылку</button>`)}
+      ${step(hasHomework, 2, "Выдайте первую домашку",
+        "Выберите слова по теме или напишите задание текстом. Можно задать текст для чтения вслух.",
+        `<button class="btn btn-primary btn-small" data-goto="homework">Выдать домашку</button>`)}
+      ${step(hasActive, 3, "Проверьте, как идут дела",
+        "Когда ученики начнут заниматься, здесь появится их прогресс: слова, очки, кто пропал.", "")}
+    </div>`;
+
+  slot.querySelectorAll("[data-goto]").forEach(b => b.addEventListener("click", () => {
+    const t = document.querySelector(`.nav-btn[data-tab="${b.dataset.goto}"]`);
+    if (t) t.click();
+  }));
+}

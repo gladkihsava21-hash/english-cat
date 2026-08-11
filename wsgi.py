@@ -123,6 +123,11 @@ def application(environ, start_response):
             payload = json.loads(environ["wsgi.input"].read(length) or b"{}")
         except Exception:
             return _json(start_response, {"ok": False, "error": "bad_json"}, "400 Bad Request")
+        who = environ.get("HTTP_X_REAL_IP") or environ.get("REMOTE_ADDR") or "?"
+        if not server.rate_ok(path, str(payload.get("token") or who)[:64]):
+            return _json(start_response,
+                         {"ok": False, "error": "Слишком часто. Подожди немного."},
+                         "429 Too Many Requests")
         try:
             return _json(start_response, handler(None, payload))
         except (ValueError, TypeError, KeyError):

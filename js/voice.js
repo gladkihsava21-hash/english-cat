@@ -49,9 +49,31 @@ function refreshVoices() {
   RU_VOICE = bestVoice("ru");
   fillVoiceSelects();
 }
+
+/** Догружаем список голосов.
+ *
+ *  На телефонах getVoices() при первом вызове часто пуст, а событие
+ *  voiceschanged срабатывает не везде: Android Chrome и iOS Safari
+ *  наполняют список молча, через сотни миллисекунд. Из-за этого ученик
+ *  видел один-два голоса там, где их десяток. Перепроверяем, пока
+ *  список растёт, но не дольше десяти секунд. */
+function watchVoices() {
+  if (!TTS_OK) return;
+  let seen = speechSynthesis.getVoices().length;
+  let tries = 0;
+  const timer = setInterval(() => {
+    const now = speechSynthesis.getVoices().length;
+    if (now !== seen) { seen = now; refreshVoices(); }
+    if (++tries >= 20) clearInterval(timer);
+  }, 500);
+}
+
 if (TTS_OK) {
   refreshVoices();
   speechSynthesis.onvoiceschanged = refreshVoices;
+  watchVoices();
+  // Часть браузеров отдаёт голоса только после действия пользователя
+  window.addEventListener("click", () => refreshVoices(), { once: true });
 }
 
 let voiceMode = false;
@@ -198,9 +220,24 @@ function fillVoiceSelects() {
       ? vs.map(v => `<option value="${v.name}"${current && v.name === current.name ? " selected" : ""}>${v.name} (${v.lang})</option>`).join("")
       : `<option value="">— голосов нет —</option>`;
     sel.disabled = !vs.length;
+    return vs.length;
   };
-  fill(selRu, "ru", RU_VOICE);
-  fill(selEn, "en", TTS_VOICE);
+  const nRu = fill(selRu, "ru", RU_VOICE);
+  const nEn = fill(selEn, "en", TTS_VOICE);
+
+  // Голоса берутся из системы, а не из сайта. Если их мало — это
+  // не поломка, но ученик должен понимать, что делать
+  const hint = document.getElementById("vs-hint");
+  if (hint) {
+    const few = nEn < 2 || nRu < 2;
+    hint.classList.toggle("hidden", !few);
+    if (few) {
+      const ios = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      hint.innerHTML = ios
+        ? "Голосов мало — их даёт сама система. Добавить: <b>Настройки → Универсальный доступ → Устный контент → Голоса</b>, там скачать английские."
+        : "Голосов мало — их даёт сама система. На Android: <b>Настройки → Язык и ввод → Синтез речи</b>, скачать английский голосовой пакет.";
+    }
+  }
 }
 
 (function initVoiceSettings() {

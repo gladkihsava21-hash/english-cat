@@ -167,6 +167,7 @@ async function loadStudents() {
   messages = res.messages || [];
   $("tutor-name").textContent = tutor.name;
   $("stu-count").textContent = students.length;
+  renderOnboarding();
   renderOverview();
   renderGroups();
   renderStudents();

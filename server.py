@@ -11,6 +11,7 @@ import os
 import re
 import shutil
 import subprocess
+import time
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 import urllib.request
 from urllib.parse import urlparse
@@ -199,6 +200,61 @@ def verified_tutor(payload):
         # хоронит репутацию быстрее, чем неоплата съедает деньги
         return None, {"ok": False, "error": "need_payment"}
     return tutor, None
+
+
+# ---------- ограничение частоты ----------
+
+# Без него один скрипт забивает базу синхронизациями, а перебор кода
+# приглашения не стоит атакующему ничего. Счётчики в памяти процесса:
+# для шаред-хостинга этого достаточно, а таблица в базе создавала бы
+# лишнюю запись на каждый запрос.
+_HITS = {}
+_HIT_LIMITS = {
+    "/api/student/sync": (40, 60),      # (запросов, за столько секунд)
+    "/api/student/photo": (10, 300),
+    "/api/student/reading": (30, 300),
+    "/api/student/join": (10, 600),
+    "/api/join": (30, 600),
+    "/api/student/restore": (10, 600),
+    "/api/tutor/login": (20, 300),
+    "/api/tutor/register": (5, 600),
+    "/api/chat": (60, 300),
+}
+
+
+def rate_ok(path, who):
+    limit = _HIT_LIMITS.get(path)
+    if not limit:
+        return True
+    count, window = limit
+    now_ts = time.time()
+    key = (path, who)
+    hits = [t for t in _HITS.get(key, []) if now_ts - t < window]
+    if len(hits) >= count:
+        _HITS[key] = hits
+        return False
+    hits.append(now_ts)
+    _HITS[key] = hits
+    # чистим старые ключи, чтобы словарь не рос бесконечно
+    if len(_HITS) > 5000:
+        for k in [k for k, v in _HITS.items() if not v or now_ts - max(v) > 3600]:
+            _HITS.pop(k, None)
+    return True
+
+
+def notify_tutor_later(tutor_id, student_name):
+    """Письмо репетитору о новой работе. Ошибку отправки глотаем:
+    ученик не должен видеть сбой из-за того, что почта легла."""
+    try:
+        should, count = db.notify_due(tutor_id)
+        if not should:
+            return
+        tutor = db.get_tutor_by_id(tutor_id)
+        if not tutor or not db.is_verified(tutor):
+            return
+        mailer.send_new_work(tutor["email"], tutor["name"], count, student_name)
+    except Exception:
+        import traceback; traceback.print_exc()
 
 
 def ai_error_text(exc):
@@ -745,6 +801,7 @@ class Api:
             if status == "failed":
                 import traceback; traceback.print_exc()
 
+        notify_tutor_later(row["tutor_id"], row["name"])
         return {"ok": True, "photo": db.photo_public(db.get_photo(photo["id"]))}
 
     @staticmethod
@@ -838,6 +895,7 @@ class Api:
                     "total": int(p.get("total") or 0),
                     "said": str(p.get("said") or "")[:2000]},
         )
+        notify_tutor_later(row["tutor_id"], row["name"])
         return {"ok": True, "id": rec["id"]}
 
     # --- чат ---
@@ -1020,6 +1078,11 @@ class Handler(SimpleHTTPRequestHandler):
             payload = json.loads(self.rfile.read(length) or b"{}")
         except Exception:
             self._send_json({"ok": False, "error": "bad_json"}, 400)
+            return
+        who = self.client_address[0] if self.client_address else "?"
+        if not rate_ok(path, str(payload.get("token") or who)[:64]):
+            self._send_json({"ok": False,
+                             "error": "Слишком часто. Подожди немного."}, 429)
             return
         try:
             self._send_json(handler(self, payload))

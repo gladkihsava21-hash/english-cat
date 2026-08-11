@@ -99,3 +99,17 @@ def send_verify_code(to_addr, name, code):
         "https://wordcat.ru\n"
     ) % (name or "репетитор", code)
     return send(to_addr, "Код подтверждения — Савелий", body)
+
+
+def send_new_work(to_addr, name, count, student_name):
+    what = "работу" if count == 1 else "работы"
+    body = (
+        "%s, здравствуйте!\n\n"
+        "%s прислал%s новую %s на проверку.\n"
+        "Всего непросмотренного: %d.\n\n"
+        "Посмотреть: https://wordcat.ru/tutor.html — вкладка «Фото тетрадей».\n\n"
+        "— Савелий\n\n"
+        "Письма приходят не чаще раза в час, даже если работ несколько.\n"
+    ) % (name or "Здравствуйте", student_name, "а" if student_name[-1:] in "аяеи" else "",
+         what, count)
+    return send(to_addr, "Ученик прислал домашку — Савелий", body)

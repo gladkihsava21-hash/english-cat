@@ -136,6 +136,7 @@ MIGRATIONS = [
     ("homework", "reading_text", "TEXT DEFAULT ''"),
     ("photo_homework", "kind", "TEXT DEFAULT 'photo'"),
     ("photo_homework", "reading_score", "INTEGER"),
+    ("tutors", "notified_at", "TEXT"),
 ]
 
 
@@ -1334,3 +1335,31 @@ def create_reading_result(tutor_id, student_id, homework_id, score, result):
     )
     conn().commit()
     return get_photo(cur.lastrowid)
+
+
+# ---------- уведомления репетитору ----------
+
+# Письмо на каждое фото — верный способ, чтобы репетитор отписался от
+# уведомлений в первый же день. Шлём не чаще раза в час и сразу пишем,
+# сколько всего накопилось.
+NOTIFY_GAP = 3600
+
+
+def notify_due(tutor_id):
+    """(нужно ли слать, сколько непросмотренного). Отметку ставим сразу,
+    чтобы параллельные запросы не отправили два письма."""
+    row = conn().execute(
+        "SELECT notified_at FROM tutors WHERE id=?", (tutor_id,)).fetchone()
+    if not row:
+        return False, 0
+    last = _parse_ts(row["notified_at"]) if row["notified_at"] else None
+    if last and (datetime.now(timezone.utc) - last).total_seconds() < NOTIFY_GAP:
+        return False, 0
+    unseen = conn().execute(
+        "SELECT COUNT(*) FROM photo_homework WHERE tutor_id=? AND seen_by_tutor=0"
+        " AND archived=0", (tutor_id,)).fetchone()[0]
+    if not unseen:
+        return False, 0
+    conn().execute("UPDATE tutors SET notified_at=? WHERE id=?", (now(), tutor_id))
+    conn().commit()
+    return True, unseen

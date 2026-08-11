@@ -301,3 +301,21 @@
   font-size: 21px; font-weight: 800; letter-spacing: .1em;
   color: #B35309; user-select: all; margin-bottom: 6px;
 }
+
+/* --- Первые шаги --- */
+.onboard {
+  background: #FFFBF6; border: 1px solid #F0D9BE; border-radius: 20px;
+  padding: 20px 22px; margin-bottom: 26px;
+}
+.ob-head { font-weight: 900; font-size: 17px; margin-bottom: 14px; }
+.ob-step { display: flex; gap: 14px; align-items: flex-start; padding: 10px 0; }
+.ob-step + .ob-step { border-top: 1px solid #F3E4D3; }
+.ob-num {
+  flex-shrink: 0; width: 26px; height: 26px; border-radius: 50%;
+  background: var(--accent); color: #fff; font-weight: 900; font-size: 13px;
+  display: grid; place-items: center;
+}
+.ob-step.done .ob-num { background: #2E7D52; }
+.ob-step.done .ob-title { color: var(--muted); }
+.ob-title { font-weight: 800; margin-bottom: 2px; }
+.ob-text { color: var(--muted); font-weight: 600; font-size: 13.5px; line-height: 1.5; margin-bottom: 8px; }
