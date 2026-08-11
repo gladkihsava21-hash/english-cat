@@ -115,6 +115,29 @@ async function tryPendingJoin() {
   } catch (e) { /* офлайн — попробуем при следующем запуске */ }
 }
 
+/** Забираем прогресс с сервера.
+ *
+ *  Без этого ученик, у которого опустел localStorage (Safari на телефоне
+ *  чистит его сам, режим инкогнито, другой браузер, «очистить данные»),
+ *  начинал с нуля и заново проходил тест — хотя на сервере всё лежало.
+ *  Мержим, а не заменяем: то, что успели наработать локально, тоже ценно. */
+async function pullProgress() {
+  const token = studentToken();
+  if (!token || syncStopped) return false;
+  try {
+    const res = await api("/api/student/pull", { token });
+    if (!res.ok || !res.state) return false;
+    const srv = res.state;
+    // Имя с сервера подставляем, если локально его нет — иначе сайт
+    // покажет форму регистрации человеку, который давно зарегистрирован
+    if (!state.user && srv.name) state.user = { name: srv.name, email: "" };
+    adoptServerState(srv);
+    return true;
+  } catch (e) {
+    return false;   // офлайн — работаем с тем, что есть локально
+  }
+}
+
 // ---- отправка прогресса ----
 
 function snapshot() {
@@ -299,12 +322,19 @@ document.addEventListener("DOMContentLoaded", async () => {
     return;
   }
   initInvite();
-  if (studentToken()) pushProgress();
-  else tryPendingJoin();          // догоняем привязку, сорванную офлайном
+  if (studentToken()) {
+    await pullProgress();         // сначала забрать, потом отправлять
+    pushProgress();
+  } else {
+    tryPendingJoin();             // догоняем привязку, сорванную офлайном
+  }
 });
 
 // связь вернулась — повторяем то, что не удалось отправить
-window.addEventListener("online", () => {
+window.addEventListener("online", async () => {
   tryPendingJoin();
-  if (studentToken()) pushProgress();
+  if (studentToken()) {
+    await pullProgress();
+    pushProgress();
+  }
 });
