@@ -216,3 +216,11 @@ document.addEventListener("DOMContentLoaded", () => {
     location.reload();
   });
 });
+
+document.addEventListener("DOMContentLoaded", () => {
+  const out = document.getElementById("verify-logout");
+  if (out) out.addEventListener("click", () => {
+    localStorage.removeItem("savelyTutorToken");
+    location.reload();
+  });
+});

@@ -58,6 +58,7 @@ $("auth-form").addEventListener("submit", async e => {
     return;
   }
   localStorage.setItem(TOKEN_KEY, res.token);
+  if (res.tutor && res.tutor.email) localStorage.setItem("savelyTutorEmail", res.tutor.email);
   tutor = res.tutor;
   // Почта не подтверждена — панель не открываем: иначе регистрация
   // на чужой адрес сразу даёт доступ к данным учеников
@@ -107,6 +108,10 @@ document.querySelectorAll(".stu-sort").forEach(btn => {
 });
 
 // ===== Загрузка данных =====
+/** Почта из последнего входа — нужна экрану подтверждения после перезагрузки,
+ *  когда объекта tutor ещё нет. */
+function pendingEmail() { return localStorage.getItem("savelyTutorEmail") || ""; }
+
 async function openPanel() {
   $("screen-auth").classList.add("hidden");
   $("app").classList.remove("hidden");
@@ -130,8 +135,15 @@ async function loadStudents() {
   let res;
   try {
     res = await api("/api/tutor/students", { token: token() });
+    // Оба состояния надо ПОКАЗАТЬ. Раньше на need_verify код молча выходил,
+    // и репетитор видел открытую панель без учеников и без ссылки —
+    // без единого намёка, что нужно подтвердить почту.
     if (res && res.error === "need_payment" && typeof showPaywall === "function") {
       showPaywall(tutor);
+      return;
+    }
+    if (res && res.error === "need_verify" && typeof showVerifyScreen === "function") {
+      showVerifyScreen((tutor && tutor.email) || pendingEmail());
       return;
     }
   } catch (e) {

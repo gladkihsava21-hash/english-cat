@@ -4,22 +4,22 @@
 
 // ВАЖНО: версия должна совпадать с ?v= в index.html, иначе ученик
 // после обновления сайта получит из кэша старый код.
-const CACHE = "savely-v14";
+const CACHE = "savely-v15";
 const ASSETS = [
   "./",
   "./index.html",
-  "./css/style.css?v=14",
-  "./js/util.js?v=14",
-  "./js/words.js?v=14",
-  "./js/srs.js?v=14",
-  "./js/images.js?v=14",
-  "./js/app.js?v=14",
-  "./js/achievements.js?v=14",
-  "./js/exercises.js?v=14",
-  "./js/voice.js?v=14",
-  "./js/sync.js?v=14",
-  "./js/photo.js?v=14",
-  "./js/reading.js?v=14",
+  "./css/style.css?v=15",
+  "./js/util.js?v=15",
+  "./js/words.js?v=15",
+  "./js/srs.js?v=15",
+  "./js/images.js?v=15",
+  "./js/app.js?v=15",
+  "./js/achievements.js?v=15",
+  "./js/exercises.js?v=15",
+  "./js/voice.js?v=15",
+  "./js/sync.js?v=15",
+  "./js/photo.js?v=15",
+  "./js/reading.js?v=15",
   "./manifest.json",
   "./icon-192.png",
 ];
