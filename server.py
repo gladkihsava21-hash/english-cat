@@ -584,6 +584,53 @@ class Api:
         return {"ok": True, "tutor": db.tutor_public(row),
                 "charged": extra * db.EXTRA_STUDENT_PRICE}
 
+    # --- админка владельца ---
+
+    @staticmethod
+    def admin_login(h, p):
+        token, err = db.admin_login(p.get("password"))
+        if not token:
+            return {"ok": False, "error": err}
+        return {"ok": True, "token": token}
+
+    @staticmethod
+    def admin_logout(h, p):
+        db.admin_logout(p.get("token"))
+        return {"ok": True}
+
+    @staticmethod
+    def admin_data(h, p):
+        if not db.admin_check(p.get("token")):
+            return {"ok": False, "error": "unauthorized"}
+        return {"ok": True, "overview": db.admin_overview(),
+                "tutors": db.admin_tutors(), "plans": db.PLANS,
+                "extraPrice": db.EXTRA_STUDENT_PRICE,
+                "aiOn": bool(ANTHROPIC_KEY)}
+
+    @staticmethod
+    def admin_set_plan(h, p):
+        if not db.admin_check(p.get("token")):
+            return {"ok": False, "error": "unauthorized"}
+        db.admin_set_plan(int(p.get("tutorId") or 0), p.get("plan"), p.get("limit"))
+        return {"ok": True, "tutors": db.admin_tutors(), "overview": db.admin_overview()}
+
+    @staticmethod
+    def admin_verify(h, p):
+        if not db.admin_check(p.get("token")):
+            return {"ok": False, "error": "unauthorized"}
+        db.admin_set_verified(int(p.get("tutorId") or 0), bool(p.get("value")))
+        return {"ok": True, "tutors": db.admin_tutors(), "overview": db.admin_overview()}
+
+    @staticmethod
+    def admin_delete(h, p):
+        if not db.admin_check(p.get("token")):
+            return {"ok": False, "error": "unauthorized"}
+        # Подтверждение словом: удаление уносит учеников, домашки и фото
+        if str(p.get("confirm", "")).strip().upper() != "УДАЛИТЬ":
+            return {"ok": False, "error": "Не подтверждено."}
+        db.admin_delete_tutor(int(p.get("tutorId") or 0))
+        return {"ok": True, "tutors": db.admin_tutors(), "overview": db.admin_overview()}
+
     # --- подтверждение почты ---
 
     @staticmethod
@@ -857,6 +904,12 @@ ROUTES = {
     "/api/student/restore": Api.student_restore,
     "/api/student/pull": Api.student_pull,
     "/api/student/sync": Api.student_sync,
+    "/api/admin/login": Api.admin_login,
+    "/api/admin/logout": Api.admin_logout,
+    "/api/admin/data": Api.admin_data,
+    "/api/admin/plan": Api.admin_set_plan,
+    "/api/admin/verify": Api.admin_verify,
+    "/api/admin/delete": Api.admin_delete,
     "/api/tutor/plan": Api.tutor_plan,
     "/api/tutor/add-slot": Api.tutor_add_slot,
     "/api/tutor/verify/send": Api.tutor_verify_send,
@@ -943,8 +996,8 @@ class Handler(SimpleHTTPRequestHandler):
         """Раздаём только фронтенд. База, серверный код и всё, чего нет
         в белом списке, наружу не уходят — там хеши паролей и токены."""
         name = path.lstrip("/")
-        if name in ("", "index.html", "tutor.html", "manifest.json", "sw.js",
-                    "icon-192.png", "icon-512.png", "favicon.ico"):
+        if name in ("", "index.html", "tutor.html", "admin.html", "manifest.json", "sw.js",
+                    "icon-192.png", "icon-512.png", "favicon.ico", "robots.txt"):
             return True
         if ".." in name or name.startswith("."):
             return False

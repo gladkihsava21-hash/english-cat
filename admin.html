@@ -1,0 +1,46 @@
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Админка — Савелий</title>
+<link rel="stylesheet" href="css/style.css?v=11">
+<link rel="stylesheet" href="css/tutor.css?v=11">
+<link rel="stylesheet" href="css/admin.css?v=11">
+
+<section id="screen-login" class="screen">
+  <div class="hero">
+    <div class="cat-avatar cat-big">🔑</div>
+    <h1>Админка</h1>
+    <p class="hero-sub">Владельцу сайта: все репетиторы, ученики и деньги.</p>
+    <div class="card auth-card">
+      <form id="login-form">
+        <label>Пароль
+          <input type="password" id="a-pass" autocomplete="current-password" required>
+        </label>
+        <button type="submit" class="btn btn-primary btn-wide">Войти</button>
+        <p class="type-feedback err" id="login-error"></p>
+      </form>
+      <p class="reset-note" style="margin-top:14px">Пароль лежит на сервере в файле
+        <code>savely-data/admin.txt</code>. Его нет ни в коде, ни в репозитории.</p>
+    </div>
+  </div>
+</section>
+
+<div id="app" class="hidden">
+  <header class="topbar">
+    <div class="topbar-inner">
+      <button class="brand"><span class="brand-cat">🐈‍⬛</span> Савелий · админка</button>
+      <div class="user-chip">
+        <span id="ai-chip" class="plan-chip"></span>
+        <button id="logout-btn" class="link-btn">выйти</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="wide">
+    <div class="admin-stats" id="overview"></div>
+    <h2 class="section-title">Репетиторы</h2>
+    <div id="tutors"></div>
+  </main>
+</div>
+
+<script src="js/util.js?v=11"></script>
+<script src="js/admin.js?v=11"></script>

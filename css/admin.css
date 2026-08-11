@@ -1,0 +1,38 @@
+/* Админка владельца */
+.admin-stats {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 14px; margin-bottom: 32px;
+}
+.admin-stat { background: #fff; border: 1px solid var(--line); border-radius: 18px; padding: 16px 18px; }
+
+.admin-tutor {
+  background: #fff; border: 1px solid var(--line); border-radius: 20px;
+  padding: 20px 22px; margin-bottom: 16px;
+}
+.admin-tutor.unverified { border-color: #E8A33D; background: #FFFCF6; }
+.at-head { display: flex; justify-content: space-between; gap: 18px; align-items: flex-start; }
+.at-name { font-size: 19px; font-weight: 900; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.at-warn {
+  background: #FDF0DC; color: #9A6212; font-size: 11px; font-weight: 800;
+  padding: 3px 9px; border-radius: 999px; text-transform: uppercase; letter-spacing: .04em;
+}
+.at-money { text-align: right; white-space: nowrap; }
+.at-price { font-size: 22px; font-weight: 900; }
+.at-nums { display: flex; flex-wrap: wrap; gap: 18px; margin: 14px 0; font-weight: 700; font-size: 14px; color: var(--muted); }
+.at-nums b { color: var(--ink); }
+.at-kids summary { cursor: pointer; font-weight: 800; padding: 8px 0; }
+.at-table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 14px; }
+.at-table th { text-align: left; font-size: 11.5px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); padding: 6px 8px; }
+.at-table td { padding: 8px; border-top: 1px solid var(--line); }
+.at-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 16px; }
+.at-plan, .at-limit {
+  font-family: inherit; font-size: 14px; font-weight: 700; padding: 9px 12px;
+  border: 1px solid var(--line); border-radius: 12px; background: #fff;
+}
+.at-limit { width: 92px; }
+.btn.danger { color: #C0392B; }
+@media (max-width: 720px) {
+  .at-head { flex-direction: column; }
+  .at-money { text-align: left; }
+  .at-table { font-size: 12.5px; }
+}

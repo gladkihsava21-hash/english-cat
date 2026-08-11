@@ -99,6 +99,11 @@ CREATE TABLE IF NOT EXISTS photo_homework (
     archived     INTEGER DEFAULT 0
 );
 
+CREATE TABLE IF NOT EXISTS admin_sessions (
+    token        TEXT PRIMARY KEY,
+    created_at   TEXT NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_photo_tutor ON photo_homework(tutor_id);
 CREATE INDEX IF NOT EXISTS idx_students_tutor ON students(tutor_id);
 CREATE INDEX IF NOT EXISTS idx_notes_tutor ON notes_to_students(tutor_id);
@@ -955,7 +960,8 @@ def check_verify_code(tutor_id, code):
         return False, "Код устарел. Запроси новый."
     if (row["verify_tries"] or 0) >= VERIFY_MAX_TRIES:
         return False, "Слишком много попыток. Запроси новый код."
-    if not secrets.compare_digest(str(code or "").strip(), row["verify_code"]):
+    if not secrets.compare_digest(str(code or "").strip().encode("utf-8"),
+                                  str(row["verify_code"]).encode("utf-8")):
         conn().execute("UPDATE tutors SET verify_tries=verify_tries+1 WHERE id=?", (tutor_id,))
         conn().commit()
         left = VERIFY_MAX_TRIES - (row["verify_tries"] or 0) - 1
@@ -1024,3 +1030,177 @@ def raise_student_limit(tutor_id, extra=1):
         "UPDATE tutors SET student_limit = COALESCE(student_limit, 5) + ? WHERE id=?",
         (max(1, int(extra)), tutor_id))
     conn().commit()
+
+
+# ---------- админка владельца ----------
+
+# Пароль админа лежит файлом рядом с базой, а не в коде и не в git:
+# админка видит всех репетиторов, всех детей и всю переписку.
+ADMIN_SESSION_TTL = 8 * 3600
+_ADMIN_FAILS = {"count": 0, "until": None}
+
+
+def admin_password():
+    path = os.path.join(os.path.dirname(os.path.abspath(DB_PATH)), "admin.txt")
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return f.read().strip()
+    except OSError:
+        return ""
+
+
+def admin_lock_left():
+    until = _ADMIN_FAILS.get("until")
+    if not until:
+        return 0
+    left = (until - datetime.now(timezone.utc)).total_seconds()
+    return int(left) if left > 0 else 0
+
+
+def admin_login(password):
+    """(токен, ошибка). Перебор пароля админки блокируется жёстче, чем у
+    репетитора: тут одна попытка стоит доступа ко всей базе."""
+    real = admin_password()
+    if not real:
+        return None, "Админка не настроена: нет файла admin.txt."
+    left = admin_lock_left()
+    if left:
+        return None, "Вход закрыт. Попробуй через %d сек." % left
+    # Сравниваем байты, а не строки: compare_digest на строке с кириллицей
+    # бросает TypeError, и пароль на русском просто не работал бы
+    if not secrets.compare_digest(str(password or "").encode("utf-8"), real.encode("utf-8")):
+        _ADMIN_FAILS["count"] += 1
+        if _ADMIN_FAILS["count"] >= 3:
+            _ADMIN_FAILS["until"] = datetime.now(timezone.utc) + timedelta(minutes=15)
+            _ADMIN_FAILS["count"] = 0
+            return None, "Три неудачи. Вход закрыт на 15 минут."
+        return None, "Неверный пароль."
+    _ADMIN_FAILS["count"] = 0
+    _ADMIN_FAILS["until"] = None
+    token = new_token()
+    conn().execute("INSERT INTO admin_sessions (token, created_at) VALUES (?,?)",
+                   (token, now()))
+    conn().execute("DELETE FROM admin_sessions WHERE created_at < ?",
+                   ((datetime.now(timezone.utc) - timedelta(seconds=ADMIN_SESSION_TTL))
+                    .isoformat(timespec="seconds"),))
+    conn().commit()
+    return token, None
+
+
+def admin_check(token):
+    if not token:
+        return False
+    row = conn().execute("SELECT created_at FROM admin_sessions WHERE token=?",
+                         (token,)).fetchone()
+    if not row:
+        return False
+    made = _parse_ts(row["created_at"])
+    if not made or (datetime.now(timezone.utc) - made).total_seconds() > ADMIN_SESSION_TTL:
+        conn().execute("DELETE FROM admin_sessions WHERE token=?", (token,))
+        conn().commit()
+        return False
+    return True
+
+
+def admin_logout(token):
+    conn().execute("DELETE FROM admin_sessions WHERE token=?", (token,))
+    conn().commit()
+
+
+def admin_overview():
+    c = conn()
+    week = (datetime.now(timezone.utc) - timedelta(days=7)).date().isoformat()
+    tutors = c.execute("SELECT COUNT(*) FROM tutors").fetchone()[0]
+    students = c.execute("SELECT COUNT(*) FROM students").fetchone()[0]
+    verified = c.execute("SELECT COUNT(*) FROM tutors WHERE email_verified=1").fetchone()[0]
+    photos = c.execute("SELECT COUNT(*) FROM photo_homework WHERE archived=0").fetchone()[0]
+    homework = c.execute("SELECT COUNT(*) FROM homework WHERE archived=0").fetchone()[0]
+
+    active = 0
+    for r in c.execute("SELECT activity FROM students"):
+        try:
+            days = json.loads(r["activity"] or "{}")
+        except (ValueError, TypeError):
+            days = {}
+        if any(d >= week for d in days):
+            active += 1
+
+    revenue = 0
+    for r in c.execute("SELECT plan, student_limit FROM tutors"):
+        plan = plan_by_id(r["plan"] or "trial")
+        limit = r["student_limit"] or plan["limit"]
+        extra = max(0, limit - plan["limit"])
+        revenue += plan["price"] + extra * EXTRA_STUDENT_PRICE
+
+    # Себестоимость: ~0,09 ₽ за сообщение и ~1,15 ₽ за фото. Сообщений мы
+    # не считаем, поэтому берём известную часть — фото — и добавляем
+    # среднюю оценку по чату, чтобы цифра не выглядела заниженной.
+    ai_cost = round(photos * 1.15 + students * 2.7)
+
+    return {
+        "tutors": tutors, "verified": verified, "students": students,
+        "activeWeek": active, "photos": photos, "homework": homework,
+        "revenue": revenue, "aiCost": ai_cost,
+        "profit": round(revenue * 0.97 - ai_cost),
+    }
+
+
+def admin_tutors():
+    out = []
+    week = (datetime.now(timezone.utc) - timedelta(days=7)).date().isoformat()
+    for t in conn().execute("SELECT * FROM tutors ORDER BY id DESC"):
+        plan = plan_by_id(t["plan"] or "trial")
+        limit = t["student_limit"] or plan["limit"]
+        kids, active, last = [], 0, ""
+        for s in conn().execute(
+                "SELECT id,name,level,xp,activity,created_at FROM students WHERE tutor_id=?",
+                (t["id"],)):
+            try:
+                days = json.loads(s["activity"] or "{}")
+            except (ValueError, TypeError):
+                days = {}
+            seen = max(days) if days else ""
+            if seen >= week:
+                active += 1
+            last = max(last, seen)
+            kids.append({"id": s["id"], "name": s["name"], "level": s["level"],
+                         "xp": s["xp"], "lastSeen": seen, "days": len(days)})
+        extra = max(0, limit - plan["limit"])
+        out.append({
+            "id": t["id"], "name": t["name"], "email": t["email"],
+            "verified": bool(t["email_verified"]), "createdAt": t["created_at"],
+            "plan": plan["id"], "planName": plan["name"],
+            "price": plan["price"] + extra * EXTRA_STUDENT_PRICE,
+            "limit": limit, "students": len(kids), "activeWeek": active,
+            "lastSeen": last, "inviteCode": t["invite_code"], "kids": kids,
+        })
+    return out
+
+
+def admin_set_plan(tutor_id, plan_id, limit):
+    plan = plan_by_id(plan_id)
+    conn().execute("UPDATE tutors SET plan=?, student_limit=? WHERE id=?",
+                   (plan["id"], max(1, int(limit or plan["limit"])), tutor_id))
+    conn().commit()
+
+
+def admin_set_verified(tutor_id, value):
+    conn().execute("UPDATE tutors SET email_verified=? WHERE id=?",
+                   (1 if value else 0, tutor_id))
+    conn().commit()
+
+
+def admin_delete_tutor(tutor_id):
+    """Удаляем вместе со всем, что к нему привязано — включая файлы фото."""
+    c = conn()
+    for r in c.execute("SELECT file_name FROM photo_homework WHERE tutor_id=?", (tutor_id,)):
+        full = photo_path(r["file_name"])
+        if full:
+            try:
+                os.remove(full)
+            except OSError:
+                pass
+    for table in ("photo_homework", "homework", "notes_to_students", "students", "groups"):
+        c.execute("DELETE FROM %s WHERE tutor_id=?" % table, (tutor_id,))
+    c.execute("DELETE FROM tutors WHERE id=?", (tutor_id,))
+    c.commit()

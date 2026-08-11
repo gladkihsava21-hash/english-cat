@@ -15,6 +15,11 @@
 </FilesMatch>
 
 Options -Indexes
+
+# Админку не должно быть в поиске
+<Files "admin.html">
+    Header always set X-Robots-Tag "noindex, nofollow"
+</Files>
 DirectoryIndex index.html
 
 # --- Точка входа в приложение ---
