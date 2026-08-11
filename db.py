@@ -406,21 +406,47 @@ def sync_student(token, state):
             "lastReview": str(d.get("lastReview") or "")[:12] or None,
             "seen": bool(d.get("seen")),
         })
+    # ---- защита от затирания ----
+    # Клиент может прислать пустое состояние по куче причин: сбой скрипта,
+    # гонка при загрузке, очищенный localStorage, кривой запрос. Раньше
+    # такая синхронизация СТИРАЛА словарь ученика на сервере — то есть
+    # последнюю копию его прогресса. Пустым данным не верим.
+    prev_dict = json.loads(row["dictionary"] or "[]")
+    if not clean_dict and prev_dict:
+        clean_dict = prev_dict
+
+    prev_ach = json.loads(row["achievements"] or "[]") if "achievements" in row.keys() else []
+    if not achievements and prev_ach:
+        achievements = prev_ach
+
     clean_activity = {}
     # берём ПОСЛЕДНИЕ дни: срез сначала выбрасывал бы свежую активность
     # и обнулял «очки за неделю» в панели репетитора
     for k, v in sorted(activity.items())[-400:]:
         if isinstance(k, str) and len(k) <= 12:
             clean_activity[k] = _as_int(v, 0, 0, 100000)
+    # Активность дополняем, а не заменяем: занятия с другого устройства
+    # иначе исчезали бы из панели репетитора
+    prev_activity = json.loads(row["activity"] or "{}")
+    for k, v in prev_activity.items():
+        if k not in clean_activity:
+            clean_activity[k] = v
+
+    # Очки и рекорды не должны уменьшаться: устаревший снимок с другого
+    # устройства иначе откатывал бы ученика назад
+    new_xp = max(_as_int(state.get("xp"), 0, 0, 10_000_000), row["xp"] or 0)
+    new_blitz = max(_as_int(state.get("blitzBest"), 0, 0, 100000), row["blitz_best"] or 0)
+    new_vocab = _as_int(state.get("vocabEstimate"), 0, 0, 100000) or (row["vocab"] or 0)
+    new_level = str(state.get("level") or "")[:4] or row["level"]
     conn().execute(
         "UPDATE students SET level=?, vocab=?, xp=?, streak=?, blitz_best=?,"
         " dictionary=?, activity=?, achievements=?, goal=?, last_seen=? WHERE id=?",
         (
-            str(state.get("level") or "")[:4] or None,
-            _as_int(state.get("vocabEstimate"), 0, 0, 100000),
-            _as_int(state.get("xp"), 0, 0, 10_000_000),
+            new_level,
+            new_vocab,
+            new_xp,
             _as_int(state.get("streak"), 0, 0, 3650),
-            _as_int(state.get("blitzBest"), 0, 0, 100000),
+            new_blitz,
             json.dumps(clean_dict, ensure_ascii=False),
             json.dumps(clean_activity, ensure_ascii=False),
             json.dumps([str(a)[:40] for a in achievements[:100]], ensure_ascii=False),
@@ -614,6 +640,10 @@ def student_public(row, homework=None, detail=False):
         "activity": activity,
         "lastSeen": row["last_seen"],
         "createdAt": row["created_at"],
+        # Личный код ученика виден его репетитору. Без этого ребёнок,
+        # сменивший телефон или почистивший браузер, терял доступ
+        # к прогрессу навсегда — помочь ему было некому.
+        "restoreCode": (row["restore_code"] if "restore_code" in keys else None) or "",
     }
     if detail:
         data["dictionary"] = dictionary

@@ -395,6 +395,14 @@ async function openStudent(id) {
       </div>
     </div>
 
+    ${s.restoreCode ? `
+      <div class="restore-box">
+        <p class="restore-label">Код для входа с другого устройства</p>
+        <p class="restore-code-val">${esc(s.restoreCode)}</p>
+        <p class="muted-note">Продиктуйте ученику, если он сменил телефон
+          или потерял прогресс. На сайте: «Уже занимался?» → ввести код.</p>
+      </div>` : ""}
+
     <div class="stats-grid">
       <div class="card stat-card"><p class="stat-label">Уровень</p>
         <p class="stat-value">${esc(s.level || "—")}</p>

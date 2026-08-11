@@ -286,3 +286,18 @@
 .photo-kind { font-size: 12px; font-weight: 800; color: var(--muted); }
 .photo-item .rd-score { font-size: 24px; font-weight: 900; margin-bottom: 8px; }
 .photo-item .rd-score span { font-size: 13px; font-weight: 700; color: var(--muted); }
+
+/* --- Код восстановления ученика --- */
+.restore-box {
+  background: #FFF8F0; border: 1px dashed #F0B27A; border-radius: 16px;
+  padding: 14px 18px; margin-bottom: 18px;
+}
+.restore-label {
+  font-size: 11.5px; font-weight: 800; text-transform: uppercase;
+  letter-spacing: .04em; color: var(--muted); margin-bottom: 4px;
+}
+.restore-code-val {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 21px; font-weight: 800; letter-spacing: .1em;
+  color: #B35309; user-select: all; margin-bottom: 6px;
+}
