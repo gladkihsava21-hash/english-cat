@@ -2,7 +2,26 @@
 
 let photoItems = [];
 
+function readingHTML(p) {
+  const r = p.result || {};
+  const probs = r.problems || [];
+  return `
+    <p class="rd-score">${p.readingScore}% <span>прочитано верно</span></p>
+    ${probs.length
+      ? `<p class="photo-mistakes-head">Сбился на словах (${probs.length}):</p>
+         <ul class="photo-mistakes">
+           ${probs.map(x => `<li>
+             <span class="m-wrong">${esc(x.word)}</span>
+             ${x.type === "missed"
+               ? `<span class="m-why">пропустил</span>`
+               : `<span class="m-arrow">услышано:</span><span class="m-right">${esc(x.said || "—")}</span>`}
+           </li>`).join("")}
+         </ul>`
+      : `<p class="photo-praise">Прочитано без ошибок.</p>`}`;
+}
+
 function photoVerdictHTML(p) {
+  if (p.kind === "reading") return readingHTML(p);
   if (p.status === "no_ai") {
     return `<p class="muted-note">Автопроверка выключена — посмотрите работу сами.</p>`;
   }
@@ -47,11 +66,13 @@ function renderPhotos() {
     <div class="photo-item${p.seen ? "" : " unseen"}" data-photo="${p.id}">
       <div class="photo-item-head">
         <span class="photo-student">${esc(p.studentName)}</span>
+        <span class="photo-kind">${p.kind === "reading" ? "🎤 чтение" : "📸 тетрадь"}</span>
         <span class="photo-when">${esc((p.createdAt || "").replace("T", " ").slice(0, 16))}</span>
         ${p.seen ? "" : `<span class="photo-new">новое</span>`}
       </div>
       ${p.comment ? `<p class="muted-note">${esc(p.comment)}</p>` : ""}
-      <button class="btn btn-ghost btn-small" data-show="${p.id}">Показать фото</button>
+      ${p.kind === "reading" ? "" :
+        `<button class="btn btn-ghost btn-small" data-show="${p.id}">Показать фото</button>`}
       <div class="photo-slot"></div>
       ${photoVerdictHTML(p)}
       <button class="btn btn-ghost btn-small" data-del="${p.id}">Удалить</button>

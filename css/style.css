@@ -620,3 +620,17 @@ body {
   font-size: 13.5px; line-height: 1.45;
 }
 .photo-unreadable p { line-height: 1.55; }
+
+/* --- Задание текстом и чтение вслух --- */
+.hw-task { line-height: 1.55; font-weight: 600; margin: 8px 0 4px; white-space: pre-wrap; }
+.hw-reading { background: #FAF7F2; border-radius: 14px; padding: 14px 16px; margin-top: 12px; }
+.hw-reading-label { font-weight: 900; font-size: 13px; margin-bottom: 6px; }
+.hw-reading-text { font-size: 17px; line-height: 1.6; margin-bottom: 12px; }
+.rd-result { margin-top: 12px; }
+.rd-score { font-size: 26px; font-weight: 900; }
+.rd-score span { font-size: 14px; font-weight: 700; color: var(--muted); }
+.rd-comment { font-weight: 700; margin: 4px 0 10px; line-height: 1.5; }
+.rd-marked { line-height: 1.9; font-size: 16px; }
+.rd-ok { color: var(--ink); }
+.rd-wrong { color: #C0392B; font-weight: 800; text-decoration: underline wavy #C0392B; }
+.rd-missed { color: #9A6212; font-weight: 800; opacity: .65; text-decoration: line-through; }

@@ -270,11 +270,51 @@ function renderHomework() {
           ${task.dueDate ? `<span class="hw-due">до ${esc(task.dueDate)}</span>` : ""}
         </div>
         <p class="hw-title">${esc(task.title)}</p>
+        ${task.taskText ? `<p class="hw-task">${esc(task.taskText)}</p>` : ""}
+        ${task.readingText ? `
+          <div class="hw-reading">
+            <p class="hw-reading-label">🎤 Прочитай вслух:</p>
+            <p class="hw-reading-text" id="rd-text-${task.id}">${esc(task.readingText)}</p>
+            <button class="btn btn-ghost btn-small" data-read="${task.id}">Начать чтение</button>
+            <div class="rd-result" id="rd-res-${task.id}"></div>
+          </div>` : ""}
         <div class="xp-bar"><div class="xp-bar-fill" style="width:${pct}%"></div></div>
         <p class="stat-note">${done} из ${total} слов выучено${finished ? " — готово, мяу! 🎉" : ""}</p>
         <button class="btn btn-primary btn-small" data-hw="${task.id}">Добавить слова и учить</button>
       </div>`;
   }).join("");
+  box.querySelectorAll("[data-read]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      if (typeof startReading !== "function") return;
+      const id = btn.dataset.read;
+      const task = homeworkTasks.find(t => String(t.id) === id);
+      const res = document.getElementById("rd-res-" + id);
+      if (btn.dataset.on === "1") { stopReading(); return; }
+      btn.dataset.on = "1";
+      btn.textContent = "Стоп — я закончил";
+      res.innerHTML = `<p class="stat-note">Слушаю… читай спокойно, вслух.</p>`;
+      startReading(task.readingText,
+        (v, err) => {
+          btn.dataset.on = "";
+          btn.textContent = "Прочитать ещё раз";
+          if (err) { res.innerHTML = `<p class="stat-note">${esc(err)}</p>`; return; }
+          res.innerHTML = `
+            <p class="rd-score">${v.score}% <span>прочитано верно</span></p>
+            <p class="rd-comment">${esc(readingComment(v))}</p>
+            <p class="rd-marked">${readingMarkup(v)}</p>
+            ${v.problems.length ? `<p class="stat-note">Повтори: ${
+              v.problems.map(x => esc(x.word)).join(", ")}</p>` : ""}`;
+          if (studentToken()) {
+            api("/api/student/reading", {
+              token: studentToken(), homeworkId: task.id, score: v.score,
+              total: v.total, problems: v.problems,
+            });
+          }
+        },
+        partial => { res.innerHTML = `<p class="stat-note">${esc(partial)}</p>`; });
+    });
+  });
+
   box.querySelectorAll("[data-hw]").forEach(btn => {
     btn.addEventListener("click", () => {
       const task = homeworkTasks.find(t => String(t.id) === btn.dataset.hw);

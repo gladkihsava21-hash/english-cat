@@ -283,3 +283,6 @@
 .access-bar.warn { background: #FDF0DC; }
 .access-bar.stop { background: #FDE7E3; color: #A93226; }
 #paywall-plan .plan-name { font-size: 24px; margin-bottom: 4px; }
+.photo-kind { font-size: 12px; font-weight: 800; color: var(--muted); }
+.photo-item .rd-score { font-size: 24px; font-weight: 900; margin-bottom: 8px; }
+.photo-item .rd-score span { font-size: 13px; font-weight: 700; color: var(--muted); }

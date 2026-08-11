@@ -758,6 +758,8 @@ $("hw-send").addEventListener("click", async () => {
     studentId: target && !target.startsWith("g") ? target : null,
     groupId: target.startsWith("g") ? target.slice(1) : null,
     dueDate: $("hw-due").value || null,
+    taskText: ($("hw-task") ? $("hw-task").value.trim() : ""),
+    readingText: ($("hw-reading") ? $("hw-reading").value.trim() : ""),
     words: picked,
   });
   if (!res.ok) {

@@ -132,6 +132,10 @@ MIGRATIONS = [
     ("tutors", "student_limit", "INTEGER DEFAULT 15"),
     ("tutors", "trial_ends_at", "TEXT"),
     ("tutors", "paid_until", "TEXT"),
+    ("homework", "task_text", "TEXT DEFAULT ''"),
+    ("homework", "reading_text", "TEXT DEFAULT ''"),
+    ("photo_homework", "kind", "TEXT DEFAULT 'photo'"),
+    ("photo_homework", "reading_score", "INTEGER"),
 ]
 
 
@@ -463,10 +467,11 @@ def delete_student(tutor_id, student_id):
 
 # ---------- домашка ----------
 
-def create_homework(tutor_id, title, words, student_id=None, group_id=None, due_date=None):
+def create_homework(tutor_id, title, words, student_id=None, group_id=None,
+                    due_date=None, task_text="", reading_text=""):
     cur = conn().execute(
-        "INSERT INTO homework (tutor_id, student_id, group_id, title, words, due_date, created_at)"
-        " VALUES (?,?,?,?,?,?,?)",
+        "INSERT INTO homework (tutor_id, student_id, group_id, title, words, due_date,"
+        " created_at, task_text, reading_text) VALUES (?,?,?,?,?,?,?,?,?)",
         (
             tutor_id,
             student_id,
@@ -475,6 +480,8 @@ def create_homework(tutor_id, title, words, student_id=None, group_id=None, due_
             json.dumps(words[:100], ensure_ascii=False),
             due_date,
             now(),
+            str(task_text or "")[:4000],
+            str(reading_text or "")[:2000],
         ),
     )
     conn().commit()
@@ -801,8 +808,11 @@ def archive_photo(tutor_id, photo_id):
 
 
 def photo_public(row, for_tutor=False):
+    keys0 = row.keys()
     out = {
         "id": row["id"],
+        "kind": (row["kind"] if "kind" in keys0 else "photo") or "photo",
+        "readingScore": row["reading_score"] if "reading_score" in keys0 else None,
         "homeworkId": row["homework_id"],
         "comment": row["comment"],
         "status": row["check_status"],
@@ -1280,3 +1290,17 @@ def admin_delete_tutor(tutor_id):
         c.execute("DELETE FROM %s WHERE tutor_id=?" % table, (tutor_id,))
     c.execute("DELETE FROM tutors WHERE id=?", (tutor_id,))
     c.commit()
+
+
+def create_reading_result(tutor_id, student_id, homework_id, score, result):
+    """Чтение вслух храним в той же таблице, что и фото: для репетитора
+    это одна лента «что прислал ученик», и разделять её незачем."""
+    cur = conn().execute(
+        "INSERT INTO photo_homework (tutor_id, student_id, homework_id, file_name,"
+        " comment, check_status, check_result, kind, reading_score, created_at)"
+        " VALUES (?,?,?,?,?,?,?,?,?,?)",
+        (tutor_id, student_id, homework_id, "", "", "done",
+         json.dumps(result, ensure_ascii=False), "reading", score, now()),
+    )
+    conn().commit()
+    return get_photo(cur.lastrowid)

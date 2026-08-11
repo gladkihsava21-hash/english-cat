@@ -427,8 +427,13 @@ class Api:
         if err:
             return err
         words = p.get("words") or []
-        if not isinstance(words, list) or not words:
-            return {"ok": False, "error": "Добавь хотя бы одно слово."}
+        has_task = bool(str(p.get("taskText") or "").strip())
+        has_reading = bool(str(p.get("readingText") or "").strip())
+        if not isinstance(words, list):
+            words = []
+        if not words and not has_task and not has_reading:
+            return {"ok": False,
+                    "error": "Добавь слова, задание текстом или текст для чтения."}
         clean = []
         for w in words:
             if isinstance(w, dict) and w.get("w"):
@@ -438,7 +443,7 @@ class Api:
                     "ex": str(w.get("ex", ""))[:200],
                     "level": str(w.get("level", ""))[:4],
                 })
-        if not clean:
+        if not clean and not has_task and not has_reading:
             return {"ok": False, "error": "Слова не распознаны."}
         sid, gid = p.get("studentId"), p.get("groupId")
         row = db.create_homework(
@@ -446,6 +451,8 @@ class Api:
             student_id=int(sid) if sid else None,
             group_id=int(gid) if gid else None,
             due_date=str(p.get("dueDate") or "") or None,
+            task_text=p.get("taskText", ""),
+            reading_text=p.get("readingText", ""),
         )
         return {"ok": True, "id": row["id"]}
 
@@ -520,12 +527,18 @@ class Api:
         if not row:
             return {"ok": False, "error": "unknown_student"}
         hw = db.homework_for_student(db.list_homework(row["tutor_id"]), row)
-        tasks = [{
-            "id": x["id"],
-            "title": x["title"],
-            "words": json.loads(x["words"] or "[]"),
-            "dueDate": x["due_date"],
-        } for x in hw]
+        keys_cache = None
+        tasks = []
+        for x in hw:
+            k = x.keys()
+            tasks.append({
+                "id": x["id"],
+                "title": x["title"],
+                "words": json.loads(x["words"] or "[]"),
+                "dueDate": x["due_date"],
+                "taskText": x["task_text"] if "task_text" in k else "",
+                "readingText": x["reading_text"] if "reading_text" in k else "",
+            })
         msgs = db.messages_for_student(db.list_messages(row["tutor_id"]), row)
         return {
             "ok": True,
@@ -796,6 +809,37 @@ class Api:
         return {"ok": True, "image": "data:%s;base64,%s" % (
             media, base64.b64encode(blob).decode("ascii"))}
 
+    @staticmethod
+    def student_reading(h, p):
+        """Результат чтения вслух. Разбор делает браузер — сюда приходит
+        готовая оценка, серверу остаётся сохранить её для репетитора."""
+        row = db.get_student_by_token(p.get("token"))
+        if not row:
+            return {"ok": False, "error": "unknown_student"}
+        try:
+            score = max(0, min(100, int(p.get("score") or 0)))
+        except (ValueError, TypeError):
+            return {"ok": False, "error": "Некорректная оценка."}
+        problems = p.get("problems") or []
+        if not isinstance(problems, list):
+            problems = []
+        clean = []
+        for x in problems[:60]:
+            if isinstance(x, dict) and x.get("word"):
+                clean.append({"word": str(x["word"])[:40],
+                              "said": str(x.get("said") or "")[:40],
+                              "type": "missed" if x.get("type") == "missed" else "wrong"})
+        hw_id = p.get("homeworkId")
+        rec = db.create_reading_result(
+            row["tutor_id"], row["id"],
+            homework_id=int(hw_id) if hw_id else None,
+            score=score,
+            result={"score": score, "problems": clean,
+                    "total": int(p.get("total") or 0),
+                    "said": str(p.get("said") or "")[:2000]},
+        )
+        return {"ok": True, "id": rec["id"]}
+
     # --- чат ---
 
     @staticmethod
@@ -934,6 +978,7 @@ ROUTES = {
     "/api/tutor/password": Api.tutor_password_change,
     "/api/tutor/password/reset": Api.tutor_password_reset,
     "/api/tutor/recovery": Api.tutor_recovery_code,
+    "/api/student/reading": Api.student_reading,
     "/api/student/photo": Api.student_photo_upload,
     "/api/student/photo/list": Api.student_photo_list,
     "/api/tutor/photos": Api.tutor_photo_list,
