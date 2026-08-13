@@ -4,8 +4,10 @@
 let photoBusy = false;
 
 /** Сжимаем перед отправкой: фото с телефона весит 3–8 МБ, а модели
- *  хватает 1600 пикселей по длинной стороне. Экономит и трафик, и деньги. */
-function shrinkPhoto(file, maxSide = 1600) {
+ *  хватает 1100 пикселей по длинной стороне — почерк на тетрадном листе
+ *  читается ровно так же, а картинка обходится на треть дешевле.
+ *  Выше поднимать смысла нет: 1600 стоило 1,47 ₽ против 1,04 ₽ за снимок. */
+function shrinkPhoto(file, maxSide = 1100) {
   return new Promise((resolve, reject) => {
     const img = new Image();
     const url = URL.createObjectURL(file);
@@ -27,6 +29,7 @@ function shrinkPhoto(file, maxSide = 1600) {
 function photoStatusText(p) {
   if (p.status === "done") return "";
   if (p.status === "no_ai") return "Савелий пока не умеет проверять сам — репетитор посмотрит лично.";
+  if (p.status === "no_quota") return "Проверок на этот месяц не осталось — репетитор посмотрит лично.";
   if (p.status === "failed") return "Разобрать не получилось, но репетитор фото увидит.";
   return "Савелий смотрит…";
 }
@@ -78,6 +81,14 @@ async function sendHomeworkPhoto(file, homeworkId) {
     });
     if (!res.ok) throw new Error(res.error || "fail");
     await loadMyPhotos();
+    // Домашка ушла репетитору в любом случае — но если разбор не полагается,
+    // ученик должен понимать, почему Савелий промолчал
+    if (res.notice) {
+      const note = document.createElement("div");
+      note.className = "card";
+      note.innerHTML = `<p class="stat-note">📬 Домашка отправлена репетитору.<br>${esc(res.notice)}</p>`;
+      if (box) box.prepend(note);
+    }
   } catch (e) {
     if (box) box.innerHTML = `<div class="card"><p class="stat-note">Не получилось отправить. Попробуй ещё раз.</p></div>`;
   } finally {

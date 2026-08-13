@@ -1,0 +1,262 @@
+/* Слой редизайна: стиль «тёплая школьная тетрадь» поверх существующей вёрстки.
+ *
+ * Подключается ПОСЛЕ style.css и перекрывает его. Так сделано намеренно:
+ * переписывать 32 КБ старого CSS ради смены облика — это неделя и риск
+ * сломать то, что работает. Здесь меняются ровно те свойства, которые
+ * отвечают за впечатление: материал поверхностей, кнопки, типографика,
+ * скругления, тени. Разметку не трогаем.
+ *
+ * Правила стиля — в DESIGN.md. Цвета и размеры — только из tokens.css.
+ */
+
+/* ---------- Бумага ---------- */
+/* Одна бумага у всего: страница, карточки, кнопки. Разделяет обводка,
+   а не цвет и не тень — в этом вся суть стиля. */
+body {
+  background: var(--cream-paper);
+  color: var(--ink);
+}
+
+.card,
+.stat-card, .wod-card, .ach-card, .lb-card, .due-card,
+.plan-card, .admin-stat, .photo-card, .dict-row, .auth-card {
+  background: var(--cream-paper);
+  border: var(--border-w) solid var(--line);
+  border-radius: var(--radius-card);
+  box-shadow: none;
+}
+
+/* Вторичная поверхность — там, где карточка лежит на карточке */
+.speech-bubble, .chat-box, .hw-picker, .invite-link {
+  background: var(--surface-alt);
+  border: var(--border-w) solid var(--line);
+  border-radius: var(--radius-card);
+  box-shadow: none;
+}
+
+/* ---------- Типографика ---------- */
+/* Заголовки — строчными. Тип говорит размером и весом, а не капсом. */
+h1, h2, h3, .section-title, .dash-head h2 {
+  color: var(--cocoa-ink);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.hero h1 {
+  font-size: clamp(46px, 8vw, var(--text-display));
+  line-height: var(--leading-display);
+  font-weight: 600;
+  text-transform: lowercase;
+  max-width: 14ch;
+}
+
+h2, .section-title { font-size: var(--text-heading); line-height: var(--leading-tight); }
+h3 { font-size: var(--text-heading-sm); line-height: var(--leading-snug); }
+
+.hero-sub {
+  font-size: var(--text-body);
+  line-height: var(--leading-normal);
+  color: var(--ink-soft);
+  max-width: 52ch;
+}
+
+/* Капс убран везде: DESIGN.md запрещает его прямым текстом, а весь мелкий
+   капс на сайте был набран цветом с контрастом 3,59:1 — то есть ещё и
+   не читался. Метки становятся строчными, крупнее и темнее. */
+.stat-label, .ach-label, .hw-label, .wod-label, .lb-label,
+.d-status, .plan-chip, .section-note, .muted-small, .stat-note {
+  text-transform: none !important;
+  letter-spacing: normal;
+  font-size: var(--text-caption);
+  font-weight: 500;
+  color: var(--ink-soft);
+}
+
+/* ---------- Кнопки ---------- */
+/* Личность кнопки — в обводке, а не в заливке. Поэтому фон при наведении
+   не меняется: DESIGN.md указывает это отдельным пунктом. Заодно уходит
+   провал по контрасту — белый текст на оранжевом давал 2,31:1. */
+.btn, .btn-primary, .btn-ghost, .chip, .tab, .nav-btn {
+  background: var(--cream-paper);
+  color: var(--charcoal);
+  border: var(--border-w) solid var(--charcoal);
+  border-radius: var(--radius-btn);
+  box-shadow: var(--shadow-lift);
+  font-family: var(--font-display);
+  font-size: var(--text-caption);
+  font-weight: 500;
+  padding: 10px 28px;
+  transition: transform .12s ease, box-shadow .12s ease;
+}
+
+.btn:hover, .btn-primary:hover, .btn-ghost:hover {
+  background: var(--cream-paper);   /* именно так: заливка не едет */
+  transform: translateY(1px);
+  box-shadow: none;                 /* бумага прижимается к столу */
+}
+
+/* Единственная заливная кнопка на сайте — «сфоткать домашку».
+   Оранжевый допустим только здесь и только с угольным текстом: 6,44:1. */
+.photo-cta .btn, #photo-btn {
+  background: var(--marker-orange);
+  color: var(--on-accent);
+  border-color: var(--charcoal);
+  border-width: 2px;
+  font-size: var(--text-body);
+  font-weight: 600;
+  padding: 14px 32px;
+}
+.photo-cta .btn:hover, #photo-btn:hover { background: var(--marker-orange); }
+
+.nav-btn { border: none; box-shadow: none; padding: 8px 14px; }
+.nav-btn.active {
+  background: var(--surface-alt);
+  border: var(--border-w) solid var(--charcoal);
+}
+
+.chip, .tab { padding: 7px 18px; border-radius: var(--radius-tag); }
+
+/* ---------- Поля ввода ---------- */
+/* Были голые системные контролы: monospace 13px, серая рамка ОС, нулевой
+   радиус. Плюс всё ниже 16px — iOS зумит страницу при фокусе. */
+input, textarea, select {
+  font-family: var(--font-ui);
+  font-size: var(--text-caption);
+  background: var(--cream-paper);
+  color: var(--ink);
+  border: var(--border-w) solid var(--line-soft);
+  border-radius: var(--radius-input);
+  padding: 12px 16px;
+}
+textarea { resize: vertical; min-height: 96px; line-height: var(--leading-normal); }
+select { appearance: none; padding-right: 40px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%232b1a07' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 16px center; }
+
+input:focus, textarea:focus, select:focus { border-color: var(--charcoal); }
+
+/* Фокус виден всегда и на любом фоне. Раньше в семи местах стоял
+   outline:none, а взамен менялся цвет рамки на оранжевый — 2,31:1,
+   то есть клавиатурный пользователь не понимал, где находится. */
+:where(a, button, input, textarea, select, [tabindex]):focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: inherit;
+}
+
+/* ---------- Кот ---------- */
+/* Никаких кружков с градиентом: персонаж лежит на бумаге сам по себе. */
+.cat-avatar {
+  background: none !important;
+  border-radius: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.cat-avatar svg { display: block; width: 100%; height: auto; }
+.cat-big  { width: 200px; height: auto; }
+.cat-mid  { width: 120px; height: auto; }
+
+/* ---------- Подпись от руки ---------- */
+/* Цвет — marker-ink, а не живой оранжевый: буквы оранжевым на креме
+   дают 2,70:1 и не читаются. */
+.handnote {
+  font-family: var(--font-display);
+  font-size: var(--text-body-sm);
+  font-weight: 500;
+  color: var(--marker-ink);
+  transform: rotate(-2deg);
+  display: inline-block;
+}
+.handnote::before { content: "↘ "; opacity: .7; }
+
+/* Подчёркивание акцента: штрих маркером под ключевым словом */
+.marked {
+  background-image: linear-gradient(var(--marker-orange), var(--marker-orange));
+  background-size: 100% 6px;
+  background-position: 0 88%;
+  background-repeat: no-repeat;
+  padding: 0 2px;
+}
+
+/* ---------- Наклейки ---------- */
+/* Плоские, с обводкой, вразнобой, БЕЗ теней — лежат как переводнушки. */
+.sticker-row { display: flex; flex-wrap: wrap; gap: var(--space-12); align-items: center; }
+.sticker {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 16px;
+  border: 2px solid var(--charcoal);
+  border-radius: var(--radius-tag);
+  background: var(--cream-paper);
+  box-shadow: none;
+  font-size: var(--text-caption);
+  font-weight: 600;
+  color: var(--charcoal);
+}
+.sticker:nth-child(3n+1) { transform: rotate(-6deg); }
+.sticker:nth-child(3n+2) { transform: rotate(4deg); }
+.sticker:nth-child(3n+3) { transform: rotate(-2deg); }
+.sticker.got-sky       { background: var(--sticker-sky); }
+.sticker.got-bubblegum { background: var(--sticker-bubblegum); }
+.sticker.got-sprout    { background: var(--sticker-sprout); }
+.sticker.locked { background: none; border-color: var(--line-soft); color: var(--ink-soft); }
+
+/* ---------- Футер ---------- */
+/* Финальный аккорд бренда. Текст угольный: кремовый на оранжевом — 2,70:1. */
+.site-footer {
+  margin-top: var(--section-gap);
+  background: var(--marker-orange);
+  color: var(--on-accent);
+  border-radius: var(--radius-footer) var(--radius-footer) 0 0;
+  padding: var(--space-48) var(--space-32);
+  text-align: center;
+}
+.site-footer a { color: var(--on-accent); font-weight: 700; }
+.site-footer .handnote { color: var(--on-accent); }
+
+/* ---------- Шапка ---------- */
+.topbar {
+  background: var(--cream-paper);
+  border-bottom: var(--border-w) solid var(--line-soft);
+  box-shadow: none;
+}
+
+/* ---------- Мелочи, которые ломали материал ---------- */
+.badge {
+  background: var(--charcoal);
+  color: var(--cream-paper);
+  font-size: 12px;
+  border-radius: var(--radius-tag);
+}
+.progress { background: var(--surface-alt); border: 1px solid var(--line-soft); }
+.progress-fill { background: var(--marker-orange); }
+
+/* Планшетная дыра: единственный брейкпоинт в старом CSS стоял на 720px,
+   из-за чего на 721–880px шапка вылезала за экран и появлялась
+   горизонтальная прокрутка. Закрываем диапазон. */
+@media (max-width: 900px) {
+  .user-chip { min-width: 0; flex-wrap: wrap; }
+  .topbar-inner { flex-wrap: wrap; row-gap: var(--space-8); }
+  .hero h1 { max-width: 100%; }
+}
+
+/* ---------- Персонаж ---------- */
+/* Один язык с интерфейсом: обводка углём, заливка бумагой, никаких заливок
+   цветом и никаких градиентов. */
+.cat-svg { width: 100%; height: auto; overflow: visible; }
+.cat-svg .c-head,
+.cat-svg .c-ear,
+.cat-svg .c-book  { fill: var(--cream-paper); stroke: var(--charcoal); stroke-width: 2.5; }
+.cat-svg .c-ear-in { fill: var(--dew-drop); stroke: none; }
+.cat-svg .c-eye,
+.cat-svg .c-nose  { fill: var(--charcoal); stroke: none; }
+.cat-svg .c-mouth { fill: var(--cocoa-ink); stroke: none; }
+.cat-svg .c-line  { fill: none; stroke: var(--charcoal); stroke-width: 2.5;
+                    stroke-linecap: round; stroke-linejoin: round; }
+.cat-svg .c-z     { fill: var(--marker-ink); font: 700 18px var(--font-display); }
+.cat-svg .c-z-sm  { font-size: 13px; }
+
+.site-footer .cat-avatar { width: 96px; margin-bottom: var(--space-16); }
+.site-footer .footer-line { font-size: var(--text-subheading); font-weight: 700; }
+.site-footer .footer-sub { font-size: var(--text-body-sm); margin-top: var(--space-8); }
+.tg-link { color: var(--marker-ink); font-weight: 700; }

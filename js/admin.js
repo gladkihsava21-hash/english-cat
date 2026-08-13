@@ -47,8 +47,11 @@ function renderOverview() {
     ["Репетиторов", o.tutors, `подтвердили почту: ${o.verified}`],
     ["Учеников", o.students, `занимались за неделю: ${o.activeWeek}`],
     ["Домашек", o.homework, `фото тетрадей: ${o.photos}`],
-    ["Выручка в месяц", money(o.revenue), "по текущим тарифам"],
-    ["Расходы на ИИ", money(o.aiCost), "оценка за месяц"],
+    ["Выручка в месяц", money(o.revenue),
+      `тарифы ${money(o.baseRevenue)} + проверка ${money(o.checksRevenue)}`],
+    // Не оценка, а факт: сообщения и проверки считаются в базе
+    ["Расходы на ИИ", money(o.aiCost),
+      `${o.chatMessages} сообщений, ${o.checksUsed} проверок`],
     ["Чистыми", money(o.profit), "минус комиссия 3%"],
   ].map(([label, val, note]) => `
     <div class="admin-stat">

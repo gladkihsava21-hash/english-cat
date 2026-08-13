@@ -137,6 +137,14 @@ MIGRATIONS = [
     ("photo_homework", "kind", "TEXT DEFAULT 'photo'"),
     ("photo_homework", "reading_score", "INTEGER"),
     ("tutors", "notified_at", "TEXT"),
+    # проверка домашек: отдельная подписка на каждого ученика
+    ("tutors", "checks_free", "INTEGER DEFAULT 0"),
+    ("students", "check_pack", "TEXT"),
+    ("students", "checks_used", "INTEGER DEFAULT 0"),
+    ("students", "checks_extra", "INTEGER DEFAULT 0"),
+    ("students", "checks_period", "TEXT"),
+    ("students", "chat_used", "INTEGER DEFAULT 0"),
+    ("students", "chat_period", "TEXT"),
 ]
 
 
@@ -180,6 +188,11 @@ def init():
                           (end,))
                 # тариф «trial» отменён — переводим на минимальный платный
                 c.execute("UPDATE tutors SET plan='start' WHERE plan='trial' OR plan IS NULL")
+            if table == "tutors" and column == "checks_free":
+                # Кто регистрировался, когда проверка домашек входила в базовый
+                # тариф, оставляет её бесплатно навсегда. Отбирать оплаченную
+                # фичу задним числом нельзя, а первые клиенты — самые ценные.
+                c.execute("UPDATE tutors SET checks_free=1")
     c.commit()
 
 
@@ -1036,15 +1049,228 @@ def is_verified(row):
 
 # ---------- тарифы ----------
 
-# Себестоимость ученика ~10 ₽/мес (ИИ + сервер). Цены дают 10–20-кратный
-# запас: рост важнее выжимания, а поддержка и развитие тоже чего-то стоят.
+# Базовый тариф покрывает сайт и чат с Савелием. Чат дешёвый и предсказуемый:
+# ~1300 входных токенов на сообщение, при 100 сообщениях в месяц это 2–18 ₽
+# с ученика в зависимости от модели.
+#
+# Проверка фото тетради стоит на порядок дороже (Sonnet 5, картинка целиком),
+# поэтому она вынесена в отдельную подписку — см. CHECK_PACKS. Пока она была
+# внутри базового тарифа, активный ученик съедал прибыль от пяти обычных.
+#
+# «Практика» стоит 1299, а не 1399, потому что Старт + 5 доплат = 1394:
+# при более высокой цене plan_for_count честно выбирал бы связку подешевле,
+# и тариф просто никогда не показывался бы.
 PLANS = [
-    {"id": "start",    "limit": 15, "price": 690,  "name": "Старт"},
-    {"id": "practice", "limit": 30, "price": 1290, "name": "Практика"},
-    {"id": "school",   "limit": 60, "price": 1990, "name": "Школа"},
+    {"id": "start",    "limit": 5,  "price": 799,  "name": "Старт"},
+    {"id": "practice", "limit": 10, "price": 1299, "name": "Практика"},
+    # 2399, а не 2499, по той же причине: Практика + 10 доплат = 2489,
+    # и при более высокой цене «Школа» тоже осталась бы мёртвым тарифом
+    {"id": "school",   "limit": 20, "price": 2399, "name": "Школа"},
+    {"id": "pro",      "limit": 50, "price": 4990, "name": "Профи"},
 ]
 TRIAL_DAYS = 3
-EXTRA_STUDENT_PRICE = 99
+EXTRA_STUDENT_PRICE = 119
+
+# ---------- проверка домашек ----------
+
+# Цена за ОДНОГО ученика в месяц. Три цены в "price" — это скидка за объём:
+# до 10 учеников, от 10 и от 20. Себестоимость одной проверки 1–5 ₽
+# (1–5 фото по 1,04 ₽), так что маржа держится в 44–58% даже если каждый
+# ученик шлёт по пять снимков на каждую домашку.
+CHECK_PACKS = [
+    {"id": "light",  "limit": 8,  "price": (99, 89, 79),    "name": "Лёгкая"},
+    {"id": "normal", "limit": 12, "price": (149, 129, 119), "name": "Обычная"},
+    {"id": "dense",  "limit": 16, "price": (199, 169, 149), "name": "Плотная"},
+]
+DEFAULT_CHECK_PACK = "normal"
+EXTRA_CHECK_PRICE = 19   # за проверку сверх лимита пакета
+SINGLE_CHECK_PRICE = 29  # разовая проверка без подписки
+PHOTOS_PER_CHECK = 5     # больше пяти снимков на одну домашку не принимаем
+CHAT_MONTHLY_LIMIT = 150  # fair-use: отрезает хвост, обычный ученик не заметит
+
+
+def check_pack_by_id(pack_id):
+    for p in CHECK_PACKS:
+        if p["id"] == pack_id:
+            return p
+    return None
+
+
+def check_pack_price(pack, student_count):
+    """Цена пакета за одного ученика с учётом скидки за объём."""
+    n = max(0, int(student_count or 0))
+    tier = 2 if n >= 20 else 1 if n >= 10 else 0
+    return pack["price"][tier]
+
+
+def _period():
+    """Календарный месяц как метка счётчика: '2026-08'."""
+    return datetime.now(timezone.utc).strftime("%Y-%m")
+
+
+def check_state(student_id):
+    """Сколько проверок домашек осталось у ученика в этом месяце.
+
+    Счётчик сбрасывается лениво — при первом обращении в новом месяце,
+    чтобы не заводить отдельную задачу в cron ради одной цифры."""
+    row = conn().execute(
+        "SELECT s.check_pack, s.checks_used, s.checks_extra, s.checks_period,"
+        "       t.checks_free "
+        "FROM students s JOIN tutors t ON t.id = s.tutor_id WHERE s.id=?",
+        (student_id,)).fetchone()
+    if not row:
+        return None
+
+    fresh = row["checks_period"] == _period()
+    used = (row["checks_used"] or 0) if fresh else 0
+    extra = (row["checks_extra"] or 0) if fresh else 0
+    free = bool(row["checks_free"])
+    pack = check_pack_by_id(row["check_pack"])
+
+    if free:
+        # Репетиторы, у которых проверка была включена в базовый тариф,
+        # получают самый большой пакет — но не безлимит: без потолка один
+        # сломанный клиент способен выесть месячный бюджет на ИИ.
+        limit = CHECK_PACKS[-1]["limit"]
+    elif pack:
+        limit = pack["limit"]
+    else:
+        limit = 0
+
+    # Небольшой овердрафт: обрывать ученика на середине домашки хуже,
+    # чем доплатить за него 19 ₽ и показать это репетитору в счёте.
+    overdraft = limit // 2 if limit else 0
+
+    return {
+        "free": free,
+        "pack": pack["id"] if pack else None,
+        "packName": pack["name"] if pack else None,
+        "used": used,
+        "limit": limit,
+        "left": max(0, limit - used),
+        "extra": extra,
+        "overdraftLeft": max(0, limit + overdraft - used),
+        "extraPrice": EXTRA_CHECK_PRICE,
+        "maxPhotos": PHOTOS_PER_CHECK,
+    }
+
+
+def use_check(student_id):
+    """Списывает одну проверку. Возвращает (можно, состояние, причина).
+
+    Причина заполняется только при отказе — её текст уходит ученику."""
+    st = check_state(student_id)
+    if st is None:
+        return False, None, "Ученик не найден."
+    if st["limit"] <= 0:
+        return False, st, ("Проверка домашек не подключена. "
+                           "Попроси репетитора включить её в панели.")
+    if st["overdraftLeft"] <= 0:
+        return False, st, ("Проверки на этот месяц закончились. "
+                           "Репетитор может докупить пакет побольше — "
+                           "или подожди 1-го числа, лимит обновится.")
+
+    over = st["used"] >= st["limit"]   # уходим за лимит — это платная проверка
+    conn().execute(
+        "UPDATE students SET checks_used=?, checks_extra=?, checks_period=? WHERE id=?",
+        (st["used"] + 1, st["extra"] + (1 if over else 0), _period(), student_id))
+    conn().commit()
+    return True, check_state(student_id), None
+
+
+def refund_check(student_id):
+    """Возвращает списанную проверку, если разбор сорвался (нет ключа, упал
+    запрос). Ученик не должен платить за то, что не сработало."""
+    st = check_state(student_id)
+    if not st or st["used"] <= 0:
+        return
+    over = st["used"] > st["limit"]   # снимали как платную — её и возвращаем
+    conn().execute(
+        "UPDATE students SET checks_used=?, checks_extra=? WHERE id=?",
+        (st["used"] - 1, max(0, st["extra"] - (1 if over else 0)), student_id))
+    conn().commit()
+
+
+def chat_state(student_id):
+    """Fair-use по чату. Отрезает только хвост: обычный ученик
+    до потолка не доходит и ничего не замечает."""
+    row = conn().execute(
+        "SELECT chat_used, chat_period FROM students WHERE id=?", (student_id,)).fetchone()
+    if not row:
+        return None
+    used = (row["chat_used"] or 0) if row["chat_period"] == _period() else 0
+    return {"used": used, "limit": CHAT_MONTHLY_LIMIT,
+            "left": max(0, CHAT_MONTHLY_LIMIT - used)}
+
+
+def use_chat(student_id):
+    """Списывает одно сообщение. Возвращает (можно, состояние)."""
+    st = chat_state(student_id)
+    if st is None:
+        return False, None
+    if st["left"] <= 0:
+        return False, st
+    conn().execute(
+        "UPDATE students SET chat_used=?, chat_period=? WHERE id=?",
+        (st["used"] + 1, _period(), student_id))
+    conn().commit()
+    return True, chat_state(student_id)
+
+
+def refund_chat(student_id):
+    """Запрос упал — сообщение не считаем."""
+    st = chat_state(student_id)
+    if st and st["used"] > 0:
+        conn().execute("UPDATE students SET chat_used=? WHERE id=?",
+                       (st["used"] - 1, student_id))
+        conn().commit()
+
+
+def set_check_pack(student_id, tutor_id, pack_id):
+    """Репетитор включает или выключает проверку конкретному ученику.
+    pack_id=None — выключить."""
+    if pack_id and not check_pack_by_id(pack_id):
+        return False, "Неизвестный пакет."
+    row = conn().execute("SELECT id FROM students WHERE id=? AND tutor_id=?",
+                         (student_id, tutor_id)).fetchone()
+    if not row:
+        return False, "Ученик не найден."
+    conn().execute("UPDATE students SET check_pack=? WHERE id=?", (pack_id, student_id))
+    conn().commit()
+    return True, None
+
+
+def checks_bill(tutor_id):
+    """Счёт за проверку домашек: сколько выходит в месяц по всем ученикам."""
+    free = conn().execute("SELECT checks_free FROM tutors WHERE id=?",
+                          (tutor_id,)).fetchone()
+    if free and free["checks_free"]:
+        # Проверка досталась бесплатно навсегда — счёта нет и быть не должно,
+        # иначе эти репетиторы попали бы и в выручку админки, и в счёт к оплате
+        return {"students": 0, "monthly": 0, "extras": 0, "extrasCost": 0,
+                "total": 0, "items": []}
+
+    rows = conn().execute(
+        "SELECT check_pack, checks_extra, checks_period FROM students WHERE tutor_id=?",
+        (tutor_id,)).fetchall()
+    total_students = len(rows)
+    items, total, extras = [], 0, 0
+    for r in rows:
+        pack = check_pack_by_id(r["check_pack"])
+        if pack:
+            price = check_pack_price(pack, total_students)
+            total += price
+            items.append({"pack": pack["id"], "packName": pack["name"], "price": price})
+        if r["checks_period"] == _period():
+            extras += r["checks_extra"] or 0
+    return {
+        "students": len(items),
+        "monthly": total,
+        "extras": extras,
+        "extrasCost": extras * EXTRA_CHECK_PRICE,
+        "total": total + extras * EXTRA_CHECK_PRICE,
+        "items": items,
+    }
 
 
 def plan_by_id(plan_id):
@@ -1111,11 +1337,18 @@ def set_paid_until(tutor_id, days):
     return end
 
 
+def plan_cost(plan, count):
+    """Сколько всего выйдет на этом тарифе: сам тариф плюс доплата за
+    места сверх лимита."""
+    return plan["price"] + max(0, count - plan["limit"]) * EXTRA_STUDENT_PRICE
+
+
 def plan_for_count(count):
-    for p in PLANS:
-        if count <= p["limit"]:
-            return p
-    return PLANS[-1]
+    """Самый ДЕШЁВЫЙ вариант, а не первый подходящий.
+    При 12 учениках «Практика» + 2 места = 1637 ₽ выгоднее «Школы» за 2499 ₽,
+    и предлагать переплату было бы нечестно."""
+    count = max(0, int(count or 0))
+    return min(PLANS, key=lambda p: (plan_cost(p, count), p["limit"]))
 
 
 def set_plan_by_count(tutor_id, count):
@@ -1238,24 +1471,33 @@ def admin_overview():
         if any(d >= week for d in days):
             active += 1
 
-    revenue = 0
-    for r in c.execute("SELECT plan, student_limit, paid_until FROM tutors"):
+    base_revenue, checks_revenue = 0, 0
+    for r in c.execute("SELECT id, plan, student_limit, paid_until FROM tutors"):
         if not r["paid_until"]:
             continue
         plan = plan_by_id(r["plan"] or "trial")
         limit = r["student_limit"] or plan["limit"]
         extra = max(0, limit - plan["limit"])
-        revenue += plan["price"] + extra * EXTRA_STUDENT_PRICE
+        base_revenue += plan["price"] + extra * EXTRA_STUDENT_PRICE
+        checks_revenue += checks_bill(r["id"])["total"]
+    revenue = base_revenue + checks_revenue
 
-    # Себестоимость: ~0,09 ₽ за сообщение и ~1,15 ₽ за фото. Сообщений мы
-    # не считаем, поэтому берём известную часть — фото — и добавляем
-    # среднюю оценку по чату, чтобы цифра не выглядела заниженной.
-    ai_cost = round(photos * 1.15 + students * 2.7)
+    # Себестоимость больше не гадаем: сообщения чата и проверки фото теперь
+    # считаются в базе. Цены на август 2026 — Haiku 4.5 по 1/5 $ за миллион
+    # токенов (~700 входных на сообщение) и Sonnet 5 на картинке 1100 пикселей.
+    msgs = c.execute("SELECT COALESCE(SUM(chat_used),0) FROM students "
+                     "WHERE chat_period=?", (_period(),)).fetchone()[0]
+    checks = c.execute("SELECT COALESCE(SUM(checks_used),0) FROM students "
+                       "WHERE checks_period=?", (_period(),)).fetchone()[0]
+    ai_cost = round(checks * 1.04 + msgs * 0.16, 1)
 
     return {
         "tutors": tutors, "verified": verified, "students": students,
         "activeWeek": active, "photos": photos, "homework": homework,
-        "revenue": revenue, "aiCost": ai_cost,
+        "revenue": revenue, "baseRevenue": base_revenue,
+        "checksRevenue": checks_revenue,
+        "chatMessages": msgs, "checksUsed": checks,
+        "aiCost": ai_cost,
         "profit": round(revenue * 0.97 - ai_cost),
     }
 

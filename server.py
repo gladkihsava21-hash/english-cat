@@ -49,9 +49,17 @@ FORMAT = (
 
 # ---------- чат ----------
 
+# Сколько контекста уходит в каждое сообщение. Раньше было 40 слов и 12 реплик —
+# это 1042 входных токена, из которых больше половины Савелий не использовал.
+# На 15 и 6 ответы не изменились, а вход похудел на треть: при 100 сообщениях
+# в месяц с ученика это заметная разница на сотне учеников.
+DICT_IN_PROMPT = 15
+HISTORY_IN_PROMPT = 6
+
+
 def build_prompt(payload):
     prof = payload.get("profile") or {}
-    dic = (prof.get("dictionary") or [])[:40]
+    dic = (prof.get("dictionary") or [])[:DICT_IN_PROMPT]
     dic_str = "; ".join(
         f"{d.get('w')} — {d.get('t')} [{d.get('status')}]" for d in dic
     ) or "пока пусто"
@@ -68,7 +76,7 @@ def build_prompt(payload):
                      "Отвечай особенно коротко (1–2 предложения), без списков, скобок и смайликов.")
     lines.append("")
     lines.append("Диалог (последние сообщения):")
-    for m in (payload.get("history") or [])[-12:]:
+    for m in (payload.get("history") or [])[-HISTORY_IN_PROMPT:]:
         role = "Ученик: " if m.get("who") == "user" else "Савелий: "
         lines.append(role + str(m.get("text", ""))[:500])
     lines += ["", FORMAT]
@@ -109,6 +117,41 @@ ANTHROPIC_KEY = _read_key()
 if ANTHROPIC_KEY:
     print("Ключ Claude API найден — умный чат и проверка фото включены")
 
+
+def _read_side_key(filename):
+    """Ключ стороннего провайдера — тем же способом, что и основной."""
+    path = os.path.join(os.path.dirname(os.path.abspath(db.DB_PATH)), filename)
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return _clean_key(f.read())
+    except OSError:
+        return ""
+
+
+# Чат можно увести на модель подешевле — на нём простой диалог по словам,
+# и разница в цене на сотне учеников выходит в полторы тысячи рублей в месяц.
+# Проверку фото это НЕ затрагивает: там детский почерк, и Sonnet 5 держит его
+# заметно лучше всех остальных — экономить на этом означает ломать продукт.
+#
+# Дефолт остаётся Haiku. Переключается одной строкой в savely-data/chat.conf
+# или переменной SAVELY_CHAT_PROVIDER: anthropic | deepseek | gemini.
+CHAT_PROVIDER = (os.environ.get("SAVELY_CHAT_PROVIDER") or "").strip().lower()
+if not CHAT_PROVIDER:
+    _cp = os.path.join(os.path.dirname(os.path.abspath(db.DB_PATH)), "chat.conf")
+    try:
+        with open(_cp, "r", encoding="utf-8") as f:
+            CHAT_PROVIDER = f.read().strip().lower()
+    except OSError:
+        CHAT_PROVIDER = "anthropic"
+CHAT_PROVIDER = CHAT_PROVIDER or "anthropic"
+
+DEEPSEEK_KEY = _read_side_key("deepseek_key.txt")
+GEMINI_KEY = _read_side_key("gemini_key.txt")
+
+# Столько ждём альтернативного провайдера. Ученик сидит и смотрит на «...» —
+# восемь секунд это уже предел, дальше уходим на Haiku, который отвечает быстро.
+ALT_TIMEOUT = 8
+
 CHAT_SCHEMA = {
     "type": "object",
     "properties": {
@@ -122,7 +165,17 @@ CHAT_SCHEMA = {
             "required": ["w", "t"],
             "additionalProperties": False,
         },
-        "mark": {"type": ["string", "null"]},
+        # объект, а не строка: FORMAT просит {"w":..., "correct":...}, и клиент
+        # читает mark.w. Пока здесь стояла строка, схема молча приводила ответ
+        # к тексту и отметка «слово угадано» из чата не срабатывала ни разу
+        "mark": {
+            "type": ["object", "null"],
+            "properties": {
+                "w": {"type": "string"}, "correct": {"type": "boolean"},
+            },
+            "required": ["w", "correct"],
+            "additionalProperties": False,
+        },
     },
     "required": ["reply"],
     "additionalProperties": False,
@@ -153,15 +206,7 @@ def ask_claude_api(payload):
         raise RuntimeError("refused")
     text = next((b.get("text", "") for b in data.get("content", [])
                  if b.get("type") == "text"), "")
-    parsed = json.loads(text) if text else {}
-    if not parsed.get("reply"):
-        raise RuntimeError("empty result")
-    return {
-        "ok": True,
-        "reply": str(parsed["reply"]),
-        "add_word": parsed.get("add_word") or None,
-        "mark": parsed.get("mark") or None,
-    }
+    return _shape(json.loads(text) if text else {})
 
 
 EMAIL_RE = re.compile(r"^[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}$")
@@ -280,9 +325,98 @@ def ai_error_text(exc):
     return "Савелий задумался и не ответил. Попробуй ещё раз."
 
 
+def _shape(parsed):
+    """Приводим ответ любого провайдера к одному виду."""
+    if not isinstance(parsed, dict) or not parsed.get("reply"):
+        raise RuntimeError("empty result")
+    mark = parsed.get("mark")
+    if not isinstance(mark, dict) or not mark.get("w"):
+        mark = None
+    add = parsed.get("add_word")
+    if not isinstance(add, dict) or not add.get("w"):
+        add = None
+    return {"ok": True, "reply": str(parsed["reply"]), "add_word": add, "mark": mark}
+
+
+def _post_json(url, body, headers, timeout):
+    req = urllib.request.Request(
+        url, data=json.dumps(body).encode("utf-8"),
+        headers=dict(headers, **{"content-type": "application/json"}))
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        return json.loads(resp.read())
+
+
+def ask_deepseek(payload):
+    """DeepSeek говорит на диалекте OpenAI. Строгих схем там нет — только
+    режим «верни JSON», поэтому ответ может прийти кривым; на этот случай
+    выше стоит фолбэк на Haiku."""
+    data = _post_json(
+        "https://api.deepseek.com/chat/completions",
+        {
+            "model": os.environ.get("SAVELY_DEEPSEEK_MODEL", "deepseek-v4-flash"),
+            "max_tokens": 900,
+            "response_format": {"type": "json_object"},
+            "messages": [{"role": "user", "content": build_prompt(payload)}],
+        },
+        {"authorization": "Bearer " + DEEPSEEK_KEY}, ALT_TIMEOUT)
+    text = (data.get("choices") or [{}])[0].get("message", {}).get("content") or ""
+    return _shape(json.loads(text))
+
+
+# Gemini не понимает ни ["object","null"], ни additionalProperties —
+# для него схема попроще, необязательные поля просто не в required
+GEMINI_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "reply": {"type": "string"},
+        "add_word": {
+            "type": "object",
+            "properties": {"w": {"type": "string"}, "t": {"type": "string"},
+                           "ex": {"type": "string"}, "level": {"type": "string"}},
+        },
+        "mark": {
+            "type": "object",
+            "properties": {"w": {"type": "string"}, "correct": {"type": "boolean"}},
+        },
+    },
+    "required": ["reply"],
+}
+
+
+def ask_gemini(payload):
+    model = os.environ.get("SAVELY_GEMINI_MODEL", "gemini-2.5-flash")
+    data = _post_json(
+        "https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent" % model,
+        {
+            "contents": [{"parts": [{"text": build_prompt(payload)}]}],
+            "generationConfig": {
+                "responseMimeType": "application/json",
+                "responseSchema": GEMINI_SCHEMA,
+                "maxOutputTokens": 900,
+            },
+        },
+        {"x-goog-api-key": GEMINI_KEY}, ALT_TIMEOUT)
+    parts = ((data.get("candidates") or [{}])[0].get("content") or {}).get("parts") or [{}]
+    return _shape(json.loads(parts[0].get("text") or "{}"))
+
+
+ALT_PROVIDERS = {
+    "deepseek": (ask_deepseek, lambda: DEEPSEEK_KEY),
+    "gemini":   (ask_gemini,   lambda: GEMINI_KEY),
+}
+
+
 def ask_claude(payload):
-    """Ключ API — основной путь (работает и на хостинге). Без ключа
-    пробуем локальный CLI от подписки: удобно при разработке."""
+    """Дешёвый провайдер, если он настроен, иначе Claude. Любая осечка
+    альтернативы — молча уходим на Haiku: ученик не должен видеть, что
+    у нас там что-то не сложилось."""
+    alt = ALT_PROVIDERS.get(CHAT_PROVIDER)
+    if alt and alt[1]():
+        try:
+            return alt[0](payload)
+        except Exception as e:
+            print("!! %s не ответил (%s) — беру Haiku" % (CHAT_PROVIDER, type(e).__name__))
+
     if ANTHROPIC_KEY:
         return ask_claude_api(payload)
     if not os.path.exists(CLAUDE):
@@ -640,6 +774,22 @@ class Api:
         return {"ok": True, "recoveryCode": db.ensure_recovery_code(tutor["id"])}
 
     @staticmethod
+    def plans(h, p):
+        """Открытый прайс — нужен на регистрации, когда токена ещё нет.
+        Раньше цены были продублированы в js/tutor-verify.js и разъезжались
+        с сервером при каждой правке: витрина обещала одно, счёт приходил
+        на другое. Теперь источник правды один."""
+        return {
+            "ok": True,
+            "plans": db.PLANS,
+            "extraPrice": db.EXTRA_STUDENT_PRICE,
+            "trialDays": db.TRIAL_DAYS,
+            "checkPacks": [{"id": x["id"], "name": x["name"], "limit": x["limit"],
+                            "price": x["price"][0]} for x in db.CHECK_PACKS],
+            "extraCheckPrice": db.EXTRA_CHECK_PRICE,
+        }
+
+    @staticmethod
     def tutor_plan(h, p):
         tutor, err = verified_tutor(p)
         if err:
@@ -790,6 +940,16 @@ class Api:
             comment=p.get("comment", ""),
         )
 
+        # Лимит режет только разбор нейросетью. Сама домашка уходит репетитору
+        # в любом случае — снимок тетради полезен и без Савелия, а обрывать
+        # ученика на середине работы из-за чужой подписки нечестно.
+        allowed, quota, why = db.use_check(row["id"])
+        if not allowed:
+            db.set_photo_check(photo["id"], "no_quota", None)
+            notify_tutor_later(row["tutor_id"], row["name"])
+            return {"ok": True, "quota": quota, "notice": why,
+                    "photo": db.photo_public(db.get_photo(photo["id"]))}
+
         try:
             result = check_homework_photo(
                 blob, media, level=row["level"] or "A1", task_title=task_title)
@@ -800,9 +960,13 @@ class Api:
             db.set_photo_check(photo["id"], status, None)
             if status == "failed":
                 import traceback; traceback.print_exc()
+            # проверка не состоялась не по вине ученика — возвращаем списание
+            db.refund_check(row["id"])
+            quota = db.check_state(row["id"])
 
         notify_tutor_later(row["tutor_id"], row["name"])
-        return {"ok": True, "photo": db.photo_public(db.get_photo(photo["id"]))}
+        return {"ok": True, "quota": quota,
+                "photo": db.photo_public(db.get_photo(photo["id"]))}
 
     @staticmethod
     def student_photo_list(h, p):
@@ -811,6 +975,47 @@ class Api:
             return {"ok": False, "error": "unknown_student"}
         return {"ok": True,
                 "photos": [db.photo_public(x) for x in db.photos_for_student(row["id"])]}
+
+    @staticmethod
+    def tutor_checks(h, p):
+        """Проверка домашек: кому подключена, сколько израсходовано, и счёт."""
+        tutor, err = verified_tutor(p)
+        if err:
+            return err
+        count = db.student_count(tutor["id"])
+        students = []
+        for s in db.list_students(tutor["id"]):
+            st = db.check_state(s["id"]) or {}
+            students.append({
+                "id": s["id"], "name": s["name"],
+                "pack": st.get("pack"), "packName": st.get("packName"),
+                "free": st.get("free", False),
+                "used": st.get("used", 0), "limit": st.get("limit", 0),
+                "left": st.get("left", 0), "extra": st.get("extra", 0),
+            })
+        return {
+            "ok": True,
+            "students": students,
+            "packs": [{"id": x["id"], "name": x["name"], "limit": x["limit"],
+                       "price": db.check_pack_price(x, count)}
+                      for x in db.CHECK_PACKS],
+            "bill": db.checks_bill(tutor["id"]),
+            "extraPrice": db.EXTRA_CHECK_PRICE,
+            "maxPhotos": db.PHOTOS_PER_CHECK,
+            "freeForAll": bool(tutor["checks_free"]) if "checks_free" in tutor.keys() else False,
+        }
+
+    @staticmethod
+    def tutor_check_set(h, p):
+        """Включить или выключить проверку конкретному ученику."""
+        tutor, err = verified_tutor(p)
+        if err:
+            return err
+        pack = p.get("pack") or None
+        ok, why = db.set_check_pack(int(p.get("studentId") or 0), tutor["id"], pack)
+        if not ok:
+            return {"ok": False, "error": why}
+        return Api.tutor_checks(h, p)
 
     @staticmethod
     def tutor_photo_list(h, p):
@@ -902,9 +1107,26 @@ class Api:
 
     @staticmethod
     def chat(h, p):
+        # Ученика узнаём по токену. Без токена — гость с витрины: его держит
+        # общий rate limit, отдельного счётчика на него не завести.
+        row = db.get_student_by_token(p.get("token")) if p.get("token") else None
+        if row:
+            allowed, quota = db.use_chat(row["id"])
+            if not allowed:
+                # Отказ приходит репликой кота, а не красной ошибкой: ученик
+                # не виноват, что заболтался, и пугать его нечем.
+                return {"ok": True, "limitReached": True, "quota": quota,
+                        "reply": "Мур... я сегодня наговорился на месяц вперёд 🐈‍⬛ "
+                                 "Лимит сообщений обновится 1-го числа. "
+                                 "А пока давай потренируем карточки — там я всегда с тобой!"}
         try:
-            return ask_claude(p)
+            res = ask_claude(p)
+            if row:
+                res["quota"] = db.chat_state(row["id"])
+            return res
         except Exception as e:
+            if row:
+                db.refund_chat(row["id"])   # не ответил — не считаем
             return {"ok": False, "error": ai_error_text(e)}
 
 
@@ -1039,6 +1261,9 @@ ROUTES = {
     "/api/student/reading": Api.student_reading,
     "/api/student/photo": Api.student_photo_upload,
     "/api/student/photo/list": Api.student_photo_list,
+    "/api/plans": Api.plans,
+    "/api/tutor/checks": Api.tutor_checks,
+    "/api/tutor/checks/set": Api.tutor_check_set,
     "/api/tutor/photos": Api.tutor_photo_list,
     "/api/tutor/photo/seen": Api.tutor_photo_seen,
     "/api/tutor/photo/archive": Api.tutor_photo_archive,

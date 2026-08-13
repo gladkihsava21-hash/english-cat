@@ -3,3 +3,4 @@ __pycache__/
 savely.db
 savely.db-wal
 savely.db-shm
+.claude/

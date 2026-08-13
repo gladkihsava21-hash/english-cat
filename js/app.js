@@ -852,6 +852,9 @@ async function sendToSavely(text) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        // sync.js подключается ниже app.js, но сообщение уходит по клику —
+        // к этому моменту функция уже определена
+        token: typeof studentToken === "function" ? studentToken() : null,
         profile: {
           name: state.user.name,
           level: state.level,
@@ -859,10 +862,10 @@ async function sendToSavely(text) {
           vocab: state.vocabEstimate,
           xp: state.xp,
           rank: rankInfo(state.xp).name,
-          dictionary: state.dictionary.map(d => ({ w: d.w, t: d.t, status: d.status })).slice(0, 40),
+          dictionary: state.dictionary.map(d => ({ w: d.w, t: d.t, status: d.status })).slice(0, 15),
         },
         voice: typeof voiceMode !== "undefined" && voiceMode,
-        history: chatHistory.slice(-12),
+        history: chatHistory.slice(-6),
       }),
     });
     const data = await res.json();

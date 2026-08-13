@@ -1,16 +1,43 @@
 // Подтверждение почты, надёжность пароля и подбор тарифа при регистрации.
 
-const PLANS = [
-  { id: "trial",    limit: 5,  price: 0,    name: "Пробный" },
-  { id: "start",    limit: 15, price: 690,  name: "Старт" },
-  { id: "practice", limit: 30, price: 1290, name: "Практика" },
-  { id: "school",   limit: 60, price: 1990, name: "Школа" },
+// Прайс приходит с сервера (/api/plans). Здесь он лежал копией и разъезжался
+// с настоящим при каждой правке цен — регистрация обещала одну сумму,
+// а счёт выставлялся по другой. Значения ниже — только чтобы подсказка не
+// была пустой, пока запрос летит; сразу после ответа они заменяются.
+let PLANS = [
+  { id: "start",    limit: 5,  price: 799,  name: "Старт" },
+  { id: "practice", limit: 10, price: 1299, name: "Практика" },
+  { id: "school",   limit: 20, price: 2399, name: "Школа" },
+  { id: "pro",      limit: 50, price: 4990, name: "Профи" },
 ];
-const EXTRA_STUDENT_PRICE = 99;
+let EXTRA_STUDENT_PRICE = 119;
 
+(async function loadPrices() {
+  try {
+    const res = await fetch("/api/plans", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: "{}",
+    });
+    const data = await res.json();
+    if (data && data.ok && Array.isArray(data.plans) && data.plans.length) {
+      PLANS = data.plans;
+      EXTRA_STUDENT_PRICE = data.extraPrice;
+      const count = document.getElementById("t-count");
+      const hint = document.getElementById("plan-hint");
+      if (count && hint && count.value) hint.textContent = planHintText(count.value);
+    }
+  } catch (e) { /* офлайн — остаются значения по умолчанию */ }
+})();
+
+function planCost(plan, n) {
+  return plan.price + Math.max(0, n - plan.limit) * EXTRA_STUDENT_PRICE;
+}
+
+/** Самый дешёвый вариант, а не первый подходящий: при 12 учениках
+ *  «Практика» + 2 места дешевле «Школы», и предлагать переплату нечестно. */
 function planFor(count) {
   const n = Number(count) || 0;
-  return PLANS.find(p => n <= p.limit) || PLANS[PLANS.length - 1];
+  return PLANS.reduce((best, p) =>
+    planCost(p, n) < planCost(best, n) ? p : best, PLANS[0]);
 }
 
 function planHintText(count) {

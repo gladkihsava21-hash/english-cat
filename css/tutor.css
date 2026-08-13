@@ -319,3 +319,22 @@
 .ob-step.done .ob-title { color: var(--muted); }
 .ob-title { font-weight: 800; margin-bottom: 2px; }
 .ob-text { color: var(--muted); font-weight: 600; font-size: 13.5px; line-height: 1.5; margin-bottom: 8px; }
+
+/* ===== Проверка домашек ===== */
+.pack-row { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+.pack-card {
+  border: 2px solid var(--line, #EFE7DD); border-radius: 14px;
+  padding: 14px; text-align: center; background: #fff;
+}
+.pack-name { font-weight: 800; color: var(--ink); }
+.pack-price { font-size: 26px; font-weight: 800; color: var(--accent-dark); margin: 4px 0; }
+.pack-limit { font-size: 13px; font-weight: 600; color: var(--muted); }
+.pack-total { font-size: 18px; margin-bottom: 0; }
+
+.check-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
+.check-who { display: flex; flex-direction: column; gap: 2px; }
+.check-pick {
+  font-family: inherit; font-size: 14px; font-weight: 700; padding: 9px 12px;
+  border: 2px solid var(--line, #EFE7DD); border-radius: 12px; background: #fff; color: var(--ink);
+}
+.check-pick:disabled { opacity: .5; }

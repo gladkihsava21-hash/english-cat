@@ -96,6 +96,7 @@ document.querySelectorAll(".nav-btn").forEach(btn => {
       if (sec) sec.classList.toggle("hidden", b.dataset.tab !== btn.dataset.tab);
     });
     if (btn.dataset.tab === "tasks") renderTasks();
+    if (btn.dataset.tab === "checks") loadChecks();
   });
 });
 
@@ -826,3 +827,94 @@ apiAlive().then(alive => {
     <a class="btn btn-primary btn-wide" style="display:block;text-align:center;text-decoration:none"
        href="index.html">Посмотреть сайт ученика →</a>`;
 });
+
+// ===== Проверка домашек =====
+// Отдельная подписка на каждого ученика. Разбор фото тетради идёт через
+// самую сильную модель по почерку и стоит на порядок дороже чата, поэтому
+// он вынесен из базового тарифа и включается точечно.
+let checksData = null;
+
+async function loadChecks() {
+  const res = await api("/api/tutor/checks", { token: token() });
+  if (!res || !res.ok) return;
+  checksData = res;
+  renderChecks();
+}
+
+function renderChecks() {
+  if (!checksData) return;
+  const { students, packs, bill, extraPrice, maxPhotos, freeForAll } = checksData;
+
+  // Тем, у кого проверка бесплатна, прайс показывать незачем —
+  // он только заставляет гадать, не придёт ли счёт
+  $("checks-packs").innerHTML = freeForAll ? "" : `
+    <div class="card">
+      <p class="section-note" style="margin-top:0">Цена за одного ученика в месяц.
+        До ${maxPhotos} фото на одну домашку. Сверх пакета — ${extraPrice} ₽ за проверку.</p>
+      <div class="pack-row">
+        ${packs.map(p => `
+          <div class="pack-card">
+            <div class="pack-name">${esc(p.name)}</div>
+            <div class="pack-price">${p.price} ₽</div>
+            <div class="pack-limit">${p.limit} проверок в месяц</div>
+          </div>`).join("")}
+      </div>
+      ${students.length >= 10 ? `<p class="muted-small">Скидка за объём уже учтена: у вас ${students.length} учеников.</p>`
+        : `<p class="muted-small">От 10 учеников цена ниже, от 20 — ещё ниже.</p>`}
+    </div>`;
+
+  if (freeForAll) {
+    $("checks-bill").innerHTML = `<div class="card"><p class="stat-note">
+      🎁 У вас проверка домашек бесплатно навсегда — вы подключились, когда она
+      входила в основной тариф. Ничего доплачивать не нужно.</p></div>`;
+  } else {
+    $("checks-bill").innerHTML = `
+      <div class="card">
+        <h3 style="margin-top:0">Счёт за месяц</h3>
+        <p>Подписка на ${bill.students} ${plural(bill.students, "ученика", "учеников", "учеников")}:
+           <b>${bill.monthly} ₽</b></p>
+        ${bill.extras ? `<p>Проверок сверх пакетов: ${bill.extras} × ${extraPrice} ₽ =
+           <b>${bill.extrasCost} ₽</b></p>` : ""}
+        <p class="pack-total">Итого: <b>${bill.total} ₽</b></p>
+      </div>`;
+  }
+
+  $("checks-list").innerHTML = `
+    <h3 class="section-title">Ученики</h3>
+    ${students.map(s => `
+      <div class="card check-row">
+        <div class="check-who">
+          <b>${esc(s.name)}</b>
+          ${s.limit ? `<span class="muted-small">израсходовано ${s.used} из ${s.limit}${
+            s.extra ? ` (+${s.extra} сверх)` : ""}</span>`
+            : `<span class="muted-small">проверка не подключена</span>`}
+        </div>
+        ${s.free
+          ? `<span class="plan-chip">включено бесплатно</span>`
+          : `<select class="check-pick" data-student="${s.id}">
+               <option value="">не подключать</option>
+               ${packs.map(p => `<option value="${p.id}"${p.id === s.pack ? " selected" : ""}
+                 >${esc(p.name)} — ${p.limit} шт, ${p.price} ₽</option>`).join("")}
+             </select>`}
+      </div>`).join("") || `<p class="section-note">Учеников пока нет.</p>`}`;
+
+  document.querySelectorAll(".check-pick").forEach(sel => {
+    sel.addEventListener("change", async () => {
+      sel.disabled = true;
+      const res = await api("/api/tutor/checks/set", {
+        token: token(), studentId: Number(sel.dataset.student), pack: sel.value || null,
+      });
+      sel.disabled = false;
+      if (res && res.ok) { checksData = res; renderChecks(); }
+    });
+  });
+}
+
+/** Русские окончания: 1 ученик, 2 ученика, 5 учеников. */
+function plural(n, one, few, many) {
+  const a = Math.abs(n) % 100, b = a % 10;
+  if (a > 10 && a < 20) return many;
+  if (b > 1 && b < 5) return few;
+  if (b === 1) return one;
+  return many;
+}

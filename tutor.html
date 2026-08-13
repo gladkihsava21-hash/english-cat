@@ -7,8 +7,10 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=17">
-  <link rel="stylesheet" href="css/tutor.css?v=17">
+  <link rel="stylesheet" href="css/tokens.css?v=23">
+  <link rel="stylesheet" href="css/style.css?v=23">
+  <link rel="stylesheet" href="css/savely.css?v=23">
+  <link rel="stylesheet" href="css/tutor.css?v=23">
 </head>
 <body>
 
@@ -72,6 +74,7 @@
         <button class="nav-btn" data-tab="homework">Выдать домашку</button>
         <button class="nav-btn" data-tab="tasks">Домашки</button>
         <button class="nav-btn" data-tab="photos">Фото тетрадей <span id="photo-count" class="badge">0</span></button>
+        <button class="nav-btn" data-tab="checks">Проверка домашек</button>
         <button class="nav-btn" data-tab="invite">Ссылка для учеников</button>
         <button class="nav-btn" data-tab="plan">Подписка</button>
       </nav>
@@ -189,55 +192,26 @@
       </div>
     </section>
 
-    <!-- Ссылка -->
-    <section id="screen-paywall" class="screen hidden">
-      <div class="hero">
-        <div class="cat-avatar cat-big">🔒</div>
-        <h1>Пробный период закончился</h1>
-        <p class="hero-sub">Три дня прошли — надеемся, Савелий понравился.
-          Чтобы вернуть доступ к панели, оформите подписку.</p>
-        <div class="card auth-card">
-          <div id="paywall-plan"></div>
-          <p class="reset-note" style="margin-top:16px">Напишите нам, и мы вышлем счёт.
-            Доступ вернём сразу после оплаты.</p>
-          <p class="reset-note"><b>Ученики продолжают заниматься</b> — их прогресс
-            и словари никуда не делись.</p>
-          <button class="link-btn auth-forgot" id="paywall-logout">выйти</button>
-        </div>
-      </div>
-    </section>
-
-    <section id="screen-verify" class="screen hidden">
-      <div class="hero">
-        <div class="cat-avatar cat-big">📬</div>
-        <h1>Подтвердите почту</h1>
-        <p class="hero-sub">Мы отправили шестизначный код на <b id="verify-email"></b>.
-          Без подтверждения кабинет не откроется — так чужой человек не сможет
-          зарегистрироваться на ваш адрес.</p>
-        <div class="card auth-card">
-          <form id="verify-form">
-            <label>Код из письма
-              <input type="text" id="v-code" inputmode="numeric" maxlength="6"
-                     placeholder="000000" class="code-input" required>
-            </label>
-            <button type="submit" class="btn btn-primary btn-wide">Подтвердить</button>
-            <p class="type-feedback err" id="verify-error"></p>
-            <p class="type-feedback ok" id="verify-note"></p>
-          </form>
-          <button type="button" class="link-btn auth-forgot" id="verify-resend">Отправить ещё раз</button>
-          <p class="reset-note" style="margin-top:14px"><b>Письмо часто попадает в «Спам»</b> —
-            проверьте эту папку. Если письма нет и там, нажмите «Отправить ещё раз»
-            или напишите нам, мы подтвердим вручную.</p>
-          <button type="button" class="link-btn auth-forgot" id="verify-logout">выйти и войти другой почтой</button>
-        </div>
-      </div>
-    </section>
+    <!-- Экраны подтверждения почты и оплаты вынесены ВНИЗ, за пределы #app.
+         Пока они лежали здесь, внутри <main>, showVerifyScreen() прятал #app
+         вместе с ними — и вместо формы для кода репетитор получал белый экран.
+         Смотри низ файла. -->
 
     <section id="tab-photos" class="hidden">
       <h2 class="section-title">Фото домашних работ</h2>
       <p class="section-note">Ученики присылают снимки тетрадей. Савелий разбирает
         работу и показывает ошибки — вам остаётся проверить и обсудить на занятии.</p>
       <div id="photo-list" class="photo-grid"></div>
+    </section>
+
+    <section id="tab-checks" class="hidden">
+      <h2 class="section-title">Проверка домашек</h2>
+      <p class="section-note">Ученик фотографирует тетрадь — Савелий разбирает работу,
+        находит ошибки и объясняет каждую. Подключается на каждого ученика отдельно:
+        кому-то нужно, кому-то нет.</p>
+      <div id="checks-packs" class="check-packs"></div>
+      <div id="checks-list"></div>
+      <div id="checks-bill"></div>
     </section>
 
     <section id="tab-plan" class="hidden">
@@ -260,6 +234,56 @@
   </main>
 </div>
 
+<!-- ВАЖНО: эти два экрана обязаны лежать СНАРУЖИ #app и снаружи <main>.
+     showVerifyScreen() и showPaywall() прячут #app целиком — если экран
+     окажется его потомком, он спрячется вместе с ним, и репетитор увидит
+     пустую белую страницу вместо формы. Именно так и было: регистрация
+     доходила до «Записал, продолжить» и упиралась в белый экран, а на
+     третий день триала в него же упиралась оплата. -->
+
+<section id="screen-paywall" class="screen hidden">
+  <div class="hero">
+    <div class="cat-avatar cat-big">🔒</div>
+    <h1>Пробный период закончился</h1>
+    <p class="hero-sub">Три дня прошли — надеемся, Савелий пригодился.
+      Панель откроется сразу после оплаты.</p>
+    <div class="card auth-card">
+      <div id="paywall-plan"></div>
+      <p class="reset-note" style="margin-top:16px">Напишите — вышлем счёт и вернём доступ сразу после оплаты:<br>
+        <a class="tg-link" href="https://t.me/KOTSAVELII" target="_blank" rel="noopener">@KOTSAVELII</a></p>
+      <p class="reset-note"><b>Ученики всё это время занимаются как ни в чём не бывало</b> —
+        прогресс и словари на месте.</p>
+      <button class="link-btn auth-forgot" id="paywall-logout">выйти</button>
+    </div>
+  </div>
+</section>
+
+<section id="screen-verify" class="screen hidden">
+  <div class="hero">
+    <div class="cat-avatar cat-big">📬</div>
+    <h1>Подтвердите почту</h1>
+    <p class="hero-sub">Отправили шестизначный код на <b id="verify-email"></b>.
+      Введите его — и кабинет откроется.<br>
+      Код нужен, чтобы на ваш адрес не завёл кабинет кто-то другой.</p>
+    <div class="card auth-card">
+      <form id="verify-form">
+        <label>Код из письма
+          <input type="text" id="v-code" inputmode="numeric" maxlength="6"
+                 placeholder="000000" class="code-input" autocomplete="one-time-code" required>
+        </label>
+        <button type="submit" class="btn btn-primary btn-wide">Открыть кабинет</button>
+        <p class="type-feedback err" id="verify-error"></p>
+        <p class="type-feedback ok" id="verify-note"></p>
+      </form>
+      <button type="button" class="link-btn auth-forgot" id="verify-resend">Прислать код заново</button>
+      <p class="reset-note" style="margin-top:14px"><b>Письмо любит падать в «Спам»</b> —
+        загляните туда в первую очередь. Если и там пусто, нажмите «Прислать код
+        заново» или напишите <a class="tg-link" href="https://t.me/KOTSAVELII" target="_blank" rel="noopener">@KOTSAVELII</a> — подтвердим вручную.</p>
+      <button type="button" class="link-btn auth-forgot" id="verify-logout">выйти и войти другой почтой</button>
+    </div>
+  </div>
+</section>
+
 
 <!-- Карточка ученика -->
 <div id="stu-modal" class="modal hidden">
@@ -279,12 +303,21 @@
   </div>
 </div>
 
-<script src="js/util.js?v=17"></script>
-<script src="js/words.js?v=17"></script>
-<script src="js/images.js?v=17"></script>
-<script src="js/tutor.js?v=17"></script>
-<script src="js/tutor-photos.js?v=17"></script>
-<script src="js/tutor-auth.js?v=17"></script>
-<script src="js/tutor-verify.js?v=17"></script>
+
+<footer class="site-footer">
+  <div class="cat-avatar cat-mid" data-cat="happy"></div>
+  <p class="footer-line">Савелий — кот-репетитор английского</p>
+  <p class="footer-sub">Вопрос, счёт или «что-то сломалось» —
+    <a href="https://t.me/KOTSAVELII" target="_blank" rel="noopener">@KOTSAVELII</a></p>
+</footer>
+
+<script src="js/cat.js?v=23"></script>
+<script src="js/util.js?v=23"></script>
+<script src="js/words.js?v=23"></script>
+<script src="js/images.js?v=23"></script>
+<script src="js/tutor.js?v=23"></script>
+<script src="js/tutor-photos.js?v=23"></script>
+<script src="js/tutor-auth.js?v=23"></script>
+<script src="js/tutor-verify.js?v=23"></script>
 </body>
 </html>

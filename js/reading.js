@@ -65,18 +65,21 @@ function readingComment(v) {
   return "Пока трудно. Попробуй читать медленнее и вслух по одному предложению.";
 }
 
-let recog = null, listening = false;
+// Имя своё, не общее: voice.js объявляет свой распознаватель под именем
+// recog, и на общем имени reading.js падал целиком с «already declared» —
+// проверка чтения не работала вообще, хотя код был на месте
+let readRecog = null, readListening = false;
 
 function startReading(targetText, onDone, onPartial) {
   if (!SR) { onDone(null, "Браузер не умеет распознавать речь. Попробуй Chrome или Safari."); return; }
-  if (listening) return;
-  recog = new SR();
-  recog.lang = "en-US";
-  recog.continuous = true;
-  recog.interimResults = true;
+  if (readListening) return;
+  readRecog = new SR();
+  readRecog.lang = "en-US";
+  readRecog.continuous = true;
+  readRecog.interimResults = true;
   let finalText = "";
 
-  recog.onresult = e => {
+  readRecog.onresult = e => {
     let interim = "";
     for (let i = e.resultIndex; i < e.results.length; i++) {
       const t = e.results[i][0].transcript;
@@ -84,25 +87,25 @@ function startReading(targetText, onDone, onPartial) {
     }
     if (onPartial) onPartial((finalText + " " + interim).trim());
   };
-  recog.onerror = ev => {
-    listening = false;
+  readRecog.onerror = ev => {
+    readListening = false;
     const why = ev.error === "not-allowed"
       ? "Нет доступа к микрофону — разреши его в настройках браузера."
       : "Не расслышал. Попробуй ещё раз.";
     onDone(null, why);
   };
-  recog.onend = () => {
-    listening = false;
+  readRecog.onend = () => {
+    readListening = false;
     if (!finalText.trim()) { onDone(null, "Ничего не услышал. Говори погромче."); return; }
     onDone(readingVerdict(targetText, finalText.trim()), null);
   };
 
-  listening = true;
-  try { recog.start(); } catch (e) { listening = false; onDone(null, "Не удалось включить микрофон."); }
+  readListening = true;
+  try { readRecog.start(); } catch (e) { readListening = false; onDone(null, "Не удалось включить микрофон."); }
 }
 
 function stopReading() {
-  if (recog && listening) { try { recog.stop(); } catch (e) { /* уже остановлен */ } }
+  if (readRecog && readListening) { try { readRecog.stop(); } catch (e) { /* уже остановлен */ } }
 }
 
 /** Разметка текста: что прочитано верно, что переврано. */
