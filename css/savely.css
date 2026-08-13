@@ -1,53 +1,71 @@
-/* Слой редизайна: стиль «тёплая школьная тетрадь» поверх существующей вёрстки.
+/* Слой облика: мягкий шалфей на тёплой бумаге, поверх существующей вёрстки.
  *
- * Подключается ПОСЛЕ style.css и перекрывает его. Так сделано намеренно:
- * переписывать 32 КБ старого CSS ради смены облика — это неделя и риск
- * сломать то, что работает. Здесь меняются ровно те свойства, которые
- * отвечают за впечатление: материал поверхностей, кнопки, типографика,
- * скругления, тени. Разметку не трогаем.
+ * Подключается ПОСЛЕ style.css и перекрывает его. Переписывать 32 КБ старого
+ * CSS ради смены гаммы — неделя работы и риск сломать то, что работает.
+ * Здесь меняется только то, что отвечает за впечатление.
  *
- * Правила стиля — в DESIGN.md. Цвета и размеры — только из tokens.css.
+ * Цвета и размеры — исключительно из tokens.css.
  */
 
+/* ---------- Перекрытие старых имён ---------- */
+/* style.css объявляет свой :root и грузится ПОСЛЕ tokens.css, поэтому его
+   --accent: #FF8C42 побеждал, и кнопка оставалась оранжевой, сколько бы
+   токенов я ни поправил.
+   Этот файл идёт последним — значит, здесь старые имена и переназначаются.
+   Выгода в том, что все 32 КБ существующих правил, написанных под
+   var(--accent) и var(--card), перекрашиваются сами, без единой правки. */
+:root {
+  --bg:          var(--paper);
+  --card:        var(--surface);
+  --ink:         #2B3630;
+  --muted:       var(--ink-soft);
+  --accent:      #46664F;
+  --accent-dark: var(--accent-deep);
+  --accent-soft: #E2EAE1;
+  --border:      var(--line-soft);
+  --shadow:      var(--shadow-soft);
+  --radius:      var(--radius-card);
+  /* статусные цвета тоже приглушаем: прежние были ядовитыми и не проходили
+     по контрасту — зелёный 2,71:1, красный 3,61:1 */
+  --green: #3F7256;
+  --red:   #A85454;
+}
+
 /* ---------- Бумага ---------- */
-/* Одна бумага у всего: страница, карточки, кнопки. Разделяет обводка,
-   а не цвет и не тень — в этом вся суть стиля. */
 body {
-  background: var(--cream-paper);
+  background: var(--paper);
   color: var(--ink);
+  -webkit-font-smoothing: antialiased;
 }
 
 .card,
 .stat-card, .wod-card, .ach-card, .lb-card, .due-card,
-.plan-card, .admin-stat, .photo-card, .dict-row, .auth-card {
-  background: var(--cream-paper);
-  border: var(--border-w) solid var(--line);
+.plan-card, .admin-stat, .photo-card, .auth-card, .pack-card {
+  background: var(--surface);
+  border: var(--border-w) solid var(--line-soft);
   border-radius: var(--radius-card);
-  box-shadow: none;
+  box-shadow: var(--shadow-soft);
+  transition: transform var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
 }
 
-/* Вторичная поверхность — там, где карточка лежит на карточке */
-.speech-bubble, .chat-box, .hw-picker, .invite-link {
-  background: var(--surface-alt);
-  border: var(--border-w) solid var(--line);
+.speech-bubble, .chat-box, .hw-picker, .invite-link, .dict-row {
+  background: var(--surface);
+  border: var(--border-w) solid var(--line-soft);
   border-radius: var(--radius-card);
   box-shadow: none;
 }
 
 /* ---------- Типографика ---------- */
-/* Заголовки — строчными. Тип говорит размером и весом, а не капсом. */
 h1, h2, h3, .section-title, .dash-head h2 {
-  color: var(--cocoa-ink);
-  font-weight: 600;
-  letter-spacing: -0.01em;
+  color: var(--ink);
+  font-weight: 700;
+  letter-spacing: -0.02em;
 }
 
 .hero h1 {
-  font-size: clamp(46px, 8vw, var(--text-display));
+  font-size: clamp(38px, 7vw, var(--text-display));
   line-height: var(--leading-display);
-  font-weight: 600;
-  text-transform: lowercase;
-  max-width: 14ch;
+  max-width: 15ch;
 }
 
 h2, .section-title { font-size: var(--text-heading); line-height: var(--leading-tight); }
@@ -57,14 +75,12 @@ h3 { font-size: var(--text-heading-sm); line-height: var(--leading-snug); }
   font-size: var(--text-body);
   line-height: var(--leading-normal);
   color: var(--ink-soft);
-  max-width: 52ch;
+  max-width: 54ch;
 }
 
-/* Капс убран везде: DESIGN.md запрещает его прямым текстом, а весь мелкий
-   капс на сайте был набран цветом с контрастом 3,59:1 — то есть ещё и
-   не читался. Метки становятся строчными, крупнее и темнее. */
+/* Капс убран: он и сам по себе кричит, и был набран слишком светлым серым. */
 .stat-label, .ach-label, .hw-label, .wod-label, .lb-label,
-.d-status, .plan-chip, .section-note, .muted-small, .stat-note {
+.d-status, .plan-chip, .section-note, .muted-small, .stat-note, .pack-limit {
   text-transform: none !important;
   letter-spacing: normal;
   font-size: var(--text-caption);
@@ -73,71 +89,78 @@ h3 { font-size: var(--text-heading-sm); line-height: var(--leading-snug); }
 }
 
 /* ---------- Кнопки ---------- */
-/* Личность кнопки — в обводке, а не в заливке. Поэтому фон при наведении
-   не меняется: DESIGN.md указывает это отдельным пунктом. Заодно уходит
-   провал по контрасту — белый текст на оранжевом давал 2,31:1. */
-.btn, .btn-primary, .btn-ghost, .chip, .tab, .nav-btn {
-  background: var(--cream-paper);
-  color: var(--charcoal);
-  border: var(--border-w) solid var(--charcoal);
+.btn, .btn-ghost, .chip, .tab {
+  background: var(--surface);
+  color: var(--ink);
+  border: var(--border-w) solid var(--line);
   border-radius: var(--radius-btn);
-  box-shadow: var(--shadow-lift);
   font-family: var(--font-display);
   font-size: var(--text-caption);
-  font-weight: 500;
-  padding: 10px 28px;
-  transition: transform .12s ease, box-shadow .12s ease;
-}
-
-.btn:hover, .btn-primary:hover, .btn-ghost:hover {
-  background: var(--cream-paper);   /* именно так: заливка не едет */
-  transform: translateY(1px);
-  box-shadow: none;                 /* бумага прижимается к столу */
-}
-
-/* Единственная заливная кнопка на сайте — «сфоткать домашку».
-   Оранжевый допустим только здесь и только с угольным текстом: 6,44:1. */
-.photo-cta .btn, #photo-btn {
-  background: var(--marker-orange);
-  color: var(--on-accent);
-  border-color: var(--charcoal);
-  border-width: 2px;
-  font-size: var(--text-body);
   font-weight: 600;
-  padding: 14px 32px;
+  padding: 11px 26px;
+  box-shadow: none;
+  transition: background var(--dur-fast) var(--ease),
+              border-color var(--dur-fast) var(--ease),
+              transform var(--dur-fast) var(--ease);
 }
-.photo-cta .btn:hover, #photo-btn:hover { background: var(--marker-orange); }
-
-.nav-btn { border: none; box-shadow: none; padding: 8px 14px; }
-.nav-btn.active {
-  background: var(--surface-alt);
-  border: var(--border-w) solid var(--charcoal);
+.btn:hover, .btn-ghost:hover, .chip:hover, .tab:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent-line);
+  transform: translateY(-1px);
 }
+.btn:active { transform: translateY(0); }
 
-.chip, .tab { padding: 7px 18px; border-radius: var(--radius-tag); }
+/* Главное действие — единственная заливка на экране. Спокойный шалфей,
+   белый текст: 6,4:1. */
+.btn-primary {
+  background: var(--accent);
+  color: var(--on-accent);
+  border: var(--border-w) solid transparent;
+  border-radius: var(--radius-btn);
+  font-weight: 700;
+  padding: 12px 28px;
+  box-shadow: var(--shadow-soft);
+  transition: background var(--dur-fast) var(--ease),
+              transform var(--dur-fast) var(--ease),
+              box-shadow var(--dur) var(--ease);
+}
+.btn-primary:hover {
+  background: var(--accent-deep);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lift);
+}
+.btn-primary:active { transform: translateY(0); box-shadow: var(--shadow-soft); }
+
+.nav-btn {
+  border: none; box-shadow: none; background: none;
+  padding: 9px 16px; border-radius: var(--radius-tag);
+  color: var(--ink-soft); font-weight: 600;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+.nav-btn:hover { background: var(--surface-alt); color: var(--ink); }
+.nav-btn.active { background: var(--accent-soft); color: var(--accent); }
 
 /* ---------- Поля ввода ---------- */
-/* Были голые системные контролы: monospace 13px, серая рамка ОС, нулевой
-   радиус. Плюс всё ниже 16px — iOS зумит страницу при фокусе. */
 input, textarea, select {
   font-family: var(--font-ui);
   font-size: var(--text-caption);
-  background: var(--cream-paper);
+  background: var(--surface);
   color: var(--ink);
   border: var(--border-w) solid var(--line-soft);
   border-radius: var(--radius-input);
   padding: 12px 16px;
+  transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
+}
+input:hover, textarea:hover, select:hover { border-color: var(--line); }
+input:focus, textarea:focus, select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 textarea { resize: vertical; min-height: 96px; line-height: var(--leading-normal); }
-select { appearance: none; padding-right: 40px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%232b1a07' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+select { appearance: none; padding-right: 42px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%235A665E' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
   background-repeat: no-repeat; background-position: right 16px center; }
 
-input:focus, textarea:focus, select:focus { border-color: var(--charcoal); }
-
-/* Фокус виден всегда и на любом фоне. Раньше в семи местах стоял
-   outline:none, а взамен менялся цвет рамки на оранжевый — 2,31:1,
-   то есть клавиатурный пользователь не понимал, где находится. */
 :where(a, button, input, textarea, select, [tabindex]):focus-visible {
   outline: none;
   box-shadow: var(--focus-ring);
@@ -145,118 +168,196 @@ input:focus, textarea:focus, select:focus { border-color: var(--charcoal); }
 }
 
 /* ---------- Кот ---------- */
-/* Никаких кружков с градиентом: персонаж лежит на бумаге сам по себе. */
 .cat-avatar {
   background: none !important;
+  /* тень тоже снимаем: персонаж лежит на бумаге, а не парит в карточке.
+     Она приезжала из старого правила через var(--shadow) и рисовала
+     вокруг кота светлый прямоугольник */
+  box-shadow: none !important;
+  border: none !important;
   border-radius: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  overflow: visible;
 }
-.cat-avatar svg { display: block; width: 100%; height: auto; }
-.cat-big  { width: 200px; height: auto; }
-.cat-mid  { width: 120px; height: auto; }
+.cat-avatar svg { display: block; width: 100%; height: auto; overflow: visible; }
+.cat-big { width: 190px; }
+.cat-mid { width: 110px; }
+
+/* Дышит: очень медленно и еле заметно. Это не анимация «смотрите на меня»,
+   а то, из-за чего персонаж кажется живым, когда на него не смотрят. */
+@keyframes catBreathe {
+  0%, 100% { transform: translateY(0)    scale(1); }
+  50%      { transform: translateY(-3px) scale(1.012); }
+}
+.cat-avatar svg { animation: catBreathe 5.5s var(--ease) infinite; transform-origin: 50% 90%; }
 
 /* ---------- Подпись от руки ---------- */
-/* Цвет — marker-ink, а не живой оранжевый: буквы оранжевым на креме
-   дают 2,70:1 и не читаются. */
 .handnote {
   font-family: var(--font-display);
   font-size: var(--text-body-sm);
-  font-weight: 500;
-  color: var(--marker-ink);
-  transform: rotate(-2deg);
+  font-weight: 600;
+  color: var(--accent);
   display: inline-block;
+  transform: rotate(-1.5deg);
 }
-.handnote::before { content: "↘ "; opacity: .7; }
 
-/* Подчёркивание акцента: штрих маркером под ключевым словом */
 .marked {
-  background-image: linear-gradient(var(--marker-orange), var(--marker-orange));
-  background-size: 100% 6px;
+  background-image: linear-gradient(var(--accent-soft), var(--accent-soft));
+  background-size: 100% .55em;
   background-position: 0 88%;
   background-repeat: no-repeat;
-  padding: 0 2px;
+  padding: 0 3px;
 }
 
 /* ---------- Наклейки ---------- */
-/* Плоские, с обводкой, вразнобой, БЕЗ теней — лежат как переводнушки. */
 .sticker-row { display: flex; flex-wrap: wrap; gap: var(--space-12); align-items: center; }
 .sticker {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 8px 16px;
-  border: 2px solid var(--charcoal);
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 9px 18px;
+  border: var(--border-w) solid var(--line-soft);
   border-radius: var(--radius-tag);
-  background: var(--cream-paper);
-  box-shadow: none;
+  background: var(--surface);
   font-size: var(--text-caption);
   font-weight: 600;
-  color: var(--charcoal);
+  color: var(--ink);
+  transition: transform var(--dur) var(--ease);
 }
-.sticker:nth-child(3n+1) { transform: rotate(-6deg); }
-.sticker:nth-child(3n+2) { transform: rotate(4deg); }
-.sticker:nth-child(3n+3) { transform: rotate(-2deg); }
-.sticker.got-sky       { background: var(--sticker-sky); }
-.sticker.got-bubblegum { background: var(--sticker-bubblegum); }
-.sticker.got-sprout    { background: var(--sticker-sprout); }
-.sticker.locked { background: none; border-color: var(--line-soft); color: var(--ink-soft); }
+.sticker:hover { transform: translateY(-2px); }
+.sticker.got-lavender { background: var(--soft-lavender); }
+.sticker.got-sky      { background: var(--soft-sky); }
+.sticker.got-clay     { background: var(--soft-clay); }
+.sticker.got-mint     { background: var(--soft-mint); }
+.sticker.locked { background: none; color: var(--ink-soft); opacity: .75; }
 
 /* ---------- Футер ---------- */
-/* Финальный аккорд бренда. Текст угольный: кремовый на оранжевом — 2,70:1. */
 .site-footer {
   margin-top: var(--section-gap);
-  background: var(--marker-orange);
-  color: var(--on-accent);
-  border-radius: var(--radius-footer) var(--radius-footer) 0 0;
+  background: var(--surface-alt);
+  color: var(--ink);
+  border-radius: var(--radius-panel) var(--radius-panel) 0 0;
   padding: var(--space-48) var(--space-32);
   text-align: center;
 }
-.site-footer a { color: var(--on-accent); font-weight: 700; }
-.site-footer .handnote { color: var(--on-accent); }
+.site-footer .cat-avatar { width: 88px; margin-bottom: var(--space-16); }
+.site-footer .footer-line { font-size: var(--text-subheading); font-weight: 700; }
+.site-footer .footer-sub { font-size: var(--text-body-sm); color: var(--ink-soft); margin-top: var(--space-8); }
+.site-footer a, .tg-link { color: var(--accent); font-weight: 700; text-decoration: none; }
+.site-footer a:hover, .tg-link:hover { text-decoration: underline; }
 
 /* ---------- Шапка ---------- */
 .topbar {
-  background: var(--cream-paper);
+  background: color-mix(in srgb, var(--paper) 88%, transparent);
+  backdrop-filter: blur(12px);
   border-bottom: var(--border-w) solid var(--line-soft);
   box-shadow: none;
 }
 
-/* ---------- Мелочи, которые ломали материал ---------- */
+/* ---------- Мелочи ---------- */
 .badge {
-  background: var(--charcoal);
-  color: var(--cream-paper);
-  font-size: 12px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 13px; font-weight: 700;
   border-radius: var(--radius-tag);
 }
-.progress { background: var(--surface-alt); border: 1px solid var(--line-soft); }
-.progress-fill { background: var(--marker-orange); }
+.progress { background: var(--surface-alt); border: none; border-radius: 999px; overflow: hidden; }
+.progress-fill { background: var(--accent); transition: width var(--dur-slow) var(--ease); }
 
-/* Планшетная дыра: единственный брейкпоинт в старом CSS стоял на 720px,
-   из-за чего на 721–880px шапка вылезала за экран и появлялась
-   горизонтальная прокрутка. Закрываем диапазон. */
+/* ---------- Движение ---------- */
+/* Появление блоков: мягкий подъём с задержкой по порядку. Без отскока и без
+   «прилёта издалека» — только намёк, что элемент встал на место. */
+@keyframes riseIn {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.stats-grid > *, #students-list > *, .pack-row > *, .sticker {
+  animation: riseIn var(--dur-slow) var(--ease) both;
+}
+.stats-grid > *:nth-child(1), .sticker:nth-child(1) { animation-delay: .03s }
+.stats-grid > *:nth-child(2), .sticker:nth-child(2) { animation-delay: .07s }
+.stats-grid > *:nth-child(3), .sticker:nth-child(3) { animation-delay: .11s }
+.stats-grid > *:nth-child(4), .sticker:nth-child(4) { animation-delay: .15s }
+.stats-grid > *:nth-child(5), .sticker:nth-child(5) { animation-delay: .19s }
+.stats-grid > *:nth-child(6), .sticker:nth-child(6) { animation-delay: .23s }
+.stats-grid > *:nth-child(7), .sticker:nth-child(7) { animation-delay: .27s }
+
+.card:hover, .stat-card:hover, .ach-card:hover, .pack-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-lift);
+}
+
+/* Переворот карточки слова был .45s с 3D-перспективой — самое резкое
+   движение на сайте. Смягчаем. */
+.flashcard, .flashcard-inner { transition: transform var(--dur-slow) var(--ease) !important; }
+
+/* Планшетная дыра 721–880px: единственный брейкпоинт старого CSS стоял
+   на 720, и в этом диапазоне шапка вылезала за экран. */
 @media (max-width: 900px) {
   .user-chip { min-width: 0; flex-wrap: wrap; }
   .topbar-inner { flex-wrap: wrap; row-gap: var(--space-8); }
   .hero h1 { max-width: 100%; }
 }
 
-/* ---------- Персонаж ---------- */
-/* Один язык с интерфейсом: обводка углём, заливка бумагой, никаких заливок
-   цветом и никаких градиентов. */
-.cat-svg { width: 100%; height: auto; overflow: visible; }
-.cat-svg .c-head,
-.cat-svg .c-ear,
-.cat-svg .c-book  { fill: var(--cream-paper); stroke: var(--charcoal); stroke-width: 2.5; }
-.cat-svg .c-ear-in { fill: var(--dew-drop); stroke: none; }
+/* ---------- Персонаж: краски ---------- */
+/* Мягкая заливка и тонкая линия, никакого чёрного. */
+.cat-svg .c-head   { fill: var(--surface); stroke: var(--ink); stroke-width: 2.2;
+                     stroke-linejoin: round; }
+.cat-svg .c-ear-in { fill: var(--accent-soft); stroke: none; }
 .cat-svg .c-eye,
-.cat-svg .c-nose  { fill: var(--charcoal); stroke: none; }
-.cat-svg .c-mouth { fill: var(--cocoa-ink); stroke: none; }
-.cat-svg .c-line  { fill: none; stroke: var(--charcoal); stroke-width: 2.5;
-                    stroke-linecap: round; stroke-linejoin: round; }
-.cat-svg .c-z     { fill: var(--marker-ink); font: 700 18px var(--font-display); }
-.cat-svg .c-z-sm  { font-size: 13px; }
+.cat-svg .c-nose   { fill: var(--ink); stroke: none; }
+.cat-svg .c-mouth  { fill: var(--ink-soft); stroke: none; }
+.cat-svg .c-line   { fill: none; stroke: var(--ink); stroke-width: 2.2;
+                     stroke-linecap: round; stroke-linejoin: round; }
+.cat-svg .c-z      { fill: var(--accent); font: 700 17px var(--font-display); }
+.cat-svg .c-z-sm   { font-size: 12px; }
 
-.site-footer .cat-avatar { width: 96px; margin-bottom: var(--space-16); }
-.site-footer .footer-line { font-size: var(--text-subheading); font-weight: 700; }
-.site-footer .footer-sub { font-size: var(--text-body-sm); margin-top: var(--space-8); }
-.tg-link { color: var(--marker-ink); font-weight: 700; }
+/* ---------- Переключатель темы ---------- */
+.theme-btn {
+  width: 40px; height: 40px; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: none; border: var(--border-w) solid var(--line-soft);
+  border-radius: 999px; cursor: pointer; color: var(--ink-soft);
+  transition: background var(--dur-fast) var(--ease),
+              border-color var(--dur-fast) var(--ease),
+              color var(--dur-fast) var(--ease);
+}
+.theme-btn:hover { background: var(--surface-alt); color: var(--ink); border-color: var(--line); }
+
+.theme-icon { width: 20px; height: 20px; overflow: visible; }
+.theme-icon .ti-sun circle { fill: currentColor; }
+.theme-icon .ti-sun path {
+  fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round;
+}
+.theme-icon .ti-moon { fill: currentColor; }
+
+/* Солнце и луна меняются поворотом и масштабом — символ не подменяется,
+   поэтому иконка не прыгает. */
+.theme-icon .ti-sun, .theme-icon .ti-moon {
+  transform-origin: 50% 50%;
+  transition: transform var(--dur-slow) var(--ease), opacity var(--dur) var(--ease);
+}
+.theme-icon .ti-moon { opacity: 0; transform: rotate(-90deg) scale(.4); }
+[data-theme="night"] .theme-icon .ti-sun  { opacity: 0; transform: rotate(90deg) scale(.4); }
+[data-theme="night"] .theme-icon .ti-moon { opacity: 1; transform: none; }
+
+/* Круг новой темы приходит поверх старого кадра, старый просто ждёт снизу —
+   иначе они перекрестно затухают и в середине получается мутная каша. */
+::view-transition-old(root) { animation: none; z-index: 0; }
+::view-transition-new(root) { animation: none; z-index: 1; mix-blend-mode: normal; }
+
+/* Плавная смена красок для всего, что не попало в круг (например,
+   при переключении без View Transitions). */
+body, .card, .stat-card, .topbar, .site-footer, input, textarea, select {
+  transition: background-color var(--dur) var(--ease),
+              border-color var(--dur) var(--ease),
+              color var(--dur) var(--ease);
+}
+
+/* Кот перекрашивается вместе с темой */
+.cat-svg path, .cat-svg circle, .cat-svg ellipse, .cat-svg g {
+  transition: fill var(--dur) var(--ease);
+}
+.site-footer .footer-credit {
+  font-size: 14px; color: var(--ink-soft); margin-top: var(--space-8);
+}
