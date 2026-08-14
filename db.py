@@ -145,6 +145,17 @@ MIGRATIONS = [
     ("students", "checks_period", "TEXT"),
     ("students", "chat_used", "INTEGER DEFAULT 0"),
     ("students", "chat_period", "TEXT"),
+    # Устройство, с которого завели кабинет. Нужно против бесконечного
+    # триала: три дня заканчиваются — регистрируешься с новой почтой и
+    # получаешь ещё три. Почта бесплатна и бесконечна, устройство — нет.
+    ("tutors", "device_id", "TEXT"),
+    ("tutors", "signup_ip", "TEXT"),
+    # Сброс пароля кодом с почты. Отдельные колонки от подтверждения почты:
+    # это разные коды с разным смыслом, и общие поля означали бы, что запрос
+    # сброса гасит незавершённое подтверждение (и наоборот).
+    ("tutors", "reset_code", "TEXT"),
+    ("tutors", "reset_sent_at", "TEXT"),
+    ("tutors", "reset_tries", "INTEGER DEFAULT 0"),
 ]
 
 
@@ -221,7 +232,37 @@ def new_invite_code():
 
 # ---------- репетиторы ----------
 
-def create_tutor(name, email, password):
+def device_used_trial(device_id):
+    """Брали ли уже бесплатные дни с этого устройства.
+
+    Считаем ЛЮБОЙ прежний кабинет с тем же идентификатором, включая
+    удалённые впоследствии: иначе цикл «зарегистрировался — удалился —
+    зарегистрировался» возвращает бесконечный триал."""
+    if not device_id:
+        return False
+    return conn().execute(
+        "SELECT 1 FROM tutors WHERE device_id=? LIMIT 1", (device_id,)
+    ).fetchone() is not None
+
+
+def signups_from_ip(ip, hours=None):
+    """Сколько кабинетов завели с этого адреса за последние часы.
+
+    Второй сигнал на случай, когда localStorage просто очистили. Сам по
+    себе слабый — за одним адресом сидит целая школа, — поэтому используется
+    как порог, а не как признак."""
+    if not ip:
+        return 0
+    since = (datetime.now(timezone.utc)
+             - timedelta(hours=hours or SIGNUP_IP_WINDOW_H)).isoformat(timespec="seconds")
+    row = conn().execute(
+        "SELECT COUNT(*) AS n FROM tutors WHERE signup_ip=? AND created_at>=?",
+        (ip, since),
+    ).fetchone()
+    return row["n"] if row else 0
+
+
+def create_tutor(name, email, password, device_id=None, signup_ip=None):
     email = email.strip().lower()
     if get_tutor_by_email(email):
         return None
@@ -237,9 +278,10 @@ def create_tutor(name, email, password):
     # «Старт · 3/15», что выглядело как ошибка в прайсе.
     cur = conn().execute(
         "INSERT INTO tutors (name, email, pass_hash, pass_salt, invite_code, token,"
-        " created_at, recovery_code, plan, student_limit) VALUES (?,?,?,?,?,?,?,?,?,?)",
+        " created_at, recovery_code, plan, student_limit, device_id, signup_ip)"
+        " VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
         (name.strip(), email, pass_hash, salt, code, token, now(), new_recovery_code(),
-         PLANS[0]["id"], PLANS[0]["limit"]),
+         PLANS[0]["id"], PLANS[0]["limit"], device_id or None, signup_ip or None),
     )
     conn().commit()
     return get_tutor_by_id(cur.lastrowid)
@@ -1063,6 +1105,73 @@ def is_verified(row):
     return bool(row["email_verified"]) if "email_verified" in keys else True
 
 
+# ---------- сброс пароля кодом с почты ----------
+# Код восстановления, который показывается один раз при регистрации, никуда
+# не девается — но его теряют. Это второй путь, для тех, у кого доступ к почте
+# есть, а бумажки с кодом нет.
+
+RESET_TTL = 30 * 60        # столько же, сколько у кода подтверждения
+RESET_RESEND = 60          # не чаще раза в минуту — чтобы почтой не заваливали
+RESET_MAX_TRIES = 8
+
+
+def set_reset_code(tutor_id):
+    code = new_verify_code()   # тот же формат: шесть цифр, диктуется голосом
+    conn().execute(
+        "UPDATE tutors SET reset_code=?, reset_sent_at=?, reset_tries=0 WHERE id=?",
+        (code, now(), tutor_id))
+    conn().commit()
+    return code
+
+
+def seconds_since_reset_sent(row):
+    keys = row.keys()
+    if "reset_sent_at" not in keys or not row["reset_sent_at"]:
+        return None
+    sent = _parse_ts(row["reset_sent_at"])
+    if not sent:
+        return None
+    return (datetime.now(timezone.utc) - sent).total_seconds()
+
+
+def reset_password_by_code(email, code, new_password):
+    """Возвращает (успех, текст ошибки).
+
+    Ошибку про несуществующую почту наружу НЕ отдаём: иначе форма сброса
+    превращается в проверялку «есть ли у вас такой клиент». Отвечаем так же,
+    как при неверном коде."""
+    row = get_tutor_by_email(email)
+    generic = "Код не подошёл или устарел. Запросите новый."
+    if not row:
+        return False, generic
+    if not row["reset_code"]:
+        return False, generic
+    age = seconds_since_reset_sent(row)
+    if age is None or age > RESET_TTL:
+        return False, "Код устарел — он живёт 30 минут. Запросите новый."
+    if (row["reset_tries"] or 0) >= RESET_MAX_TRIES:
+        return False, "Слишком много попыток. Запросите новый код."
+    if not secrets.compare_digest(str(code or "").strip().encode("utf-8"),
+                                  str(row["reset_code"]).encode("utf-8")):
+        conn().execute("UPDATE tutors SET reset_tries=reset_tries+1 WHERE id=?", (row["id"],))
+        conn().commit()
+        left = RESET_MAX_TRIES - (row["reset_tries"] or 0) - 1
+        return False, "Код не подошёл. Осталось попыток: %d." % max(0, left)
+    problem = password_problem(new_password)
+    if problem:
+        return False, problem
+    pass_hash, salt = hash_password(new_password)
+    # Токен меняем обязательно: если пароль сбрасывают потому, что доступ
+    # увели, старая сессия угонщика обязана оборваться.
+    new_tok = new_token()
+    conn().execute(
+        "UPDATE tutors SET pass_hash=?, pass_salt=?, token=?, pass_changed_at=?,"
+        " reset_code=NULL, reset_tries=0 WHERE id=?",
+        (pass_hash, salt, new_tok, now(), row["id"]))
+    conn().commit()
+    return True, None
+
+
 # ---------- тарифы ----------
 
 # Базовый тариф покрывает сайт и чат с Савелием. Чат дешёвый и предсказуемый:
@@ -1086,6 +1195,29 @@ PLANS = [
 ]
 TRIAL_DAYS = 3
 EXTRA_STUDENT_PRICE = 119
+
+# ---------- защита от бесконечного триала ----------
+# Три дня заканчиваются — заводишь новую почту и получаешь ещё три.
+# Почта бесплатна и бесконечна, поэтому считаем не почты, а устройства.
+#
+# Чего эта защита СОЗНАТЕЛЬНО не делает:
+#
+# 1. Не трогает учеников. Они не платят, и они как раз сидят с одного
+#    устройства по-настоящему — класс за одним компьютером, двое детей
+#    на планшете. Ограничить их значило бы сломать живых ради защиты от
+#    того, чего они не делают.
+# 2. Не запрещает ВХОД. Ограничение только на регистрацию: иначе человек,
+#    сменивший ноутбук, теряет оплаченный кабинет.
+# 3. Не блокирует наглухо. Идентификатор устройства лежит в localStorage
+#    и стирается в два клика, режим инкогнито обходит его сходу — строить
+#    на нём запрет значит запереть честных и не задержать хитрых. Поэтому
+#    второй кабинет с того же устройства ЗАВЕДЁТСЯ, но БЕЗ триала: платить
+#    с первого дня. Ровно то, что мы и защищаем, — бесплатные дни.
+#
+# IP считаем отдельно и мягче: за одним адресом сидит вся школа или семья,
+# и запрет по нему бьёт по нескольким репетиторам сразу.
+SIGNUP_IP_LIMIT = 3        # регистраций с одного адреса за сутки
+SIGNUP_IP_WINDOW_H = 24
 
 # ---------- проверка домашек ----------
 

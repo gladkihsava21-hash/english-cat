@@ -39,3 +39,38 @@ function apiAlive() {
   }
   return _apiAlivePromise;
 }
+
+/* ---------- Показать пароль ----------
+ * Глазок у поля. Пароль здесь не «раскрывается» из базы — там лежит хеш,
+ * а не пароль, и показать сохранённый нельзя в принципе. Это про другое:
+ * увидеть, что ты сам сейчас набрал. На телефоне вслепую промахнуться
+ * мимо клавиши — обычное дело, а форма в ответ говорит только «неверный
+ * пароль», не уточняя, что не так.
+ *
+ * Разметка: .pass-field > input + button.pass-eye[data-eye="id-поля"]
+ * Иконку рисуем через icon() — если icons.js не загрузился, кнопка
+ * останется пустой, но рабочей. */
+function paintPassEyes(root) {
+  (root || document).querySelectorAll(".pass-eye").forEach(btn => {
+    if (btn.dataset.wired) return;
+    btn.dataset.wired = "1";
+    const field = document.getElementById(btn.dataset.eye);
+    if (!field) return;
+    const draw = () => {
+      const shown = field.type === "text";
+      if (typeof icon === "function") btn.innerHTML = icon(shown ? "eye-off" : "eye", 18);
+      btn.setAttribute("aria-label", shown ? "Скрыть пароль" : "Показать пароль");
+      btn.setAttribute("aria-pressed", shown ? "true" : "false");
+    };
+    btn.addEventListener("click", () => {
+      field.type = field.type === "password" ? "text" : "password";
+      draw();
+      // Возвращаем курсор в поле: иначе человек жмёт глазок и продолжает
+      // печатать в пустоту.
+      field.focus();
+    });
+    draw();
+  });
+}
+
+document.addEventListener("DOMContentLoaded", () => paintPassEyes());

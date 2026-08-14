@@ -10,13 +10,13 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/tokens.css?v=78">
-<link rel="stylesheet" href="css/style.css?v=78">
-  <link rel="stylesheet" href="css/savely.css?v=78">
-<link rel="stylesheet" href="css/tutor.css?v=78">
-<link rel="stylesheet" href="css/motion.css?v=78">
-<link rel="stylesheet" href="css/a11y.css?v=78">
-<link rel="stylesheet" href="css/admin.css?v=78">
+<link rel="stylesheet" href="css/tokens.css?v=80">
+<link rel="stylesheet" href="css/style.css?v=80">
+  <link rel="stylesheet" href="css/savely.css?v=80">
+<link rel="stylesheet" href="css/tutor.css?v=80">
+<link rel="stylesheet" href="css/motion.css?v=80">
+<link rel="stylesheet" href="css/a11y.css?v=80">
+<link rel="stylesheet" href="css/admin.css?v=80">
 </head>
 <body>
 
@@ -28,7 +28,11 @@
     <div class="card auth-card">
       <form id="login-form">
         <label>Пароль
-          <input type="password" id="a-pass" autocomplete="current-password" required>
+          <span class="pass-field">
+            <input type="password" id="a-pass" autocomplete="current-password" required>
+            <button type="button" class="pass-eye" data-eye="a-pass"
+                    aria-label="Показать пароль" aria-pressed="false"></button>
+          </span>
         </label>
         <button type="submit" class="btn btn-primary btn-wide">Войти</button>
         <p class="type-feedback err" id="login-error"></p>
@@ -57,12 +61,12 @@
   </main>
 </div>
 
-<script src="js/theme.js?v=78"></script>
-<script src="js/icons.js?v=78"></script>
-<script src="js/cat.js?v=78"></script>
-<script src="js/motion.js?v=78"></script>
-<script src="js/util.js?v=78"></script>
-<script src="js/admin.js?v=78"></script>
+<script src="js/theme.js?v=80"></script>
+<script src="js/icons.js?v=80"></script>
+<script src="js/cat.js?v=80"></script>
+<script src="js/motion.js?v=80"></script>
+<script src="js/util.js?v=80"></script>
+<script src="js/admin.js?v=80"></script>
 
 </body>
 </html>

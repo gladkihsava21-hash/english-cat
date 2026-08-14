@@ -23,6 +23,30 @@ async function api(path, body) {
 
 function token() { return localStorage.getItem(TOKEN_KEY) || ""; }
 
+/** Постоянный идентификатор устройства.
+ *  Нужен ровно для одного: бесплатные три дня выдаются один раз на
+ *  устройство. Раньше триал заканчивался — заводилась новая почта, и он
+ *  начинался заново; почта бесплатна и бесконечна, устройство — нет.
+ *
+ *  Стирается вместе с localStorage и обходится режимом инкогнито, поэтому
+ *  сервер на нём ничего не ЗАПРЕЩАЕТ: кабинет создастся в любом случае,
+ *  просто без бесплатных дней. Строить на таком запрет — запереть честных
+ *  и не задержать остальных.
+ *
+ *  Никаких отпечатков браузера: случайное число не рассказывает о человеке
+ *  ничего, а canvas-фингерпринт — это слежка, и в продукте для детей ей
+ *  не место. */
+const DEVICE_KEY = "savelyDeviceId";
+function deviceId() {
+  let id = localStorage.getItem(DEVICE_KEY);
+  if (!id) {
+    id = (crypto.randomUUID ? crypto.randomUUID()
+                            : String(Date.now()) + Math.random().toString(36).slice(2));
+    localStorage.setItem(DEVICE_KEY, id);
+  }
+  return id;
+}
+
 // ===== Вход =====
 let authMode = "login";
 
@@ -48,7 +72,7 @@ $("auth-form").addEventListener("submit", async e => {
   const path = authMode === "login" ? "/api/tutor/login" : "/api/tutor/register";
   let res;
   try {
-    res = await api(path, { email, password, name, studentCount });
+    res = await api(path, { email, password, name, studentCount, deviceId: deviceId() });
   } catch (err) {
     $("auth-error").textContent = "Сервер недоступен. Запущен ли server.py?";
     return;
@@ -65,6 +89,14 @@ $("auth-form").addEventListener("submit", async e => {
   if (res.access === "expired" && typeof showPaywall === "function" && !res.needVerify) {
     showPaywall(res.tutor);
     return;
+  }
+  // Бесплатные дни с этого устройства уже брали. Сказать об этом надо
+  // сразу и прямо: молча открыть кабинет без триала — это когда человек
+  // через три дня упирается в оплату и не понимает, за что.
+  if (res.trialSkipped) {
+    $("auth-error").textContent =
+      "Кабинет создан, но бесплатные дни с этого устройства уже использованы — "
+      + "они даются один раз. Если это ошибка, напишите @KOTSAVELII.";
   }
   if (res.needVerify && typeof showVerifyScreen === "function") {
     if (res.recoveryCode && typeof showRecoveryCode === "function") {

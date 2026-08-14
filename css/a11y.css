@@ -1104,7 +1104,11 @@ h1, h2, h3, .section-title, .dash-head h2,
    плитку. Радиус наследуем: у плитки он свой на каждый размер (24/20/13/10),
    и жёсткое значение здесь рассинхронизировалось бы при первой же правке.
    ========================================================================== */
-.word-art img {
+/* Правило на самой картинке, а не на «.word-art img»: плитку рисуют четыре
+   разных места, и одно из них — .hw-word-art в панели репетитора. Пока
+   размер зависел от класса родителя, там картинка разворачивалась
+   в натуральные 480×480 и накрывала половину экрана. */
+.word-photo {
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -1112,8 +1116,10 @@ h1, h2, h3, .section-title, .dash-head h2,
   display: block;
 }
 /* Плитка с фотографией не должна светить подложкой из-под краёв: у эмодзи
-   подложка была фоном, у фотографии она видна только как ободок. */
-.word-art:has(img) { overflow: hidden; padding: 0; }
+   подложка была фоном, у фотографии она видна только как ободок.
+   overflow тут обязателен: без него картинка вылезает за скруглённый угол. */
+.word-art:has(.word-photo),
+.hw-word-art:has(.word-photo) { overflow: hidden; padding: 0; }
 
 /* --- Фотография на карточке и в вопросе крупнее ---------------------------
    92px хватало эмодзи — он и рисуется как знак. Фотография на 92px
@@ -1121,26 +1127,54 @@ h1, h2, h3, .section-title, .dash-head h2,
    «вижу предмет → вспоминаю слово» и есть смысл картинки в карточке.
    Растим только там, где плитка — главное на экране, и только если внутри
    действительно фото: у эмодзи прежний размер остаётся верным. */
-.flashcard .word-art-big:has(img),
-#flash-art:has(img) {
+.flashcard .word-art-big:has(.word-photo),
+#flash-art:has(.word-photo) {
   width: 168px; height: 168px;
   border-radius: 28px;
   margin-bottom: var(--space-16);
 }
-.word-quiz-card .word-art-mid:has(img) {
+.word-quiz-card .word-art-mid:has(.word-photo) {
   width: 132px; height: 132px;
   border-radius: 24px;
 }
 @media (max-width: 480px) {
-  .flashcard .word-art-big:has(img),
-  #flash-art:has(img) { width: 132px; height: 132px; border-radius: 24px; }
-  .word-quiz-card .word-art-mid:has(img) { width: 108px; height: 108px; }
+  .flashcard .word-art-big:has(.word-photo),
+  #flash-art:has(.word-photo) { width: 132px; height: 132px; border-radius: 24px; }
+  .word-quiz-card .word-art-mid:has(.word-photo) { width: 108px; height: 108px; }
 }
 /* Стороны карточки позиционированы абсолютно — этого требует переворот в
    3D, и из-за этого высоту карточки они не поднимают. Пока внутри был
    эмодзи, фиксированных 320px хватало; фотография на 168px добавляет
    ~76px, и подсказка с кнопками вылезали за белое поле наружу. */
-.flashcard:has(img), .flashcard-inner:has(img) { min-height: 404px; }
+.flashcard:has(.word-photo), .flashcard-inner:has(.word-photo) { min-height: 404px; }
 @media (max-width: 600px) {
-  .flashcard:has(img), .flashcard-inner:has(img) { min-height: 352px; }
+  .flashcard:has(.word-photo), .flashcard-inner:has(.word-photo) { min-height: 352px; }
 }
+
+/* ==========================================================================
+   ПОЛЕ ПАРОЛЯ С ГЛАЗКОМ
+   --------------------------------------------------------------------------
+   Кнопка лежит ВНУТРИ поля справа. Полю добавляем отступ ровно под неё,
+   иначе длинный пароль уезжает под кнопку и последние символы не видны —
+   то есть глазок мешал бы ровно тому, ради чего его ставили.
+   ========================================================================== */
+.pass-field { position: relative; display: block; }
+.pass-field > input { width: 100%; padding-right: 46px; }
+.pass-eye {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 38px;
+  height: 38px;                      /* цель нажатия под палец */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: none;
+  border-radius: 50%;
+  color: var(--ink-soft);            /* 5,5:1 — это контрол, а не декор */
+  cursor: pointer;
+}
+.pass-eye:hover { color: var(--ink); background: var(--surface-alt); }
+.pass-eye:focus-visible { outline: none; box-shadow: var(--focus-ring); }

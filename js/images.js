@@ -338,8 +338,13 @@ function wordArt(word, category) {
 function wordArtHTML(word, category) {
   const key = String(word || "").toLowerCase().trim();
   if (typeof WORD_PHOTOS !== "undefined" && WORD_PHOTOS[key]) {
-    return `<img src="img/words/${encodeURIComponent(key)}.webp" alt=""`
-         + ` width="480" height="480" loading="lazy" decoding="async">`;
+    // Свой класс, а не расчёт на класс родителя: плитку рисуют четыре
+    // разных места (.word-art у ученика, .hw-word-art в панели репетитора
+    // и два размера внутри упражнений). Пока размер задавался через
+    // «.word-art img», картинка в панели вылезала в натуральные 480×480
+    // и накрывала собой пол-экрана — контейнер там называется иначе.
+    return `<img class="word-photo" src="img/words/${encodeURIComponent(key)}.webp"`
+         + ` alt="" width="480" height="480" loading="lazy" decoding="async">`;
   }
   // Эмодзи тоже экранируем: иначе функция «иногда HTML, иногда нет»,
   // и первое же значение с кавычкой порвёт вёрстку.

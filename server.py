@@ -263,6 +263,13 @@ _HIT_LIMITS = {
     "/api/student/restore": (10, 600),
     "/api/tutor/login": (20, 300),
     "/api/tutor/register": (5, 600),
+    # Считается по IP (токена на этом шаге ещё нет). Без лимита форма
+    # «забыли пароль» становится способом завалить чужой ящик письмами;
+    # второй заслон — RESET_RESEND, не чаще раза в минуту на кабинет.
+    "/api/tutor/reset/send": (5, 900),
+    # Проверка кода: перебрать шесть цифр — миллион вариантов, но пробовать
+    # их надо где-то, и здесь. Счётчик попыток на сам код тоже есть.
+    "/api/tutor/reset/check": (10, 600),
     "/api/chat": (60, 300),
 }
 
@@ -473,7 +480,17 @@ class Api:
         problem = db.password_problem(password)
         if problem:
             return {"ok": False, "error": problem}
-        row = db.create_tutor(name, email, password)
+        # Устройство и адрес: против бесконечного триала. Подробно, почему
+        # именно так и почему без блокировок, — в db.py у SIGNUP_IP_LIMIT.
+        device_id = str(p.get("deviceId") or "")[:64]
+        ip = str(p.get("_ip") or "")[:64]
+        if db.signups_from_ip(ip) >= db.SIGNUP_IP_LIMIT:
+            return {"ok": False, "error":
+                    "С этого адреса сегодня уже создали несколько кабинетов. "
+                    "Если это вы и так и надо — напишите @KOTSAVELII, откроем вручную."}
+        trial_taken = db.device_used_trial(device_id)
+
+        row = db.create_tutor(name, email, password, device_id=device_id, signup_ip=ip)
         if not row:
             return {"ok": False, "error": "Такой email уже зарегистрирован."}
         # Тариф подбираем по заявленному числу учеников. Верим на слово:
@@ -482,7 +499,11 @@ class Api:
             db.set_plan_by_count(row["id"], int(p.get("studentCount") or 0))
         except (ValueError, TypeError):
             pass
-        db.start_trial(row["id"])
+        # Бесплатные дни — один раз на устройство. Кабинет при этом
+        # создаётся: запирать регистрацию нельзя, идентификатор стирается
+        # в два клика и первым под запрет попал бы честный человек.
+        if not trial_taken:
+            db.start_trial(row["id"])
         row = db.get_tutor_by_token(row["token"])
         # Код отправляем сразу: без подтверждения кабинет не откроется,
         # и лишний шаг «нажмите отправить» тут только раздражает
@@ -494,6 +515,7 @@ class Api:
             sent, send_error = False, "Письмо не ушло — нажми «Отправить ещё раз»."
         return {"ok": True, "token": row["token"], "tutor": db.tutor_public(row),
                 "recoveryCode": row["recovery_code"],
+                "trialSkipped": trial_taken,
                 "needVerify": True, "mailSent": sent, "mailError": send_error}
 
     @staticmethod
@@ -893,6 +915,37 @@ class Api:
         return {"ok": True, "sentVia": how}
 
     @staticmethod
+    def tutor_reset_send(h, p):
+        """Отправить код смены пароля на почту.
+
+        Отвечаем «ok» ВСЕГДА, даже если такой почты нет. Иначе форма
+        «забыли пароль» превращается в проверялку чужой клиентской базы:
+        ввёл адрес, увидел «нет такого» — узнал, что человек нами не
+        пользуется. Настоящий владелец почты письмо получит и без подсказки."""
+        email = str(p.get("email", "")).strip().lower()
+        tutor = db.get_tutor_by_email(email) if valid_email(email) else None
+        if tutor:
+            age = db.seconds_since_reset_sent(tutor)
+            if age is None or age >= db.RESET_RESEND:
+                code = db.set_reset_code(tutor["id"])
+                try:
+                    mailer.send_reset_code(tutor["email"], tutor["name"], code)
+                except Exception:
+                    # Наружу не выносим: по «письмо не ушло» тоже читается,
+                    # что адрес в базе есть. В лог — полностью.
+                    import traceback; traceback.print_exc()
+        return {"ok": True, "sent": True}
+
+    @staticmethod
+    def tutor_reset_check(h, p):
+        """Проверить код и поставить новый пароль."""
+        ok, err = db.reset_password_by_code(
+            str(p.get("email", "")), str(p.get("code", "")), str(p.get("password", "")))
+        if not ok:
+            return {"ok": False, "error": err}
+        return {"ok": True}
+
+    @staticmethod
     def tutor_verify_check(h, p):
         tutor = db.get_tutor_by_token(p.get("token"))
         if not tutor:
@@ -1259,6 +1312,8 @@ ROUTES = {
     "/api/tutor/add-slot": Api.tutor_add_slot,
     "/api/tutor/verify/send": Api.tutor_verify_send,
     "/api/tutor/verify/check": Api.tutor_verify_check,
+    "/api/tutor/reset/send": Api.tutor_reset_send,
+    "/api/tutor/reset/check": Api.tutor_reset_check,
     "/api/tutor/password": Api.tutor_password_change,
     "/api/tutor/password/reset": Api.tutor_password_reset,
     "/api/tutor/recovery": Api.tutor_recovery_code,
@@ -1309,6 +1364,10 @@ class Handler(SimpleHTTPRequestHandler):
             self._send_json({"ok": False, "error": "bad_json"}, 400)
             return
         who = self.client_address[0] if self.client_address else "?"
+        # Адрес кладём в сам запрос — под mod_wsgi обработчику передаётся
+        # None вместо соединения, и достать его там больше неоткуда.
+        # ПРИСВАИВАЕМ, а не дополняем: иначе клиент пришлёт свой "_ip".
+        payload["_ip"] = who
         if not rate_ok(path, str(payload.get("token") or who)[:64]):
             self._send_json({"ok": False,
                              "error": "Слишком быстро — притормози. Через полминуты снова можно."}, 429)

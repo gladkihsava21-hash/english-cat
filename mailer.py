@@ -101,6 +101,21 @@ def send_verify_code(to_addr, name, code):
     return send(to_addr, "Код подтверждения — Савелий", body)
 
 
+def send_reset_code(to_addr, name, code):
+    body = (
+        "Привет, %s!\n\n"
+        "Код для смены пароля в панели репетитора:\n\n"
+        "    %s\n\n"
+        "Код действует 30 минут и работает один раз.\n\n"
+        "Если пароль менять не собирались — просто удалите письмо. Пароль\n"
+        "останется прежним: сам по себе код ничего не меняет, его нужно\n"
+        "ввести на сайте вместе с новым паролем.\n\n"
+        "— Савелий, кот-репетитор\n"
+        "https://wordcat.ru\n"
+    ) % (name or "репетитор", code)
+    return send(to_addr, "Код для смены пароля — Савелий", body)
+
+
 def send_new_work(to_addr, name, count, student_name):
     what = "работу" if count == 1 else "работы"
     body = (

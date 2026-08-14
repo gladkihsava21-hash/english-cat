@@ -14,16 +14,76 @@ document.addEventListener("DOMContentLoaded", () => {
   const okBtn = $$("recovery-ok");
   if (okBtn) okBtn.addEventListener("click", () => $$("recovery-modal").classList.add("hidden"));
 
-  // переключение вход ↔ восстановление
+  // Три формы на одной карточке: вход, сброс по коду с почты и сброс
+  // по коду восстановления. Показываем ровно одну.
   const authForm = $$("auth-form"), resetForm = $$("reset-form");
+  const mailForm = $$("reset-mail-form");
+  const tabs = document.querySelector(".tabs");
+  const showForm = which => {
+    [authForm, mailForm, resetForm].forEach(f => f && f.classList.add("hidden"));
+    if (which) which.classList.remove("hidden");
+    // Вкладки «Вход / Регистрация» относятся только к первой форме
+    if (tabs) tabs.classList.toggle("hidden", which !== authForm);
+  };
+
+  // «Забыли пароль?» ведёт на почту, а не на код восстановления: код
+  // показывается один раз при регистрации, и к моменту, когда он нужен,
+  // его уже потеряли. Доступ к почте есть всегда.
   const forgot = $$("forgot-btn"), back = $$("reset-back");
-  if (forgot) forgot.addEventListener("click", () => {
-    authForm.classList.add("hidden"); resetForm.classList.remove("hidden");
-    document.querySelector(".tabs").classList.add("hidden");
+  if (forgot) forgot.addEventListener("click", () => showForm(mailForm));
+  if (back) back.addEventListener("click", () => showForm(authForm));
+  if ($$("rm-back")) $$("rm-back").addEventListener("click", () => showForm(authForm));
+  if ($$("rm-to-recovery")) $$("rm-to-recovery")
+    .addEventListener("click", () => showForm(resetForm));
+
+  // ----- сброс кодом с почты -----
+  if (mailForm) mailForm.addEventListener("submit", async e => {
+    e.preventDefault();
+    const msg = $$("rm-msg"), btn = $$("rm-send");
+    msg.className = "type-feedback";
+    msg.textContent = "Отправляю…";
+    btn.disabled = true;
+    let res;
+    try { res = await api("/api/tutor/reset/send", { email: $$("rm-email").value.trim() }); }
+    catch (err) { res = null; }
+    btn.disabled = false;
+    if (!res || !res.ok) {
+      msg.className = "type-feedback err";
+      msg.textContent = (res && res.error) || "Не дозвонились до сервера. Попробуйте ещё раз.";
+      return;
+    }
+    // Сервер отвечает одинаково и для существующей почты, и для чужой —
+    // иначе форма превращается в проверялку «есть ли у вас такой клиент».
+    // Текст поэтому тоже нейтральный.
+    msg.className = "type-feedback ok";
+    msg.textContent = "Если такая почта у нас есть — код уже в пути. Проверьте ящик и папку «Спам».";
+    $$("rm-step2").classList.remove("hidden");
+    $$("rm-code").focus();
   });
-  if (back) back.addEventListener("click", () => {
-    resetForm.classList.add("hidden"); authForm.classList.remove("hidden");
-    document.querySelector(".tabs").classList.remove("hidden");
+
+  if ($$("rm-apply")) $$("rm-apply").addEventListener("click", async () => {
+    const msg = $$("rm-msg");
+    msg.className = "type-feedback";
+    msg.textContent = "Проверяю…";
+    let res;
+    try {
+      res = await api("/api/tutor/reset/check", {
+        email: $$("rm-email").value.trim(),
+        code: $$("rm-code").value.trim(),
+        password: $$("rm-pass").value,
+      });
+    } catch (err) { res = null; }
+    if (!res || !res.ok) {
+      msg.className = "type-feedback err";
+      msg.textContent = (res && res.error) || "Не получилось. Попробуйте ещё раз.";
+      return;
+    }
+    msg.className = "type-feedback ok";
+    msg.textContent = "Пароль изменён. Входите с новым.";
+    // Токен НЕ подставляем: смена пароля выдаёт новый на сервере, и войти
+    // человек должен сам — так он сразу проверит, что пароль запомнил.
+    $$("rm-step2").classList.add("hidden");
+    setTimeout(() => { showForm(authForm); $$("t-email").value = $$("rm-email").value.trim(); }, 1200);
   });
 
   if (resetForm) resetForm.addEventListener("submit", async e => {

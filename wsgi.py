@@ -124,6 +124,10 @@ def application(environ, start_response):
         except Exception:
             return _json(start_response, {"ok": False, "error": "bad_json"}, "400 Bad Request")
         who = environ.get("HTTP_X_REAL_IP") or environ.get("REMOTE_ADDR") or "?"
+        # Тот же ключ, что и в server.py: обработчику сюда передаётся None
+        # вместо соединения, и адрес ему больше взять неоткуда.
+        # ПРИСВАИВАЕМ, а не дополняем: иначе клиент пришлёт свой "_ip".
+        payload["_ip"] = who
         if not server.rate_ok(path, str(payload.get("token") or who)[:64]):
             return _json(start_response,
                          {"ok": False, "error": "Слишком быстро — притормози. Через полминуты снова можно."},
