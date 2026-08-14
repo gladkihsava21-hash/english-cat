@@ -201,21 +201,16 @@ document.getElementById("restore-btn").addEventListener("click", async () => {
   }
 });
 
-document.getElementById("logout-btn").addEventListener("click", () => {
-  const btn = document.getElementById("logout-btn");
-  if (!logoutArmed) {
-    logoutArmed = true;
-    btn.textContent = "точно сбросить всё?";
-    btn.classList.add("danger");
-    logoutTimer = setTimeout(() => {
-      logoutArmed = false;
-      btn.textContent = "выйти";
-      btn.classList.remove("danger");
-    }, 4000);
-    return;
-  }
-  clearTimeout(logoutTimer);
-  // Токен ученика стираем вместе с состоянием. Иначе после перезагрузки
+/** Уходит ли прогресс на сервер. Если да — выход безопасен: словарь,
+ *  очки и расписание повторений остаются там, и по личному коду человек
+ *  вернётся с любого устройства. Если нет (демо-режим без репетитора),
+ *  выход — это и правда стирание, и говорить надо именно так. */
+function progressIsOnServer() {
+  return !!(localStorage.getItem("savelyStudentToken") && state.restoreCode);
+}
+
+function doLogout() {
+  // Токен стираем вместе с состоянием. Иначе после перезагрузки
   // синхронизация отправит на сервер пустой снимок и затрёт репетитору
   // весь прогресс этого ученика.
   if (typeof stopSync === "function") stopSync();
@@ -223,6 +218,72 @@ document.getElementById("logout-btn").addEventListener("click", () => {
   localStorage.removeItem("savelyStudentToken");
   localStorage.removeItem("savelyTutorName");
   location.reload();
+}
+
+/* Выход был устроен как «сбросить всё»: одна кнопка, никакого способа
+   просто пересесть. А устройство сплошь и рядом общее — планшет на двоих
+   детей, компьютер в классе, — и второму ученику приходилось стирать
+   первого. При этом прогресс всё это время лежал на сервере: терялся не он,
+   а ВОЗМОЖНОСТЬ ВЕРНУТЬСЯ, потому что личный код никто не записывал.
+   Поэтому теперь выход показывает код и требует подтвердить, что он
+   записан, а стирание вынесено отдельным действием. */
+document.getElementById("logout-btn").addEventListener("click", () => {
+  const box = document.getElementById("logout-modal");
+  const safe = progressIsOnServer();
+  document.getElementById("logout-code").textContent = state.restoreCode || "—";
+  document.getElementById("logout-code-row").classList.toggle("hidden", !safe);
+  document.getElementById("logout-safe").classList.toggle("hidden", !safe);
+  document.getElementById("logout-unsafe").classList.toggle("hidden", safe);
+  document.getElementById("logout-go").disabled = safe;   // включит галочка
+  document.getElementById("logout-ack").checked = false;
+  box.classList.remove("hidden");
+});
+
+document.addEventListener("DOMContentLoaded", () => {
+  const $ = id => document.getElementById(id);
+  const box = $("logout-modal");
+  if (!box) return;
+
+  $("logout-ack").addEventListener("change", e => {
+    $("logout-go").disabled = !e.target.checked;
+  });
+  $("logout-cancel").addEventListener("click", () => box.classList.add("hidden"));
+  $("logout-go").addEventListener("click", doLogout);
+
+  $("logout-copy").addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(state.restoreCode || "");
+      $("logout-copy").textContent = "Скопировано";
+    } catch (e) {
+      // Буфер недоступен (нет https или отказали в доступе) — выделяем
+      // код, чтобы его можно было скопировать руками.
+      const r = document.createRange();
+      r.selectNodeContents($("logout-code"));
+      getSelection().removeAllRanges();
+      getSelection().addRange(r);
+      $("logout-copy").textContent = "Выделено — скопируй";
+    }
+  });
+
+  // Стирание — отдельное действие с отдельным подтверждением: оно
+  // необратимо, и путать его с обычным выходом нельзя.
+  let wipeArmed = false, wipeTimer = null;
+  $("logout-wipe").addEventListener("click", () => {
+    const b = $("logout-wipe");
+    if (!wipeArmed) {
+      wipeArmed = true;
+      b.textContent = "точно стереть? нажми ещё раз";
+      b.classList.add("danger");
+      wipeTimer = setTimeout(() => {
+        wipeArmed = false;
+        b.textContent = "стереть прогресс с этого устройства";
+        b.classList.remove("danger");
+      }, 4000);
+      return;
+    }
+    clearTimeout(wipeTimer);
+    doLogout();
+  });
 });
 
 function updateChrome() {
@@ -824,6 +885,116 @@ document.querySelectorAll(".dict-filter").forEach(btn => {
   });
 });
 
+/* ---------- Папки словаря ----------
+ * Свои темы поверх готовых: «к контрольной», «неправильные глаголы»,
+ * «слова из сериала». Категории из базы (cat) для этого не годятся —
+ * они про смысл слова и назначены заранее, а папка нужна под задачу,
+ * которая у каждого своя.
+ *
+ * Храним имена папок В САМОМ СЛОВЕ (d.folders), а не отдельным списком
+ * со ссылками по id. Причина простая: словарь синхронизируется целиком
+ * и переезжает между устройствами, а отдельная таблица связей при
+ * слиянии двух устройств разъезжается с ним и оставляет папки, ссылающиеся
+ * в пустоту. Список папок собираем из самих слов — он не может
+ * рассинхронизироваться с ними по определению.
+ *
+ * Пустая папка при этом не хранится нигде и исчезает сама. Это осознанный
+ * размен: заводить папку заранее, «на будущее», нельзя, зато невозможно
+ * и накопить два десятка пустых. */
+let dictFolder = null;      // null — показывать все слова
+
+function allFolders() {
+  const names = new Set();
+  state.dictionary.forEach(d => (d.folders || []).forEach(f => names.add(f)));
+  return [...names].sort((a, b) => a.localeCompare(b, "ru"));
+}
+
+function wordsInFolder(name) {
+  return state.dictionary.filter(d => (d.folders || []).includes(name)).length;
+}
+
+function renderFolders() {
+  const box = document.getElementById("dict-folders");
+  if (!box) return;
+  const names = allFolders();
+  // Ряд появляется только когда папки есть. Пустая полоса с одной кнопкой
+  // «все» — это подпись к тому, чего нет.
+  box.classList.toggle("hidden", !names.length);
+  if (!names.length) { dictFolder = null; return; }
+  // Папку могли опустошить, пока она была выбрана
+  if (dictFolder && !names.includes(dictFolder)) dictFolder = null;
+  box.innerHTML =
+    `<button class="chip dict-folder${dictFolder === null ? " active" : ""}"
+             type="button" data-folder="">${iconInline("categories", 14)} все слова</button>`
+    + names.map(n => `
+      <button class="chip dict-folder${dictFolder === n ? " active" : ""}"
+              type="button" data-folder="${esc(n)}">${esc(n)} <b>${wordsInFolder(n)}</b></button>`).join("");
+  box.querySelectorAll("[data-folder]").forEach(b => {
+    b.addEventListener("click", () => {
+      dictFolder = b.dataset.folder || null;
+      renderDictionary();
+    });
+  });
+}
+
+/** Окно «в какую папку положить слово». Работает как переключатели:
+ *  слово может лежать сразу в нескольких папках — «неправильные глаголы»
+ *  и «к контрольной» не исключают друг друга. */
+function openFolderPicker(word) {
+  const modal = document.getElementById("folder-modal");
+  const pick = document.getElementById("folder-pick");
+  document.getElementById("folder-modal-title").textContent = `«${word.w}» — в какую папку?`;
+
+  const draw = () => {
+    const names = allFolders();
+    const mine = word.folders || [];
+    pick.innerHTML = names.length
+      ? names.map(n => `
+          <label class="ack-row">
+            <input type="checkbox" data-f="${esc(n)}"${mine.includes(n) ? " checked" : ""}>
+            <span>${esc(n)}</span>
+          </label>`).join("")
+      : `<p class="muted-small">Папок пока нет — создай первую.</p>`;
+    pick.querySelectorAll("input[data-f]").forEach(cb => {
+      cb.addEventListener("change", () => {
+        word.folders = word.folders || [];
+        const name = cb.dataset.f;
+        if (cb.checked) {
+          if (!word.folders.includes(name)) word.folders.push(name);
+        } else {
+          word.folders = word.folders.filter(x => x !== name);
+        }
+        saveState();
+        renderFolders();
+      });
+    });
+  };
+  draw();
+
+  const form = document.getElementById("folder-new-form");
+  form.onsubmit = e => {
+    e.preventDefault();
+    const input = document.getElementById("folder-new-name");
+    const name = input.value.trim().slice(0, 30);
+    if (!name) return;
+    word.folders = word.folders || [];
+    if (!word.folders.includes(name)) word.folders.push(name);
+    input.value = "";
+    saveState();
+    draw();
+    renderFolders();
+  };
+  modal.classList.remove("hidden");
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  const close = document.getElementById("folder-close");
+  if (close) close.addEventListener("click", () => {
+    document.getElementById("folder-modal").classList.add("hidden");
+    renderDictionary();
+  });
+});
+
 document.getElementById("dict-search").addEventListener("input", renderDictionary);
 
 function renderDictionary() {
@@ -834,9 +1005,11 @@ function renderDictionary() {
   empty.classList.toggle("hidden", state.dictionary.length > 0);
   document.querySelector(".dict-controls").classList.toggle("hidden", !state.dictionary.length);
 
+  renderFolders();
   const q = document.getElementById("dict-search").value.trim().toLowerCase();
   const items = state.dictionary.filter(d =>
     (dictFilter === "all" || d.status === dictFilter) &&
+    (!dictFolder || (d.folders || []).includes(dictFolder)) &&
     (!q || d.w.toLowerCase().includes(q) || d.t.toLowerCase().includes(q)));
 
   if (state.dictionary.length && !items.length) {
@@ -871,6 +1044,23 @@ function renderDictionary() {
       e.stopPropagation();
       speak(d.w);
     });
+    // Кнопка папки — в самой строке, а не в подробностях: раскладывать
+    // слова по папкам человек будет пачкой, подряд, и лишний клик
+    // на раскрытие каждой строки эту работу удваивает.
+    const fold = document.createElement("button");
+    fold.className = "d-fold";
+    const inFolders = (d.folders || []).length;
+    fold.classList.toggle("has", inFolders > 0);
+    fold.setAttribute("aria-label", inFolders
+      ? `${d.w}: папки — ${(d.folders || []).join(", ")}. Изменить`
+      : `Положить ${d.w} в папку`);
+    fold.innerHTML = icon("categories", 18);
+    fold.addEventListener("click", e => {
+      e.stopPropagation();
+      openFolderPicker(d);
+    });
+    row.appendChild(fold);
+
     const del = document.createElement("button");
     del.className = "d-del";
     // В списке из сорока слов сорок одинаковых «Удалить» — имя обязано

@@ -7,11 +7,11 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/tokens.css?v=80">
-  <link rel="stylesheet" href="css/style.css?v=80">
-  <link rel="stylesheet" href="css/savely.css?v=80">
-  <link rel="stylesheet" href="css/motion.css?v=80">
-<link rel="stylesheet" href="css/a11y.css?v=80">
+  <link rel="stylesheet" href="css/tokens.css?v=83">
+  <link rel="stylesheet" href="css/style.css?v=83">
+  <link rel="stylesheet" href="css/savely.css?v=83">
+  <link rel="stylesheet" href="css/motion.css?v=83">
+<link rel="stylesheet" href="css/a11y.css?v=83">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#F6F5F0">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -249,6 +249,14 @@
           <button class="chip dict-filter" data-f="learning" type="button">учу</button>
           <button class="chip dict-filter" data-f="learned" type="button">выучено</button>
         </div>
+
+        <!-- Папки. Отдельный ряд, а не общий с «новые / учу / выучено»:
+             это другой вопрос к словарю. Те фильтруют по тому, насколько
+             слово выучено, — их ставит система; папки заводит сам ученик
+             под свои темы. Свалить в одну строку — значит предложить
+             выбирать между «учу» и «Неправильные глаголы», хотя это
+             не альтернативы. -->
+        <div class="dict-folders" id="dict-folders" role="group" aria-label="Папки"></div>
       </div>
 
       <!-- Пустое состояние = что здесь будет + один выход. Раньше была одна
@@ -402,6 +410,56 @@
 </main>
 
 
+<!-- Выход. Раньше это было «сбросить всё» одной кнопкой, а устройство
+     сплошь и рядом общее — планшет на двоих, компьютер в классе. Прогресс
+     при этом лежит на сервере: терялась не работа, а возможность вернуться,
+     потому что личный код никто не записывал. -->
+<div id="folder-modal" class="modal hidden">
+  <div class="modal-card">
+    <h3 id="folder-modal-title">В какую папку?</h3>
+    <div id="folder-pick" class="folder-pick"></div>
+    <form id="folder-new-form" class="add-word-row">
+      <input type="text" id="folder-new-name" placeholder="новая папка" maxlength="30"
+             aria-label="Название новой папки">
+      <button type="submit" class="btn btn-ghost">+ Создать</button>
+    </form>
+    <div class="quiz-buttons">
+      <button type="button" class="btn btn-ghost" id="folder-close">Готово</button>
+    </div>
+  </div>
+</div>
+
+<div id="logout-modal" class="modal hidden">
+  <div class="modal-card">
+    <h3>Выйти из аккаунта</h3>
+
+    <div id="logout-safe">
+      <p class="reset-note">Прогресс сохранён у Савелия — словарь, очки и расписание
+        повторений никуда не денутся. Чтобы вернуться на этом или любом другом
+        устройстве, нужен твой личный код:</p>
+      <p class="recovery-code" id="logout-code-row"><span id="logout-code"></span></p>
+      <button type="button" class="btn btn-ghost btn-small" id="logout-copy">Скопировать код</button>
+      <label class="ack-row">
+        <input type="checkbox" id="logout-ack">
+        <span>Я записал код — без него не вернуться</span>
+      </label>
+    </div>
+
+    <p class="reset-note hidden" id="logout-unsafe">Ты занимаешься без репетитора,
+      и прогресс живёт только в этом браузере — на сервер он не уходит.
+      Если выйти, вернуть его будет нечем.</p>
+
+    <div class="quiz-buttons">
+      <button type="button" class="btn btn-ghost" id="logout-cancel">Остаться</button>
+      <button type="button" class="btn btn-primary" id="logout-go">Выйти</button>
+    </div>
+
+    <p class="fine-print">
+      <button type="button" class="link-btn" id="logout-wipe">стереть прогресс с этого устройства</button>
+    </p>
+  </div>
+</div>
+
 <footer class="site-footer">
   <div class="cat-avatar cat-mid" data-cat="happy"></div>
   <p class="footer-line">Савелий — кот-репетитор английского</p>
@@ -411,22 +469,22 @@
     <a href="https://t.me/KOTSAVELII" target="_blank" rel="noopener">@KOTSAVELII</a></p>
 </footer>
 
-<script src="js/theme.js?v=80"></script>
-<script src="js/icons.js?v=80"></script>
-<script src="js/cat.js?v=80"></script>
-<script src="js/motion.js?v=80"></script>
-<script src="js/util.js?v=80"></script>
-<script src="js/words.js?v=80"></script>
-<script src="js/srs.js?v=80"></script>
-<script src="js/images.js?v=80"></script>
-<script src="js/word-photos.js?v=80"></script>
-<script src="js/app.js?v=80"></script>
-<script src="js/achievements.js?v=80"></script>
-<script src="js/exercises.js?v=80"></script>
-<script src="js/voice.js?v=80"></script>
-<script src="js/sync.js?v=80"></script>
-  <script src="js/reading.js?v=80"></script>
-  <script src="js/photo.js?v=80"></script>
+<script src="js/theme.js?v=83"></script>
+<script src="js/icons.js?v=83"></script>
+<script src="js/cat.js?v=83"></script>
+<script src="js/motion.js?v=83"></script>
+<script src="js/util.js?v=83"></script>
+<script src="js/words.js?v=83"></script>
+<script src="js/srs.js?v=83"></script>
+<script src="js/images.js?v=83"></script>
+<script src="js/word-photos.js?v=83"></script>
+<script src="js/app.js?v=83"></script>
+<script src="js/achievements.js?v=83"></script>
+<script src="js/exercises.js?v=83"></script>
+<script src="js/voice.js?v=83"></script>
+<script src="js/sync.js?v=83"></script>
+  <script src="js/reading.js?v=83"></script>
+  <script src="js/photo.js?v=83"></script>
 <script>
   // офлайн-режим: сайт открывается без интернета и ставится на телефон
   if ("serviceWorker" in navigator && location.protocol !== "file:") {

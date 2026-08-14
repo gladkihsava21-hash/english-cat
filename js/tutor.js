@@ -768,7 +768,13 @@ function renderWordPicker() {
   const chosen = new Set(picked.map(p => p.w.toLowerCase()));
   $("hw-words").innerHTML = pool.map(w => `
     <button class="hw-word${chosen.has(w.w.toLowerCase()) ? " picked" : ""}" data-w="${esc(w.w)}">
-      <span class="hw-word-art" style="background:${wordTint(w.cat)}">${wordArtHTML(w.w, w.cat)}</span>
+      <!-- Здесь сознательно эмодзи, а не фотография. Панель — рабочий
+           список на 311 строк, по которому репетитор быстро скользит
+           глазами; фотографии есть у 39 слов из этих 311, и вперемешку
+           с эмодзи они не помогают опознать слово, а сбивают ритм.
+           Ученику фотография нужна (он по ней запоминает), репетитору —
+           нет, он и так знает, что значит слово. -->
+      <span class="hw-word-art" style="background:${wordTint(w.cat)}">${esc(wordArt(w.w, w.cat))}</span>
       <span class="hw-word-en">${esc(w.w)}</span>
       <span class="hw-word-ru">${esc(w.t)}</span>
     </button>`).join("");

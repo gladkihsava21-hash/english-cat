@@ -1178,3 +1178,144 @@ h1, h2, h3, .section-title, .dash-head h2,
 }
 .pass-eye:hover { color: var(--ink); background: var(--surface-alt); }
 .pass-eye:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+/* ==========================================================================
+   МОДАЛКА НА СТРАНИЦЕ УЧЕНИКА
+   --------------------------------------------------------------------------
+   .modal / .modal-card / .recovery-code описаны в css/tutor.css, а он
+   подключён только к панели репетитора. Ученику нужен тот же набор —
+   повторяем его здесь одним блоком, чтобы не тащить весь tutor.css.
+   Значения те же, расхождение между двумя страницами тут было бы багом.
+   ========================================================================== */
+#logout-modal {
+  position: fixed;
+  inset: 0;
+  /* Затемнение чернилами темы, а не чёрным: на тёплой бумаге чистый
+     чёрный даёт грязный серый ореол по краю карточки. */
+  background: color-mix(in srgb, var(--ink) 55%, transparent);
+  display: grid;
+  place-items: center;
+  padding: var(--space-20);
+  z-index: 60;
+}
+#logout-modal.hidden { display: none; }
+#logout-modal .modal-card {
+  background: var(--surface);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-lift);
+  padding: var(--space-24);
+  max-width: 420px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;               /* на 375px в альбомной ориентации не влезает */
+}
+#logout-modal h3 {
+  font-weight: 800;
+  font-size: var(--text-subheading);
+  margin-bottom: var(--space-8);
+}
+#logout-modal .recovery-code {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: var(--text-heading-sm);
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-align: center;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border: 2px dashed var(--accent-line);
+  border-radius: var(--radius-card);
+  padding: var(--space-16) var(--space-12);
+  margin: var(--space-8) 0 var(--space-12);
+  user-select: all;               /* тап по коду выделяет его целиком */
+}
+/* Галочка и подпись — одна цель нажатия: попасть пальцем в чекбокс 13px
+   на телефоне нельзя, а промах здесь стоит потерянного аккаунта. */
+.ack-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  margin: var(--space-16) 0;
+  padding: var(--space-8);
+  min-height: 44px;
+  cursor: pointer;
+  border-radius: var(--radius-input);
+}
+.ack-row:hover { background: var(--surface-alt); }
+.ack-row input { width: 20px; height: 20px; flex: none; accent-color: var(--accent); }
+/* Отключённая кнопка выхода должна ЧИТАТЬСЯ отключённой: пока код не
+   отмечен как записанный, выходить нельзя. */
+#logout-go:disabled { opacity: .45; cursor: not-allowed; }
+.link-btn.danger { color: var(--red); font-weight: 700; }
+
+/* ==========================================================================
+   ПАПКИ СЛОВАРЯ
+   --------------------------------------------------------------------------
+   Свой ряд под фильтрами «новые / учу / выучено». Ряд отдельный, потому что
+   это другой вопрос к словарю: те фильтры про то, насколько слово выучено,
+   и их ставит система; папки заводит сам ученик под свою задачу.
+   ========================================================================== */
+.dict-folders {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+  margin-top: var(--space-12);
+  padding-top: var(--space-12);
+  border-top: var(--border-w) solid var(--line-soft);
+}
+.dict-folders.hidden { display: none; }
+.dict-folder b {
+  margin-left: 4px;
+  font-weight: 700;
+  opacity: .7;                      /* счётчик — подпись к имени, не имя */
+}
+
+/* Кнопка «в папку» в строке слова. По умолчанию приглушена: в списке из
+   сорока слов сорок акцентных значков превращаются в шум. Слово, уже
+   разложенное по папкам, метится акцентом — это и есть полезный сигнал. */
+.d-fold {
+  flex: none;
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: none;
+  border-radius: 50%;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+.d-fold:hover { color: var(--ink); background: var(--surface-alt); }
+.d-fold.has { color: var(--accent); }
+.d-fold:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+/* Окно выбора папки: те же стили, что у окна выхода. */
+#folder-modal {
+  position: fixed;
+  inset: 0;
+  background: color-mix(in srgb, var(--ink) 55%, transparent);
+  display: grid;
+  place-items: center;
+  padding: var(--space-20);
+  z-index: 60;
+}
+#folder-modal.hidden { display: none; }
+#folder-modal .modal-card {
+  background: var(--surface);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-lift);
+  padding: var(--space-24);
+  max-width: 420px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+#folder-modal h3 {
+  font-weight: 800;
+  font-size: var(--text-subheading);
+  margin-bottom: var(--space-12);
+}
+/* Список папок прокручивается сам: при двадцати папках окно иначе
+   вырастает выше экрана и кнопка «Готово» уезжает за край. */
+.folder-pick { max-height: 40vh; overflow-y: auto; margin-bottom: var(--space-12); }
+.folder-pick .ack-row { margin: 0; }
