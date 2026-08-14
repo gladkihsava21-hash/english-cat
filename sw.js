@@ -2,24 +2,50 @@
 // Ученик может тренироваться в метро — прогресс уйдёт на сервер,
 // когда связь вернётся.
 
-// ВАЖНО: версия должна совпадать с ?v= в index.html, иначе ученик
-// после обновления сайта получит из кэша старый код.
-const CACHE = "savely-v17";
+// ВАЖНО: этот файл НЕ ПРАВИТЬ РУКАМИ — версию и список файлов пишет
+// tools/bump.py, он же поднимает ?v= в трёх html. Пока правили руками,
+// sw отставал: в страницах стояло v=90, здесь v=17, а в списке половины
+// существующих файлов не было и были давно удалённые. Онлайн это
+// не било (ниже «сначала сеть»), но офлайн ученик получал код
+// позапрошлой версии.
+//
+// Список собирается из самих страниц, поэтому новый css или js попадает
+// в офлайн-кэш сам — про него не нужно помнить отдельно.
+const CACHE = "savely-v91";
 const ASSETS = [
   "./",
   "./index.html",
-  "./css/style.css?v=17",
-  "./js/util.js?v=17",
-  "./js/words.js?v=17",
-  "./js/srs.js?v=17",
-  "./js/images.js?v=17",
-  "./js/app.js?v=17",
-  "./js/achievements.js?v=17",
-  "./js/exercises.js?v=17",
-  "./js/voice.js?v=17",
-  "./js/sync.js?v=17",
-  "./js/photo.js?v=17",
-  "./js/reading.js?v=17",
+  "./css/tokens.css",
+  "./css/style.css",
+  "./css/savely.css",
+  "./css/motion.css",
+  "./css/a11y.css",
+  "./css/cat.css",
+  "./css/account.css",
+  "./js/theme.js",
+  "./js/icons.js",
+  "./js/cat.js",
+  "./js/motion.js",
+  "./js/util.js",
+  "./js/words.js",
+  "./js/srs.js",
+  "./js/images.js",
+  "./js/word-photos.js",
+  "./js/app.js",
+  "./js/achievements.js",
+  "./js/exercises.js",
+  "./js/voice.js",
+  "./js/sync.js",
+  "./js/reading.js",
+  "./js/photo.js",
+  "./js/account.js",
+  "./css/tutor.css",
+  "./js/tutor.js",
+  "./js/tutor-photos.js",
+  "./js/tutor-auth.js",
+  "./js/tutor-verify.js",
+  "./css/admin.css",
+  "./js/admin.js",
   "./manifest.json",
   "./icon-192.png",
 ];

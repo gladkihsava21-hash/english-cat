@@ -120,21 +120,40 @@
 }
 
 /* ---------- Реакция персонажа ---------- */
-/* Кот отзывается на событие: подпрыгнул от радости, дёрнулся от ошибки.
-   Класс снимается из js/motion.js после окончания. */
+/* Кот отзывается на событие. Здесь движение ВСЕГО силуэта; что при этом
+   делают уши, хвост и морда — в css/cat.css, а позу подменяет js/cat.js.
+   Классы ставит и снимает js/motion.js.
+   Четыре события, и разной силы: обычный верный ответ — кивок, серия —
+   прыжок, ошибка — покачивание, награда — выход на поклон. Если бы на
+   каждый верный ответ кот прыгал, к двадцатому это стало бы помехой. */
 @keyframes m-cat-happy {
   0%, 100% { transform: none }
-  30%      { transform: translateY(-10px) scale(1.04) }
-  55%      { transform: translateY(0)     scale(.99) }
-  75%      { transform: translateY(-4px) }
+  30%      { transform: translateY(-8px) scale(1.03) }
+  55%      { transform: translateY(0)    scale(.99) }
+  75%      { transform: translateY(-3px) }
+}
+@keyframes m-cat-cheer {
+  0%, 100% { transform: none }
+  22%      { transform: translateY(-16px) scale(1.07) rotate(-3deg) }
+  48%      { transform: translateY(1px)   scale(.96) }
+  68%      { transform: translateY(-8px)  rotate(2deg) }
+  86%      { transform: translateY(0)     scale(1.01) }
 }
 @keyframes m-cat-oops {
   0%, 100% { transform: none }
-  25%      { transform: rotate(-4deg) }
-  75%      { transform: rotate(4deg) }
+  20%      { transform: translateY(2px) rotate(-4deg) }
+  60%      { transform: translateY(2px) rotate(4deg) }
+  85%      { transform: translateY(1px) rotate(-1.5deg) }
 }
-.cat-avatar.m-happy svg { animation: m-cat-happy .7s var(--ease) }
-.cat-avatar.m-oops  svg { animation: m-cat-oops  .4s var(--ease) }
+@keyframes m-cat-proud {
+  0%       { transform: none }
+  35%      { transform: translateY(-7px) scale(1.05) }
+  100%     { transform: none }
+}
+.cat-avatar.m-happy svg { animation: m-cat-happy .65s var(--ease) }
+.cat-avatar.m-cheer svg { animation: m-cat-cheer .85s var(--ease) }
+.cat-avatar.m-oops  svg { animation: m-cat-oops  .45s var(--ease) }
+.cat-avatar.m-proud svg { animation: m-cat-proud .9s  var(--ease) }
 
 /* ---------- Награда ---------- */
 /* Всплывает снизу и уходит туда же — не перекрывает содержимое рывком. */

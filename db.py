@@ -692,8 +692,14 @@ def _purge_student_rows(student_id):
     photos = conn().execute(
         "SELECT file_name FROM photo_homework WHERE student_id=?", (student_id,)).fetchall()
     for p in photos:
+        # photo_path отдаёт None, если файла уже нет; os.remove(None) — это
+        # TypeError, а не OSError, и он бы вылетел наружу пятисоткой.
+        # Так что проверяем ЯВНО, а не полагаемся на except.
+        full = photo_path(p["file_name"])
+        if not full:
+            continue
         try:
-            os.remove(photo_path(p["file_name"]))
+            os.remove(full)
         except OSError:
             pass
     conn().execute("DELETE FROM photo_homework WHERE student_id=?", (student_id,))

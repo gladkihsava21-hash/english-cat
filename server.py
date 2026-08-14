@@ -284,7 +284,7 @@ _HIT_LIMITS = {
     # считается на аккаунт, а не на весь класс с одного школьного вайфая.
     "/api/student/profile": (60, 300),
     "/api/student/name": (20, 600),
-    "/api/student/code/new": (5, 3600),
+    "/api/student/code/new": (5, 600),
     "/api/student/delete": (5, 600),
     "/api/join": (30, 600),
     "/api/student/restore": (10, 600),

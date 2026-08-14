@@ -123,6 +123,7 @@ function show(screen) {
   if (screen !== "chat" && typeof deactivateVoice === "function") deactivateVoice();
   if (screen === "test") resetTestScreen();
   if (screen === "dashboard") renderDashboard();
+  if (screen === "dashboard" && typeof renderLessonBox === "function") renderLessonBox();
   if (screen === "dictionary") renderDictionary();
   if (screen === "trainer") startTraining();
   if (screen === "practice") renderPracticeHub();

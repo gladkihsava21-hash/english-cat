@@ -1411,3 +1411,42 @@ h1, h2, h3, .section-title, .dash-head h2,
   .scope-label { display: none; }
   .train-scope { margin-bottom: var(--space-16); }
 }
+
+/* ==========================================================================
+   ВИДЕОУРОК У УЧЕНИКА
+   --------------------------------------------------------------------------
+   Стоит выше карточки «прямо сейчас»: когда репетитор позвал, живой человек
+   в комнате важнее любой тренировки. Когда урок не идёт — блок приглушён
+   и не спорит с главным действием дня.
+   ========================================================================== */
+.lesson-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-16);
+  margin-bottom: var(--space-16);
+}
+.lesson-card .cat-avatar { width: 52px; flex: none; }
+.lesson-text { flex: 1 1 auto; min-width: 0; }
+.lesson-kicker {
+  font-weight: 700;
+  color: var(--ink-soft);
+  margin: 0 0 2px;
+  font-size: var(--text-body-sm);
+}
+.lesson-note { margin: 0; color: var(--ink-soft); font-size: var(--text-body-sm); }
+.lesson-go { flex: none; text-decoration: none; }
+
+/* Урок идёт — блок выходит на первый план. Разница не только в цвете:
+   при дальтонизме подложка и обводка читаются, а оттенок нет. */
+#lesson-box.lesson-live .lesson-card {
+  background: var(--accent-soft);
+  border: var(--border-w) solid var(--accent-line);
+}
+#lesson-box.lesson-live .lesson-kicker { color: var(--accent); }
+
+@media (max-width: 600px) {
+  /* На 375px кнопка рядом с текстом оставляет тексту 90px — уводим её вниз
+     во всю ширину, это и цель нажатия крупнее. */
+  .lesson-card { flex-wrap: wrap; }
+  .lesson-go { width: 100%; text-align: center; }
+}

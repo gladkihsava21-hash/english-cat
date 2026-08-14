@@ -63,7 +63,6 @@ function accountFallback() {
     xp: state.xp || 0,
     createdAt: null,
     tutorName: localStorage.getItem("savelyTutorName") || "",
-    offline: true,
   };
 }
 
@@ -83,6 +82,24 @@ async function loadAccount() {
       return;
     }
     accountData = res.profile;
+    // Сервер здесь — источник правды. Если код перевыпустили с другого
+    // устройства (или там же сменили имя), локальная копия устарела, а её
+    // показывает окно выхода — то есть человек уходил бы, записав мёртвый
+    // код. Догоняем молча: это не событие, о котором надо сообщать.
+    let changed = false;
+    if (res.profile.restoreCode && state.restoreCode !== res.profile.restoreCode) {
+      state.restoreCode = res.profile.restoreCode;
+      changed = true;
+    }
+    if (res.profile.name && (!state.user || state.user.name !== res.profile.name)) {
+      state.user = state.user || { name: res.profile.name, email: "" };
+      state.user.name = res.profile.name;
+      changed = true;
+    }
+    if (changed) {
+      saveStateQuiet();
+      if (typeof updateChrome === "function") updateChrome();
+    }
     paintAccount();
   } catch (e) {
     // Офлайн — оставляем нарисованное по локальным данным, но говорим
@@ -99,12 +116,15 @@ function renderAccount() {
 
 /* ---------- отрисовка ---------- */
 
-/** Дата по-человечески: «12 августа 2026». */
+/** Дата по-человечески: «12 августа 2026».
+ *  Хвост «г.» убираем: он у нас всегда встаёт перед точкой предложения
+ *  и даёт «12 августа 2026 г..» — две точки подряд. */
 function acDate(iso) {
   if (!iso) return "";
   const d = new Date(iso);
   if (isNaN(d.getTime())) return "";
-  return d.toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" });
+  return d.toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" })
+          .replace(/\s*г\.?\s*$/, "");
 }
 
 function paintAccount(note) {
@@ -112,7 +132,11 @@ function paintAccount(note) {
   const lead = document.getElementById("ac-lead");
   if (!box) return;
   const p = accountData || accountFallback();
-  const online = !!(typeof studentToken === "function" && studentToken()) && !p.offline;
+  // «Есть репетитор» = есть токен. Не «сервер уже ответил»: пока ответ
+  // в пути, экран рисуется по локальным данным, и если считать это
+  // отсутствием репетитора, ученик на секунду увидит «кода нет» —
+  // а потом код появится. Мигание на таком экране читается как сбой.
+  const online = !!(typeof studentToken === "function" && studentToken());
 
   lead.textContent = note || (online
     ? "Здесь твоё имя, личный код для входа и уровень. Пароля у тебя нет — вместо него код."
@@ -134,12 +158,13 @@ function paintAccount(note) {
 /* Имя. Единственное, что ученик может испортить репетитору: в панели
    ученики стоят списком по именам, и «ыыы» вместо «Ваня» — это чужая
    потерянная минута. Поэтому подпись честно говорит, кто это увидит. */
-function acNameCard(p) {
+function acNameCard(p, online) {
   return `
     <section class="card ac-card">
       <h3 class="ac-h">${iconInline("personal", 18)} Имя</h3>
-      <p class="ac-note">Так тебя зовут на сайте — и так тебя видит репетитор
-        у себя в списке. Можно поменять в любой момент.</p>
+      <p class="ac-note">Так тебя зовут на сайте${online
+        ? " — и так тебя видит репетитор у себя в списке"
+        : ""}. Можно поменять в любой момент.</p>
       <form class="ac-row" id="ac-name-form">
         <label class="visually-hidden" for="ac-name">Твоё имя</label>
         <input type="text" id="ac-name" maxlength="40" autocomplete="off"
@@ -153,7 +178,11 @@ function acNameCard(p) {
 /* Личный код. Главная карточка экрана: это и есть «логин и пароль»,
    про которые спрашивают. */
 function acCodeCard(p, online) {
-  if (!online || !p.restoreCode) {
+  // Судим по САМОМУ КОДУ, а не по связи с сервером: код хранится и
+  // локально, и показать его в самолёте — ровно тот случай, ради
+  // которого человек сюда и зашёл. Перевыпуск без сервера не сделать,
+  // поэтому кнопки «сменить» офлайн просто нет.
+  if (!p.restoreCode) {
     return `
       <section class="card ac-card">
         <h3 class="ac-h">${iconInline("lock", 18)} Личный код</h3>
@@ -172,7 +201,7 @@ function acCodeCard(p, online) {
       <p class="ac-code"><span id="ac-code-value">${esc(p.restoreCode)}</span></p>
       <div class="ac-actions">
         <button type="button" class="btn btn-ghost btn-small" id="ac-copy">Скопировать</button>
-        <button type="button" class="btn btn-ghost btn-small" id="ac-reissue">Сменить код</button>
+        ${online ? `<button type="button" class="btn btn-ghost btn-small" id="ac-reissue">Сменить код</button>` : ""}
       </div>
       <p class="ac-warn">${iconInline("lock", 15)} Никому не показывай: у кого код — тот войдёт как ты
         и увидит твой словарь.</p>
@@ -201,15 +230,18 @@ function acCodeCard(p, online) {
 function acLevelCard(p) {
   const name = (typeof LEVEL_NAMES === "object" && LEVEL_NAMES[p.level]) || "";
   const when = acDate(p.levelSetAt);
+  // Дату знает только сервер, поэтому «не записано» говорим лишь тогда,
+  // когда он ОТВЕТИЛ и даты действительно нет. Сказать это же, пока ответ
+  // в пути или сервера нет вовсе, — соврать человеку, который прошёл тест
+  // минуту назад. Молчание тут честнее выдумки.
+  const dateLine = when ? `Определён ${esc(when)}. `
+    : (accountData ? "Когда его определили — не записано: ты проходил тест раньше, чем я научился запоминать дату. " : "");
   return `
     <section class="card ac-card">
       <h3 class="ac-h">${iconInline("target", 18)} Уровень</h3>
       ${p.level
         ? `<p class="ac-level"><b>${esc(p.level)}</b>${name ? ` <span>${esc(name)}</span>` : ""}</p>
-           <p class="ac-note">${when
-             ? `Определён ${esc(when)}.`
-             : "Когда его определили — не записано: ты проходил тест раньше, чем я научился запоминать дату."}
-             По нему я подбираю слова: не те, что ты уже знаешь, и не те, на которых сломаешься.</p>`
+           <p class="ac-note">${dateLine}По нему я подбираю слова: не те, что ты уже знаешь, и не те, на которых сломаешься.</p>`
         : `<p class="ac-level"><b>—</b></p>
            <p class="ac-note">Уровень ещё не определён. Тест — 36 слов, пара минут.</p>`}
       <button type="button" class="btn btn-ghost btn-small" data-nav="test">
@@ -240,9 +272,10 @@ function acDangerCard(p, online) {
     <section class="card ac-card ac-card-danger">
       <h3 class="ac-h">${iconInline("trash", 18)} Удалить аккаунт</h3>
       <p class="ac-note">Исчезнет всё: словарь (${esc(String(p.words))} сл.),
-        очки (${esc(String(p.xp))}), награды, домашка и присланные фото.
-        ${online ? "Репетитор перестанет видеть тебя в списке." : ""}
-        Вернуть это не сможет никто — ни я, ни репетитор.</p>
+        очки (${esc(String(p.xp))}), награды${online ? ", домашка и присланные фото" : ""}.
+        ${online
+          ? "Репетитор перестанет видеть тебя в списке. Вернуть это не сможет никто — ни я, ни репетитор."
+          : "Прогресс лежит только в этом браузере, копии нигде нет — вернуть будет нечем."}</p>
       <button type="button" class="btn btn-ghost btn-small danger-btn" id="ac-del">Удалить аккаунт</button>
 
       <div class="ac-confirm hidden" id="ac-del-box">

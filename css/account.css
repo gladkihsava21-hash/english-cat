@@ -1,0 +1,213 @@
+/* ===== Мой профиль ученика =====
+ *
+ * Экран разговорный, а не «настроечный»: ученику 10-15 лет, и таблица
+ * полей с кнопкой «Применить» ему ничего не объясняет. Поэтому каждая
+ * карточка — один вопрос («как меня зовут», «чем я вхожу», «какой у меня
+ * уровень») с подписью, зачем это нужно.
+ *
+ * Цвета — только токенами из tokens.css: ни одного шестнадцатеричного
+ * значения, иначе ночная тема разъедется. Общие .card / .btn / .ack-row /
+ * .type-feedback берём как есть — свой набор кнопок здесь был бы вторым
+ * дизайном на том же сайте.
+ */
+
+#screen-account .section-head { margin-bottom: var(--space-8); }
+
+.ac-lead {
+  color: var(--muted);
+  font-size: var(--text-body-sm);
+  line-height: var(--leading-normal);
+  margin-bottom: var(--space-24);
+  max-width: 52ch;
+}
+/* Сообщение вместо вводной строки: «сервер не ответил», «аккаунт удалён».
+   Это не украшение — по обычному серому такую строку просто не читают. */
+.ac-lead-warn {
+  color: var(--ink);
+  font-weight: 600;
+  background: var(--surface-alt);
+  border-left: 3px solid var(--accent-line);
+  border-radius: var(--radius-input);
+  padding: var(--space-12) var(--space-16);
+}
+
+.ac-card { margin-bottom: var(--space-20); }
+
+.ac-h {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  font-weight: 800;
+  font-size: var(--text-subheading);
+  margin-bottom: var(--space-8);
+}
+/* Иконка в заголовке — метка раздела, а не картинка: приглушаем,
+   чтобы она не спорила с самим заголовком. */
+.ac-h .ic-inline { color: var(--muted); }
+
+.ac-note {
+  color: var(--muted);
+  font-size: var(--text-caption);
+  line-height: var(--leading-normal);
+  max-width: 56ch;
+}
+.ac-note + .ac-note { margin-top: var(--space-8); }
+.ac-dim { opacity: .8; }
+.ac-strong {
+  font-weight: 800;
+  font-size: var(--text-body);
+  margin-bottom: var(--space-4);
+}
+
+/* Строка «имя + сохранить». На узком экране кнопка уезжает под поле,
+   а не сжимает его до трёх букв. */
+.ac-row {
+  display: flex;
+  gap: var(--space-8);
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: var(--space-16);
+}
+.ac-row input {
+  flex: 1 1 200px;
+  min-width: 0;
+  padding: 12px 14px;
+  font-size: var(--text-body-sm);
+  border: var(--border-w) solid var(--line-control);
+  border-radius: var(--radius-input);
+  background: var(--surface);
+  color: var(--ink);
+}
+.ac-row input:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.ac-row .btn { flex: 0 0 auto; }
+
+/* Личный код: тот же вид, что в окне выхода (a11y.css → .recovery-code).
+   Расхождение между двумя местами, где показан ОДИН код, читалось бы как
+   два разных кода. Моноширинный — чтобы O и 0 отличались при переписывании
+   от руки. */
+.ac-code {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: var(--text-heading-sm);
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-align: center;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border: 2px dashed var(--accent-line);
+  border-radius: var(--radius-card);
+  padding: var(--space-16) var(--space-12);
+  margin: var(--space-16) 0 var(--space-12);
+  user-select: all;               /* тап по коду выделяет его целиком */
+  overflow-wrap: anywhere;        /* на 320px код не должен уезжать за карточку */
+}
+
+.ac-actions {
+  display: flex;
+  gap: var(--space-8);
+  flex-wrap: wrap;
+  margin-top: var(--space-12);
+}
+
+.ac-warn {
+  margin-top: var(--space-12);
+  font-size: var(--text-caption);
+  line-height: var(--leading-snug);
+  color: var(--ink-soft);
+  font-weight: 600;
+}
+.ac-warn .ic-inline { color: var(--muted); }
+
+/* Разворачивающееся подтверждение: перевыпуск кода и удаление аккаунта.
+   Отдельная поверхность, чтобы было видно — это уже другое действие,
+   а не продолжение карточки. */
+.ac-confirm {
+  margin-top: var(--space-16);
+  padding: var(--space-16);
+  background: var(--surface-alt);
+  border-radius: var(--radius-card);
+  border: var(--border-w) solid var(--line-soft);
+}
+.ac-confirm.hidden { display: none; }
+.ac-confirm-head {
+  font-weight: 800;
+  font-size: var(--text-body-sm);
+  margin-bottom: var(--space-8);
+}
+.ac-confirm .ack-row { margin: var(--space-12) 0; background: var(--surface); }
+.ac-confirm .ack-row:hover { background: var(--paper); }
+
+/* Уровень крупно: это ответ на вопрос, ради которого сюда зашли. */
+.ac-level {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: var(--text-heading-sm);
+  line-height: var(--leading-tight);
+  margin-bottom: var(--space-8);
+}
+.ac-level span {
+  font-family: var(--font-ui);
+  font-size: var(--text-body-sm);
+  font-weight: 600;
+  color: var(--muted);
+}
+.ac-card .btn { margin-top: var(--space-16); }
+.ac-card .ac-actions .btn { margin-top: 0; }
+
+/* Опасная карточка. Не красная целиком — краснота на пол-экрана пугает
+   ровно того, кто просто листает профиль. Красной остаётся кнопка. */
+.ac-card-danger { border: var(--border-w) solid var(--line-soft); }
+.ac-card-danger .ac-h { color: var(--red); }
+.ac-card-danger .ac-h .ic-inline { color: var(--red); }
+
+.danger-btn { color: var(--red); border-color: var(--red); }
+.danger-btn:hover { color: var(--red); border-color: var(--red); background: var(--surface-alt); }
+/* Главная кнопка удаления заливается красным: перепутать её с «отменой»
+   нельзя. Текст — на белом фоне поверхности, контраст 4,6:1. */
+.btn-primary.danger-btn {
+  background: var(--red);
+  color: var(--surface);
+  border-color: var(--red);
+}
+.btn-primary.danger-btn:hover { background: var(--red); color: var(--surface); }
+/* Отключённая кнопка обязана читаться отключённой: пока галочка не
+   стоит, удалять и менять код нельзя. */
+.ac-confirm .btn:disabled { opacity: .45; cursor: not-allowed; }
+.ac-confirm .btn:disabled:hover { transform: none; }
+
+/* ===== Вход в раздел: кнопка «профиль» рядом с «выйти» ===== */
+#account-btn { white-space: nowrap; }
+
+/* Шапка не помещалась в строку ещё ДО этой кнопки. Замер на 1280px:
+   103px уезжало за правый край экрана — «выйти» приходилось доставать
+   горизонтальной прокруткой страницы. Кнопка «профиль» добавляет ещё 76.
+   Лечим тем же средством, каким в savely.css вылечена «планшетная дыра»
+   на 900px, — разрешаем шапке переноситься. Перенос срабатывает только
+   тогда, когда строка действительно не влезает: на широком мониторе
+   шапка остаётся однорядной, там ничего не меняется. */
+.topbar-inner { flex-wrap: wrap; row-gap: var(--space-8); }
+/* На втором ряду блок с именем должен остаться справа, как и был:
+   слева под маркой он читается как отдельный, ничей элемент. */
+.user-chip { min-width: 0; margin-left: auto; }
+
+/* Плюс само имя: в нём может быть все 40 знаков, и одно такое имя
+   распирает шапку сильнее, чем все кнопки вместе. В шапке хватает того,
+   чтобы узнать себя, — полностью имя видно в профиле, там же его меняют.
+   На узком экране имя прячет a11y.css, этой строке он не мешает. */
+.user-chip #user-name-chip {
+  max-width: 14ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 600px) {
+  /* В шапке на 375px помещаются имя, «профиль» и «выйти» — но только
+     если имя ужать. Полное имя всё равно видно в самом профиле. */
+  .user-chip #user-name-chip { max-width: 6ch; }
+  .ac-code { font-size: var(--text-subheading); }
+  .ac-h { font-size: var(--text-body); }
+  /* Кнопки подтверждения на телефоне — в столбик и во всю ширину:
+     рядом они дают цели по 44px впритык, и промах здесь стоит аккаунта. */
+  .ac-confirm .ac-actions { flex-direction: column-reverse; align-items: stretch; }
+  .ac-confirm .ac-actions .btn { width: 100%; }
+}

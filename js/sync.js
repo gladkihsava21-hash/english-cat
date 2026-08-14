@@ -189,6 +189,7 @@ async function pushProgress() {
     const res = await api("/api/student/sync", { token, state: snapshot() });
     syncFailed = false;
     if (res.ok && Array.isArray(res.homework)) applyHomework(res.homework);
+    if (res.ok && res.lesson) applyLesson(res.lesson);
     if (res.ok && Array.isArray(res.messages)) {
       const changed = JSON.stringify(state.messages) !== JSON.stringify(res.messages);
       state.messages = res.messages;
@@ -409,3 +410,46 @@ window.addEventListener("online", async () => {
     pushProgress();
   }
 });
+
+
+/* ===== Видеоурок у ученика =====
+ * Комнату держит репетитор — мы только доносим её и говорим, идёт ли
+ * занятие прямо сейчас. Причина, почему не своё видео, расписана
+ * в db.py у LESSON_OPEN_MINUTES: на старшем тарифе оно стоило бы вдвое
+ * дороже подписки.
+ */
+function applyLesson(lesson) {
+  const changed = JSON.stringify(state.lesson) !== JSON.stringify(lesson);
+  state.lesson = lesson;
+  if (changed) {
+    saveStateQuiet();
+    renderLessonBox();
+  }
+}
+
+function renderLessonBox() {
+  const box = document.getElementById("lesson-box");
+  if (!box) return;
+  const l = state.lesson || {};
+  // Нет ссылки — блока нет вовсе. Кнопка «на урок», ведущая в никуда,
+  // хуже отсутствия кнопки: по ней жмут и упираются в ошибку.
+  if (!l.url) { box.classList.add("hidden"); box.innerHTML = ""; return; }
+  box.classList.remove("hidden");
+  box.classList.toggle("lesson-live", !!l.live);
+  const tutorName = localStorage.getItem("savelyTutorName") || "репетитор";
+  box.innerHTML = `
+    <div class="card lesson-card">
+      <div class="cat-avatar cat-small" data-cat="${l.live ? "happy" : "hello"}"></div>
+      <div class="lesson-text">
+        <p class="lesson-kicker">${l.live
+          ? iconInline("mic", 15) + " Урок идёт сейчас"
+          : iconInline("clock", 15) + " Видеоурок"}</p>
+        <p class="lesson-note">${l.live
+          ? esc(tutorName) + " ждёт тебя в комнате."
+          : "Комната открыта постоянно — заходи, когда договорились."}</p>
+      </div>
+      <a class="btn ${l.live ? "btn-primary" : "btn-ghost"} lesson-go"
+         href="${esc(l.url)}" target="_blank" rel="noopener noreferrer">На урок</a>
+    </div>`;
+  if (typeof paintCats === "function") paintCats(box);
+}
