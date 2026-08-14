@@ -87,6 +87,14 @@ function adoptServerState(srv) {
   // списка нет старшинства, а потерять папку при переезде — это ровно та
   // беда, ради которой выход и переделывали.
   state.folders = [...new Set([...(state.folders || []), ...(srv.folders || [])])];
+  // Выбор папок для тренировки, наоборот, НЕ объединяем: это текущее
+  // намерение («сегодня учу только к контрольной»), а не накопленное
+  // добро. Объединение двух устройств тут дало бы набор, которого
+  // человек не выбирал ни на одном из них. Берём серверный, только
+  // если здесь ничего не выбрано.
+  if (!(state.trainFolders || []).length && (srv.trainFolders || []).length) {
+    state.trainFolders = srv.trainFolders;
+  }
   // слова с сервера дополняем локальными, не теряя ни те, ни другие
   const byWord = new Map((srv.dictionary || []).map(d => [d.w.toLowerCase(), d]));
   (state.dictionary || []).forEach(d => byWord.set(d.w.toLowerCase(), d));
@@ -165,6 +173,7 @@ function snapshot() {
     // Список папок отдельно: иначе пустая папка нигде не хранится и
     // при переезде исчезает, а завести её заранее — половина смысла.
     folders: state.folders || [],
+    trainFolders: state.trainFolders || [],
     homeworkDone: state.homeworkDone || [],
     activity: state.activity,
   };

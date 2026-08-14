@@ -1381,3 +1381,33 @@ h1, h2, h3, .section-title, .dash-head h2,
   border-color: var(--accent-fill);
 }
 .sticker.got-lavender .ic { color: var(--on-accent-fill); }
+
+/* ==========================================================================
+   «ЧТО ТРЕНИРУЕМ» — ВЫБОР ПАПОК НАД СПИСКОМ УПРАЖНЕНИЙ
+   --------------------------------------------------------------------------
+   Стоит выше упражнений, потому что отвечает на более ранний вопрос: не
+   «как тренировать», а «что». Появляется, только когда папки заведены —
+   ряд с единственной кнопкой «весь словарь» это подпись к отсутствию
+   выбора.
+   ========================================================================== */
+.train-scope {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-8);
+  margin-bottom: var(--space-20);
+  padding-bottom: var(--space-16);
+  border-bottom: var(--border-w) solid var(--line-soft);
+}
+.train-scope.hidden { display: none; }
+.scope-label {
+  color: var(--ink-soft);
+  font-size: var(--text-body-sm);
+  margin-right: var(--space-4);
+}
+.scope-chip b { margin-left: 4px; font-weight: 700; opacity: .7; }
+@media (max-width: 600px) {
+  /* На 375px подпись съедает строку, а смысл её и так виден по месту */
+  .scope-label { display: none; }
+  .train-scope { margin-bottom: var(--space-16); }
+}

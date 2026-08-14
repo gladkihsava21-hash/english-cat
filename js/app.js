@@ -26,6 +26,10 @@ function loadState() {
   st.modesTried = st.modesTried || [];
   st.leaderboard = st.leaderboard || [];
   st.folders = st.folders || [];     // папки словаря; пустая папка живёт здесь
+  // Какие папки идут в тренировку. Пустой массив = весь словарь.
+  // Лежит в состоянии, а не в переменной модуля: выбор должен пережить
+  // перезагрузку страницы и переезд на другое устройство.
+  st.trainFolders = st.trainFolders || [];
   // словам из старых версий добавляем поля интервального повторения
   if (typeof srsInit === "function") st.dictionary.forEach(srsInit);
   return st;

@@ -53,12 +53,37 @@ function shuffled(arr) {
 
 // пул для тренировки: словарь (приоритет — слова с ошибками) + добор до n из уровня.
 // need — обязательные поля (def/cat/exr): слова без них отфильтровываются.
+/* Какие папки идут в тренировку. Пустой набор — весь словарь.
+ *
+ * Живёт в state (а не в переменной модуля), потому что выбор должен
+ * пережить перезагрузку: ученик отметил «сегодня только к контрольной»
+ * и ушёл заваривать чай — вернувшись, он ждёт того же набора, а не всего
+ * словаря. По той же причине уезжает на сервер вместе с остальным. */
+function trainingFolders() {
+  const all = typeof allFolders === "function" ? allFolders() : [];
+  // Папку могли удалить после того, как её выбрали для тренировки
+  return (state.trainFolders || []).filter(f => all.includes(f));
+}
+
+function isTrainingWholeDict() {
+  return trainingFolders().length === 0;
+}
+
+/** Слова, из которых собирается тренировка: либо весь словарь, либо
+ *  только выбранные папки. */
+function trainingDictionary() {
+  const picked = trainingFolders();
+  if (!picked.length) return state.dictionary;
+  return state.dictionary.filter(d => (d.folders || []).some(f => picked.includes(f)));
+}
+
 function trainPool(n, need = []) {
   const has = rec => rec && need.every(f => rec[f]);
+  const source = trainingDictionary();
   // порядок задаёт SRS: сначала то, что пора повторить
   const ordered = typeof srsQueue === "function"
-    ? srsQueue(state.dictionary, state.dictionary.length)
-    : state.dictionary;
+    ? srsQueue(source, source.length)
+    : source;
   const fromDict = ordered
     .map(d => {
       const base = wordInfo(d.w) || {};
@@ -66,7 +91,11 @@ function trainPool(n, need = []) {
     })
     .filter(has);
   const picked = fromDict.slice(0, n);
-  if (picked.length < n) {
+  // Добор словами уровня — ТОЛЬКО когда тренируем весь словарь. Если ученик
+  // выбрал «к контрольной», подсунуть ему туда посторонние слова значит
+  // молча отменить его выбор: он просил конкретные слова, а не «примерно
+  // столько же слов». Пусть лучше тренировка будет короче.
+  if (picked.length < n && isTrainingWholeDict()) {
     const inPool = new Set(picked.map(p => p.w.toLowerCase()));
     const lvl = state.level || "A1";
     const nextLvl = LEVELS[Math.min(LEVELS.indexOf(lvl) + 1, LEVELS.length - 1)];
@@ -147,12 +176,58 @@ const EXERCISES = [
 
 let currentExId = null;
 
+/** Ряд «что тренируем»: весь словарь или выбранные папки.
+ *  Стоит над списком упражнений, потому что отвечает на вопрос, который
+ *  задаётся раньше выбора упражнения: не «как тренировать», а «что». */
+function renderTrainScope() {
+  const box = document.getElementById("train-scope");
+  if (!box) return;
+  const names = typeof allFolders === "function" ? allFolders() : [];
+  // Ряд нужен, только когда есть из чего выбирать
+  box.classList.toggle("hidden", !names.length);
+  if (!names.length) return;
+
+  const picked = trainingFolders();
+  const count = n => state.dictionary.filter(d => (d.folders || []).includes(n)).length;
+  box.innerHTML =
+    `<span class="scope-label">Тренируем:</span>`
+    + `<button class="chip scope-chip${picked.length ? "" : " active"}" type="button"
+               data-scope="">весь словарь <b>${state.dictionary.length}</b></button>`
+    + names.map(n => `
+        <button class="chip scope-chip${picked.includes(n) ? " active" : ""}" type="button"
+                data-scope="${esc(n)}" aria-pressed="${picked.includes(n)}">
+          ${esc(n)} <b>${count(n)}</b></button>`).join("");
+
+  box.querySelectorAll("[data-scope]").forEach(b => {
+    b.addEventListener("click", () => {
+      const name = b.dataset.scope;
+      if (!name) {
+        state.trainFolders = [];            // «весь словарь» снимает всё
+      } else {
+        // Папки складываются: можно тренировать две сразу.
+        const cur = new Set(trainingFolders());
+        cur.has(name) ? cur.delete(name) : cur.add(name);
+        state.trainFolders = [...cur];
+      }
+      saveState();
+      renderPracticeHub();
+    });
+  });
+}
+
 function renderPracticeHub() {
   const host = document.getElementById("practice-grid");
+  renderTrainScope();
+  const picked = trainingFolders();
+  const inScope = trainingDictionary().length;
   document.getElementById("practice-pool-note").textContent =
-    state.dictionary.length
-      ? `Тренируем твой словарь (${state.dictionary.length} слов) + слова уровня ${state.level}`
-      : `Словарь пуст — тренируем слова уровня ${state.level}`;
+    picked.length
+      ? (inScope
+          ? `Только из ${picked.length === 1 ? "папки" : "папок"} «${picked.join("», «")}» — ${inScope} ${wordsWord(inScope)}`
+          : `В ${picked.length === 1 ? "выбранной папке" : "выбранных папках"} пока нет слов — добавь их в словаре`)
+      : state.dictionary.length
+        ? `Тренируем твой словарь (${state.dictionary.length} слов) + слова уровня ${state.level}`
+        : `Словарь пуст — тренируем слова уровня ${state.level}`;
   host.innerHTML = "";
   EX_GROUPS.forEach(g => {
     const list = EXERCISES.filter(ex => ex.group === g.id && !(ex.audio && !TTS_OK));
@@ -193,6 +268,34 @@ function openExercise(id) {
       <h2><span class="ex-title-icon">${icon(ex.icon, 22)}</span> ${ex.name}</h2>
     </div>
     <div id="ex-stage"></div>`;
+
+  // Заслон на входе, а не в каждом упражнении по отдельности.
+  // Пустой пул возможен ровно в одном случае — выбрана папка, в которой
+  // ещё нет слов; раньше «Блиц» на этом падал с чтением поля у undefined,
+  // а остальные девятнадцать рисовали пустой экран без объяснения.
+  // Чинить это внутри каждого — двадцать одинаковых заплаток и двадцать
+  // шансов забыть про новое упражнение.
+  if (!isTrainingWholeDict() && !trainingDictionary().length) {
+    const names = trainingFolders();
+    stage().innerHTML = `
+      <div class="empty-state">
+        <div class="cat-avatar cat-mid" data-cat="sleep"></div>
+        <h2>Тренировать нечего</h2>
+        <p>В ${names.length === 1 ? "папке" : "папках"} «${esc(names.join("», «"))}»
+           пока нет слов. Добавь их в словаре — или вернись ко всему словарю.</p>
+        <div class="quiz-buttons">
+          <button class="btn btn-ghost" data-nav="dictionary">В словарь</button>
+          <button class="btn btn-primary" id="ex-all-words">Тренировать весь словарь</button>
+        </div>
+      </div>`;
+    if (typeof paintCats === "function") paintCats(stage());
+    document.getElementById("ex-all-words").addEventListener("click", () => {
+      state.trainFolders = [];
+      saveState();
+      openExercise(id);
+    });
+    return;
+  }
   EX_RUNNERS[id]();
 }
 

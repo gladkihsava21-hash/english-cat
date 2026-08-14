@@ -159,6 +159,18 @@ MIGRATIONS = [
     # Список папок словаря. Отдельно от слов, потому что папка может
     # быть ПУСТОЙ: её заводят под задачу и только потом наполняют.
     ("students", "folders", "TEXT DEFAULT '[]'"),
+    # Какие папки ученик выбрал для тренировки. Пустой массив = весь
+    # словарь. Ездит с состоянием, чтобы выбор пережил переезд.
+    ("students", "train_folders", "TEXT DEFAULT '[]'"),
+    # Когда определён уровень. В профиле ученик видит не только «B1», но и
+    # дату: уровень полугодовой давности — это уже характеристика не его,
+    # а того, кем он был, и повод пройти тест заново. Без даты «B1»
+    # выглядит вечным приговором.
+    ("students", "level_set_at", "TEXT"),
+    # Когда ученик сам перевыпустил личный код. Нужно ровно для одного
+    # разговора: «код не подходит» — «ты менял его тогда-то, работает новый».
+    # Без даты это неотличимо от поломки сайта.
+    ("students", "code_changed_at", "TEXT"),
 ]
 
 
@@ -403,6 +415,78 @@ def create_student(tutor_id, name):
     return get_student_by_id(cur.lastrowid)
 
 
+def student_name_problem(name):
+    """Что не так с именем ученика. Возвращает текст ошибки или None.
+
+    Отдельной функцией, потому что имя теперь вводят в двух местах: при
+    входе по ссылке и в профиле. Правила обязаны совпадать, иначе ученик
+    зарегистрируется с именем, которое ему же нельзя будет сохранить.
+    """
+    clean = str(name or "").strip()
+    if len(clean) < 2:
+        # экран УЧЕНИКА — на «ты», как везде у него
+        return "Напиши имя — хотя бы две буквы. Можно просто «Ваня»."
+    if len(clean) > 40:
+        # Молча обрезать нельзя: человек уйдёт с экрана в уверенности, что
+        # сохранилось то, что он набрал, а репетитор увидит огрызок.
+        return "Слишком длинное имя — до 40 знаков."
+    return None
+
+
+def set_student_name(student_id, name):
+    """Смена имени. Владельца проверяет вызывающий: сюда доходит только
+    свой id, добытый по токену."""
+    conn().execute("UPDATE students SET name=? WHERE id=?",
+                   (str(name).strip()[:40], student_id))
+    conn().commit()
+    return get_student_by_id(student_id)
+
+
+def reissue_restore_code(student_id):
+    """Новый личный код взамен старого.
+
+    Старый перестаёт работать в ту же секунду — в этом весь смысл: код
+    подсмотрел одноклассник, и войти по нему больше нельзя.
+
+    Токен при этом НЕ трогаем. Устройство, с которого нажали кнопку,
+    обязано остаться в аккаунте: иначе ученик выкидывает сам себя и
+    попадает на экран входа с кодом, которого ещё не успел записать.
+    """
+    code = new_restore_code()
+    while conn().execute("SELECT 1 FROM students WHERE restore_code=? AND id<>?",
+                         (code, student_id)).fetchone():
+        code = new_restore_code()
+    conn().execute("UPDATE students SET restore_code=?, code_changed_at=? WHERE id=?",
+                   (code, now(), student_id))
+    conn().commit()
+    return code
+
+
+def student_profile(row):
+    """Личный кабинет ученика: то, чем он управляет сам.
+
+    Почты и пароля у ученика нет — вход по личному коду, и код здесь
+    ровно то же, чем у взрослых бывает пара «логин + пароль».
+
+    Имя репетитора отдаём, адрес — нет: ученику он не нужен, а утечка
+    адреса из детского кабинета — это утечка адреса.
+    """
+    keys = row.keys()
+    tutor = get_tutor_by_id(row["tutor_id"])
+    return {
+        "name": row["name"],
+        "restoreCode": (row["restore_code"] if "restore_code" in keys else "") or "",
+        "codeChangedAt": row["code_changed_at"] if "code_changed_at" in keys else None,
+        "level": row["level"] or "",
+        "levelSetAt": row["level_set_at"] if "level_set_at" in keys else None,
+        "vocab": row["vocab"] or 0,
+        "words": len(json.loads(row["dictionary"] or "[]")),
+        "xp": row["xp"] or 0,
+        "createdAt": row["created_at"],
+        "tutorName": tutor["name"] if tutor else "",
+    }
+
+
 def get_student_by_restore_code(code):
     if not code:
         return None
@@ -500,6 +584,13 @@ def sync_student(token, state):
     if not clean_folders and prev_folders:
         clean_folders = prev_folders
 
+    # Выбор папок для тренировки. Здесь пустой список — ЗНАЧИМОЕ значение
+    # («тренирую весь словарь»), а не признак сбоя, поэтому в отличие от
+    # списка папок его принимаем как есть.
+    train = state.get("trainFolders")
+    clean_train = [str(f)[:30] for f in (train or [])
+                   if isinstance(f, str) and f.strip()][:50]
+
     clean_activity = {}
     # берём ПОСЛЕДНИЕ дни: срез сначала выбрасывал бы свежую активность
     # и обнулял «очки за неделю» в панели репетитора
@@ -519,11 +610,21 @@ def sync_student(token, state):
     new_blitz = max(_as_int(state.get("blitzBest"), 0, 0, 100000), row["blitz_best"] or 0)
     new_vocab = _as_int(state.get("vocabEstimate"), 0, 0, 100000) or (row["vocab"] or 0)
     new_level = str(state.get("level") or "")[:4] or row["level"]
+    # Дата определения уровня. Ставим ТОЛЬКО в момент смены: снимок
+    # прилетает каждые три секунды, и «дата последней синхронизации»
+    # означала бы в профиле вечное «уровень определён сегодня».
+    # У тех, кто проходил тест до появления колонки, останется пусто —
+    # профиль честно скажет, что даты нет, а не выдумает её.
+    level_at = row["level_set_at"] if "level_set_at" in row.keys() else None
+    if new_level and new_level != (row["level"] or ""):
+        level_at = now()
     conn().execute(
-        "UPDATE students SET level=?, vocab=?, xp=?, streak=?, blitz_best=?,"
-        " dictionary=?, activity=?, achievements=?, goal=?, folders=?, last_seen=? WHERE id=?",
+        "UPDATE students SET level=?, level_set_at=?, vocab=?, xp=?, streak=?, blitz_best=?,"
+        " dictionary=?, activity=?, achievements=?, goal=?, folders=?,"
+        " train_folders=?, last_seen=? WHERE id=?",
         (
             new_level,
+            level_at,
             new_vocab,
             new_xp,
             _as_int(state.get("streak"), 0, 0, 3650),
@@ -533,6 +634,7 @@ def sync_student(token, state):
             json.dumps([str(a)[:40] for a in achievements[:100]], ensure_ascii=False),
             _as_int(state.get("goal"), 50, 10, 500),
             json.dumps(clean_folders, ensure_ascii=False),
+            json.dumps(clean_train, ensure_ascii=False),
             now(),
             row["id"],
         ),
@@ -556,6 +658,7 @@ def student_state(row):
         "activity": json.loads(row["activity"] or "{}"),
         "achievements": json.loads((row["achievements"] if "achievements" in row.keys() else "[]") or "[]"),
         "folders": json.loads((row["folders"] if "folders" in keys else "[]") or "[]"),
+        "trainFolders": json.loads((row["train_folders"] if "train_folders" in keys else "[]") or "[]"),
     }
 
 
@@ -565,12 +668,53 @@ def set_student_note(tutor_id, student_id, note):
     conn().commit()
 
 
+def _purge_student_rows(student_id):
+    """Всё, что ссылается на ученика, — перед удалением его самого.
+
+    Не «на всякий случай»: foreign_keys=ON, и DELETE FROM students падает
+    с IntegrityError, пока на строку ссылается хоть одно фото, личное
+    сообщение или домашка. Раньше здесь чистилась только домашка, поэтому
+    удаление ученика, которому репетитор писал лично или который присылал
+    фото, отваливалось пятисоткой.
+
+    Файлы фотографий убираем с диска: удалили аккаунт — значит, тетрадей
+    этого ребёнка на сервере больше нет. Ошибку игнорируем осознанно —
+    отсутствующий файл означает, что удалять уже нечего.
+    """
+    photos = conn().execute(
+        "SELECT file_name FROM photo_homework WHERE student_id=?", (student_id,)).fetchall()
+    for p in photos:
+        try:
+            os.remove(photo_path(p["file_name"]))
+        except OSError:
+            pass
+    conn().execute("DELETE FROM photo_homework WHERE student_id=?", (student_id,))
+    conn().execute("DELETE FROM notes_to_students WHERE student_id=?", (student_id,))
+    conn().execute("DELETE FROM homework WHERE student_id=?", (student_id,))
+
+
 def delete_student(tutor_id, student_id):
-    # tutor_id обязателен в обоих запросах: без него чужой репетитор
-    # мог бы удалить домашку учеников, которые ему не принадлежат
-    conn().execute("DELETE FROM homework WHERE student_id=? AND tutor_id=?",
-                   (student_id, tutor_id))
-    conn().execute("DELETE FROM students WHERE id=? AND tutor_id=?", (student_id, tutor_id))
+    # Владельца проверяем ОТДЕЛЬНО и заранее: чистка связанных строк идёт
+    # по одному student_id, и без этой проверки чужой репетитор стёр бы
+    # фото и домашку ученика, который ему не принадлежит.
+    row = get_student_by_id(student_id)
+    if not row or row["tutor_id"] != tutor_id:
+        return False
+    _purge_student_rows(student_id)
+    conn().execute("DELETE FROM students WHERE id=?", (student_id,))
+    conn().commit()
+    return True
+
+
+def delete_student_account(student_id):
+    """Ученик удаляет себя сам, из своего профиля.
+
+    Владелец проверен вызывающим: сюда доходит только тот id, который
+    сервер достал по токену из запроса. Репетитор здесь ни при чём —
+    это аккаунт ученика, и уйти он вправе без разрешения.
+    """
+    _purge_student_rows(student_id)
+    conn().execute("DELETE FROM students WHERE id=?", (student_id,))
     conn().commit()
 
 
