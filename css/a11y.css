@@ -1475,3 +1475,67 @@ h1, h2, h3, .section-title, .dash-head h2,
   cursor: default;
 }
 .scr-tile.used { opacity: .35; cursor: not-allowed; }
+
+/* ==========================================================================
+   ВЫБОР ВЫРАЖЕНИЙ
+   --------------------------------------------------------------------------
+   Список длинный и добавляют из него пачкой, поэтому строка сделана целиком
+   кнопкой: попасть пальцем в плюсик 16px на телефоне нельзя, а промах здесь
+   стоит лишнего слова в словаре.
+   ========================================================================== */
+.phrase-add-row { margin-top: var(--space-12); }
+.modal-wide .modal-card, #phrases-modal .modal-card { max-width: 560px; }
+#phrases-modal {
+  position: fixed; inset: 0;
+  background: color-mix(in srgb, var(--ink) 55%, transparent);
+  display: grid; place-items: center;
+  padding: var(--space-20); z-index: 60;
+}
+#phrases-modal.hidden { display: none; }
+#phrases-modal .modal-card {
+  background: var(--surface);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-lift);
+  padding: var(--space-24);
+  width: 100%;
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+}
+#phrases-modal h3 { font-weight: 800; font-size: var(--text-subheading); margin-bottom: var(--space-8); }
+.phrase-list {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  margin: var(--space-12) 0;
+  min-height: 120px;
+}
+.phrase-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  width: 100%;
+  min-height: 48px;
+  padding: var(--space-8) var(--space-12);
+  margin-bottom: var(--space-4);
+  background: var(--surface-alt);
+  border: var(--border-w) solid transparent;
+  border-radius: var(--radius-input);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.phrase-row:hover { border-color: var(--accent-line); }
+.phrase-row.added { background: var(--accent-soft); border-color: var(--accent-line); }
+.phrase-en { font-weight: 700; color: var(--ink); flex: 0 0 40%; }
+.phrase-ru { color: var(--ink-soft); flex: 1 1 auto; min-width: 0; }
+.phrase-mark {
+  flex: none; width: 24px; text-align: center;
+  color: var(--ink-soft); font-weight: 700;
+}
+.phrase-row.added .phrase-mark { color: var(--accent); }
+@media (max-width: 600px) {
+  /* На 375px в строку не помещаются оба языка — перевод уходит вниз */
+  .phrase-row { flex-wrap: wrap; }
+  .phrase-en { flex: 1 1 auto; }
+  .phrase-ru { flex: 1 0 100%; font-size: var(--text-body-sm); }
+}

@@ -7,13 +7,13 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/tokens.css?v=93">
-  <link rel="stylesheet" href="css/style.css?v=93">
-  <link rel="stylesheet" href="css/savely.css?v=93">
-  <link rel="stylesheet" href="css/motion.css?v=93">
-<link rel="stylesheet" href="css/a11y.css?v=93">
-  <link rel="stylesheet" href="css/cat.css?v=93">
-  <link rel="stylesheet" href="css/account.css?v=93">
+  <link rel="stylesheet" href="css/tokens.css?v=94">
+  <link rel="stylesheet" href="css/style.css?v=94">
+  <link rel="stylesheet" href="css/savely.css?v=94">
+  <link rel="stylesheet" href="css/motion.css?v=94">
+<link rel="stylesheet" href="css/a11y.css?v=94">
+  <link rel="stylesheet" href="css/cat.css?v=94">
+  <link rel="stylesheet" href="css/account.css?v=94">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#F6F5F0">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -262,6 +262,14 @@
              выбирать между «учу» и «Неправильные глаголы», хотя это
              не альтернативы. -->
         <div class="dict-folders" id="dict-folders" role="group" aria-label="Папки"></div>
+
+        <!-- Выражения добавляются пачкой и сразу в свою папку: по одному
+             их набирать бессмысленно, а свалить в общий список — потерять.
+             Фразовый глагол и обычное слово тренируются по-разному. -->
+        <div class="phrase-add-row">
+          <button class="chip chip-add" type="button" id="phrases-open">
+            + Фразовые глаголы, идиомы, сочетания</button>
+        </div>
       </div>
 
       <!-- Пустое состояние = что здесь будет + один выход. Раньше была одна
@@ -442,6 +450,19 @@
      сплошь и рядом общее — планшет на двоих, компьютер в классе. Прогресс
      при этом лежит на сервере: терялась не работа, а возможность вернуться,
      потому что личный код никто не записывал. -->
+<div id="phrases-modal" class="modal hidden">
+  <div class="modal-card modal-wide">
+    <h3>Выражения</h3>
+    <p class="reset-note">Выбери, что добавить в словарь. Каждый тип ляжет
+      в свою папку — их можно будет тренировать отдельно.</p>
+    <div class="dict-filters" id="phrase-kinds"></div>
+    <div class="phrase-list" id="phrase-list"></div>
+    <div class="quiz-buttons">
+      <button type="button" class="btn btn-ghost" id="phrases-close">Готово</button>
+    </div>
+  </div>
+</div>
+
 <div id="folder-modal" class="modal hidden">
   <div class="modal-card">
     <h3 id="folder-modal-title">В какую папку?</h3>
@@ -497,25 +518,25 @@
     <a href="https://t.me/KOTSAVELII" target="_blank" rel="noopener">@KOTSAVELII</a></p>
 </footer>
 
-<script src="js/theme.js?v=93"></script>
-<script src="js/icons.js?v=93"></script>
-<script src="js/cat.js?v=93"></script>
-<script src="js/motion.js?v=93"></script>
-<script src="js/util.js?v=93"></script>
-<script src="js/words.js?v=93"></script>
-<script src="js/phrases.js?v=93"></script>
-<script src="js/srs.js?v=93"></script>
-<script src="js/images.js?v=93"></script>
-<script src="js/word-photos.js?v=93"></script>
-<script src="js/app.js?v=93"></script>
-<script src="js/achievements.js?v=93"></script>
-<script src="js/exercises.js?v=93"></script>
-<script src="js/voice.js?v=93"></script>
-<script src="js/sync.js?v=93"></script>
-  <script src="js/reading.js?v=93"></script>
-  <script src="js/photo.js?v=93"></script>
+<script src="js/theme.js?v=94"></script>
+<script src="js/icons.js?v=94"></script>
+<script src="js/cat.js?v=94"></script>
+<script src="js/motion.js?v=94"></script>
+<script src="js/util.js?v=94"></script>
+<script src="js/words.js?v=94"></script>
+<script src="js/phrases.js?v=94"></script>
+<script src="js/srs.js?v=94"></script>
+<script src="js/images.js?v=94"></script>
+<script src="js/word-photos.js?v=94"></script>
+<script src="js/app.js?v=94"></script>
+<script src="js/achievements.js?v=94"></script>
+<script src="js/exercises.js?v=94"></script>
+<script src="js/voice.js?v=94"></script>
+<script src="js/sync.js?v=94"></script>
+  <script src="js/reading.js?v=94"></script>
+  <script src="js/photo.js?v=94"></script>
   <!-- После sync.js: профиль ходит на сервер через api() оттуда -->
-  <script src="js/account.js?v=93"></script>
+  <script src="js/account.js?v=94"></script>
 <script>
   // офлайн-режим: сайт открывается без интернета и ставится на телефон
   if ("serviceWorker" in navigator && location.protocol !== "file:") {

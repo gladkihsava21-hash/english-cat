@@ -1598,3 +1598,97 @@ if (state.user && state.level) {
 } else {
   show("welcome");
 }
+
+/* ===== Выражения в словарь =====
+ * Фразовые глаголы, идиомы и сочетания попадают в словарь пачкой и сразу
+ * в свою папку. По одному их набирать бессмысленно, а свалить в общий
+ * список — потерять: фразовый глагол и обычное слово тренируются
+ * по-разному, и разделить их потом можно только руками.
+ *
+ * Имя папки задаётся типом, а не пользователем: это не его тема
+ * («к контрольной»), а свойство самого материала. Ученик всё равно может
+ * положить фразу и в свою папку сверху — папки складываются.
+ */
+const PHRASE_KINDS = [
+  { id: "phrasal", folder: "Фразовые глаголы", title: "Фразовые глаголы" },
+  { id: "idioms",  folder: "Идиомы",           title: "Идиомы" },
+  { id: "colloc",  folder: "Сочетания",        title: "Сочетания" },
+];
+
+let phraseKind = "phrasal";
+
+function phraseListFor(kind) {
+  if (typeof PHRASES === "undefined") return [];
+  const all = PHRASES[kind] || [];
+  // Показываем уровень ученика и соседний снизу: выражение сложнее своего
+  // уровня не учится, а разбивается о непонимание частей.
+  const idx = LEVELS.indexOf(state.level || "A1");
+  const near = new Set([LEVELS[Math.max(0, idx - 1)], state.level || "A1",
+                        LEVELS[Math.min(LEVELS.length - 1, idx + 1)]]);
+  const fit = all.filter(x => near.has(x.level));
+  return (fit.length >= 10 ? fit : all).slice(0, 120);
+}
+
+function renderPhrasePicker() {
+  const kindsBox = document.getElementById("phrase-kinds");
+  const listBox = document.getElementById("phrase-list");
+  if (!kindsBox || !listBox) return;
+
+  kindsBox.innerHTML = PHRASE_KINDS.map(k =>
+    `<button class="chip dict-filter${k.id === phraseKind ? " active" : ""}"
+             type="button" data-kind="${k.id}">${k.title}</button>`).join("");
+  kindsBox.querySelectorAll("[data-kind]").forEach(b => {
+    b.addEventListener("click", () => { phraseKind = b.dataset.kind; renderPhrasePicker(); });
+  });
+
+  const have = new Set(state.dictionary.map(d => d.w.toLowerCase()));
+  const list = phraseListFor(phraseKind);
+  listBox.innerHTML = list.length
+    ? list.map(p => {
+        const added = have.has(p.w.toLowerCase());
+        return `<button class="phrase-row${added ? " added" : ""}" type="button"
+                        data-w="${esc(p.w)}" ${added ? "aria-pressed=\"true\"" : ""}>
+          <span class="phrase-en">${esc(p.w)}</span>
+          <span class="phrase-ru">${esc(p.t)}</span>
+          <span class="phrase-mark">${added ? icon("check", 18) : "+"}</span>
+        </button>`;
+      }).join("")
+    : `<p class="muted-small">Для твоего уровня выражений пока нет.</p>`;
+
+  listBox.querySelectorAll("[data-w]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const rec = (PHRASES[phraseKind] || []).find(x => x.w === btn.dataset.w);
+      if (!rec) return;
+      const kind = PHRASE_KINDS.find(k => k.id === phraseKind);
+      const existing = state.dictionary.find(d => d.w.toLowerCase() === rec.w.toLowerCase());
+      if (existing) {
+        // Повторное нажатие убирает — иначе случайное касание не отменить
+        state.dictionary = state.dictionary.filter(d => d !== existing);
+      } else {
+        createFolder(kind.folder);
+        const entry = { w: rec.w, t: rec.t, ex: rec.ex, exr: rec.exr, def: rec.def,
+                        cat: rec.cat, level: rec.level, kind: rec.kind,
+                        literal: rec.literal, parts: rec.parts,
+                        status: "new", knew: 0, forgot: 0, folders: [kind.folder] };
+        if (typeof srsInit === "function") srsInit(entry);
+        state.dictionary.push(entry);
+      }
+      saveState();
+      renderPhrasePicker();
+    });
+  });
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  const open = document.getElementById("phrases-open");
+  const close = document.getElementById("phrases-close");
+  if (!open) return;
+  open.addEventListener("click", () => {
+    document.getElementById("phrases-modal").classList.remove("hidden");
+    renderPhrasePicker();
+  });
+  close.addEventListener("click", () => {
+    document.getElementById("phrases-modal").classList.add("hidden");
+    renderDictionary();
+  });
+});
