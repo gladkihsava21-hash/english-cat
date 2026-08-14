@@ -94,8 +94,16 @@ for f in backup.sh restore.sh; do
 done
 echo "    $HOME/savely-backup.sh"
 
-rm -rf "$DEST/.git" "$DEST/deploy" "$DEST/__pycache__" \
-       "$DEST/README.md" "$DEST/.gitignore"
+# В публичной папке остаётся только сам сайт. Всё остальное отсюда убираем:
+# статику nginx отдаёт ДО Apache, то есть любой .py и .tsv в public_html
+# скачивается по прямой ссылке как обычный текстовый файл.
+#   tools/     — конвейер сборки словаря и картинок: исходники, отчёты,
+#                контактные листы и manual-review.tsv на 44 КБ. Сайту не нужен
+#                ни один из них, а весит он больше самого сайта.
+#   *.bak-*    — бэкапы словаря рядом с js/words.js.
+rm -rf "$DEST/.git" "$DEST/deploy" "$DEST/__pycache__" "$DEST/tools" \
+       "$DEST/README.md" "$DEST/DESIGN.md" "$DEST/.gitignore"
+find "$DEST" -name "*.bak-*" -delete 2>/dev/null || true
 rm -rf "$TMP"
 
 echo "==> Папка для базы"
