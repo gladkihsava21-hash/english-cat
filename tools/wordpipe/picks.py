@@ -20,7 +20,7 @@
 PICKS = {
     # --- еда -----------------------------------------------------------
     "juice":       ("Juice",),
-    "apple":       ("Apple",),
+    "apple":       ("ru:Яблоко", "Apple"),
     "water":       ("Water", "Drinking water"),
     "milk":        ("Milk",),
     "food":        ("Food",),
@@ -28,13 +28,13 @@ PICKS = {
     "egg":         ("Egg as food", "Egg"),
     "cheese":      ("Cheese",),
     "tea":         ("Tea",),
-    "banana":      ("Banana",),
+    "banana":      ("Cavendish banana", "ru:Банан"),
     "cake":        ("Cake",),
-    "rice":        ("Rice",),
+    "rice":        ("White rice", "Cooked rice", "ru:Рис"),
     "soup":        ("Soup",),
     "breakfast":   ("Breakfast",),
-    "lunch":       ("Lunch",),
-    "cook":        ("Cooking",),
+    "lunch":       ("ru:Обед", "Lunch"),
+    "cook":        ("ru:Приготовление пищи", "Cooking"),
 
     # --- животные ------------------------------------------------------
     "cat":         ("Cat",),
@@ -58,22 +58,20 @@ PICKS = {
     "floor":       ("Floor",),
     "wall":        ("Wall",),
     "garden":      ("Garden",),
-    "house":       ("House",),
-    "door":        ("Door",),
+    "house":       ("Single-family detached home", "ru:Дом", "House"),
+    "door":        ("ru:Дверь", "Door"),
     "chair":       ("Chair",),
-    "bed":         ("Bed",),
+    "bed":         ("ru:Кровать", "Bed"),
     "window":      ("Window",),
     "kitchen":     ("Kitchen",),
-    "mirror":      ("Mirror",),
+    "mirror":      ("ru:Зеркало", "Mirror"),
 
     # --- одежда --------------------------------------------------------
     "shirt":       ("Shirt",),
     "shoe":        ("Shoe",),
-    "hat":         ("Hat",),
     "dress":       ("Dress",),
-    "coat":        ("Coat (clothing)", "ru:Пальто"),
     "sock":        ("Sock",),
-    "jacket":      ("Jacket",),
+    "jacket":      ("Jacket", "ru:Куртка"),
     "scarf":       ("Scarf",),
     "gloves":      ("Glove",),
     "boots":       ("Boot",),
@@ -81,43 +79,41 @@ PICKS = {
     # --- тело ----------------------------------------------------------
     # Только внешние части и только там, где в статье фотография, а не
     # анатомический атлас. Внутренние органы и стоматология — в REVIEW.
-    "hand":        ("Hand",),
-    "leg":         ("Human leg", "Leg"),
-    "foot":        ("Foot",),
-    "nose":        ("Human nose", "Nose"),
-    "ear":         ("Ear",),
+    "hand":        ("Hand", "ru:Кисть (анатомия)"),
+    "leg":         ("Human leg", "ru:Нога"),
+    "foot":        ("Foot", "ru:Стопа"),
+    "nose":        ("ru:Нос", "Human nose"),
+    "ear":         ("Ear", "ru:Ухо"),
 
     # --- природа -------------------------------------------------------
     "river":       ("River",),
     "sun":         ("Sun",),
     "tree":        ("Tree",),
     "flower":      ("Flower",),
-    "sea":         ("Sea",),
+    "sea":         ("ru:Море", "Sea"),
     "mountain":    ("Mountain",),
     "forest":      ("Forest",),
-    "island":      ("Island",),
     "pollution":   ("Pollution", "Air pollution"),
-    "recycle":     ("Recycling",),
+    "recycle":     ("ru:Переработка отходов", "Recycling"),
 
     # --- погода --------------------------------------------------------
-    "rain":        ("Rain",),
-    "snow":        ("Snow",),
-    "cloud":       ("Cloud",),
+    "rain":        ("ru:Дождь", "Rain"),
+    "snow":        ("ru:Снег", "Snow"),
+    "cloud":       ("ru:Облако", "Cloud"),
     "storm":       ("Storm", "Thunderstorm"),
 
     # --- город ---------------------------------------------------------
     "supermarket": ("Supermarket",),
     "traffic":     ("Traffic", "Traffic congestion"),
-    "bridge":      ("Bridge",),
+    "bridge":      ("Bridge", "ru:Мост"),
     "road":        ("Road",),
-    "building":    ("Building",),
     "museum":      ("Museum",),
 
     # --- места ---------------------------------------------------------
-    "shop":        ("ru:Магазин", "Retail"),
+    "shop":        ("Grocery store", "Retail", "ru:Магазин"),
     "street":      ("Street",),
     "park":        ("Park",),
-    "school":      ("School",),
+    "school":      ("ru:Школа", "School"),
     "village":     ("Village",),
 
     # --- школа ---------------------------------------------------------
@@ -125,7 +121,6 @@ PICKS = {
     "pencil":      ("Pencil",),
     "teacher":     ("Teacher",),
     "ruler":       ("Ruler",),          # измерительный инструмент, не монарх
-    "graduate":    ("Graduation",),
 
     # --- спорт ---------------------------------------------------------
     "chess":       ("Chess",),
@@ -133,18 +128,17 @@ PICKS = {
     "gym":         ("Gym", "Health club"),
 
     # --- техника -------------------------------------------------------
-    "keyboard":    ("Computer keyboard",),
+    "keyboard":    ("Computer keyboard", "ru:Компьютерная клавиатура"),
     "headphones":  ("Headphones",),
     "camera":      ("Camera",),
-    "battery":     ("Electric battery",),
+    "battery":     ("AA battery", "ru:Гальванический элемент"),
 
     # --- транспорт и поездки -------------------------------------------
     "luggage":     ("Baggage",),
-    "ticket":      ("Ticket (admission)", "ru:Билет"),
     "station":     ("Train station",),
     "bicycle":     ("Bicycle",),
-    "taxi":        ("Taxi", "Taxicab"),
-    "airport":     ("Airport",),
+    "taxi":        ("Hackney carriage", "Taxicab"),
+    "airport":     ("ru:Аэропорт", "Airport"),
     "hotel":       ("Hotel",),
 
     # --- здоровье ------------------------------------------------------
@@ -155,20 +149,19 @@ PICKS = {
     # --- деньги --------------------------------------------------------
     "receipt":     ("Receipt",),
     "bank":        ("Bank",),
-    "currency":    ("Currency", "Banknote"),
+    "currency":    ("Banknote", "Euro banknotes", "ru:Банкнота"),
 
     # --- искусство -----------------------------------------------------
     "guitar":      ("Guitar",),
     "paint":       ("Paint",),
-    "draw":        ("Drawing",),
+    "draw":        ("ru:Рисование", "Drawing"),
 
     # --- люди и семья --------------------------------------------------
-    "doctor":      ("Physician",),
-    "family":      ("Family",),
-    "mother":      ("Mother",),
+    "doctor":      ("General practitioner", "ru:Врач", "Physician"),
+    "family":      ("Nuclear family", "ru:Семья", "Family"),
     "father":      ("Father",),
     "baby":        ("Infant",),
-    "grandmother": ("Grandmother", "Grandparent"),
+    "grandmother": ("Grandparent", "ru:Бабушка", "Grandmother"),
 
     # --- время ---------------------------------------------------------
     "winter":      ("Winter",),
@@ -180,19 +173,46 @@ PICKS = {
     # --- действия ------------------------------------------------------
     # Берём только те действия, которые видно на одном кадре.
     "run":         ("Running",),
-    "eat":         ("Eating",),
-    "sleep":       ("Sleep",),
-    "walk":        ("Walking",),
-    "swim":        ("Swimming",),
+    "sleep":       ("Nap", "ru:Сон", "Sleep"),
+    "walk":        ("Walking", "ru:Ходьба"),
+    "swim":        ("Swimming", "ru:Плавание"),
     "jump":        ("Jumping",),
-    "sit":         ("Sitting",),
     "stand":       ("Standing",),
-    "write":       ("Handwriting", "Writing"),
-    "drink":       ("Drinking",),
     "sing":        ("Singing",),
     "dance":       ("Dance",),
     "drive":       ("Driving",),
     "wash":        ("Washing",),
+}
+
+
+# Слова, которые в выборке были, но вылетели после просмотра глазами:
+# лид Википедии по ним — не фотография предмета, а что-то другое, и запасные
+# статьи дают то же самое. Им остаётся эмодзи. Список нужен, чтобы через месяц
+# не начать заново перебирать те же заголовки.
+NO_PHOTO = {
+    "write":     "лид — рукопись, то есть текст в кадре; подсказывает буквы, а не слово",
+    "graduate":  "старое групповое фото выпуска, ребёнок такое не прочитает",
+    "sit":       "en:Sitting — «Мыслитель» Родена; статуя вместо человека",
+    "building":  "лид скачет между музейной избой и случайным домом; слово слишком общее",
+    "ticket":    "билет — это по определению лист с текстом, к тому же немецким",
+    "coat":      "все свободные варианты — гравюры 1872 года и солдат в шинели",
+    "hat":       "en:Straw hat — портрет комика 1920-х; Baseball cap — кепка с логотипом клуба",
+    "island":    "лиды — спутниковые снимки и голая скала Рокол; читается как карта",
+    "mother":    "все свободные лиды — живопись XIX века и сепия",
+    "eat":       "en:Dinner даёт тарелку с едой — это дублирует food, а не «есть»",
+    "drink":     "en:Soft drink даёт стакан колы — путается с juice и water",
+    "recycle":   "лид — зелёный значок переработки, то есть логотип",
+    "door":      "лид — гравюра из технического словаря",
+    "draw":      "лид — анатомические наброски Микеланджело",
+    "lunch":     "у статьи нет лида, у ru:Обед — чёрно-белое фото XIX века",
+    "receipt":   "чек — лист с текстом",
+    "grandmother": "все свободные лиды — живопись",
+    "mirror":    "единственный свободный лид 300×308 — мельче плитки",
+    "hand":      "en:Hand — ограничение personality rights, ru:Кисть — атлас Грея",
+    "leg":       "en:Human leg — схема Грея, ru:Нога — файл 363×299",
+    "foot":      "en:Foot — personality rights, ru:Стопа — файл 214×356",
+    "ear":       "en:Ear — personality rights, ru:Ухо — анатомическая схема SVG",
+    "walk":      "en:Walking — personality rights, ru:Ходьба — файл не с Commons",
 }
 
 

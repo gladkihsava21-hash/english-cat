@@ -442,7 +442,7 @@ const EX_RUNNERS = {
       return {
         sub: "Какое слово на картинке?",
         prompt: "",
-        art: wordArt(p.w, p.cat),
+        art: wordArtHTML(p.w, p.cat),
         artCat: p.cat,
         options,
         correct: options.indexOf(p.w),
@@ -463,7 +463,7 @@ const EX_RUNNERS = {
       return {
         sub: "Выбери правильный перевод",
         prompt: p.w,
-        art: wordArt(p.w, p.cat),
+        art: wordArtHTML(p.w, p.cat),
         artCat: p.cat,
         options,
         correct: options.indexOf(p.t),
@@ -477,7 +477,7 @@ const EX_RUNNERS = {
     runType(pool.map(p => ({
       sub: "Впиши слово по-английски",
       prompt: "«" + p.t + "»",
-      art: wordArt(p.w, p.cat),
+      art: wordArtHTML(p.w, p.cat),
       artCat: p.cat,
       answer: p.w,
       statWord: p.w,

@@ -58,6 +58,26 @@ _BAD_NAME_RE = re.compile(
     r")(?:[\W_]|$)",
     re.I,
 )
+# Категории Commons, по которым видно, что это не современная фотография.
+# Живопись, гравюры, рисунки и снимки до ~1930 попадают под шаблоны PD-Art и
+# PD-old: именно они и дают в лидах Википедии тёмные полотна XIX века вместо
+# предмета. Ребёнку такая картинка слово не подсказывает, поэтому режем по
+# метаданным, а не на глаз.
+_ART_CAT_RE = re.compile(
+    r"(?:"
+    r"pd[\W_]?art"
+    r"|pd[\W_]?old"
+    r"|\bpaintings?\b|\bdrawings?\b|\bengravings?\b|\betchings?\b"
+    r"|\blithographs?\b|\bwoodcuts?\b|\bsketch(?:es)?\b|\bfashion plates?\b"
+    r"|\bin art\b|\billustrations of\b|\bwoodblock\b|\bcaricatures?\b"
+    r"|\bpd shape\b|\bcoats? of arms\b"
+    r"|\bsatellite (?:pictures?|images?|imagery)\b|\bmaps?\b|\bdiagrams?\b"
+    r"|\bmanuscripts?\b|\bengraved\b"
+    r"|\b1[5-9]\d{2}s? (?:paintings|drawings|works|photographs)\b"
+    r"|\b1[5-9]th[\W_]century\b"
+    r")",
+    re.I,
+)
 _TAG_RE = re.compile(r"<[^>]+>")
 _WS_RE = re.compile(r"\s+")
 
@@ -196,6 +216,11 @@ def looks_unusable(filename, info):
     stem = filename.rsplit(".", 1)[0]
     if _BAD_NAME_RE.search(stem):
         return "по имени файла это схема/карта/логотип"
+    meta = info.get("extmetadata") or {}
+    cats = _strip_html((meta.get("Categories") or {}).get("value", "")).replace("|", " | ")
+    hit = _ART_CAT_RE.search(cats)
+    if hit:
+        return "не современное фото: категория Commons «%s»" % hit.group(0)
     mime = info.get("mime") or ""
     if mime == "image/svg+xml" or filename.lower().endswith(".svg"):
         return "SVG — это рисунок или схема, не фотография"

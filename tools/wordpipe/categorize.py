@@ -45,13 +45,16 @@ HEAD_RULES = [
     ("mind", r"\b(thought|idea|belief|knowledge|memory|reasoning)\b", NOUNS),
     ("communication", r"\b(to say|to tell|to speak|to talk|to state|to express|to ask|to answer|"
                       r"to discuss|to explain|to announce|to declare|to argue|to confer|to persuade)\b", VERBS),
-    ("communication", r"\b(speech|utterance|conversation|statement|message|remark)\b", NOUNS),
+    ("communication", r"\b(speech|utterance|conversation|statement|message|remark|"
+                      r"warning|notice|announcement|advice|reply|request|greeting)\b", NOUNS),
     ("money", r"\b(money|payment|price|cost|financial|economic|profit|debt|tax|salary|to pay)\b", None),
     ("work", r"\b(job|employment|workplace|employee|employer|career|business meeting)\b", None),
     ("school", r"\b(school|student|pupil|teacher|lesson|study|education|exam|university)\b", None),
     ("tech", r"\b(computer|software|electronic|digital|machine|device|internet|data|technology)\b", None),
     ("travel", r"\b(travel|journey|trip|vehicle|transport|airport|flight|luggage|tourist)\b", None),
-    ("sports", r"\b(sport|game played|athlete|team|match|competition)\b", None),
+    # без «team» и «match»: они слишком общие («A team; a group of people who
+    # work together» — это про работу, а не про спорт)
+    ("sports", r"\b(sport|game played|athlete|competition|championship)\b", None),
     ("art", r"\b(art|music|painting|artistic|literature|poem|theatre|theater|film|song)\b", None),
     ("society", r"\b(society|government|political|law|legal|public|community|citizen|social)\b", None),
     ("home", r"\b(house|home|room|furniture|household|domestic|apartment)\b", None),
@@ -65,7 +68,7 @@ HEAD_RULES = [
     # (ложка, тарелка), так что это её правило, а не выдумка.
     ("objects", r"\b(a |an )?(piece|pad|sheet|device|tool|instrument|container|substance|"
                 r"material|covering|passage|box|bag|vehicle|machine|structure|garment|"
-                r"liquid|powder|cloth|rod|wire|source of light)\b|\bmade (of|from)\b", NOUNS),
+                r"liquid|powder|cloth|rod|wire|light source|source of light)\b|\bmade (of|from)\b", NOUNS),
 ]
 HEAD_RULES = [(cat, re.compile(pattern, re.I), pos) for cat, pattern, pos in HEAD_RULES]
 
@@ -82,20 +85,20 @@ KEYWORDS = {
     "society": "society people government law social public community country nation political citizen rights culture",
     "time": "time day night year month week hour minute season past future present early late duration",
     "food": "food eat drink meal bread meat fruit vegetable cook kitchen taste sweet dinner breakfast",
-    "nature": "nature tree plant forest mountain river sea ocean sky earth stone flower grass wild",
+    "nature": "nature tree plant forest mountain river sea ocean sky earth stone flower grass wild world planet globe life alive living species",
     "school": "school study learn teacher student lesson class exam homework university subject knowledge",
     "travel": "travel journey trip road car train plane ticket hotel visit tourist map luggage abroad",
     "tech": "computer internet phone digital data software program device screen electric machine online",
-    "home": "house home room door window furniture bed kitchen wall floor roof garden household",
+    "home": "house home room door window furniture bed kitchen wall floor roof garden household lodging dwelling quarters accommodation apartment flat",
     "clothes": "clothes wear shirt dress shoe coat hat trousers jacket fashion sleeve pocket",
     "work": "work job office company employee boss business career salary staff manager project professional",
     "sports": "sport game play match player ball jump swim race win competition training athlete",
-    "objects": "thing object tool box bag key paper bottle table chair item equipment container",
+    "objects": "thing object tool box bag key paper bottle table chair item equipment container fuel substance lamp torch pad notebook cover hood tube pipe rope stick",
     "body": "body head hand arm leg eye ear face hair finger heart skin bone muscle",
     "weather": "weather rain snow sun wind cloud storm cold hot warm temperature fog ice",
     "people": "person people man woman child boy girl someone human individual worker doctor teacher friend",
     "health": "health ill sick doctor hospital medicine pain disease cure healthy patient treatment",
-    "city": "city town street building shop market square bridge traffic park district urban",
+    "city": "city town street building shop market square bridge traffic park district urban tunnel road highway pavement",
     "animals": "animal dog cat bird fish horse cow insect wild pet tail species creature",
     "family": "family mother father parent son daughter brother sister child marriage wife husband relative",
     "places": "place area region location where site ground field space spot",

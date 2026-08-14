@@ -1350,14 +1350,26 @@ class Handler(SimpleHTTPRequestHandler):
         """Раздаём только фронтенд. База, серверный код и всё, чего нет
         в белом списке, наружу не уходят — там хеши паролей и токены."""
         name = path.lstrip("/")
-        if name in ("", "index.html", "tutor.html", "admin.html", "manifest.json", "sw.js",
+        if name in ("", "index.html", "tutor.html", "admin.html", "credits.html",
+                    "manifest.json", "sw.js",
                     "icon-192.png", "icon-512.png", "favicon.ico", "robots.txt"):
             return True
-        if ".." in name or name.startswith("."):
+        # Скрытые файлы и выход вверх — на любом уровне пути, а не только
+        # в начале: «img/../db.py» и «img/.env» тоже мимо.
+        parts = name.split("/")
+        if any(p in ("", "..") or p.startswith(".") for p in parts):
             return False
-        allowed_dir = name.startswith("css/") or name.startswith("js/")
-        allowed_ext = name.endswith((".css", ".js"))
-        return allowed_dir and allowed_ext
+        # Каталог и расширение проверяем ПАРОЙ: иначе js/savely.db стал бы
+        # доступен, стоит кому-то положить туда файл.
+        rules = (
+            ("css/", (".css",)),
+            ("js/",  (".js",)),
+            # Картинки к словам. Манифест лежит рядом и отдаётся тоже —
+            # в нём только авторы и лицензии, это открытые данные, и на них
+            # ссылается страница атрибуции.
+            ("img/", (".webp", ".png", ".jpg", ".jpeg", ".svg", ".json")),
+        )
+        return any(name.startswith(d) and name.endswith(e) for d, e in rules)
 
     def log_message(self, fmt, *args):
         # log_error передаёт первым аргументом код ответа, а не строку запроса —

@@ -129,12 +129,25 @@ def build_word(word, ctx):
         if definition.get("examples"):
             partial["ex_hint"] = definition["examples"][0]
 
+    # 4a. Если живой перевод примера подтверждает не первый синоним значения,
+    #     а другой — берём его. Все они переводы одного и того же значения, но
+    #     подтверждённый двуязычной парой понятнее: upbeat — это «весёлый» из
+    #     примера, а не «быстрый» из начала списка.
+    if sense is not None and partial.get("exr") and len(sense["ru"]) > 1:
+        for term in sense["ru"]:
+            if wiktionary.mentions(term, partial["exr"]):
+                if term != partial.get("t"):
+                    partial["t_first"] = partial.get("t")
+                    partial["t"] = term
+                    partial["t_alt"] = [x for x in sense["ru"] if x != term][:3]
+                break
+
     # 4b. Сходится ли карточка сама с собой.
     #     Живой перевод примера из Tatoeba — независимое подтверждение того, что
     #     мы взяли то самое значение. Если он подтверждает ДРУГОЕ значение, а у
     #     слова есть признаки омонимии — карточка развалится, и это в ручную.
-    confirm = wiktionary.example_sense(pos_senses, sense, partial.get("exr"))
-    partial["example_sense"] = confirm
+    confirmed_by = wiktionary.example_sense(pos_senses, sense, partial.get("exr"))
+    partial["example_sense"] = confirmed_by
 
     # Жёсткие признаки — разные слова, случайно совпавшие в написании
     # (train, bank, cut). Сильное совпадение пояснения с определением тут не
@@ -152,12 +165,12 @@ def build_word(word, ctx):
 
     strong_match = partial.get("gloss_score", 0) >= cfg.strong_gloss_score
     signals = hard_signals + (soft_signals if not strong_match else [])
-    if sense is not None and signals and confirm != "chosen":
-        if confirm == "other":
+    if sense is not None and signals and confirmed_by != "chosen":
+        if confirmed_by == "other":
             reasons.append("пример иллюстрирует другое значение (%s)" % "; ".join(signals))
         else:
             reasons.append("многозначное слово, подтвердить перевод нечем (%s)" % "; ".join(signals))
-    elif sense is not None and confirm == "other" and wiktionary.translations_diverge(pos_senses):
+    elif sense is not None and confirmed_by == "other" and wiktionary.translations_diverge(pos_senses):
         reasons.append("перевод примера относится к другому значению")
 
     # 5. Категория

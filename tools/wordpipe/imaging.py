@@ -11,11 +11,11 @@ import os
 import urllib.error
 import urllib.request
 
-from PIL import Image, ImageOps
+from PIL import Image, ImageFilter, ImageOps
 
 DOWNLOAD_SOURCE = "upload"
 TILE = 480
-QUALITY_LADDER = (78, 72, 66, 60, 54, 48)
+QUALITY_LADDER = (78, 72, 66, 60, 54, 48, 42)
 MAX_BYTES = 40 * 1024
 
 
@@ -86,14 +86,29 @@ def to_webp(raw, dest, size=TILE, max_bytes=MAX_BYTES, ladder=QUALITY_LADDER):
 
     tile = square_crop(img, size)
     os.makedirs(os.path.dirname(dest), exist_ok=True)
+
+    def encode(image, quality):
+        buf = io.BytesIO()
+        image.save(buf, "WEBP", quality=quality, method=6)
+        return buf.getvalue()
+
     last = None
     for quality in ladder:
-        buf = io.BytesIO()
-        tile.save(buf, "WEBP", quality=quality, method=6)
-        data = buf.getvalue()
+        data = encode(tile, quality)
         last = (data, quality)
         if len(data) <= max_bytes:
             break
+    else:
+        # Мелкая фактура (витрина, толпа, листва) не сжимается качеством:
+        # WebP честно кодирует шум. Слегка размываем — на 480×480 глазом
+        # незаметно, а вес падает вдвое.
+        for radius in (0.4, 0.7, 1.1):
+            soft = tile.filter(ImageFilter.GaussianBlur(radius))
+            data = encode(soft, ladder[-1])
+            last = (data, ladder[-1])
+            if len(data) <= max_bytes:
+                break
+
     data, quality = last
     tmp = dest + ".tmp"
     with open(tmp, "wb") as fh:

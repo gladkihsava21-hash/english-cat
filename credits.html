@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Источники картинок — Савелий, кот-репетитор английского</title>
+  <meta name="robots" content="noindex">
+  <link rel="stylesheet" href="css/tokens.css">
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    /* Страница открывается отдельно от приложения, без savely.css и js/theme.js.
+       Поэтому цвета берём напрямую из tokens.css: --paper и --ink переключаются
+       в паре (в том числе по системной тёмной теме), а --bg из style.css —
+       захардкоженный светлый, с ним текст в тёмной теме пропадает. */
+    body { background: var(--paper); color: var(--ink); }
+    .credits { max-width: 900px; margin: 0 auto; padding: 32px 20px 64px; color: var(--ink); }
+    .credits h1 { margin: 0 0 8px; color: var(--ink); }
+    .credits p { color: var(--ink-soft); line-height: 1.6; }
+    .credits p b { color: var(--ink); }
+    .credits table { width: 100%; border-collapse: collapse; margin-top: 24px;
+      font-size: var(--text-caption, 16px); }
+    .credits th, .credits td { text-align: left; padding: 10px 12px; vertical-align: middle;
+      border-bottom: var(--border-w, 1px) solid var(--line-soft, #E1E4DD); }
+    .credits th { font-weight: 700; white-space: nowrap; color: var(--ink-soft); }
+    .credits td { color: var(--ink-soft); }
+    .cr-pic { width: 64px; }
+    .cr-pic img { display: block; width: 64px; height: 64px; object-fit: cover; border-radius: 12px;
+      background: var(--surface-alt); }
+    .cr-word b { display: block; color: var(--ink); font-size: var(--text-body-sm, 18px); }
+    .cr-word span { color: var(--ink-soft); }
+    .credits a { color: var(--accent); }
+    .credits a:hover { text-decoration: none; }
+    @media (max-width: 640px) {
+      .credits table, .credits thead, .credits tbody, .credits tr, .credits td, .credits th { display: block; }
+      .credits thead { display: none; }
+      .credits tr { border-bottom: var(--border-w, 1px) solid var(--line-soft, #E1E4DD); padding: 12px 0; }
+      .credits td { border: 0; padding: 2px 0; }
+      .cr-pic img { width: 88px; height: 88px; }
+    }
+  </style>
+</head>
+<body>
+<main class="credits">
+  <h1>Источники картинок</h1>
+  <p>Все фотографии на карточках слов взяты с
+    <a href="https://commons.wikimedia.org/" rel="noopener" target="_blank">Wikimedia Commons</a>
+    и используются на условиях свободных лицензий: public domain, CC0, CC BY и CC BY-SA.
+    Файлы скачаны и уменьшены до 480×480 (кадрирование по центру) — оригиналы доступны
+    по ссылкам в таблице.</p>
+  <p>Лицензии CC BY и CC BY-SA требуют указания автора — эта страница и есть такое указание.
+    Если вы автор снимка и хотите изменить или убрать атрибуцию, напишите нам.</p>
+  <p><b>Всего изображений: 110.</b> Обновлено: 14.08.2026.</p>
+  <table>
+    <thead>
+      <tr><th></th><th>Слово</th><th>Автор</th><th>Лицензия</th><th>Источник</th></tr>
+    </thead>
+    <tbody>
+    <tr>
+      <td class="cr-pic"><img src="img/words/airport.webp" alt="airport" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>airport</b><span>аэропорт</span></td>
+      <td>POVar27</td>
+      <td><a href="https://creativecommons.org/licenses/by-sa/3.0" rel="license noopener" target="_blank">CC BY-SA 3.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:%D0%90%D1%8D%D1%80%D0%BE%D0%BF%D0%BE%D1%80%D1%82_%D0%92%D0%BD%D1%83%D0%BA%D0%BE%D0%B2%D0%BE.JPG" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/alarm.webp" alt="alarm" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>alarm</b><span>будильник</span></td>
+      <td>Sun Ladder</td>
+      <td><a href="https://creativecommons.org/licenses/by-sa/3.0" rel="license noopener" target="_blank">CC BY-SA 3.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:2010-07-20_Black_windup_alarm_clock_face.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/apple.webp" alt="apple" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>apple</b><span>яблоко</span></td>
+      <td>Scott Bauer, USDA</td>
+      <td>Public domain</td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Apples.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/baby.webp" alt="baby" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>baby</b><span>малыш, младенец</span></td>
+      <td>Kimberly Vardeman</td>
+      <td><a href="https://creativecommons.org/licenses/by/2.0" rel="license noopener" target="_blank">CC BY 2.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:The_newborn_baby_in_men.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/banana.webp" alt="banana" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>banana</b><span>банан</span></td>
+      <td>Augustus Binu : flickr</td>
+      <td><a href="https://creativecommons.org/licenses/by-sa/3.0" rel="license noopener" target="_blank">CC BY-SA 3.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Cavendish_Banana_DS.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/bank.webp" alt="bank" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>bank</b><span>банк</span></td>
+      <td>Adrian Pingstone</td>
+      <td>Public domain</td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:London.bankofengland.arp.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/battery.webp" alt="battery" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>battery</b><span>батарея, аккумулятор</span></td>
+      <td>Lead holder</td>
+      <td><a href="https://creativecommons.org/licenses/by-sa/3.0" rel="license noopener" target="_blank">CC BY-SA 3.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:AA_matchstick-1.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/bed.webp" alt="bed" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>bed</b><span>кровать</span></td>
+      <td>Andrew Bossi</td>
+      <td><a href="https://creativecommons.org/licenses/by-sa/2.5" rel="license noopener" target="_blank">CC BY-SA 2.5</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:3399_-_Fiescheralp_-_Hotel_Eggishorn.JPG" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/bicycle.webp" alt="bicycle" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>bicycle</b><span>велосипед</span></td>
+      <td>齐健 from Peking, People's Republic of China</td>
+      <td><a href="https://creativecommons.org/licenses/by/2.0" rel="license noopener" target="_blank">CC BY 2.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Left_side_of_Flying_Pigeon.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/bird.webp" alt="bird" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>bird</b><span>птица</span></td>
+      <td>C. Robiller / naturlichter.de ( Hyla meridionalis )</td>
+      <td><a href="https://creativecommons.org/licenses/by-sa/3.0" rel="license noopener" target="_blank">CC BY-SA 3.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Kleiber_Flug.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/book.webp" alt="book" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>book</b><span>книга</span></td>
+      <td>NYC Wanderer (Kevin Eng)</td>
+      <td><a href="https://creativecommons.org/licenses/by-sa/2.0" rel="license noopener" target="_blank">CC BY-SA 2.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Gutenberg_Bible,_Lenox_Copy,_New_York_Public_Library,_2009._Pic_01.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/boots.webp" alt="boots" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>boots</b><span>ботинки, сапоги</span></td>
+      <td>Cliff Climbers</td>
+      <td><a href="https://creativecommons.org/licenses/by-sa/2.5" rel="license noopener" target="_blank">CC BY-SA 2.5</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Cliff_Climbers_Combat_boot_Shoes_Blast.png" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/bread.webp" alt="bread" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>bread</b><span>хлеб</span></td>
+      <td>3268zauber</td>
+      <td><a href="https://creativecommons.org/licenses/by-sa/3.0" rel="license noopener" target="_blank">CC BY-SA 3.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Korb_mit_Br%C3%B6tchen.JPG" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/breakfast.webp" alt="breakfast" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>breakfast</b><span>завтрак</span></td>
+      <td>Kiddo27</td>
+      <td><a href="https://creativecommons.org/licenses/by-sa/4.0" rel="license noopener" target="_blank">CC BY-SA 4.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Breakfast_at_the_Black_Bear_Diner.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/bridge.webp" alt="bridge" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>bridge</b><span>мост</span></td>
+      <td>Wikimedia Commons</td>
+      <td><a href="http://creativecommons.org/licenses/by-sa/3.0/" rel="license noopener" target="_blank">CC BY-SA 3.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Mainz-Theodor-Heuss-Bruecke-2005-05-16a.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/cake.webp" alt="cake" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>cake</b><span>торт, пирожное</span></td>
+      <td>Scheinwerfermann</td>
+      <td>Public domain</td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Pound_layer_cake.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/camera.webp" alt="camera" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>camera</b><span>фотоаппарат, камера</span></td>
+      <td>Kameraprojekt Graz 2015</td>
+      <td><a href="https://creativecommons.org/licenses/by-sa/4.0" rel="license noopener" target="_blank">CC BY-SA 4.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:LEI0440_Leica_IIIf_chrom_-_Sn._580566_1951-52-M39_Blitzsynchron_front_view-6531_hf-.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/cat.webp" alt="cat" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>cat</b><span>кот, кошка</span></td>
+      <td>Alvesgaspar</td>
+      <td><a href="https://creativecommons.org/licenses/by-sa/3.0" rel="license noopener" target="_blank">CC BY-SA 3.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Cat_August_2010-4.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/chair.webp" alt="chair" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>chair</b><span>стул</span></td>
+      <td>Thomas Chippendale</td>
+      <td><a href="http://creativecommons.org/publicdomain/zero/1.0/deed.en" rel="license noopener" target="_blank">CC0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Set_of_fourteen_side_chairs_MET_DP110780.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/cheese.webp" alt="cheese" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>cheese</b><span>сыр</span></td>
+      <td>Wikimedia Commons</td>
+      <td><a href="http://creativecommons.org/licenses/by-sa/3.0/" rel="license noopener" target="_blank">CC BY-SA 3.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Cheese_platter.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/chess.webp" alt="chess" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>chess</b><span>шахматы</span></td>
+      <td>Alan Light</td>
+      <td><a href="http://creativecommons.org/licenses/by-sa/3.0/" rel="license noopener" target="_blank">CC BY-SA 3.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:ChessSet.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/clock.webp" alt="clock" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>clock</b><span>часы (настенные)</span></td>
+      <td>Christoph Braun</td>
+      <td><a href="http://creativecommons.org/publicdomain/zero/1.0/deed.en" rel="license noopener" target="_blank">CC0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Pendulum_clock_by_Jacob_Kock,_antique_furniture_photography,_IMG_0931_edit.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/cloud.webp" alt="cloud" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>cloud</b><span>облако, туча</span></td>
+      <td>Vyacheslav Argenberg</td>
+      <td><a href="https://creativecommons.org/licenses/by/4.0" rel="license noopener" target="_blank">CC BY 4.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Clouds,_cloudscape_over_Lombok_Strait,_Bali_Sea,_Gili_Islands,_West_Nusa_Tenggara,_Indonesia.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/cook.webp" alt="cook" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>cook</b><span>готовить</span></td>
+      <td>The Pocket from Nanjin , China</td>
+      <td><a href="https://creativecommons.org/licenses/by/2.0" rel="license noopener" target="_blank">CC BY 2.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Wok_cooking_and_the_heat_source_by_The_Pocket_in_Nanjing.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/cow.webp" alt="cow" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>cow</b><span>корова</span></td>
+      <td>Kim Hansen</td>
+      <td><a href="https://creativecommons.org/licenses/by-sa/3.0" rel="license noopener" target="_blank">CC BY-SA 3.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Cow_(Fleckvieh_breed)_Oeschinensee_Slaunger_2009-07-07.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/currency.webp" alt="currency" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>currency</b><span>валюта</span></td>
+      <td>Bericht</td>
+      <td><a href="http://creativecommons.org/publicdomain/zero/1.0/deed.en" rel="license noopener" target="_blank">CC0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Euro_banknotes,_Europa_series.png" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/dance.webp" alt="dance" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>dance</b><span>танцевать</span></td>
+      <td>Barry Goyette from San Luis Obispo, USA</td>
+      <td><a href="https://creativecommons.org/licenses/by/2.0" rel="license noopener" target="_blank">CC BY 2.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Two_dancers.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/doctor.webp" alt="doctor" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>doctor</b><span>врач</span></td>
+      <td>Stethoscopes</td>
+      <td><a href="https://creativecommons.org/licenses/by-sa/3.0" rel="license noopener" target="_blank">CC BY-SA 3.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Doctors_stethoscope_1.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/dog.webp" alt="dog" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>dog</b><span>собака</span></td>
+      <td>M. Rehemtulla</td>
+      <td><a href="https://creativecommons.org/licenses/by/2.0" rel="license noopener" target="_blank">CC BY 2.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Huskiesatrest.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/dress.webp" alt="dress" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>dress</b><span>платье</span></td>
+      <td>This file was donated to Wikimedia Commons as part of a project by the Metropolitan Museum of Art . See the Image and Data Resources Open Access Policy</td>
+      <td><a href="http://creativecommons.org/publicdomain/zero/1.0/deed.en" rel="license noopener" target="_blank">CC0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Afternoon_ensemble_MET_63.212a-b_CP4.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/drive.webp" alt="drive" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>drive</b><span>водить, вести машину</span></td>
+      <td>DWS MontagZen</td>
+      <td><a href="https://creativecommons.org/licenses/by-sa/4.0" rel="license noopener" target="_blank">CC BY-SA 4.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Convertible_Mercedes_Car_Driving_On_A_Highway.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/egg.webp" alt="egg" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>egg</b><span>яйцо</span></td>
+      <td>Horacio Cambeiro</td>
+      <td><a href="https://creativecommons.org/licenses/by-sa/4.0" rel="license noopener" target="_blank">CC BY-SA 4.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Huevo_frito.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/family.webp" alt="family" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>family</b><span>семья</span></td>
+      <td>Seattle Municipal Archives from Seattle, WA</td>
+      <td><a href="https://creativecommons.org/licenses/by/2.0" rel="license noopener" target="_blank">CC BY 2.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:W.H._Shumard_family,_circa_1955.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/father.webp" alt="father" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>father</b><span>папа, отец</span></td>
+      <td>Hripsime Poghosyan</td>
+      <td><a href="https://creativecommons.org/licenses/by-sa/4.0" rel="license noopener" target="_blank">CC BY-SA 4.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Father%27s_love_(cropped).jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/fish.webp" alt="fish" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>fish</b><span>рыба</span></td>
+      <td>H. Zell</td>
+      <td><a href="https://creativecommons.org/licenses/by-sa/3.0" rel="license noopener" target="_blank">CC BY-SA 3.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Balantiocheilos_melanopterus_-_Karlsruhe_Zoo_02_(cropped).jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/fishing.webp" alt="fishing" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>fishing</b><span>рыбалка</span></td>
+      <td>Bernard Gagnon</td>
+      <td><a href="https://creativecommons.org/licenses/by-sa/3.0" rel="license noopener" target="_blank">CC BY-SA 3.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Stilts_fishermen_Sri_Lanka_02.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/floor.webp" alt="floor" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>floor</b><span>пол</span></td>
+      <td>Amada44</td>
+      <td><a href="https://creativecommons.org/licenses/by/3.0" rel="license noopener" target="_blank">CC BY 3.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Parquet_flooring_in_Mus%C3%A9e_des_arts_d%C3%A9coratifs_de_Strasbourg.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/flower.webp" alt="flower" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>flower</b><span>цветок</span></td>
+      <td>Ianaré Sévi</td>
+      <td><a href="https://creativecommons.org/licenses/by-sa/3.0" rel="license noopener" target="_blank">CC BY-SA 3.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Magnolia_grandiflora_-_flower_1.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/food.webp" alt="food" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>food</b><span>еда</span></td>
+      <td>Unknown author Unknown author</td>
+      <td>Public domain</td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Good_Food_Display_-_NCI_Visuals_Online.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/forest.webp" alt="forest" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>forest</b><span>лес</span></td>
+      <td>lubasi</td>
+      <td><a href="https://creativecommons.org/licenses/by-sa/2.0" rel="license noopener" target="_blank">CC BY-SA 2.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Aerial_view_of_the_Amazon_Rainforest.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/garden.webp" alt="garden" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>garden</b><span>сад</span></td>
+      <td>King of Hearts</td>
+      <td><a href="https://creativecommons.org/licenses/by-sa/3.0" rel="license noopener" target="_blank">CC BY-SA 3.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Brooklyn_Botanic_Garden_New_York_May_2015_010.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/gloves.webp" alt="gloves" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>gloves</b><span>перчатки</span></td>
+      <td>Kippelboy</td>
+      <td><a href="https://creativecommons.org/licenses/by-sa/3.0" rel="license noopener" target="_blank">CC BY-SA 3.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Centre_de_Documentaci%C3%B3_Museu_T%C3%A8xtil_de_Terrassa-_Reserves-_Teixits-_Guants002.JPG" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/guitar.webp" alt="guitar" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>guitar</b><span>гитара</span></td>
+      <td>User:Martin Möller Talk</td>
+      <td><a href="https://creativecommons.org/licenses/by-sa/2.0/de/deed.en" rel="license noopener" target="_blank">CC BY-SA 2.0 de</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:GuitareClassique5.png" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/gym.webp" alt="gym" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>gym</b><span>спортзал</span></td>
+      <td>Jorge Royan</td>
+      <td><a href="https://creativecommons.org/licenses/by-sa/3.0" rel="license noopener" target="_blank">CC BY-SA 3.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Amsterdam_-_Gymnasium_-_0591.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/headphones.webp" alt="headphones" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>headphones</b><span>наушники</span></td>
+      <td>http://muzyczny.pl</td>
+      <td><a href="https://creativecommons.org/licenses/by-sa/4.0" rel="license noopener" target="_blank">CC BY-SA 4.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:S%C5%82uchawki_referencyjne_K-701_firmy_AKG.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/horse.webp" alt="horse" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>horse</b><span>лошадь</span></td>
+      <td>Nokota_Horses.jpg : François Marchal derivative work: Dana boomer ( talk )</td>
+      <td><a href="http://creativecommons.org/licenses/by-sa/3.0/" rel="license noopener" target="_blank">CC BY-SA 3.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Nokota_Horses_cropped.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/hospital.webp" alt="hospital" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>hospital</b><span>больница</span></td>
+      <td>H501zalc</td>
+      <td><a href="https://creativecommons.org/licenses/by-sa/3.0" rel="license noopener" target="_blank">CC BY-SA 3.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Hospital-de-Bellvitge.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/hotel.webp" alt="hotel" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>hotel</b><span>отель, гостиница</span></td>
+      <td>Château Jeanne &amp; The Forest</td>
+      <td><a href="http://creativecommons.org/publicdomain/zero/1.0/deed.en" rel="license noopener" target="_blank">CC0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Jeanne%26TheForest_Fa%C3%A7ade.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/house.webp" alt="house" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>house</b><span>дом</span></td>
+      <td>No machine-readable author provided. Boereck assumed (based on copyright claims).</td>
+      <td>Public domain</td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Nordisches_Einfamilienhaus.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/jacket.webp" alt="jacket" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>jacket</b><span>куртка, пиджак</span></td>
+      <td>Victor Vizu</td>
+      <td><a href="https://creativecommons.org/licenses/by-sa/3.0" rel="license noopener" target="_blank">CC BY-SA 3.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:%D0%9A%D1%83%D1%80%D1%82%D0%BA%D0%B0_%D0%A1%D0%A1%D0%A1%D0%A0_%D0%9C%D0%9F%D0%A8%D0%9E.JPG" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/juice.webp" alt="juice" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>juice</b><span>сок</span></td>
+      <td>Agricultural Research Service</td>
+      <td>Public domain</td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Orange_juice_1.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/jump.webp" alt="jump" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>jump</b><span>прыгать</span></td>
+      <td>Stephan Sprinz</td>
+      <td><a href="https://creativecommons.org/licenses/by-sa/4.0" rel="license noopener" target="_blank">CC BY-SA 4.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Rehbock_auf_der_Ostplate_Spiekeroog_-_Nationalpark_nieders%C3%A4chsisches_Wattenmeer.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/key.webp" alt="key" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>key</b><span>ключ</span></td>
+      <td>Trougnouf</td>
+      <td><a href="https://creativecommons.org/licenses/by/4.0" rel="license noopener" target="_blank">CC BY 4.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Solex_99_30_padlock_with_keys_(DSCF2659).jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/keyboard.webp" alt="keyboard" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>keyboard</b><span>клавиатура</span></td>
+      <td>Dmitry Nosachev</td>
+      <td><a href="https://creativecommons.org/licenses/by-sa/4.0" rel="license noopener" target="_blank">CC BY-SA 4.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:IBM_Model_M_1395622_keyboard.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/kitchen.webp" alt="kitchen" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>kitchen</b><span>кухня</span></td>
+      <td>Jean-Pierre Dalbéra from Paris, France</td>
+      <td><a href="https://creativecommons.org/licenses/by/2.0" rel="license noopener" target="_blank">CC BY 2.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:La_cuisine_(mus%C3%A9e_dart_nouveau,_Riga)_(7563655820).jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/luggage.webp" alt="luggage" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>luggage</b><span>багаж</span></td>
+      <td>TonyTheTiger</td>
+      <td><a href="https://creativecommons.org/licenses/by-sa/4.0" rel="license noopener" target="_blank">CC BY-SA 4.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:20180520_Away_carryon_(1).jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/milk.webp" alt="milk" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>milk</b><span>молоко</span></td>
+      <td>NIAID</td>
+      <td><a href="https://creativecommons.org/licenses/by/2.0" rel="license noopener" target="_blank">CC BY 2.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Glass_of_Milk_(33657535532).jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/morning.webp" alt="morning" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>morning</b><span>утро</span></td>
+      <td>Olga Ernst</td>
+      <td><a href="https://creativecommons.org/licenses/by-sa/4.0" rel="license noopener" target="_blank">CC BY-SA 4.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Morning,_just_after_sunrise,_Namibia.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/mountain.webp" alt="mountain" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>mountain</b><span>гора</span></td>
+      <td>Luca Galuzzi ( Lucag )</td>
+      <td><a href="https://creativecommons.org/licenses/by-sa/2.5" rel="license noopener" target="_blank">CC BY-SA 2.5</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Everest_North_Face_toward_Base_Camp_Tibet_Luca_Galuzzi_2006.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/museum.webp" alt="museum" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>museum</b><span>музей</span></td>
+      <td>LuisCG11</td>
+      <td><a href="https://creativecommons.org/licenses/by-sa/4.0" rel="license noopener" target="_blank">CC BY-SA 4.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Museo_Chileno_de_Arte_Precolombino_-_2020_-_10.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/night.webp" alt="night" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>night</b><span>ночь</span></td>
+      <td>Benh LIEU SONG</td>
+      <td><a href="https://creativecommons.org/licenses/by-sa/4.0" rel="license noopener" target="_blank">CC BY-SA 4.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Savault_Chapel_Under_Milky_Way_BLS.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/nose.webp" alt="nose" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>nose</b><span>нос</span></td>
+      <td>LHOON</td>
+      <td><a href="https://creativecommons.org/licenses/by-sa/2.0" rel="license noopener" target="_blank">CC BY-SA 2.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Neus1.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/nurse.webp" alt="nurse" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>nurse</b><span>медсестра, медбрат</span></td>
+      <td>Linda Bartlett (Photographer)</td>
+      <td>Public domain</td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Nurse_checks_blood_pressure.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/paint.webp" alt="paint" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>paint</b><span>рисовать красками</span></td>
+      <td>Joyful spherical creature</td>
+      <td><a href="https://creativecommons.org/licenses/by-sa/4.0" rel="license noopener" target="_blank">CC BY-SA 4.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Multicolored_tempera_paints.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/park.webp" alt="park" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>park</b><span>парк</span></td>
+      <td>File:Halleyparknovember.jpg : Celco85 derivative work: Georgfotoart</td>
+      <td><a href="https://creativecommons.org/licenses/by-sa/4.0" rel="license noopener" target="_blank">CC BY-SA 4.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Halleyparknovember_b_(cropped).jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/pen.webp" alt="pen" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>pen</b><span>ручка</span></td>
+      <td>Vadim Zhuravlev</td>
+      <td>Public domain</td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Carandache_Ecridor.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/pencil.webp" alt="pencil" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>pencil</b><span>карандаш</span></td>
+      <td>Original uploader was Dmgerman at en.wikipedia</td>
+      <td><a href="https://creativecommons.org/licenses/by/3.0" rel="license noopener" target="_blank">CC BY 3.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Pencils_hb.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/plate.webp" alt="plate" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>plate</b><span>тарелка</span></td>
+      <td>Chelsea porcelain factory</td>
+      <td><a href="http://creativecommons.org/publicdomain/zero/1.0/deed.en" rel="license noopener" target="_blank">CC0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Botanical_plate_with_spray_of_fruiting_Indian_Bean_Tree_MET_DP-1687-038_(cropped).jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/pollution.webp" alt="pollution" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>pollution</b><span>загрязнение</span></td>
+      <td>Janak Bhatta</td>
+      <td><a href="https://creativecommons.org/licenses/by-sa/4.0" rel="license noopener" target="_blank">CC BY-SA 4.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Air_pollution3.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/rabbit.webp" alt="rabbit" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>rabbit</b><span>кролик</span></td>
+      <td>JM Ligero Loarte</td>
+      <td><a href="https://creativecommons.org/licenses/by/3.0" rel="license noopener" target="_blank">CC BY 3.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Oryctolagus_cuniculus_Rcdo.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/rain.webp" alt="rain" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>rain</b><span>дождь</span></td>
+      <td>Tomascastelazo</td>
+      <td><a href="https://creativecommons.org/licenses/by-sa/3.0" rel="license noopener" target="_blank">CC BY-SA 3.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Falling_rain_in_mexico.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/rice.webp" alt="rice" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>rice</b><span>рис</span></td>
+      <td>Hannahdownes</td>
+      <td><a href="https://creativecommons.org/licenses/by-sa/4.0" rel="license noopener" target="_blank">CC BY-SA 4.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Half_a_cup_of_rice._Brown_rice_is_the_best_choice.JPG" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/river.webp" alt="river" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>river</b><span>река</span></td>
+      <td>Basile Morin</td>
+      <td><a href="https://creativecommons.org/licenses/by-sa/4.0" rel="license noopener" target="_blank">CC BY-SA 4.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Pirogue_running_on_the_Mekong_at_golden_hour_between_Don_Det_and_Don_Khon_Laos.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/road.webp" alt="road" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>road</b><span>дорога</span></td>
+      <td>Img by Calvin Teo</td>
+      <td><a href="http://creativecommons.org/licenses/by-sa/3.0/" rel="license noopener" target="_blank">CC BY-SA 3.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Singapore-Johor_Causeway.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/ruler.webp" alt="ruler" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>ruler</b><span>линейка</span></td>
+      <td>Geof</td>
+      <td><a href="http://creativecommons.org/licenses/by-sa/3.0/" rel="license noopener" target="_blank">CC BY-SA 3.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Diverse%C2%B7Ma%C3%9Fst%C3%A4be,15.365.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/run.webp" alt="run" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>run</b><span>бегать</span></td>
+      <td>Chris Hunkeler</td>
+      <td><a href="https://creativecommons.org/licenses/by-sa/2.0" rel="license noopener" target="_blank">CC BY-SA 2.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Speedsuit.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/scarf.webp" alt="scarf" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>scarf</b><span>шарф</span></td>
+      <td>https://www.kaschmirprodukte.de</td>
+      <td><a href="https://creativecommons.org/licenses/by-sa/4.0" rel="license noopener" target="_blank">CC BY-SA 4.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:100%25_Kaschmir_Wolle_vonk_kaschmirprodukte.de.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/school.webp" alt="school" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>school</b><span>школа</span></td>
+      <td>Nikride</td>
+      <td><a href="https://creativecommons.org/licenses/by-sa/4.0" rel="license noopener" target="_blank">CC BY-SA 4.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:%D0%9C%D0%BE%D0%BB%D0%BE%D0%B4%D0%B5%D1%86%D1%8C%D0%BA%D0%B5_(%D0%9C%D0%B0%D0%BD%D1%8C%D0%BA%D1%96%D0%B2%D1%81%D1%8C%D0%BA%D0%B8%D0%B9_%D1%80-%D0%BD)._%D0%A8%D0%BA%D0%BE%D0%BB%D0%B0.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/sea.webp" alt="sea" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>sea</b><span>море</span></td>
+      <td>Alina Zienowicz Ala z</td>
+      <td><a href="http://creativecommons.org/licenses/by-sa/3.0/" rel="license noopener" target="_blank">CC BY-SA 3.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:POL_2007_08_04_Jaroslawiec_zachodniopomorskie_02.JPG" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/shirt.webp" alt="shirt" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>shirt</b><span>рубашка</span></td>
+      <td>Author of the photograph unknown.</td>
+      <td><a href="https://creativecommons.org/licenses/by-sa/3.0" rel="license noopener" target="_blank">CC BY-SA 3.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Charvet_shirt.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/shoe.webp" alt="shoe" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>shoe</b><span>ботинок, туфля</span></td>
+      <td>Birgit Brånvall</td>
+      <td><a href="https://creativecommons.org/licenses/by/3.0/no/deed.en" rel="license noopener" target="_blank">CC BY 3.0 no</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Skor_fr%C3%A5n_1700-_till_1960-talet_-_Nordiska_Museet_-_NMA.0056302.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/shop.webp" alt="shop" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>shop</b><span>магазин</span></td>
+      <td>Billy Hathorn</td>
+      <td><a href="https://creativecommons.org/licenses/by-sa/3.0" rel="license noopener" target="_blank">CC BY-SA 3.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Westside_Market_in_Manhattan,_NYC_IMG_5615.JPG" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/sing.webp" alt="sing" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>sing</b><span>петь</span></td>
+      <td>Owen Lucas from Bath, UK</td>
+      <td>Public domain</td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Ah_cricket_20122_(7364759010).jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/sleep.webp" alt="sleep" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>sleep</b><span>спать</span></td>
+      <td>Michael Nutt from New York, US</td>
+      <td><a href="https://creativecommons.org/licenses/by-sa/2.0" rel="license noopener" target="_blank">CC BY-SA 2.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Hammock_nap_on_patio.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/snow.webp" alt="snow" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>snow</b><span>снег</span></td>
+      <td>Пивовар Павло</td>
+      <td><a href="https://creativecommons.org/licenses/by-sa/4.0" rel="license noopener" target="_blank">CC BY-SA 4.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:%D0%91%D1%96%D0%BB%D0%B8%D0%B9_%D0%BB%D1%96%D1%81.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/sock.webp" alt="sock" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>sock</b><span>носок</span></td>
+      <td>Loggie-log</td>
+      <td>Public domain</td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:HandKnittedWhiteLaceSock.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/soup.webp" alt="soup" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>soup</b><span>суп</span></td>
+      <td>Petar Milošević</td>
+      <td><a href="https://creativecommons.org/licenses/by-sa/4.0" rel="license noopener" target="_blank">CC BY-SA 4.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Asparagus_soup_(spargelsuppe).jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/spoon.webp" alt="spoon" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>spoon</b><span>ложка</span></td>
+      <td>Donovan Govan.</td>
+      <td><a href="http://creativecommons.org/licenses/by-sa/3.0/" rel="license noopener" target="_blank">CC BY-SA 3.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Soup_Spoon.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/stand.webp" alt="stand" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>stand</b><span>стоять</span></td>
+      <td>Vyacheslav Argenberg</td>
+      <td><a href="https://creativecommons.org/licenses/by/4.0" rel="license noopener" target="_blank">CC BY 4.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Yerevan,_Armenian_girls_posing_in_photo_shoot,_Acting,_Posture,_Body_language,_Armenia.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/station.webp" alt="station" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>station</b><span>станция, вокзал</span></td>
+      <td>Ludvig14</td>
+      <td><a href="https://creativecommons.org/licenses/by-sa/4.0" rel="license noopener" target="_blank">CC BY-SA 4.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Milan_CentralStation_016_4294.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/storm.webp" alt="storm" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>storm</b><span>гроза, буря</span></td>
+      <td>Arnold Paul</td>
+      <td><a href="https://creativecommons.org/licenses/by-sa/2.5" rel="license noopener" target="_blank">CC BY-SA 2.5</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Cloud_cumulonimbus_at_baltic_sea(1).jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/street.webp" alt="street" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>street</b><span>улица</span></td>
+      <td>Onofre_Bouvila.</td>
+      <td><a href="https://creativecommons.org/licenses/by/2.5" rel="license noopener" target="_blank">CC BY 2.5</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Typical_Street_In_The_Royal_Borough_Of_Kensington_And_Chelsea_In_London.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/summer.webp" alt="summer" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>summer</b><span>лето</span></td>
+      <td>Luc Viatour</td>
+      <td><a href="http://creativecommons.org/licenses/by-sa/3.0/" rel="license noopener" target="_blank">CC BY-SA 3.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Field_Hamois_Belgium_Luc_Viatour.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/sun.webp" alt="sun" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>sun</b><span>солнце</span></td>
+      <td>Matúš Motlo</td>
+      <td><a href="https://creativecommons.org/licenses/by-sa/4.0" rel="license noopener" target="_blank">CC BY-SA 4.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:The_Sun_in_white_light.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/supermarket.webp" alt="supermarket" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>supermarket</b><span>супермаркет</span></td>
+      <td>NYC Guru</td>
+      <td><a href="https://creativecommons.org/licenses/by-sa/4.0" rel="license noopener" target="_blank">CC BY-SA 4.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Stop%26Shop.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/swim.webp" alt="swim" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>swim</b><span>плавать</span></td>
+      <td>The original uploader was McSmit at Dutch Wikipedia .</td>
+      <td><a href="http://creativecommons.org/licenses/by-sa/3.0/" rel="license noopener" target="_blank">CC BY-SA 3.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:EK_Zwemmen_2006_100m_vlinder_vrouwen.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/taxi.webp" alt="taxi" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>taxi</b><span>такси</span></td>
+      <td>Vauxford</td>
+      <td><a href="https://creativecommons.org/licenses/by-sa/4.0" rel="license noopener" target="_blank">CC BY-SA 4.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:2005_LTI_TXII_Silver_Automatic_2.4_Front.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/tea.webp" alt="tea" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>tea</b><span>чай</span></td>
+      <td>Difference engine</td>
+      <td><a href="https://creativecommons.org/licenses/by-sa/4.0" rel="license noopener" target="_blank">CC BY-SA 4.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Longjing_tea_steeping_in_gaiwan.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/teacher.webp" alt="teacher" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>teacher</b><span>учитель</span></td>
+      <td>Harrison Keely</td>
+      <td><a href="https://creativecommons.org/licenses/by/4.0" rel="license noopener" target="_blank">CC BY 4.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:A_public_high_school_teacher_in_a_classroom_in_the_United_States_08.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/temperature.webp" alt="temperature" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>temperature</b><span>температура</span></td>
+      <td>Anonimski</td>
+      <td><a href="https://creativecommons.org/licenses/by-sa/3.0" rel="license noopener" target="_blank">CC BY-SA 3.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Mercury_Thermometer.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/traffic.webp" alt="traffic" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>traffic</b><span>дорожное движение, пробки</span></td>
+      <td>Ken Lund from Reno, Nevada, USA</td>
+      <td><a href="https://creativecommons.org/licenses/by-sa/2.0" rel="license noopener" target="_blank">CC BY-SA 2.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Crossing_the_Hudson_River_on_the_George_Washington_Bridge_from_Fort_Lee,_New_Jersey_to_Manhattan,_New_York_(7237796950).jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/tree.webp" alt="tree" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>tree</b><span>дерево</span></td>
+      <td>menergo</td>
+      <td><a href="https://creativecommons.org/licenses/by-sa/3.0" rel="license noopener" target="_blank">CC BY-SA 3.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Usamljeni_jasen_-_panoramio_(cropped).jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/umbrella.webp" alt="umbrella" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>umbrella</b><span>зонт</span></td>
+      <td>MONNIN Jacques</td>
+      <td><a href="https://creativecommons.org/licenses/by-sa/3.0" rel="license noopener" target="_blank">CC BY-SA 3.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:M0354_000727-005_1.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/village.webp" alt="village" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>village</b><span>деревня</span></td>
+      <td>Bin im Garten</td>
+      <td><a href="https://creativecommons.org/licenses/by-sa/3.0" rel="license noopener" target="_blank">CC BY-SA 3.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Bourton-on-the-Water_2010_PD_09.JPG" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/wall.webp" alt="wall" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>wall</b><span>стена</span></td>
+      <td>No machine-readable author provided. Ofol assumed (based on copyright claims).</td>
+      <td><a href="https://creativecommons.org/licenses/by/2.5" rel="license noopener" target="_blank">CC BY 2.5</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Noel_2005_P%C3%A9kin_031_muraille_de_chine_Mutianyu.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/wallet.webp" alt="wallet" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>wallet</b><span>кошелёк</span></td>
+      <td>The original uploader was TheArmadillo at English Wikipedia .. Uploaded to Commons by Körnerbrötchen .</td>
+      <td><a href="http://creativecommons.org/licenses/by-sa/3.0/" rel="license noopener" target="_blank">CC BY-SA 3.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:WalletMpegMan.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/wash.webp" alt="wash" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>wash</b><span>мыть, стирать</span></td>
+      <td>Bill Branson (Photographer)</td>
+      <td>Public domain</td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Woman_washing_hands.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/water.webp" alt="water" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>water</b><span>вода</span></td>
+      <td>Josh Estey/AusAID</td>
+      <td><a href="https://creativecommons.org/licenses/by/2.0" rel="license noopener" target="_blank">CC BY 2.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Clean_water_for_a_village_in_West_Lombok_(10686572086).jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/window.webp" alt="window" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>window</b><span>окно</span></td>
+      <td>Shahadusadik</td>
+      <td><a href="https://creativecommons.org/licenses/by-sa/4.0" rel="license noopener" target="_blank">CC BY-SA 4.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Atua_Kosua_shrine4.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    <tr>
+      <td class="cr-pic"><img src="img/words/winter.webp" alt="winter" width="64" height="64" loading="lazy"></td>
+      <td class="cr-word"><b>winter</b><span>зима</span></td>
+      <td>Ernst Vikne</td>
+      <td><a href="https://creativecommons.org/licenses/by-sa/2.0" rel="license noopener" target="_blank">CC BY-SA 2.0</a></td>
+      <td><a href="https://commons.wikimedia.org/wiki/File:Winter_forest_silver.jpg" rel="noopener" target="_blank">файл на Commons</a></td>
+    </tr>
+    </tbody>
+  </table>
+</main>
+</body>
+</html>

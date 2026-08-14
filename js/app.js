@@ -406,7 +406,7 @@ function renderWordOfDay() {
   const inDict = state.dictionary.some(d => d.w.toLowerCase() === wd.w.toLowerCase());
   box.innerHTML = `
     <div class="card wod-card">
-      <div class="word-art word-art-small" aria-hidden="true" style="background:${wordTint(wd.cat)}">${wordArt(wd.w, wd.cat)}</div>
+      <div class="word-art word-art-small" aria-hidden="true" style="background:${wordTint(wd.cat)}">${wordArtHTML(wd.w, wd.cat)}</div>
       <span class="wod-label">${iconInline("paw", 16)} Слово дня</span>
       <!-- Слово, перевод и озвучка жили в одном текстовом потоке: строка
            «support 🔊   — поддерживать; поддержка» рвалась посреди фразы,
@@ -768,7 +768,7 @@ function renderRecGrid() {
     card.className = "card word-card";
     card.innerHTML = `
       <div class="w-head">
-        <div class="word-art word-art-small" style="background:${wordTint(rec.cat)}">${wordArt(rec.w, rec.cat)}</div>
+        <div class="word-art word-art-small" style="background:${wordTint(rec.cat)}">${wordArtHTML(rec.w, rec.cat)}</div>
         <span class="w-level">${rec.level}</span>
       </div>
       <div class="w-en">${esc(rec.w)} <button class="say-btn" title="Произношение"
@@ -862,7 +862,7 @@ function renderDictionary() {
       row.click();
     });
     row.innerHTML = `
-      <span class="word-art word-art-tiny" aria-hidden="true" style="background:${wordTint(info0.cat)}">${wordArt(d.w, info0.cat)}</span>
+      <span class="word-art word-art-tiny" aria-hidden="true" style="background:${wordTint(info0.cat)}">${wordArtHTML(d.w, info0.cat)}</span>
       <span class="d-en" lang="en">${esc(d.w)} <button class="say-btn" aria-label="Произношение: ${esc(d.w)}">${icon('sound', 18)}</button></span>
       <span class="d-ru">${esc(d.t)}</span>
       <span class="d-status ${d.status}">${statusText[d.status]}</span>
@@ -976,7 +976,7 @@ function renderFlashcard() {
   const item = trainQueue[trainIndex];
   const info = (typeof wordInfo === "function" && wordInfo(item.w)) || {};
   const art = document.getElementById("flash-art");
-  art.textContent = wordArt(item.w, info.cat);
+  art.innerHTML = wordArtHTML(item.w, info.cat);
   art.style.background = wordTint(info.cat);
   document.getElementById("flash-word").textContent = item.w;
   document.getElementById("flash-translation").textContent = item.t;

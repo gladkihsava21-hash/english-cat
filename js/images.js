@@ -318,9 +318,32 @@ function wordTint(category) {
   return `color-mix(in srgb, var(--soft-${name}) 38%, var(--surface))`;
 }
 
+/** Образ слова СТРОКОЙ. Остаётся эмодзи и после появления фотографий:
+ *  на нём держится сравнение образов в exercises.js — ловушка не должна
+ *  получить ту же картинку, что правильный ответ. Сравнивать разметку
+ *  вместо символа значило бы сличать теги и полагаться на случайность. */
 function wordArt(word, category) {
   const key = String(word || "").toLowerCase().trim();
   return WORD_ART[key] || CATEGORY_ART[category] || "🐾";
+}
+
+/** Образ слова РАЗМЕТКОЙ — то, что реально видит ученик.
+ *  Для 110 конкретных слов это фотография (список в js/word-photos.js),
+ *  для остальных — прежний эмодзи. Абстрактному слову фотография не
+ *  помогает: «therefore» нечем сфотографировать, и попытка кончается
+ *  случайной картинкой, которая мешает больше, чем помогает.
+ *
+ *  alt пустой: плитка декоративная, слово написано рядом текстом, и
+ *  озвучивать его скринридеру второй раз незачем. */
+function wordArtHTML(word, category) {
+  const key = String(word || "").toLowerCase().trim();
+  if (typeof WORD_PHOTOS !== "undefined" && WORD_PHOTOS[key]) {
+    return `<img src="img/words/${encodeURIComponent(key)}.webp" alt=""`
+         + ` width="480" height="480" loading="lazy" decoding="async">`;
+  }
+  // Эмодзи тоже экранируем: иначе функция «иногда HTML, иногда нет»,
+  // и первое же значение с кавычкой порвёт вёрстку.
+  return esc(wordArt(word, category));
 }
 
 // Готовый блок с картинкой для карточки
@@ -328,6 +351,6 @@ function artBlock(word, category, size = "mid") {
   const div = document.createElement("div");
   div.className = "word-art word-art-" + size;
   div.style.background = wordTint(category);
-  div.textContent = wordArt(word, category);
+  div.innerHTML = wordArtHTML(word, category);
   return div;
 }
