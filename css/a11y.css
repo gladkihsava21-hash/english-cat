@@ -467,3 +467,20 @@ h1, h2, h3, .section-title, .dash-head h2,
 @media (min-width: 821px) {
   .screen:not(.hidden) { min-height: calc(100dvh - 80px); }
 }
+
+/* Закрытая награда показывает СВОЮ иконку приглушённо, а замок — маленьким
+   бейджем в углу. Раньше все закрытые были одинаковыми замками, и различить
+   «выучить 10 слов» и «набрать 5000 очков» было нечем. */
+.ach-icon { position: relative; }
+.ach-card:not(.got) .ach-icon .ic:first-child { opacity: .38; }
+.ach-lock {
+  position: absolute; right: -2px; bottom: -2px;
+  display: inline-flex; padding: 2px;
+  background: var(--surface); border-radius: 999px;
+  color: var(--ink-soft);
+}
+/* Чип был заполнен иконкой на 39% — пустой внутри */
+.ach-icon { width: 56px; height: 56px; }
+/* Внутри карточки не было иерархии: имя и описание одного кегля */
+.ach-name { font-size: var(--text-body-sm); font-weight: 600; }
+.ach-desc { font-size: var(--text-caption); line-height: 1.45; color: var(--ink-soft); }

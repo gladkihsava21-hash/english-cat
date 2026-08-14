@@ -695,12 +695,14 @@ function renderAchStrip() {
     .slice(0, got.length ? 2 : 3)
     .map(x => x.a);
 
-  const sticker = (cls, icon, text, title) =>
-    `<span class="sticker ${cls}" title="${esc(title)}"><span class="ach-emoji">${icon}</span>${esc(text)}</span>`;
+  const sticker = (cls, iconName, text, title) =>
+    `<span class="sticker ${cls}" title="${esc(title)}">`
+    + `<span class="ach-emoji">${typeof icon === "function" ? icon(iconName, 18) : ""}</span>`
+    + `${esc(text)}</span>`;
 
   box.innerHTML = [
     ...got.map(a => sticker(TIER_CLASS[a.tier] || "", a.icon, a.name, a.desc)),
-    state.blitzBest ? sticker("", "⚡", `Блиц: ${state.blitzBest}`, "Личный рекорд в блице") : "",
+    state.blitzBest ? sticker("", "blitz", `Блиц: ${state.blitzBest}`, "Личный рекорд в блице") : "",
     near.length ? `<span class="ach-next">${got.length ? "Дальше:" : "Что можно взять сегодня:"}</span>` : "",
     ...near.map(a => sticker("locked", a.icon, a.desc, a.name)),
   ].join("");

@@ -800,8 +800,8 @@ input::placeholder, textarea::placeholder { color: var(--ink-soft); opacity: 1; 
 .word-art { background: var(--art-tile) !important; }
 /* Значок награды приходит с фоном из JS (#EFEAE3 у закрытых) — ночью это
    светлый прямоугольник на тёмной карточке. */
-.ach-icon { background: var(--surface-alt) !important; }
-.ach-card.ach-done .ach-icon { background: var(--accent-soft) !important; }
+.ach-icon {  }
+.ach-card.ach-done .ach-icon {  }
 /* «получено» приходило инлайновым бронзовым / золотым / серебряным цветом:
    2,15–2,81:1 и ровно тот оранжевый, который заказчик просил убрать. */
 .ach-got {

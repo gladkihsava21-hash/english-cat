@@ -162,7 +162,7 @@ function renderAchievements() {
       <div class="card ach-card${done ? " ach-done" : ""}">
         <span class="ach-icon" style="background:${done
           ? `color-mix(in srgb, var(--soft-${TIER_TINT[a.tier] || "mint"}) 34%, var(--surface))`
-          : "var(--surface-alt)"}">${done ? icon(a.icon, 22) : icon("lock", 22)}</span>
+          : "var(--surface-alt)"}">${icon(a.icon, 28)}${done ? "" : `<span class="ach-lock">${icon("lock", 12)}</span>`}</span>
         <b class="ach-name">${a.name}</b>
         <span class="ach-desc">${a.desc}</span>
         ${done
