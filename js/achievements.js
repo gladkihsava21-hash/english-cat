@@ -3,57 +3,59 @@
 
 const ACHIEVEMENTS = [
   // первые шаги
-  { id: "first-word",     icon: "🐾", tier: "bronze", name: "Первая добыча",      desc: "Добавить первое слово в словарь",        metric: "words_added",     threshold: 1 },
-  { id: "first-lesson",   icon: "🎒", tier: "bronze", name: "Первый урок",        desc: "Пройти любую тренировку",                metric: "exercises_done",  threshold: 1 },
-  { id: "level-known",    icon: "🧭", tier: "bronze", name: "Знай себя",          desc: "Пройти тест на словарный запас",         metric: "level_reached",   threshold: 1 },
+  { id: "first-word",     icon: "paw", tier: "bronze", name: "Первая добыча",      desc: "Добавить первое слово в словарь",        metric: "words_added",     threshold: 1 },
+  { id: "first-lesson",   icon: "target", tier: "bronze", name: "Первый урок",        desc: "Пройти любую тренировку",                metric: "exercises_done",  threshold: 1 },
+  { id: "level-known",    icon: "sparkle", tier: "bronze", name: "Знай себя",          desc: "Пройти тест на словарный запас",         metric: "level_reached",   threshold: 1 },
 
   // словарь
-  { id: "words-10",       icon: "📗", tier: "bronze", name: "Десяточка",          desc: "Выучить 10 слов",                        metric: "words_learned",   threshold: 10 },
-  { id: "words-50",       icon: "📘", tier: "silver", name: "Полсотни",           desc: "Выучить 50 слов",                        metric: "words_learned",   threshold: 50 },
-  { id: "words-150",      icon: "📚", tier: "gold",   name: "Книжный кот",        desc: "Выучить 150 слов",                       metric: "words_learned",   threshold: 150 },
-  { id: "words-300",      icon: "🏛️", tier: "gold",   name: "Ходячий словарь",    desc: "Выучить 300 слов",                       metric: "words_learned",   threshold: 300 },
-  { id: "collector-50",   icon: "🎒", tier: "bronze", name: "Запасливый",         desc: "Собрать 50 слов в словаре",              metric: "words_added",     threshold: 50 },
+  { id: "words-10",       icon: "book", tier: "bronze", name: "Десяточка",          desc: "Выучить 10 слов",                        metric: "words_learned",   threshold: 10 },
+  { id: "words-50",       icon: "book", tier: "silver", name: "Полсотни",           desc: "Выучить 50 слов",                        metric: "words_learned",   threshold: 50 },
+  { id: "words-150",      icon: "book", tier: "gold",   name: "Книжный кот",        desc: "Выучить 150 слов",                       metric: "words_learned",   threshold: 150 },
+  { id: "words-300",      icon: "book", tier: "gold",   name: "Ходячий словарь",    desc: "Выучить 300 слов",                       metric: "words_learned",   threshold: 300 },
+  { id: "collector-50",   icon: "paw", tier: "bronze", name: "Запасливый",         desc: "Собрать 50 слов в словаре",              metric: "words_added",     threshold: 50 },
 
   // регулярность
-  { id: "streak-3",       icon: "🔥", tier: "bronze", name: "Разогрев",           desc: "Заниматься 3 дня подряд",                metric: "streak",          threshold: 3 },
-  { id: "streak-7",       icon: "🔥", tier: "silver", name: "Неделя без пропусков", desc: "Заниматься 7 дней подряд",             metric: "streak",          threshold: 7 },
-  { id: "streak-30",      icon: "🌋", tier: "gold",   name: "Железная лапа",      desc: "Заниматься 30 дней подряд",              metric: "streak",          threshold: 30 },
-  { id: "days-20",        icon: "📅", tier: "silver", name: "Постоянный клиент",  desc: "Заниматься в 20 разных дней",            metric: "active_days",     threshold: 20 },
+  { id: "streak-3",       icon: "streak", tier: "bronze", name: "Разогрев",           desc: "Заниматься 3 дня подряд",                metric: "streak",          threshold: 3 },
+  { id: "streak-7",       icon: "streak", tier: "silver", name: "Неделя без пропусков", desc: "Заниматься 7 дней подряд",             metric: "streak",          threshold: 7 },
+  { id: "streak-30",      icon: "streak", tier: "gold",   name: "Железная лапа",      desc: "Заниматься 30 дней подряд",              metric: "streak",          threshold: 30 },
+  { id: "days-20",        icon: "refresh", tier: "silver", name: "Постоянный клиент",  desc: "Заниматься в 20 разных дней",            metric: "active_days",     threshold: 20 },
 
   // очки и звания
-  { id: "xp-100",         icon: "⭐", tier: "bronze", name: "Первая сотня",       desc: "Набрать 100 очков",                      metric: "xp",              threshold: 100 },
-  { id: "xp-1000",        icon: "🌟", tier: "silver", name: "Тысячник",           desc: "Набрать 1000 очков",                     metric: "xp",              threshold: 1000 },
-  { id: "xp-5000",        icon: "💫", tier: "gold",   name: "Звёздный кот",       desc: "Набрать 5000 очков",                     metric: "xp",              threshold: 5000 },
+  { id: "xp-100",         icon: "star", tier: "bronze", name: "Первая сотня",       desc: "Набрать 100 очков",                      metric: "xp",              threshold: 100 },
+  { id: "xp-1000",        icon: "star", tier: "silver", name: "Тысячник",           desc: "Набрать 1000 очков",                     metric: "xp",              threshold: 1000 },
+  { id: "xp-5000",        icon: "star", tier: "gold",   name: "Звёздный кот",       desc: "Набрать 5000 очков",                     metric: "xp",              threshold: 5000 },
 
   // мастерство в тренировках
-  { id: "perfect-1",      icon: "🎯", tier: "bronze", name: "Без единой ошибки",  desc: "Пройти тренировку идеально",             metric: "perfect_rounds",  threshold: 1 },
-  { id: "perfect-10",     icon: "🏹", tier: "silver", name: "Меткий глаз",        desc: "10 идеальных тренировок",                metric: "perfect_rounds",  threshold: 10 },
-  { id: "perfect-50",     icon: "👑", tier: "gold",   name: "Безупречный",        desc: "50 идеальных тренировок",                metric: "perfect_rounds",  threshold: 50 },
-  { id: "exercises-25",   icon: "💪", tier: "bronze", name: "Втянулся",           desc: "Пройти 25 тренировок",                   metric: "exercises_done",  threshold: 25 },
-  { id: "exercises-100",  icon: "🥋", tier: "silver", name: "Сотня подходов",     desc: "Пройти 100 тренировок",                  metric: "exercises_done",  threshold: 100 },
-  { id: "all-modes",      icon: "🎪", tier: "gold",   name: "Универсал",          desc: "Попробовать 15 видов тренировок",        metric: "modes_tried",     threshold: 15 },
+  { id: "perfect-1",      icon: "medal", tier: "bronze", name: "Без единой ошибки",  desc: "Пройти тренировку идеально",             metric: "perfect_rounds",  threshold: 1 },
+  { id: "perfect-10",     icon: "medal", tier: "silver", name: "Меткий глаз",        desc: "10 идеальных тренировок",                metric: "perfect_rounds",  threshold: 10 },
+  { id: "perfect-50",     icon: "medal", tier: "gold",   name: "Безупречный",        desc: "50 идеальных тренировок",                metric: "perfect_rounds",  threshold: 50 },
+  { id: "exercises-25",   icon: "target", tier: "bronze", name: "Втянулся",           desc: "Пройти 25 тренировок",                   metric: "exercises_done",  threshold: 25 },
+  { id: "exercises-100",  icon: "target", tier: "silver", name: "Сотня подходов",     desc: "Пройти 100 тренировок",                  metric: "exercises_done",  threshold: 100 },
+  { id: "all-modes",      icon: "categories", tier: "gold",   name: "Универсал",          desc: "Попробовать 15 видов тренировок",        metric: "modes_tried",     threshold: 15 },
 
   // блиц
-  { id: "blitz-100",      icon: "⚡", tier: "bronze", name: "Разогнался",         desc: "Набрать 100 очков в блице",              metric: "blitz_score",     threshold: 100 },
-  { id: "blitz-300",      icon: "🌪️", tier: "silver", name: "Молния",             desc: "Набрать 300 очков в блице",              metric: "blitz_score",     threshold: 300 },
-  { id: "blitz-500",      icon: "🚀", tier: "gold",   name: "Сверхзвук",          desc: "Набрать 500 очков в блице",              metric: "blitz_score",     threshold: 500 },
+  { id: "blitz-100",      icon: "blitz", tier: "bronze", name: "Разогнался",         desc: "Набрать 100 очков в блице",              metric: "blitz_score",     threshold: 100 },
+  { id: "blitz-300",      icon: "blitz", tier: "silver", name: "Молния",             desc: "Набрать 300 очков в блице",              metric: "blitz_score",     threshold: 300 },
+  { id: "blitz-500",      icon: "blitz", tier: "gold",   name: "Сверхзвук",          desc: "Набрать 500 очков в блице",              metric: "blitz_score",     threshold: 500 },
 
   // домашка и кот
-  { id: "hw-1",           icon: "📋", tier: "bronze", name: "Домашку сдал",       desc: "Выполнить домашку полностью",            metric: "homework_done",   threshold: 1 },
-  { id: "hw-10",          icon: "🏅", tier: "silver", name: "Отличник",           desc: "Выполнить 10 домашек",                   metric: "homework_done",   threshold: 10 },
-  { id: "chat-10",        icon: "💬", tier: "bronze", name: "Разговорился",       desc: "Написать Савелию 10 сообщений",          metric: "chat_messages",   threshold: 10 },
-  { id: "chat-100",       icon: "🗣️", tier: "silver", name: "Душа компании",      desc: "Написать Савелию 100 сообщений",         metric: "chat_messages",   threshold: 100 },
+  { id: "hw-1",           icon: "book", tier: "bronze", name: "Домашку сдал",       desc: "Выполнить домашку полностью",            metric: "homework_done",   threshold: 1 },
+  { id: "hw-10",          icon: "book", tier: "silver", name: "Отличник",           desc: "Выполнить 10 домашек",                   metric: "homework_done",   threshold: 10 },
+  { id: "chat-10",        icon: "chat", tier: "bronze", name: "Разговорился",       desc: "Написать Савелию 10 сообщений",          metric: "chat_messages",   threshold: 10 },
+  { id: "chat-100",       icon: "chat", tier: "silver", name: "Душа компании",      desc: "Написать Савелию 100 сообщений",         metric: "chat_messages",   threshold: 100 },
 
   // время суток
-  { id: "early-bird",     icon: "🌅", tier: "silver", name: "Ранняя пташка",      desc: "Позаниматься до 8 утра",                 metric: "early_bird",      threshold: 1 },
-  { id: "night-owl",      icon: "🌙", tier: "silver", name: "Ночной охотник",     desc: "Позаниматься после 23:00",               metric: "night_owl",       threshold: 1 },
+  { id: "early-bird",     icon: "clock", tier: "silver", name: "Ранняя пташка",      desc: "Позаниматься до 8 утра",                 metric: "early_bird",      threshold: 1 },
+  { id: "night-owl",      icon: "clock", tier: "silver", name: "Ночной охотник",     desc: "Позаниматься после 23:00",               metric: "night_owl",       threshold: 1 },
 
   // цель
-  { id: "goal-1",         icon: "✅", tier: "bronze", name: "План выполнен",      desc: "Выполнить дневную цель",                 metric: "goals_hit",       threshold: 1 },
-  { id: "goal-10",        icon: "🎖️", tier: "silver", name: "Дисциплина",         desc: "Выполнить дневную цель 10 раз",          metric: "goals_hit",       threshold: 10 },
+  { id: "goal-1",         icon: "check", tier: "bronze", name: "План выполнен",      desc: "Выполнить дневную цель",                 metric: "goals_hit",       threshold: 1 },
+  { id: "goal-10",        icon: "check", tier: "silver", name: "Дисциплина",         desc: "Выполнить дневную цель 10 раз",          metric: "goals_hit",       threshold: 10 },
 ];
 
-const TIER_COLOR = { bronze: "#C98A4B", silver: "#9AA3AD", gold: "#E0A32E" };
+// Уровни наград берут цвет из палитры, а не своими хексами: прежние
+// бронза и золото были из оранжевой гаммы и ночью светились на тёмном.
+const TIER_TINT = { bronze: "clay", silver: "sky", gold: "lavender" };
 
 /** Все счётчики, по которым проверяются достижения. */
 function achMetrics() {
@@ -128,8 +130,10 @@ function markMode(id) {
 function achToast(a) {
   const box = document.createElement("div");
   box.className = "ach-toast";
+  box.setAttribute("role", "status");
   box.innerHTML = `
-    <span class="ach-toast-icon" style="background:${TIER_COLOR[a.tier]}22">${a.icon}</span>
+    <span class="ach-toast-icon" aria-hidden="true"
+          style="background:var(--surface-alt)">${icon(a.icon, 22)}</span>
     <span>
       <b>Награда: ${a.name}</b>
       <i>${a.desc}</i>
@@ -156,11 +160,13 @@ function renderAchievements() {
     const pct = Math.round((cur / a.threshold) * 100);
     return `
       <div class="card ach-card${done ? " ach-done" : ""}">
-        <span class="ach-icon" style="background:${done ? TIER_COLOR[a.tier] + "22" : "#EFEAE3"}">${done ? a.icon : "🔒"}</span>
+        <span class="ach-icon" style="background:${done
+          ? `color-mix(in srgb, var(--soft-${TIER_TINT[a.tier] || "mint"}) 34%, var(--surface))`
+          : "var(--surface-alt)"}">${done ? icon(a.icon, 22) : icon("lock", 22)}</span>
         <b class="ach-name">${a.name}</b>
         <span class="ach-desc">${a.desc}</span>
         ${done
-          ? `<span class="ach-got" style="color:${TIER_COLOR[a.tier]}">получено</span>`
+          ? `<span class="ach-got">получено</span>`
           : `<div class="xp-bar"><div class="xp-bar-fill" style="width:${pct}%"></div></div>
              <span class="ach-progress">${cur} / ${a.threshold}</span>`}
       </div>`;

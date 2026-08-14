@@ -1,13 +1,13 @@
 {
   "name": "Савелий — кот-репетитор английского",
   "short_name": "Савелий",
-  "description": "Учи английские слова с котом Савелием: тренировки, карточки, домашка от репетитора",
+  "description": "Английские слова, которые не выветрятся: карточки с повторением, разбор домашки по фото и кот, который спросит",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#FFF8F0",
-  "theme_color": "#FF8C42",
+  "background_color": "#F6F5F0",
+  "theme_color": "#F6F5F0",
   "lang": "ru",
   "icons": [
     {

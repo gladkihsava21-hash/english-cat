@@ -702,11 +702,15 @@ class Api:
             return {"ok": False, "error": "Такой ссылки не существует."}
         name = str(p.get("name", "")).strip()
         if len(name) < 2:
-            return {"ok": False, "error": "Введи имя — хотя бы две буквы."}
+            # это экран УЧЕНИКА — обращаемся на «ты» и подсказываем пример
+            return {"ok": False, "error": "Напиши имя — хотя бы две буквы. Можно просто «Ваня»."}
         allowed, limit = db.can_add_student(tutor)
         if not allowed:
+            # было «занято всё %d мест» (рассогласование) и «попроси ЕЁ» —
+            # женский род прилетал любому репетитору, включая мужчин
             return {"ok": False, "error":
-                    "У репетитора занято всё %d мест. Попроси её расширить тариф." % limit}
+                    "У репетитора заняты все %d мест. Напиши ему — он добавит место, "
+                    "и ты подключишься." % limit}
         row = db.create_student(tutor["id"], name)
         return {"ok": True, "token": row["token"], "tutorName": tutor["name"],
                 "restoreCode": row["restore_code"]}
@@ -1307,17 +1311,17 @@ class Handler(SimpleHTTPRequestHandler):
         who = self.client_address[0] if self.client_address else "?"
         if not rate_ok(path, str(payload.get("token") or who)[:64]):
             self._send_json({"ok": False,
-                             "error": "Слишком часто. Подожди немного."}, 429)
+                             "error": "Слишком быстро — притормози. Через полминуты снова можно."}, 429)
             return
         try:
             self._send_json(handler(self, payload))
         except (ValueError, TypeError, KeyError):
             # неверные типы в запросе — это ошибка клиента, а не сервера;
             # текст исключения наружу не отдаём
-            self._send_json({"ok": False, "error": "Некорректные данные запроса."}, 400)
+            self._send_json({"ok": False, "error": "Запрос не разобрал. Обнови страницу и попробуй ещё раз."}, 400)
         except Exception:
             import traceback; traceback.print_exc()
-            self._send_json({"ok": False, "error": "Внутренняя ошибка сервера."}, 500)
+            self._send_json({"ok": False, "error": "У нас что-то отвалилось — это точно не ты. Попробуй через минуту."}, 500)
 
     def end_headers(self):
         # при разработке браузер не должен кэшировать css/js —

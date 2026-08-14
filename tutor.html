@@ -6,11 +6,13 @@
   <title>Панель репетитора — Савелий</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/tokens.css?v=27">
-  <link rel="stylesheet" href="css/style.css?v=27">
-  <link rel="stylesheet" href="css/savely.css?v=27">
-  <link rel="stylesheet" href="css/tutor.css?v=27">
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/tokens.css?v=57">
+  <link rel="stylesheet" href="css/style.css?v=57">
+  <link rel="stylesheet" href="css/savely.css?v=57">
+  <link rel="stylesheet" href="css/tutor.css?v=57">
+<link rel="stylesheet" href="css/motion.css?v=57">
+<link rel="stylesheet" href="css/a11y.css?v=57">
 </head>
 <body>
 
@@ -18,8 +20,9 @@
 <section id="screen-auth" class="screen">
   <div class="hero">
     <div class="cat-avatar cat-big">🐈‍⬛</div>
-    <h1>Панель репетитора</h1>
-    <p class="hero-sub">Смотри прогресс каждого ученика и выдавай домашку словами.</p>
+    <h1>Видно, кто учил слова, а&nbsp;кто нет</h1>
+    <p class="hero-sub">Вы выдаёте домашку и&nbsp;смотрите прогресс каждого ученика —
+      без «сделал, честное слово». Ученикам платить не&nbsp;нужно, им хватит вашей ссылки.</p>
 
     <div class="card auth-card">
       <div class="tabs">
@@ -48,8 +51,10 @@
       </form>
 
       <form id="reset-form" class="hidden">
-        <p class="reset-note">Введите код восстановления — тот, что мы показали
-          при регистрации, и придумайте новый пароль.</p>
+        <p class="reset-note">Введите код восстановления — тот, что мы показали при
+          регистрации, — и придумайте новый пароль. Кода нет под рукой? Напишите
+          <a class="tg-link" href="https://t.me/KOTSAVELII" target="_blank" rel="noopener">@KOTSAVELII</a>,
+          вернём доступ вручную.</p>
         <label>Код восстановления
           <input type="text" id="r-code" placeholder="ABCD-EFGH-JKLM" maxlength="14" required>
         </label>
@@ -68,7 +73,7 @@
 <div id="app" class="hidden">
   <header class="topbar">
     <div class="topbar-inner">
-      <button class="brand"><span class="brand-cat">🐈‍⬛</span> Савелий · панель</button>
+      <button class="brand"><span class="brand-cat cat-avatar" data-cat="hello" aria-hidden="true"></span> Савелий · панель</button>
       <nav class="nav">
         <button class="nav-btn active" data-tab="students">Ученики <span id="stu-count" class="badge">0</span></button>
         <button class="nav-btn" data-tab="homework">Выдать домашку</button>
@@ -111,9 +116,16 @@
       </div>
 
       <div id="students-list"></div>
+      <!-- Кнопка прямо здесь, а не отсылка на другую вкладку: единственный
+           шаг, без которого панель остаётся пустой, не должен требовать
+           похода в меню. -->
       <div id="students-empty" class="empty-state hidden">
-        <div class="cat-avatar cat-mid">🐈</div>
-        <p>Учеников пока нет. Откройте вкладку «Ссылка для учеников» и отправьте им ссылку.</p>
+        <div class="cat-avatar cat-mid" data-cat="sleep"></div>
+        <h3>Здесь появятся ваши ученики</h3>
+        <p>Уровень, выученные слова и дата последнего захода — по&nbsp;каждому.</p>
+        <p class="muted-small">Ученику не нужен ни пароль, ни установка:
+          он открывает ссылку и вписывает имя.</p>
+        <button class="btn btn-primary" id="students-empty-copy">Скопировать ссылку</button>
       </div>
     </section>
 
@@ -179,7 +191,7 @@
         <div class="vs-row">
           <select id="msg-target"></select>
           <input type="text" id="msg-text" placeholder="Например: молодцы, кто сделал домашку! Остальных жду 😺" maxlength="500">
-          <button class="btn btn-primary" id="msg-send">Отправить</button>
+          <button class="btn btn-primary" id="msg-send">Отправить сообщение</button>
         </div>
         <div id="msg-list"></div>
         <p class="type-feedback" id="msg-status"></p>
@@ -188,7 +200,10 @@
       <div id="tasks-list"></div>
       <div id="tasks-empty" class="empty-state hidden">
         <div class="cat-avatar cat-mid">🐈</div>
-        <p>Домашек пока нет. Выдайте первую на вкладке «Выдать домашку».</p>
+        <p>Здесь появятся выданные домашки — и&nbsp;будет видно, кто уже сдал,
+          а&nbsp;кто ещё нет.</p>
+        <p class="muted-small">Соберите первую на&nbsp;вкладке «Выдать домашку»: слова
+          из&nbsp;базы, задание текстом или текст для чтения вслух.</p>
       </div>
     </section>
 
@@ -198,17 +213,25 @@
          Смотри низ файла. -->
 
     <section id="tab-photos" class="hidden">
-      <h2 class="section-title">Фото домашних работ</h2>
-      <p class="section-note">Ученики присылают снимки тетрадей. Савелий разбирает
-        работу и показывает ошибки — вам остаётся проверить и обсудить на занятии.</p>
+      <h2 class="section-title">Фото тетрадей</h2>
+      <p class="section-note">Ученики снимают работу на&nbsp;телефон — снимки приходят
+        сюда, и&nbsp;тетрадь видно до&nbsp;занятия, а&nbsp;не&nbsp;на&nbsp;нём.
+        Разбор ошибок Савелием подключается отдельно, на&nbsp;вкладке «Проверка домашек».</p>
       <div id="photo-list" class="photo-grid"></div>
+      <div id="photos-empty" class="empty-state hidden">
+        <div class="cat-avatar cat-mid">🐈</div>
+        <p>Здесь появятся фото тетрадей — по&nbsp;одному на&nbsp;каждую сданную работу.</p>
+        <p class="muted-small">Кнопка «Сфоткать домашку» уже есть у&nbsp;ученика на&nbsp;главной.
+          Напомните о&nbsp;ней сообщением на&nbsp;вкладке «Домашки».</p>
+      </div>
     </section>
 
     <section id="tab-checks" class="hidden">
       <h2 class="section-title">Проверка домашек</h2>
-      <p class="section-note">Ученик фотографирует тетрадь — Савелий разбирает работу,
-        находит ошибки и объясняет каждую. Подключается на каждого ученика отдельно:
-        кому-то нужно, кому-то нет.</p>
+      <p class="section-note">Подключается на&nbsp;каждого ученика отдельно — кому-то
+        нужно, кому-то нет. Там, где включена, Савелий разбирает снимок тетради,
+        находит ошибки и&nbsp;объясняет каждую. Это отдельная подписка сверх тарифа,
+        цены ниже.</p>
       <div id="checks-packs" class="check-packs"></div>
       <div id="checks-list"></div>
       <div id="checks-bill"></div>
@@ -222,13 +245,15 @@
     <section id="tab-invite" class="hidden">
       <div class="section-head"><h2>Ссылка для учеников</h2></div>
       <div class="card invite-card">
-        <p>Отправьте эту ссылку ученикам. Они откроют её, введут имя — и появятся в вашей панели.</p>
+        <p>Отправьте эту ссылку ученикам в&nbsp;чат. Они откроют её, введут имя —
+          и&nbsp;появятся у&nbsp;вас в&nbsp;списке.</p>
         <div class="invite-link">
           <input type="text" id="invite-url" readonly>
-          <button class="btn btn-primary" id="copy-link">Копировать</button>
+          <button class="btn btn-primary" id="copy-link">Скопировать ссылку</button>
         </div>
         <p class="muted-small">Код приглашения: <b id="invite-code"></b></p>
-        <p class="muted-small">Ученикам ничего не нужно устанавливать и придумывать пароль — достаточно открыть ссылку.</p>
+        <p class="muted-small">Ученику не&nbsp;нужно ничего устанавливать, придумывать пароль
+          и&nbsp;платить — занятия для него бесплатны. Подписку оплачиваете только вы.</p>
       </div>
     </section>
   </main>
@@ -244,16 +269,17 @@
 <section id="screen-paywall" class="screen hidden">
   <div class="hero">
     <div class="cat-avatar cat-big">🔒</div>
-    <h1>Пробный период закончился</h1>
-    <p class="hero-sub">Три дня прошли — надеемся, Савелий пригодился.
-      Панель откроется сразу после оплаты.</p>
+    <h1>Оформите подписку, и&nbsp;панель вернётся</h1>
+    <p class="hero-sub">Пробные дни закончились. Списаний нет: вы пишете нам,
+      мы выставляем счёт, панель открывается в&nbsp;день оплаты.</p>
     <div class="card auth-card">
       <div id="paywall-plan"></div>
-      <p class="reset-note" style="margin-top:16px">Напишите — вышлем счёт и вернём доступ сразу после оплаты:<br>
+      <p class="reset-note" style="margin-top:16px">Напишите в&nbsp;телеграм — пришлём счёт:<br>
         <a class="tg-link" href="https://t.me/KOTSAVELII" target="_blank" rel="noopener">@KOTSAVELII</a></p>
-      <p class="reset-note"><b>Ученики всё это время занимаются как ни в чём не бывало</b> —
-        прогресс и словари на месте.</p>
-      <button class="link-btn auth-forgot" id="paywall-logout">выйти</button>
+      <p class="reset-note"><b>Ученики продолжают заниматься</b> — прогресс, словари
+        и&nbsp;выданные домашки на&nbsp;месте, для них ничего не&nbsp;изменилось.
+        Закрыта только ваша панель.</p>
+      <button class="link-btn auth-forgot" id="paywall-logout">выйти из&nbsp;кабинета</button>
     </div>
   </div>
 </section>
@@ -261,10 +287,10 @@
 <section id="screen-verify" class="screen hidden">
   <div class="hero">
     <div class="cat-avatar cat-big">📬</div>
-    <h1>Подтвердите почту</h1>
-    <p class="hero-sub">Отправили шестизначный код на <b id="verify-email"></b>.
-      Введите его — и кабинет откроется.<br>
-      Код нужен, чтобы на ваш адрес не завёл кабинет кто-то другой.</p>
+    <h1>Введите код из&nbsp;письма</h1>
+    <p class="hero-sub">Отправили шесть цифр на <b id="verify-email"></b> — введите их,
+      и&nbsp;кабинет откроется.<br>
+      Код нужен один раз: чтобы на&nbsp;вашу почту не&nbsp;завёл кабинет кто-то другой.</p>
     <div class="card auth-card">
       <form id="verify-form">
         <label>Код из письма
@@ -276,10 +302,11 @@
         <p class="type-feedback ok" id="verify-note"></p>
       </form>
       <button type="button" class="link-btn auth-forgot" id="verify-resend">Прислать код заново</button>
-      <p class="reset-note" style="margin-top:14px"><b>Письмо любит падать в «Спам»</b> —
-        загляните туда в первую очередь. Если и там пусто, нажмите «Прислать код
-        заново» или напишите <a class="tg-link" href="https://t.me/KOTSAVELII" target="_blank" rel="noopener">@KOTSAVELII</a> — подтвердим вручную.</p>
-      <button type="button" class="link-btn auth-forgot" id="verify-logout">выйти и войти другой почтой</button>
+      <p class="reset-note" style="margin-top:14px">Письма нет? Загляните в&nbsp;«Спам» —
+        оно чаще всего там. Если пусто и&nbsp;там, нажмите «Прислать код заново» или напишите
+        <a class="tg-link" href="https://t.me/KOTSAVELII" target="_blank" rel="noopener">@KOTSAVELII</a> —
+        подтвердим вручную.</p>
+      <button type="button" class="link-btn auth-forgot" id="verify-logout">указать другую почту</button>
     </div>
   </div>
 </section>
@@ -296,10 +323,10 @@
 <div id="recovery-modal" class="modal hidden">
   <div class="modal-card">
     <h3>Сохраните код восстановления</h3>
-    <p class="reset-note">Это единственный способ вернуть доступ, если забудете
-      пароль — почтовой рассылки у нас нет. Запишите или сфотографируйте.</p>
+    <p class="reset-note">Запишите или сфотографируйте — второй раз мы его не&nbsp;покажем.
+      Если забудете пароль, доступ вернёт этот код.</p>
     <p class="recovery-code" id="recovery-value"></p>
-    <button class="btn btn-primary btn-wide" id="recovery-ok">Записал, продолжить</button>
+    <button class="btn btn-primary btn-wide" id="recovery-ok">Код сохранён — продолжить</button>
   </div>
 </div>
 
@@ -312,14 +339,16 @@
     <a href="https://t.me/KOTSAVELII" target="_blank" rel="noopener">@KOTSAVELII</a></p>
 </footer>
 
-<script src="js/theme.js?v=27"></script>
-<script src="js/cat.js?v=27"></script>
-<script src="js/util.js?v=27"></script>
-<script src="js/words.js?v=27"></script>
-<script src="js/images.js?v=27"></script>
-<script src="js/tutor.js?v=27"></script>
-<script src="js/tutor-photos.js?v=27"></script>
-<script src="js/tutor-auth.js?v=27"></script>
-<script src="js/tutor-verify.js?v=27"></script>
+<script src="js/theme.js?v=57"></script>
+<script src="js/icons.js?v=57"></script>
+<script src="js/cat.js?v=57"></script>
+<script src="js/motion.js?v=57"></script>
+<script src="js/util.js?v=57"></script>
+<script src="js/words.js?v=57"></script>
+<script src="js/images.js?v=57"></script>
+<script src="js/tutor.js?v=57"></script>
+<script src="js/tutor-photos.js?v=57"></script>
+<script src="js/tutor-auth.js?v=57"></script>
+<script src="js/tutor-verify.js?v=57"></script>
 </body>
 </html>

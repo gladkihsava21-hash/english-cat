@@ -93,6 +93,12 @@ function saveState() {
  * saveState там замкнул бы петлю sync → save → sync каждые 3 секунды. */
 function saveStateQuiet() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  // Так сохраняется всё, что пришло с сервера: домашка, прогресс с другого
+  // устройства, сообщения репетитора. Если ученик сейчас на главной —
+  // обновляем блок «прямо сейчас», иначе он продолжит звать на повторение,
+  // когда репетитор уже прислал задание.
+  const dash = document.getElementById("screen-dashboard");
+  if (dash && !dash.classList.contains("hidden")) renderTodayCard();
 }
 
 // ===== Навигация =====
@@ -375,16 +381,21 @@ function renderDashboard() {
   updateChrome();
   document.getElementById("dash-greeting").textContent =
     `Привет, ${state.user.name}! Мяу!`;
-  document.getElementById("dash-stats").textContent =
-    `Уровень ${state.level} (${LEVEL_NAMES[state.level]}) · словарный запас ~${state.vocabEstimate} слов · в словаре: ${state.dictionary.length}`;
-  renderDashWidgets();
+  // Подзаголовок раньше перечислял три факта, включая «в словаре: 0».
+  // Новичку он сообщал ровно одно: у тебя ничего нет. Пока словарь пуст —
+  // говорим только про уровень, счёт слов появляется, когда есть что считать.
+  document.getElementById("dash-stats").textContent = state.dictionary.length
+    ? `Уровень ${state.level} · в словаре ${state.dictionary.length} ${wordsWord(state.dictionary.length)}`
+    : `Уровень ${state.level} · ${LEVEL_NAMES[state.level]}`;
+  renderTodayCard();
   if (typeof renderTutorMessages === "function") renderTutorMessages();
   if (typeof renderHomework === "function") renderHomework();
-  renderDueBox();
+  renderDashWidgets();
   renderLeaderboard();
   renderWordOfDay();
   if (!currentRecs.length) currentRecs = pickRecommendations();
   renderRecGrid();
+  renderServiceLine();
 }
 
 function renderWordOfDay() {
@@ -395,14 +406,19 @@ function renderWordOfDay() {
   const inDict = state.dictionary.some(d => d.w.toLowerCase() === wd.w.toLowerCase());
   box.innerHTML = `
     <div class="card wod-card">
-      <div class="word-art word-art-small" style="background:${wordTint(wd.cat)}">${wordArt(wd.w, wd.cat)}</div>
+      <div class="word-art word-art-small" aria-hidden="true" style="background:${wordTint(wd.cat)}">${wordArt(wd.w, wd.cat)}</div>
       <span class="wod-label">🐾 Слово дня</span>
+      <!-- Слово, перевод и озвучка жили в одном текстовом потоке: строка
+           «support 🔊   — поддерживать; поддержка» рвалась посреди фразы,
+           а само слово терялось среди служебных знаков. Теперь три уровня:
+           слово крупно, перевод под ним, кнопка отдельным контролом. -->
       <div class="wod-main">
-        <b class="wod-word">${esc(wd.w)}</b>
-        <button class="say-btn" id="wod-say" title="Произношение">🔊</button>
-        <span class="wod-tr">— ${esc(wd.t)}</span>
+        <b class="wod-word" lang="en">${esc(wd.w)}</b>
+        <button class="say-btn wod-say-btn" id="wod-say"
+                aria-label="Произношение: ${esc(wd.w)}"><span aria-hidden="true">🔊</span></button>
       </div>
-      <span class="w-ex">${esc(wd.ex)}</span>
+      <span class="wod-tr">${esc(wd.t)}</span>
+      <span class="w-ex" lang="en">${esc(wd.ex)}</span>
       ${inDict
         ? `<span class="added">✓ в словаре</span>`
         : `<button class="btn btn-primary btn-small" id="wod-add">+ В словарь</button>`}
@@ -419,61 +435,218 @@ function todayXP() {
   return (state.activity && state.activity[dayKey()]) || 0;
 }
 
+// ===== Главный блок «прямо сейчас» =====
+// Раньше ученик после входа видел семь одинаковых плиток и нигде — кнопки
+// «начать». Теперь на первом экране ровно одно действие, а всё остальное
+// уехало ниже и стало мельче.
+
+/** Что предложить ученику прямо сейчас — ровно одно решение на экран.
+ *  Приоритет: домашка от репетитора → первый заход → повторение →
+ *  закрытая цель → свободная тренировка.
+ *  Функция только выбирает, что сказать; рисует renderTodayCard. */
+function todayPlan() {
+  const dict = state.dictionary;
+  const s = dict.length ? srsSummary(dict) : { due: 0, tomorrow: 0 };
+  const goal = state.goal || 50;
+  const got = todayXP();
+
+  // 1. Домашка. У неё есть срок и её ждёт живой человек — она важнее всего.
+  const hw = (state.homework || []).find(t => {
+    if (typeof homeworkProgress !== "function" || !t.words) return false;
+    const p = homeworkProgress(t);
+    return p.total && p.done < p.total;
+  });
+  if (hw) {
+    const p = homeworkProgress(hw);
+    const left = p.total - p.done;
+    return {
+      state: "homework", cat: "hello", kicker: "📋 Задание от репетитора",
+      title: hw.title,
+      sub: `Осталось ${left} ${wordsWord(left)} из ${p.total}. Добавлю в словарь и открою карточки.`,
+      btn: "Взяться за домашку",
+      act: () => startHomeworkLesson(hw),
+      alt: { label: "другое занятие", nav: "practice" },
+    };
+  }
+
+  // 2. Первый заход. Словарь пуст, и все цифры на экране — нули. Поэтому
+  // говорим не «у тебя 0 слов», а что произойдёт за ближайшие пять минут.
+  if (!dict.length) {
+    return {
+      state: "first", cat: "hello", kicker: "🐾 Начинаем",
+      title: "Первое занятие — 5 минут",
+      sub: `${RECOMMEND_COUNT} слов уровня ${state.level} — карточки с картинкой и звуком. Завтра напомню их повторить.`,
+      btn: "Поехали →",
+      act: startFirstLesson,
+      alt: { label: "сначала посмотреть слова", scrollTo: "words-head" },
+    };
+  }
+
+  // 3. Повторение. Слова начали забываться — это и есть занятие дня.
+  if (s.due) {
+    return {
+      state: "due", cat: "happy", kicker: "🐾 Прямо сейчас",
+      title: `Повторить ${s.due} ${wordsWord(s.due)}`,
+      sub: "Савелий выбрал те, что начали забываться. Пять минут — и они снова твои.",
+      btn: `Повторить ${s.due} ${wordsWord(s.due)}`,
+      act: () => show("trainer"),
+      alt: { label: "другое занятие", nav: "practice" },
+    };
+  }
+
+  // 4. Цель закрыта, повторять нечего. Это победа, а не пустой экран.
+  if (got >= goal) {
+    return {
+      state: "done", cat: "love", kicker: "🎉 На сегодня всё",
+      title: "Цель дня закрыта",
+      sub: s.tomorrow
+        ? `${got} ⭐ за сегодня, повторять больше нечего. Завтра вернутся ${s.tomorrow} ${wordsWord(s.tomorrow)} — приходи.`
+        : `${got} ⭐ за сегодня. Можно закрывать ноутбук — или устроить блиц на минуту.`,
+      btn: "Блиц на минуту ⚡",
+      act: () => (typeof openExercise === "function" ? openExercise("blitz") : show("practice")),
+      alt: { label: "другое занятие", nav: "practice" },
+    };
+  }
+
+  // 5. Обычный день: повторов нет, но до цели ещё далеко.
+  return {
+    state: "free", cat: "wink", kicker: "🐾 Прямо сейчас",
+    title: "Позаниматься 5 минут",
+    sub: `Повторять пока нечего — возьмём слова уровня ${state.level}. До цели дня ещё ${goal - got} ⭐.`,
+    btn: "Позаниматься 5 минут",
+    act: () => show("practice"),
+    alt: { label: "добавить новых слов", scrollTo: "words-head" },
+  };
+}
+
+function renderTodayCard() {
+  const box = document.getElementById("today-box");
+  if (!box) return;
+  const p = todayPlan();
+  // Заголовок домашки пишет репетитор — экранируем. Остальные строки наши.
+  box.innerHTML = `
+    <div class="today" data-state="${p.state}">
+      <div class="cat-avatar" data-cat="${p.cat}">🐈</div>
+      <div class="today-body">
+        <p class="today-kicker">${p.kicker}</p>
+        <h2 class="today-title">${esc(p.title)}</h2>
+        <p class="today-sub">${esc(p.sub)}</p>
+      </div>
+      <div class="today-act">
+        <button class="btn btn-primary today-go" id="today-go" type="button">${esc(p.btn)}</button>
+        ${p.alt ? `<p class="today-alt"><button class="link-btn" id="today-alt" type="button">${esc(p.alt.label)}</button></p>` : ""}
+      </div>
+    </div>`;
+
+  document.getElementById("today-go").addEventListener("click", p.act);
+  const alt = document.getElementById("today-alt");
+  if (alt) alt.addEventListener("click", () => {
+    if (p.alt.nav) { show(p.alt.nav); return; }
+    scrollToBlock(p.alt.scrollTo);
+  });
+  if (typeof paintCats === "function") paintCats(box);
+}
+
+/** Прокрутка к разделу главной. scrollIntoView не годится: шапка липкая и
+ *  на телефоне занимает два ряда, поэтому заголовок уезжал бы под неё. */
+function scrollToBlock(id) {
+  const target = document.getElementById(id);
+  if (!target) return;
+  const bar = document.getElementById("topbar");
+  const barH = bar && !bar.classList.contains("hidden")
+    ? bar.getBoundingClientRect().height : 0;
+  const smooth = !matchMedia("(prefers-reduced-motion: reduce)").matches;
+  window.scrollTo({
+    top: target.getBoundingClientRect().top + window.scrollY - barH - 12,
+    behavior: smooth ? "smooth" : "auto",
+  });
+}
+
+/** Первое занятие: берём подобранные слова в словарь и сразу открываем
+ *  карточки. Без этого новичок упирался в пустой словарь и пустые тренировки
+ *  и должен был сам догадаться, что сначала надо что-то добавить. */
+function startFirstLesson() {
+  if (!currentRecs.length) currentRecs = pickRecommendations();
+  currentRecs.forEach(addToDictionary);
+  renderRecGrid();
+  show("trainer");
+}
+
+// Пустой словарь: кнопка делает ровно то же, что «Поехали» на главной —
+// набирает первые слова и открывает карточки. Раньше экран сообщал
+// «словарь пуст» и не давал из этого выхода.
+document.addEventListener("click", e => {
+  if (e.target.id === "dict-empty-go") startFirstLesson();
+});
+
+/** То же самое для домашки: слова задания уезжают в словарь, и ученик
+ *  сразу оказывается в карточках, а не в списке из двадцати тренировок. */
+function startHomeworkLesson(task) {
+  (task.words || []).forEach(w => addToDictionary({
+    w: w.w, t: w.t, ex: w.ex || "", level: w.level || state.level,
+  }));
+  if (typeof renderHomework === "function") renderHomework();
+  show("trainer");
+}
+
+// ===== Прогресс и награды =====
+
+function daysWord(n) {
+  const t = n % 10, h = n % 100;
+  if (t === 1 && h !== 11) return "день";
+  if (t >= 2 && t <= 4 && (h < 12 || h > 14)) return "дня";
+  return "дней";
+}
+
+/** Сводка на главной: три плитки вместо семи.
+ *  Стрик уехал в подпись к цели, награды — в отдельную полосу наклеек,
+ *  код входа и пересдача теста — в служебную строку внизу. */
 function renderDashWidgets() {
+  const box = document.getElementById("dash-widgets");
+  if (!box) return;
   const learned = state.dictionary.filter(d => d.status === "learned").length;
   const learning = state.dictionary.filter(d => d.status === "learning").length;
-  const fresh = state.dictionary.filter(d => d.status === "new").length;
   const rank = rankInfo(state.xp);
   const s = streakDays();
   const goal = state.goal || 50;
   const got = todayXP();
   const goalPct = Math.min(100, Math.round((got / goal) * 100));
-  const achCount = (state.achievements || []).length;
 
-  document.getElementById("dash-widgets").innerHTML = `
+  // «Осталось 50 очков» новичку ничего не говорит: он не знает, сколько это.
+  // Переводим цель в занятия — в понятную ему единицу.
+  const goalNote = goalPct >= 100
+    ? "Цель выполнена — мур-р-р! 🎉"
+    : got ? `осталось ${goal - got} ⭐`
+          : "занятие — это примерно 40 ⭐";
+  // «🔥 0 дней» — единственная цифра, которую видел каждый новичок.
+  // Стрик показываем, только когда он есть.
+  const streakNote = s >= 1 ? ` · 🔥 ${s} ${daysWord(s)} подряд` : "";
+
+  box.innerHTML = `
     <div class="card stat-card goal-card">
       <p class="stat-label">Цель на сегодня</p>
       <p class="stat-value">${got} <span class="stat-unit">из ${goal} ⭐</span></p>
       <div class="xp-bar"><div class="xp-bar-fill${goalPct >= 100 ? " done" : ""}" style="width:${goalPct}%"></div></div>
-      <p class="stat-note">${goalPct >= 100
-        ? "Цель выполнена — мур-р-р! 🎉"
-        : `осталось ${goal - got} очков`}
-        <button class="link-btn" id="goal-edit">изменить</button></p>
+      <p class="stat-note">${goalNote}${streakNote}
+        <button class="link-btn" id="goal-edit" type="button">изменить цель</button></p>
+    </div>
+    <div class="card stat-card">
+      <p class="stat-label">Слова</p>
+      ${state.dictionary.length ? `
+      <p class="stat-value">${state.dictionary.length} <span class="stat-unit">в словаре</span></p>
+      <p class="stat-note">выучено ${learned} · повторяю ${learning}</p>` : `
+      <p class="stat-value">${RECOMMEND_COUNT} <span class="stat-unit">ждут тебя</span></p>
+      <p class="stat-note">подобраны под уровень ${state.level} — с них и начнём</p>`}
     </div>
     <div class="card stat-card">
       <p class="stat-label">Звание</p>
       <p class="stat-value">${rank.name}</p>
       <div class="xp-bar"><div class="xp-bar-fill" style="width:${Math.round(rank.progress * 100)}%"></div></div>
-      <p class="stat-note">⭐ ${state.xp}${rank.next ? " · до «" + rank.next.name + "» ещё " + (rank.next.xp - state.xp) : ""}</p>
-    </div>
-    <div class="card stat-card">
-      <p class="stat-label">Слова</p>
-      <p class="stat-value">${learned} <span class="stat-unit">выучено</span></p>
-      <p class="stat-note">учу: ${learning} · новых: ${fresh}</p>
-    </div>
-    <div class="card stat-card">
-      <p class="stat-label">Стрик</p>
-      <p class="stat-value">🔥 ${s} <span class="stat-unit">${s === 1 ? "день" : s >= 2 && s <= 4 ? "дня" : "дней"}</span></p>
-      <p class="stat-note">${s ? "занимайся каждый день!" : "начни сегодня, мяу!"}</p>
-    </div>
-    <div class="card stat-card">
-      <p class="stat-label">Награды</p>
-      <p class="stat-value">🏅 ${achCount}</p>
-      <p class="stat-note"><button class="link-btn" data-nav="achievements">посмотреть все</button></p>
-    </div>
-    ${state.restoreCode ? `
-    <div class="card stat-card">
-      <p class="stat-label">Код для входа</p>
-      <p class="stat-value code-value">${esc(state.restoreCode)}</p>
-      <p class="stat-note">введи его на телефоне, чтобы продолжить там же</p>
-    </div>` : ""}
-    <div class="card stat-card">
-      <p class="stat-label">Блиц-рекорд</p>
-      <p class="stat-value">⚡ ${state.blitzBest}</p>
-      <p class="stat-note"><button class="link-btn" id="retake-test-btn">перепройти тест уровня</button></p>
+      <p class="stat-note">⭐ ${state.xp}${rank.next
+        ? ` · до «${rank.next.name}» ещё ${rank.next.xp - state.xp}`
+        : " · выше звания нет"}</p>
     </div>`;
 
-  document.getElementById("retake-test-btn").addEventListener("click", () => show("test"));
   document.getElementById("goal-edit").addEventListener("click", () => {
     const opts = [30, 50, 80, 120];
     const cur = opts.indexOf(state.goal || 50);
@@ -481,27 +654,69 @@ function renderDashWidgets() {
     saveState();
     renderDashWidgets();
   });
+  renderAchStrip();
 }
 
-/** Блок «пора повторить» — главный вход в занятие. */
-function renderDueBox() {
-  const box = document.getElementById("due-box");
+// Цвета наклеек — из палитры savely.css: бронза глиняная, серебро небесное,
+// золото лавандовое (самый редкий цвет на сайте).
+const TIER_CLASS = { bronze: "got-clay", silver: "got-sky", gold: "got-lavender" };
+
+/** Полоса наград: сначала полученные, следом — ближайшие достижимые.
+ *  У новичка получено ноль, и вместо пустого места он видит, что можно взять
+ *  сегодня же: «добавить первое слово», «пройти любую тренировку». */
+function renderAchStrip() {
+  const box = document.getElementById("dash-ach");
+  if (!box || typeof ACHIEVEMENTS === "undefined") return;
+  const have = new Set(state.achievements || []);
+  const got = (state.achievements || []).slice(-4).reverse()
+    .map(id => ACHIEVEMENTS.find(a => a.id === id))
+    .filter(Boolean);
+  const m = typeof achMetrics === "function" ? achMetrics() : {};
+  // Ближайшая награда — та, до которой осталось меньше всего шагов, а при
+  // равенстве — та, к которой ученик ближе. Сортировка по одной доле
+  // выполнения подсовывала новичку «набрать 100 очков» вместо «добавить
+  // первое слово»: 25 из 100 — это доля 0,25, а шагов там на месяц.
+  // Домашку не предлагаем тем, у кого нет репетитора: взять её неоткуда.
+  // «Ночного охотника» не предлагаем никому — не дело советовать школьнику
+  // садиться за уроки после одиннадцати. Заработать его по-прежнему можно.
+  const hasTutor = typeof studentToken === "function" && !!studentToken();
+  const near = ACHIEVEMENTS
+    .filter(a => !have.has(a.id))
+    .filter(a => a.id !== "night-owl" && (hasTutor || a.metric !== "homework_done"))
+    .map(a => ({
+      a,
+      left: Math.max(0, a.threshold - (m[a.metric] || 0)),
+      done: Math.min(1, (m[a.metric] || 0) / a.threshold),
+    }))
+    // left === 0 — награда уже заслужена, её вот-вот выдаст checkAchievements.
+    // Предлагать её как цель нельзя: она уже в кармане.
+    .filter(x => x.left > 0)
+    .sort((x, y) => x.left - y.left || y.done - x.done)
+    .slice(0, got.length ? 2 : 3)
+    .map(x => x.a);
+
+  const sticker = (cls, icon, text, title) =>
+    `<span class="sticker ${cls}" title="${esc(title)}"><span class="ach-emoji">${icon}</span>${esc(text)}</span>`;
+
+  box.innerHTML = [
+    ...got.map(a => sticker(TIER_CLASS[a.tier] || "", a.icon, a.name, a.desc)),
+    state.blitzBest ? sticker("", "⚡", `Блиц: ${state.blitzBest}`, "Личный рекорд в блице") : "",
+    near.length ? `<span class="ach-next">${got.length ? "Дальше:" : "Что можно взять сегодня:"}</span>` : "",
+    ...near.map(a => sticker("locked", a.icon, a.desc, a.name)),
+  ].join("");
+}
+
+/** Служебная строка внизу главной: код для входа и пересдача теста.
+ *  Код стоял карточкой наравне с прогрессом — он этого не стоит. Но и прятать
+ *  нельзя: им реально продолжают занятие с телефона. */
+function renderServiceLine() {
+  const box = document.getElementById("dash-service");
   if (!box) return;
-  if (!state.dictionary.length) { box.innerHTML = ""; return; }
-  const s = srsSummary(state.dictionary);
   box.innerHTML = `
-    <div class="card due-card${s.due ? "" : " due-rest"}">
-      <span class="due-icon">${s.due ? "🔁" : "😺"}</span>
-      <div class="due-text">
-        <b>${s.due ? `Пора повторить: ${s.due} ${wordsWord(s.due)}` : "На сегодня всё повторено!"}</b>
-        <span class="muted-small">${s.due
-          ? "Савелий подобрал те, что начали забываться"
-          : (s.tomorrow ? `Завтра вернутся ${s.tomorrow} ${wordsWord(s.tomorrow)}` : "Добавь новых слов, и я напомню вовремя")}</span>
-      </div>
-      <button class="btn ${s.due ? "btn-primary" : "btn-ghost"}" data-nav="${s.due ? "trainer" : "dashboard"}">
-        ${s.due ? "Повторить" : "Отдыхаю"}
-      </button>
-    </div>`;
+    ${state.restoreCode ? `<span>Занимаешься с телефона? Твой код:
+      <b class="code-value">${esc(state.restoreCode)}</b> — введи его при входе на другом устройстве.</span>` : ""}
+    <button class="link-btn" id="retake-test-btn" type="button">перепройти тест уровня</button>`;
+  document.getElementById("retake-test-btn").addEventListener("click", () => show("test"));
 }
 
 function wordsWord(n) {
@@ -620,9 +835,21 @@ function renderDictionary() {
     const info0 = (typeof wordInfo === "function" && wordInfo(d.w)) || {};
     const row = document.createElement("div");
     row.className = "dict-row";
+    // Строка раскрывает определение и пример — то есть основную ценность
+    // словаря. Была обычным <div> с обработчиком клика: без мыши подробности
+    // достать было нельзя. Тот же приём, что уже применён к карточке слова.
+    row.setAttribute("role", "button");
+    row.setAttribute("tabindex", "0");
+    row.setAttribute("aria-expanded", "false");
+    row.setAttribute("aria-label", `${d.w} — ${d.t}. Открыть подробности`);
+    row.addEventListener("keydown", e => {
+      if (e.key !== "Enter" && e.key !== " ") return;
+      e.preventDefault();          // пробел иначе прокручивает страницу
+      row.click();
+    });
     row.innerHTML = `
-      <span class="word-art word-art-tiny" style="background:${wordTint(info0.cat)}">${wordArt(d.w, info0.cat)}</span>
-      <span class="d-en">${esc(d.w)} <button class="say-btn" title="Произношение">🔊</button></span>
+      <span class="word-art word-art-tiny" aria-hidden="true" style="background:${wordTint(info0.cat)}">${wordArt(d.w, info0.cat)}</span>
+      <span class="d-en" lang="en">${esc(d.w)} <button class="say-btn" aria-label="Произношение: ${esc(d.w)}"><span aria-hidden="true">🔊</span></button></span>
       <span class="d-ru">${esc(d.t)}</span>
       <span class="d-status ${d.status}">${statusText[d.status]}</span>
     `;
@@ -632,8 +859,11 @@ function renderDictionary() {
     });
     const del = document.createElement("button");
     del.className = "d-del";
-    del.title = "Удалить";
-    del.textContent = "✕";
+    // В списке из сорока слов сорок одинаковых «Удалить» — имя обязано
+    // называть, что именно удаляем. title скринридером здесь игнорируется:
+    // у кнопки есть содержимое (эмодзи), и оно перебивает подсказку.
+    del.setAttribute("aria-label", `Удалить ${d.w} из словаря`);
+    del.innerHTML = '<span aria-hidden="true">✕</span>';
     del.addEventListener("click", e => {
       e.stopPropagation();
       const idx = state.dictionary.indexOf(d);
@@ -645,8 +875,17 @@ function renderDictionary() {
     // клик по строке — раскрыть детали (пример, определение)
     row.addEventListener("click", () => {
       const next = row.nextElementSibling;
-      if (next && next.classList.contains("dict-detail")) { next.remove(); return; }
+      if (next && next.classList.contains("dict-detail")) {
+        next.remove();
+        row.setAttribute("aria-expanded", "false");
+        return;
+      }
+      // закрываем чужие подробности — и снимаем у них признак раскрытия,
+      // иначе скринридер будет считать раскрытыми сразу несколько строк
       document.querySelectorAll(".dict-detail").forEach(x => x.remove());
+      document.querySelectorAll('.dict-row[aria-expanded="true"]')
+        .forEach(r => r.setAttribute("aria-expanded", "false"));
+      row.setAttribute("aria-expanded", "true");
       const info = (typeof wordInfo === "function" && wordInfo(d.w)) || {};
       const ex = d.ex || info.ex;
       if (!ex && !info.def) return;
@@ -689,7 +928,15 @@ function startTraining() {
   const done = document.getElementById("trainer-done");
   done.classList.add("hidden");
 
-  if (!state.dictionary.length) {
+  // Пустой словарь — не повод в тупик. Остальные упражнения при том же
+  // пустом словаре добирают слова из уровня ученика и прекрасно работают;
+  // «Карточки» единственные упирались в «нечего тренировать», хотя список
+  // тренировок их предлагал. Делаем то же самое: берём слова уровня.
+  let source = state.dictionary;
+  if (!source.length && typeof trainPool === "function") {
+    source = trainPool(10).map(x => ({ w: x.w, t: x.t, ex: x.ex, level: x.level }));
+  }
+  if (!source.length) {
     empty.classList.remove("hidden");
     run.classList.add("hidden");
     return;
@@ -698,9 +945,9 @@ function startTraining() {
   run.classList.remove("hidden");
 
   // очередь строит SRS: просроченные повторы вперёд, новые — следом
-  trainQueue = typeof srsQueue === "function"
+  trainQueue = state.dictionary.length && typeof srsQueue === "function"
     ? srsQueue(state.dictionary, 10)
-    : [...state.dictionary].slice(0, 10);
+    : [...source].slice(0, 10);
   trainIndex = 0;
   trainScore = 0;
   renderFlashcard();
@@ -709,6 +956,8 @@ function startTraining() {
 function renderFlashcard() {
   const card = document.getElementById("flashcard");
   card.classList.remove("flipped");
+  card.setAttribute("aria-expanded", "false");   // новая карточка — снова лицом вверх
+  setFlashFaces(false);
   const item = trainQueue[trainIndex];
   const info = (typeof wordInfo === "function" && wordInfo(item.w)) || {};
   const art = document.getElementById("flash-art");
@@ -726,10 +975,37 @@ function setFlashButtons(enabled) {
   document.getElementById("flash-forgot").disabled = !enabled;
 }
 
-document.getElementById("flashcard").addEventListener("click", () => {
-  document.getElementById("flashcard").classList.add("flipped");
+function setFlashFaces(flipped) {
+  const front = document.querySelector(".flashcard-front");
+  const back  = document.querySelector(".flashcard-back");
+  // Прячем СЕМАНТИЧЕСКИ, а не только визуально: без этого скринридер
+  // читает обе стороны сразу и перевод становится известен заранее.
+  if (front) front.setAttribute("aria-hidden", flipped ? "true" : "false");
+  if (back)  back.setAttribute("aria-hidden", flipped ? "false" : "true");
+}
+
+function flipFlashcard() {
+  const card = document.getElementById("flashcard");
+  card.classList.add("flipped");
+  card.setAttribute("aria-expanded", "true");
+  setFlashFaces(true);
   setFlashButtons(true);
+}
+
+document.getElementById("flashcard").addEventListener("click", flipFlashcard);
+
+// Клавиатура: карточка — центральное упражнение, а перевернуть её без мыши
+// было нельзя, то есть перевод оставался недоступен совсем. Пробел и Enter —
+// то, чего ждут от role="button".
+document.getElementById("flashcard").addEventListener("keydown", e => {
+  if (e.key !== "Enter" && e.key !== " ") return;
+  e.preventDefault();          // пробел иначе прокручивает страницу
+  flipFlashcard();
 });
+
+// Кнопка озвучки лежит ВНУТРИ карточки: без этого нажатие на неё
+// заодно переворачивало карточку и показывало перевод раньше времени.
+document.getElementById("flash-audio").addEventListener("click", e => e.stopPropagation());
 
 function answerFlash(knew) {
   const item = trainQueue[trainIndex];
@@ -886,11 +1162,17 @@ async function sendToSavely(text) {
       const msg = String(e.message || "");
       // Три разных случая, и путать их нельзя: ученику на сайте бесполезно
       // советовать открыть Терминал, а разработчику — «скоро подключим»
+      // not_logged_in — это ошибка НАСТРОЙКИ, и видит её ребёнок. Раньше ему
+      // предлагали открыть Терминал и выполнить /login: инструкция для
+      // разработчика на экране школьника. Подробности уходят в консоль,
+      // ученику — человеческий текст и рабочий обходной путь.
+      if (msg.includes("not_logged_in")) {
+        console.warn("Савелий: ключ API не принят. Проверь savely-data/api_key.txt " +
+                     "или переменную ANTHROPIC_API_KEY.");
+      }
       const why = msg.includes("ai_off")
         ? "Мяу! Большой мозг пока не подключён — отвечаю простым кошачьим. Со словарём и тренировками это не мешает."
-        : msg.includes("not_logged_in")
-        ? "Мяу! Большой мозг ещё не подключён: открой Терминал, запусти claude и выполни /login. А пока отвечаю простым кошачьим мозгом."
-        : "Мяу, большой мозг сейчас недоступен — отвечаю простым кошачьим мозгом.";
+        : "Мяу, большой мозг сейчас отдыхает — отвечаю простым кошачьим. Это не из-за тебя: карточки, словарь и тренировки работают как обычно.";
       catSay(why);
       setTimeout(() => catReply(text), 400);
     } else {
@@ -1023,6 +1305,13 @@ updateChrome();
 // Проверку откладываем: achievements.js подключается ниже по странице,
 // на момент выполнения этой строки функции ещё нет.
 document.addEventListener("DOMContentLoaded", () => {
+  // Главная рисуется в конце app.js, а награды и упражнения подключаются
+  // ниже по странице — на первой отрисовке их ещё нет, и полоса наград
+  // осталась бы пустой. Когда страница собрана целиком, перерисовываем.
+  const dash = document.getElementById("screen-dashboard");
+  if (state.user && state.level && dash && !dash.classList.contains("hidden")) {
+    renderDashboard();
+  }
   setTimeout(() => {
     if (typeof checkAchievements === "function") checkAchievements();
   }, 800);

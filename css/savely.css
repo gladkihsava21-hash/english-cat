@@ -30,54 +30,37 @@
   --green: #3F7256;
   --red:   #A85454;
 }
-
 /* ---------- Бумага ---------- */
 body {
   background: var(--paper);
   color: var(--ink);
   -webkit-font-smoothing: antialiased;
 }
-
-.card,
-.stat-card, .wod-card, .ach-card, .lb-card, .due-card,
-.plan-card, .admin-stat, .photo-card, .auth-card, .pack-card {
-  background: var(--surface);
-  border: var(--border-w) solid var(--line-soft);
-  border-radius: var(--radius-card);
-  box-shadow: var(--shadow-soft);
-  transition: transform var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
-}
-
 .speech-bubble, .chat-box, .hw-picker, .invite-link, .dict-row {
   background: var(--surface);
   border: var(--border-w) solid var(--line-soft);
   border-radius: var(--radius-card);
   box-shadow: none;
 }
-
 /* ---------- Типографика ---------- */
 h1, h2, h3, .section-title, .dash-head h2 {
   color: var(--ink);
   font-weight: 700;
   letter-spacing: -0.02em;
 }
-
 .hero h1 {
   font-size: clamp(38px, 7vw, var(--text-display));
   line-height: var(--leading-display);
   max-width: 15ch;
 }
-
 h2, .section-title { font-size: var(--text-heading); line-height: var(--leading-tight); }
 h3 { font-size: var(--text-heading-sm); line-height: var(--leading-snug); }
-
 .hero-sub {
   font-size: var(--text-body);
   line-height: var(--leading-normal);
   color: var(--ink-soft);
   max-width: 54ch;
 }
-
 /* Капс убран: он и сам по себе кричит, и был набран слишком светлым серым. */
 .stat-label, .ach-label, .hw-label, .wod-label, .lb-label,
 .d-status, .plan-chip, .section-note, .muted-small, .stat-note, .pack-limit {
@@ -87,7 +70,6 @@ h3 { font-size: var(--text-heading-sm); line-height: var(--leading-snug); }
   font-weight: 500;
   color: var(--ink-soft);
 }
-
 /* ---------- Кнопки ---------- */
 .btn, .btn-ghost, .chip, .tab {
   background: var(--surface);
@@ -109,7 +91,6 @@ h3 { font-size: var(--text-heading-sm); line-height: var(--leading-snug); }
   transform: translateY(-1px);
 }
 .btn:active { transform: translateY(0); }
-
 /* Главное действие — единственная заливка на экране. Спокойный шалфей,
    белый текст: 6,4:1. */
 .btn-primary {
@@ -130,7 +111,6 @@ h3 { font-size: var(--text-heading-sm); line-height: var(--leading-snug); }
   box-shadow: var(--shadow-lift);
 }
 .btn-primary:active { transform: translateY(0); box-shadow: var(--shadow-soft); }
-
 .nav-btn {
   border: none; box-shadow: none; background: none;
   padding: 9px 16px; border-radius: var(--radius-tag);
@@ -139,14 +119,13 @@ h3 { font-size: var(--text-heading-sm); line-height: var(--leading-snug); }
 }
 .nav-btn:hover { background: var(--surface-alt); color: var(--ink); }
 .nav-btn.active { background: var(--accent-soft); color: var(--accent); }
-
 /* ---------- Поля ввода ---------- */
 input, textarea, select {
   font-family: var(--font-ui);
   font-size: var(--text-caption);
   background: var(--surface);
   color: var(--ink);
-  border: var(--border-w) solid var(--line-soft);
+  border: var(--border-w) solid var(--line-control);
   border-radius: var(--radius-input);
   padding: 12px 16px;
   transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
@@ -160,13 +139,11 @@ textarea { resize: vertical; min-height: 96px; line-height: var(--leading-normal
 select { appearance: none; padding-right: 42px;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%235A665E' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
   background-repeat: no-repeat; background-position: right 16px center; }
-
 :where(a, button, input, textarea, select, [tabindex]):focus-visible {
   outline: none;
   box-shadow: var(--focus-ring);
   border-radius: inherit;
 }
-
 /* ---------- Кот ---------- */
 .cat-avatar {
   background: none !important;
@@ -184,7 +161,6 @@ select { appearance: none; padding-right: 42px;
 .cat-avatar svg { display: block; width: 100%; height: auto; overflow: visible; }
 .cat-big { width: 190px; }
 .cat-mid { width: 110px; }
-
 /* Дышит: очень медленно и еле заметно. Это не анимация «смотрите на меня»,
    а то, из-за чего персонаж кажется живым, когда на него не смотрят. */
 @keyframes catBreathe {
@@ -192,7 +168,6 @@ select { appearance: none; padding-right: 42px;
   50%      { transform: translateY(-3px) scale(1.012); }
 }
 .cat-avatar svg { animation: catBreathe 5.5s var(--ease) infinite; transform-origin: 50% 90%; }
-
 /* ---------- Подпись от руки ---------- */
 .handnote {
   font-family: var(--font-display);
@@ -202,7 +177,6 @@ select { appearance: none; padding-right: 42px;
   display: inline-block;
   transform: rotate(-1.5deg);
 }
-
 .marked {
   background-image: linear-gradient(var(--accent-soft), var(--accent-soft));
   background-size: 100% .55em;
@@ -210,13 +184,12 @@ select { appearance: none; padding-right: 42px;
   background-repeat: no-repeat;
   padding: 0 3px;
 }
-
 /* ---------- Наклейки ---------- */
 .sticker-row { display: flex; flex-wrap: wrap; gap: var(--space-12); align-items: center; }
 .sticker {
   display: inline-flex; align-items: center; gap: 7px;
   padding: 9px 18px;
-  border: var(--border-w) solid var(--line-soft);
+  border: var(--border-w) solid var(--line-control);
   border-radius: var(--radius-tag);
   background: var(--surface);
   font-size: var(--text-caption);
@@ -230,7 +203,6 @@ select { appearance: none; padding-right: 42px;
 .sticker.got-clay     { background: var(--soft-clay); }
 .sticker.got-mint     { background: var(--soft-mint); }
 .sticker.locked { background: none; color: var(--ink-soft); opacity: .75; }
-
 /* ---------- Футер ---------- */
 .site-footer {
   margin-top: var(--section-gap);
@@ -245,7 +217,6 @@ select { appearance: none; padding-right: 42px;
 .site-footer .footer-sub { font-size: var(--text-body-sm); color: var(--ink-soft); margin-top: var(--space-8); }
 .site-footer a, .tg-link { color: var(--accent); font-weight: 700; text-decoration: none; }
 .site-footer a:hover, .tg-link:hover { text-decoration: underline; }
-
 /* ---------- Шапка ---------- */
 .topbar {
   background: color-mix(in srgb, var(--paper) 88%, transparent);
@@ -253,7 +224,6 @@ select { appearance: none; padding-right: 42px;
   border-bottom: var(--border-w) solid var(--line-soft);
   box-shadow: none;
 }
-
 /* ---------- Мелочи ---------- */
 .badge {
   background: var(--accent-soft);
@@ -263,7 +233,6 @@ select { appearance: none; padding-right: 42px;
 }
 .progress { background: var(--surface-alt); border: none; border-radius: 999px; overflow: hidden; }
 .progress-fill { background: var(--accent); transition: width var(--dur-slow) var(--ease); }
-
 /* ---------- Движение ---------- */
 /* Появление блоков: мягкий подъём с задержкой по порядку. Без отскока и без
    «прилёта издалека» — только намёк, что элемент встал на место. */
@@ -281,16 +250,12 @@ select { appearance: none; padding-right: 42px;
 .stats-grid > *:nth-child(5), .sticker:nth-child(5) { animation-delay: .19s }
 .stats-grid > *:nth-child(6), .sticker:nth-child(6) { animation-delay: .23s }
 .stats-grid > *:nth-child(7), .sticker:nth-child(7) { animation-delay: .27s }
-
-.card:hover, .stat-card:hover, .ach-card:hover, .pack-card:hover {
-  transform: translateY(-3px);
-  box-shadow: var(--shadow-lift);
-}
-
+/* Правило удалено: оно было полностью перекрыто блоком ниже, где ховер
+   отдан только по-настоящему кликабельным карточкам. Оставлять мёртвый
+   код опасно — следующая правка порядка его воскресит. */
 /* Переворот карточки слова был .45s с 3D-перспективой — самое резкое
    движение на сайте. Смягчаем. */
 .flashcard, .flashcard-inner { transition: transform var(--dur-slow) var(--ease) !important; }
-
 /* Планшетная дыра 721–880px: единственный брейкпоинт старого CSS стоял
    на 720, и в этом диапазоне шапка вылезала за экран. */
 @media (max-width: 900px) {
@@ -298,7 +263,6 @@ select { appearance: none; padding-right: 42px;
   .topbar-inner { flex-wrap: wrap; row-gap: var(--space-8); }
   .hero h1 { max-width: 100%; }
 }
-
 /* ---------- Персонаж: краски ---------- */
 /* Мягкая заливка и тонкая линия, никакого чёрного. */
 .cat-svg .c-head   { fill: var(--surface); stroke: var(--ink); stroke-width: 2.2;
@@ -311,26 +275,23 @@ select { appearance: none; padding-right: 42px;
                      stroke-linecap: round; stroke-linejoin: round; }
 .cat-svg .c-z      { fill: var(--accent); font: 700 17px var(--font-display); }
 .cat-svg .c-z-sm   { font-size: 12px; }
-
 /* ---------- Переключатель темы ---------- */
 .theme-btn {
   width: 40px; height: 40px; padding: 0;
   display: inline-flex; align-items: center; justify-content: center;
-  background: none; border: var(--border-w) solid var(--line-soft);
+  background: none; border: var(--border-w) solid var(--line-control);
   border-radius: 999px; cursor: pointer; color: var(--ink-soft);
   transition: background var(--dur-fast) var(--ease),
               border-color var(--dur-fast) var(--ease),
               color var(--dur-fast) var(--ease);
 }
 .theme-btn:hover { background: var(--surface-alt); color: var(--ink); border-color: var(--line); }
-
 .theme-icon { width: 20px; height: 20px; overflow: visible; }
 .theme-icon .ti-sun circle { fill: currentColor; }
 .theme-icon .ti-sun path {
   fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round;
 }
 .theme-icon .ti-moon { fill: currentColor; }
-
 /* Солнце и луна меняются поворотом и масштабом — символ не подменяется,
    поэтому иконка не прыгает. */
 .theme-icon .ti-sun, .theme-icon .ti-moon {
@@ -340,12 +301,10 @@ select { appearance: none; padding-right: 42px;
 .theme-icon .ti-moon { opacity: 0; transform: rotate(-90deg) scale(.4); }
 [data-theme="night"] .theme-icon .ti-sun  { opacity: 0; transform: rotate(90deg) scale(.4); }
 [data-theme="night"] .theme-icon .ti-moon { opacity: 1; transform: none; }
-
 /* Круг новой темы приходит поверх старого кадра, старый просто ждёт снизу —
    иначе они перекрестно затухают и в середине получается мутная каша. */
 ::view-transition-old(root) { animation: none; z-index: 0; }
 ::view-transition-new(root) { animation: none; z-index: 1; mix-blend-mode: normal; }
-
 /* Плавная смена красок для всего, что не попало в круг (например,
    при переключении без View Transitions). */
 body, .card, .stat-card, .topbar, .site-footer, input, textarea, select {
@@ -353,7 +312,6 @@ body, .card, .stat-card, .topbar, .site-footer, input, textarea, select {
               border-color var(--dur) var(--ease),
               color var(--dur) var(--ease);
 }
-
 /* Кот перекрашивается вместе с темой */
 .cat-svg path, .cat-svg circle, .cat-svg ellipse, .cat-svg g {
   transition: fill var(--dur) var(--ease);
@@ -361,3 +319,970 @@ body, .card, .stat-card, .topbar, .site-footer, input, textarea, select {
 .site-footer .footer-credit {
   font-size: 14px; color: var(--ink-soft); margin-top: var(--space-8);
 }
+/* ==========================================================================
+   ЧАСТЬ 2. ХАРАКТЕР
+   --------------------------------------------------------------------------
+   Первая часть файла привела гамму в порядок. Дальше — про то, чего не
+   хватало: чтобы у страницы был порядок чтения, а не ровное поле одинаковых
+   карточек.
+
+   Одна мысль на весь сайт: НА ЭКРАНЕ ВСЕГДА ЕСТЬ ГЛАВНОЕ И ЕСТЬ ФОН.
+   Из неё следует всё остальное — два веса карточек, два веса шрифта,
+   одна заливка акцентом на экран. Если что-то не проходит по этой мысли,
+   его здесь нет.
+   ========================================================================== */
+
+
+/* ==========================================================================
+   1. НЕДОСТАЮЩИЕ ЗНАЧЕНИЯ ДЛЯ УНАСЛЕДОВАННЫХ ИМЁН
+   ========================================================================== */
+
+/* --green и --red были заданы один раз и не переворачивались ночью: тёмно-
+   зелёный на тёмной карточке давал 2,79:1, тёмно-красный — 3,02:1. Оба ниже
+   4,5:1, а ими покрашены «✓ в словаре», «ещё не заходил», ответы в
+   упражнениях — то есть смысл, а не украшение.
+   Ночью зелёный становится акцентом (он и есть «хорошо» в этой гамме), а
+   красный собирается из глины и чернил: своих hex тут заводить нельзя, а
+   смешение токенов даёт тёплый предупреждающий тон и 5,4:1 на карточке. */
+:root {
+  /* --ok / --err — говорящие имена для того же самого. Ссылаются на
+     легаси-переменные, а не наоборот: var() разворачивается в момент
+     применения, поэтому ночную правку --green/--red они подхватят сами. */
+  --ok:   var(--green);
+  --err:  var(--red);
+  /* Тёплая подложка: ошибка, предупреждение, стрик. Собрана из глины и
+     поверхности — обе меняются вместе с темой, поэтому объявляется один раз
+     на обе. 14 % — потолок: выше текст чернилами перестаёт давать 4,5:1,
+     ниже подложки не видно. */
+  --warm-soft: color-mix(in oklab, var(--soft-clay) 14%, var(--surface));
+  --err-soft:  var(--warm-soft);
+  /* Плитка под эмодзи слова. Из words.js прилетают 30 случайных пастельных
+     тонов, треть из них — оранжевые. Ради них и ломалась гамма. */
+  --art-tile: var(--accent-soft);
+}
+:root[data-theme="night"] {
+  --green: var(--accent);   /* «хорошо» в этой гамме и есть акцент — 6,6:1 */
+  /* Красный обязан остаться красным: раньше он собирался из глины и чернил
+     и ночью выходил бежево-лиловым — «не заходил 7 дней» переставало
+     читаться как тревога. 5,6:1 на всех тёмных поверхностях. */
+  --red:   #E08A7D;
+  /* accent-soft ночью почти сливается с карточкой — плитке нужен вторичный фон */
+  --art-tile: var(--surface-alt);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    --green: var(--accent);
+    --red:   #E08A7D;
+    --art-tile: var(--surface-alt);
+  }
+}
+/* ==========================================================================
+   2. ТИПОГРАФИКА: ВЕС ДЕЛАЕТ ИЕРАРХИЮ, А НЕ РАЗМЕР
+   ========================================================================== */
+
+/* Старый CSS ставил 900 почти везде: и заголовку, и подписи под ним, и
+   тексту в карточке. Когда всё жирное — жирного нет, ровно как с акцентом.
+   Разводим по трём ступеням: 800 — заголовок раздела, 700 — имя объекта,
+   400/500 — то, что читают строками. */
+body {
+  font-family: var(--font-display);
+  font-size: var(--text-body-sm);
+  line-height: var(--leading-normal);
+  font-weight: 400;
+}
+/* Заголовки набираются по balance: браузер сам выравнивает длину строк, и
+   пропадают висячие огрызки вроде «— 5 минут» отдельной строкой. Абзацы —
+   по pretty: он не даёт последней строке остаться из одного слова.
+   Там, где не поддержано, просто ничего не происходит. */
+h1, h2, h3, .stat-value, .ex-name, .ach-name, .w-en, .stu-name { text-wrap: balance; }
+p, .w-ex, .ach-desc, .ex-desc, .stat-note, .hero-sub, .msg { text-wrap: pretty; }
+h1, .hero h1 { font-weight: 800; }
+h2, .section-title, .section-head h2, .dash-head h2,
+.test-intro h2, .test-result h2, .empty-state h2, .ex-head h2, .modal-head h2 {
+  font-size: var(--text-heading);
+  line-height: var(--leading-tight);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+h3, .section-head h3 {
+  font-size: var(--text-heading-sm);
+  line-height: var(--leading-snug);
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+/* Заголовок главной — самое крупное на экране после героя: с него ученик
+   начинает читать страницу, а раньше он был 26px, меньше многих цифр. */
+.dash-head h2 { margin-bottom: var(--space-4); }
+.dash-head .muted, #dash-stats {
+  font-size: var(--text-body-sm);
+  font-weight: 400;
+  color: var(--ink-soft);
+}
+/* Пояснительный текст. Был 600–700 — читался как подзаголовок и спорил
+   с настоящими заголовками. */
+.hero-sub, .test-intro p, .empty-state p, .photo-cta-text,
+.ach-desc, .ex-desc, .msg, .reset-note, .invite-card p,
+.savely-comment, .demo-note, .flash-example, .w-ex {
+  font-weight: 400;
+  line-height: var(--leading-normal);
+}
+.hero h1 { margin-inline: auto; }        /* max-width:15ch без этого прижимал заголовок влево */
+.hero-sub { margin-inline: auto; margin-bottom: var(--space-32); }
+/* Мелкие подписи: один размер и один вес на весь сайт. Их было пять разных
+   (12px, 12.5px, 13px, 13.5px, 14px) — от этого и «отступы неровные». */
+.muted-small, .stat-note, .ach-progress, .hw-due, .fine-print,
+.flip-hint, .test-counter, .quiz-label, .result-label, .result-note,
+.lb-xp, .ex-desc, .photo-when, .plan-row-lim, .pass-hint, .plan-hint {
+  font-size: var(--text-caption);
+  font-weight: 400;
+  line-height: var(--leading-snug);
+  color: var(--ink-soft);
+}
+/* Цифры в статистике должны стоять столбиком при перерисовке, иначе
+   счётчик «дёргается» при каждом обновлении очков. */
+.stat-value, .result-value, .plan-count, .task-stat b, .xp-earned,
+.blitz-bar b, .rd-score { font-variant-numeric: tabular-nums; }
+/* ==========================================================================
+   3. РИТМ: РАЗДЕЛ НАЧИНАЕТСЯ С ЛИНИИ, А НЕ С ПУСТОТЫ
+   ========================================================================== */
+
+/* Раньше между блоками стояли 16 / 22 / 26 / 30 px «на глаз», и глазу не за
+   что было зацепиться при прокрутке. Теперь у раздела есть начало: волосяная
+   линия, воздух над ней вдвое больше, чем под ней. Это единственная
+   декоративная линия на сайте — её и хватает, чтобы страница «дышала». */
+.screen { padding: var(--space-40) var(--space-24) var(--space-64); }
+.section-head {
+  align-items: baseline;
+  gap: var(--space-16) var(--space-24);
+  margin: var(--section-gap) 0 var(--space-24);
+  padding-top: var(--space-24);
+  border-top: var(--border-w) solid var(--line-soft);
+}
+/* Первый раздел экрана уже отделён шапкой — линия там лишняя. */
+.wide > .section-head:first-child,
+.narrow > .section-head:first-child,
+.wide > *:first-child.section-head { margin-top: 0; padding-top: 0; border-top: none; }
+/* Пояснение в скобках внутри заголовка («Слова для тебя (подобраны под твой
+   уровень)») набиралось в строку кеглем вдвое меньше — на телефоне оно
+   переносилось на вторую строку и заголовок читался как сломанный.
+   Это подзаголовок, а не часть названия: ставим его строкой ниже. */
+.section-head h2 .muted-small,
+.section-head h3 .muted-small {
+  display: block;
+  margin: var(--space-4) 0 0;
+  font-weight: 400;
+  letter-spacing: normal;
+}
+.dash-head { margin-bottom: var(--space-32); gap: var(--space-20); }
+/* ==========================================================================
+   4. ИЕРАРХИЯ: ДВА ВЕСА КАРТОЧЕК, НЕ ОДИН
+   ========================================================================== */
+
+/* Было: семь одинаковых карточек с тенью и рамкой — ровное поле, глазу не за
+   что зацепиться. Стало: одна «ведущая» (сегодняшняя цель — единственное, на
+   что ученик реально влияет прямо сейчас) и шесть «справочных».
+   Справочные лежат на вторичном фоне без тени и без рамки: они не спорят за
+   внимание, но и не исчезают. */
+.stats-grid {
+  grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
+  gap: var(--space-12);
+  align-items: stretch;
+}
+/* --- справочная карточка --- */
+.stat-card {
+  background: var(--surface-alt);
+  border: var(--border-w) solid transparent;
+  box-shadow: none;
+  padding: var(--space-20);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.stat-card .stat-label {
+  order: -1;
+  font-size: var(--text-caption);
+  font-weight: 500;
+  color: var(--ink-soft);
+}
+/* Ради этого всё и затевалось: значение вдвое крупнее подписи. Было 22 к 16 —
+   разницу в 1,4 глаз не считает за иерархию и читает блок как сплошной текст. */
+.stat-card .stat-value {
+  font-size: var(--text-heading-sm);
+  line-height: var(--leading-tight);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+.stat-card .stat-unit {
+  font-size: var(--text-caption);
+  font-weight: 500;
+  color: var(--ink-soft);
+  letter-spacing: normal;
+}
+.stat-card .stat-note { margin-top: auto; padding-top: var(--space-8); }
+/* --- ведущая карточка --- */
+.stat-card.goal-card {
+  grid-column: span 2;
+  background: var(--surface);
+  border-color: var(--accent-line);
+  box-shadow: var(--shadow-soft);
+  padding: var(--space-24) var(--space-28);
+  gap: var(--space-8);
+}
+.goal-card .stat-value { font-size: var(--text-heading-lg); }
+.goal-card .stat-label { color: var(--accent); font-weight: 600; }
+.goal-card .xp-bar { height: 10px; margin: var(--space-8) 0 var(--space-4); }
+/* Код для входа — служебная строка, а не показатель. Он занимал столько же
+   места, сколько цель дня, и притягивал взгляд длинной строкой заглавных. */
+.stat-card:has(.code-value) { background: none; border-color: var(--line-soft); }
+.stat-card .code-value {
+  font-size: var(--text-subheading);
+  letter-spacing: .06em;
+  color: var(--ink);
+  font-weight: 700;
+}
+/* Рейтинг и «пора повторить» — тоже справочный вес, кроме случая, когда
+   повторять реально есть что: тогда карточка получает акцентную кромку и
+   становится вторым по важности объектом на экране. */
+.lb-card { background: var(--surface-alt); box-shadow: none; border-color: transparent; }
+.hw-card, .tmsg-card, .photo-card, .task-card.task-overdue { border-left-width: 3px; }
+.hw-card.hw-done { border-left-color: var(--line-soft); }
+.tmsg-card.tmsg-new { background: var(--surface); border-left-color: var(--accent); }
+/* Карточки слов и тренировок — одинаковые по смыслу, значит одинаковые по
+   весу; выделяться должна не карточка, а раздел над ними. */
+.word-card, .ex-card, .ach-card {
+  box-shadow: none;
+  border-color: var(--line-soft);
+}
+.word-card .w-en, .ex-name, .ach-name { font-weight: 700; }
+.word-card .w-en { font-size: var(--text-subheading); letter-spacing: -0.01em; }
+.word-card .w-ru { font-weight: 500; color: var(--ink); }
+.word-card .w-ex { color: var(--ink-soft); font-size: var(--text-caption); }
+.w-level {
+  background: none;
+  border: var(--border-w) solid var(--line-soft);
+  color: var(--ink-soft);
+  font-weight: 600;
+  text-transform: none;
+}
+/* ==========================================================================
+   5. У АКЦЕНТА ДОЛЖНЫ БЫТЬ ПОЛНОМОЧИЯ
+   ========================================================================== */
+
+/* На главной было двенадцать залитых акцентом кнопок «+ В словарь» — все
+   одинаково громкие, и потому ни одна не главная. Повторяющееся действие
+   в списке — вторичное по определению: оно повторяется. Заливку оставляем
+   единственному главному действию экрана. */
+.word-card .btn-primary,
+.wod-card .btn-primary,
+.hw-word.picked,
+.dict-row .btn-primary {
+  background: none;
+  color: var(--accent);
+  border: var(--border-w) solid var(--accent-line);
+  box-shadow: none;
+  font-weight: 600;
+}
+.word-card .btn-primary:hover,
+.wod-card .btn-primary:hover,
+.dict-row .btn-primary:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  transform: none;
+  box-shadow: none;
+}
+.word-card .btn-primary:active,
+.wod-card .btn-primary:active { background: var(--accent-soft); transform: translateY(1px); }
+/* Уже добавленное слово — не «успех» с восклицательным знаком, а спокойный факт. */
+.word-card .added, .wod-card .added {
+  color: var(--ink-soft);
+  font-weight: 500;
+  font-size: var(--text-caption);
+}
+/* Активный фильтр и активная группа заливались акцентом с белым текстом.
+   Ночью акцент светлый — белым по светлому получалось 2,06:1. */
+.dict-filter.active, .group-chip.active, #voice-mode-btn.voice-active, .photo-new, .ob-num {
+  background: var(--accent);
+  color: var(--on-accent);
+  border-color: var(--accent);
+}
+/* ==========================================================================
+   6. СОСТОЯНИЯ: ОДИН СЛОВАРЬ НА ВСЕ ЭЛЕМЕНТЫ
+   --------------------------------------------------------------------------
+   покой → наведение (фон светлеет, граница темнеет)
+        → нажатие (сдвиг на 1px вниз, фон глубже)
+        → фокус с клавиатуры (кольцо из токена, всегда поверх)
+        → выключено (плоское, без границы, курсор запрета)
+        → загрузка (плоское + кольцо-вертушка)
+   Раньше у каждого элемента был свой набор: где-то поднималось, где-то
+   меняло цвет, где-то ничего. Ребёнок не должен угадывать, что живое.
+   ========================================================================== */
+
+/* Подъём при наведении — обещание «сюда можно нажать». Значит, поднимаются
+   только те, на кого действительно можно нажать. Справочные карточки
+   поднимались зря и врали. */
+.card:hover, .stat-card:hover, .ach-card:hover, .pack-card:hover {
+  transform: none;
+  box-shadow: var(--shadow-soft);
+}
+:is(button, a[href], [role="button"], .ex-card, .dict-row, .flashcard, .hw-word, .sticker, .scr-tile, .pair-item, .mcq-option, .ws-cell, .cat-box):not(:disabled):not([aria-disabled="true"]):hover {
+  cursor: pointer;
+}
+.ex-card:hover, .dict-row:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent-line);
+  box-shadow: var(--shadow-soft);
+}
+.ex-card:active, .dict-row:active { transform: translateY(0); }
+/* Фокус с клавиатуры. Раньше у полей ввода его перебивало правило
+   `input:focus { box-shadow: 0 0 0 3px var(--accent-soft) }` — светлый ореол
+   на светлой карточке даёт около 1,2:1, то есть фокуса не видно вовсе.
+   Кольцо из токена: две ступени, внутренняя по фону, внешняя чернилами. */
+:is(a, button, input, textarea, select, summary, [tabindex]):focus-visible {
+  outline: 2px solid transparent;   /* запасной вариант для forced-colors */
+  outline-offset: 2px;
+  box-shadow: var(--focus-ring);
+  z-index: 1;
+  position: relative;
+}
+/* Мышью кольцо не нужно, но подсветка поля — нужна.
+   Сама подсветка задана ниже, вместе с тяжёлым правилом полей: здесь только
+   гасим кольцо, чтобы оно не дублировало рамку при наведении мышью. */
+input:focus, textarea:focus, select:focus {
+  box-shadow: none;
+}
+/* Выключено. Прозрачность .45 роняла текст до ~2:1 — при том, что выключенная
+   кнопка должна оставаться читаемой: ребёнок должен понимать, чего он ждёт. */
+:is(.btn, .btn-primary, .btn-ghost, .chip, .tab, button):disabled,
+:is(.btn, .btn-primary, .btn-ghost, button)[aria-disabled="true"],
+.quiz-buttons .btn:disabled {
+  opacity: 1;
+  background: var(--surface-alt);
+  color: var(--ink-soft);          /* 5,1:1 днём, 6,2:1 ночью */
+  border-color: transparent;
+  box-shadow: none;
+  transform: none;
+  cursor: not-allowed;
+}
+.scr-tile:disabled { opacity: 1; background: var(--surface-alt); color: var(--ink-soft); border-color: transparent; }
+/* Загрузка. Своего класса в JS пока нет — размечено на вырост, чтобы
+   «подождите» не рисовали каждый раз заново (см. отчёт: нужен хук). */
+.is-loading, [aria-busy="true"] {
+  cursor: progress;
+  pointer-events: none;
+}
+.btn.is-loading {
+  color: transparent;
+  position: relative;
+  background: var(--surface-alt);
+  border-color: transparent;
+}
+.btn.is-loading::after {
+  content: "";
+  position: absolute; inset: 50% auto auto 50%;
+  width: 18px; height: 18px; margin: -9px 0 0 -9px;
+  border: 2px solid var(--line-control);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+/* Скелет содержимого — вместо пустого места, пока данные едут с сервера. */
+.skeleton {
+  background: var(--surface-alt);
+  border-radius: var(--radius-input);
+  color: transparent;
+  animation: skeletonPulse 1.6s var(--ease) infinite;
+}
+@keyframes skeletonPulse { 50% { opacity: .55; } }
+/* ==========================================================================
+   7. СТАТУСЫ: ПРАВИЛЬНО / НЕПРАВИЛЬНО / НЕЙТРАЛЬНО
+   --------------------------------------------------------------------------
+   В старом CSS зелёный и красный были набраны литералами (#E3F5EB, #FBE7E7)
+   и ночью превращались в светящиеся плитки: белый текст на почти белом фоне,
+   1,01:1 — то есть ответ просто исчезал.
+   Правило: подложка статуса всегда несёт текст чернилами, а цвет живёт
+   в границе. Тогда пара читается в обеих темах, а смысл не пропадает.
+   ========================================================================== */
+
+.mcq-option.right, .pair-item.done, .ws-cell.found, .hw-word.picked,
+.cw-cell input.ok, .cat-chip, .d-status.learned, .learned-word, .hw-chip-done,
+.task-pupil.ok {
+  background: var(--accent-soft);
+  border-color: var(--accent-line);
+  color: var(--accent-deep);        /* 7,2:1 днём, 6,6:1 ночью */
+}
+.mcq-option.wrong, .pair-item.bad, .cat-box.bad, .cw-cell input.err,
+.weak-word, .conn-error, .task-pupil.no, .mic-btn.listening {
+  background: var(--err-soft);
+  border-color: var(--err);
+  color: var(--ink);                /* 10,7:1 — красным по красноватому не проходило */
+}
+.weak-word b, .conn-error, .type-feedback.err, .seen.bad,
+.link-btn.danger, .dict-row .d-del:hover { color: var(--err); }
+.type-feedback.ok, .seen.good, .photo-praise, .ws-target.ws-done { color: var(--ok); }
+.weak-word i { color: var(--ink-soft); }
+/* Прозрачность .35 у отгаданной пары давала 1,03:1 — пара исчезала, и
+   ребёнок не понимал, отгадал он её или промахнулся. */
+.pair-item.done { opacity: 1; color: var(--ink-soft); }
+/* Метки состояния слова в словаре: одна форма, три оттенка одного семейства,
+   вместо синей / оранжевой / зелёной плашки из трёх разных палитр. */
+.d-status {
+  background: none;
+  border: var(--border-w) solid var(--line-soft);
+  color: var(--ink-soft);
+  font-weight: 600;
+}
+/* .new приходилось называть двумя классами: у style.css правило тоже из двух
+   (.d-status.new с синей плашкой #EAF2FF), и одноклассовое его не перебивает. */
+.d-status.new { background: none; border-color: var(--line-soft); color: var(--ink-soft); }
+.d-status.learning { border-color: var(--accent-line); color: var(--accent); background: none; }
+.d-status.learned { border-color: var(--accent-line); }
+/* Полосы прогресса. Заполнение «цель выполнена» ночью почти совпадало с
+   подложкой (2,42:1) — берём глубокий акцент, он различим в обеих темах.
+   Дорожка — линейкой, а не вторичным фоном: половина полос лежит на
+   карточках, которые сами вторичного цвета, и дорожка на них исчезала. */
+.xp-bar, .progress { background: var(--line-soft); }
+.xp-bar-fill, .progress-fill { background: var(--accent); }   /* 4,6:1 к дорожке днём, 5,4:1 ночью */
+.xp-bar-fill.done, .goal-card .xp-bar-fill.done { background: var(--accent-deep); }
+.xp-bar-fill.full { background: var(--err); }
+/* Шкала надёжности пароля лежала на --line: четыре ярких хвоста на сером,
+   от 1,36:1 до 1,71:1 — уровень было не разобрать. Оставляем одну шкалу
+   акцентом, а различие несёт длина, а не цвет. */
+.pass-meter { background: var(--surface-alt); }
+.pass-meter-fill,
+.pass-meter-fill[data-level="2"],
+.pass-meter-fill[data-level="3"],
+.pass-meter-fill[data-level="4"] { background: var(--accent); }
+.pass-meter-fill:not([data-level]) { background: var(--err); }
+/* ==========================================================================
+   8. ПОЛЯ ВВОДА И ПОВЕРХНОСТИ: ОДИН СВОД ВМЕСТО ТРИДЦАТИ ПРАВОК
+   ========================================================================== */
+
+/* В старом CSS около тридцати правил вида `.что-нибудь input { background:#fff }`.
+   Каждое из них перебивало общее правило по весу селектора, и ночью давало
+   белое поле с почти белым текстом — 1,17:1.
+   Чинить по одному бессмысленно: следующая правка вёрстки вернёт всё назад.
+   Один !important на фон и цвет поля закрывает всю группу разом; статусные
+   классы .ok/.err из него исключены, иначе пропадёт проверка ответа. */
+input:not([type="range"], [type="checkbox"], [type="radio"], [type="color"], [type="file"]):not(.ok):not(.err),
+textarea,
+select {
+  background-color: var(--surface) !important;
+  color: var(--ink) !important;
+  border-color: var(--line-control);
+}
+
+/* Тот же селектор плюс :focus — иначе не победить.
+   Вес правила выше — (0,3,1) из-за трёх :not(), — и обычный `input:focus`
+   с весом (0,1,1) проигрывал: рамка при фокусе не менялась совсем,
+   держалось только кольцо box-shadow. */
+input:not([type="range"], [type="checkbox"], [type="radio"], [type="color"], [type="file"]):not(.ok):not(.err):focus,
+textarea:focus,
+select:focus {
+  border-color: var(--accent);
+}
+input::placeholder, textarea::placeholder { color: var(--ink-soft); opacity: 1; }
+/* Те же белые поверхности, но у контейнеров — там хватает порядка загрузки. */
+.pair-item, .scr-tile, .ws-cell, .cat-box, .modal-card, .plan-row,
+.photo-item, .hw-word, .mic-btn, .stt-lang-btn, .tab.active, .stu-group {
+  background: var(--surface);
+  color: var(--ink);
+  border-color: var(--line-soft);
+}
+.mcq-option, .type-input, .hw-words, .task-pupil, .task-word { background: var(--surface-alt); }
+/* Хвостик у облачка речи остался белым, когда само облачко стало бумажным. */
+.speech-bubble::before { border-bottom-color: var(--surface); }
+.speech-bubble { border-color: var(--line-soft); }
+/* Плитка под эмодзи слова: тридцать случайных пастельных тонов из words.js,
+   треть из них оранжевые. Смысла ученик в них не читает — категорию по цвету
+   никто не расшифровывает, — а гамму они ломали в одиночку. */
+.word-art { background: var(--art-tile) !important; }
+/* Значок награды приходит с фоном из JS (#EFEAE3 у закрытых) — ночью это
+   светлый прямоугольник на тёмной карточке. */
+.ach-icon { background: var(--surface-alt) !important; }
+.ach-card.ach-done .ach-icon { background: var(--accent-soft) !important; }
+/* «получено» приходило инлайновым бронзовым / золотым / серебряным цветом:
+   2,15–2,81:1 и ровно тот оранжевый, который заказчик просил убрать. */
+.ach-got {
+  color: var(--accent) !important;
+  text-transform: none;
+  letter-spacing: normal;
+  font-weight: 700;
+  font-size: var(--text-caption);
+}
+/* Закрытая награда гасилась через opacity: .62 — вместе с текстом. Гасим
+   только картинку, текст оставляем читаемым: это же список целей. */
+.ach-card { opacity: 1; }
+.ach-card:not(.ach-done) { background: var(--surface-alt); border-color: transparent; }
+.ach-card:not(.ach-done) .ach-icon {
+  opacity: .5;
+  background: none !important;
+  border: var(--border-w) dashed var(--line-soft);   /* пустая рамка = «место под награду» */
+}
+.ach-card:not(.ach-done) .ach-name { color: var(--ink-soft); }
+/* Карточка слова: 18px внутрь при 24px заголовке — слово упиралось в край. */
+.word-card { padding: var(--space-20); gap: var(--space-8); }
+/* Наклейки наград. tokens.css прямо разрешает пастель на наклейках — не спорю.
+   Но в полную силу глина и лаванда оказывались самым ярким пятном экрана,
+   громче главной кнопки, а полученная награда — не действие, а факт.
+   Разбавляем поверхностью: оттенки различимы, четыре семейства читаются,
+   но наклейка встаёт на своё место в порядке чтения. Текст чернилами
+   на разбавленной подложке даёт 7–9:1 против прежних 5,4. */
+.sticker.got-lavender { background: color-mix(in oklab, var(--soft-lavender) 45%, var(--surface)); }
+.sticker.got-sky      { background: color-mix(in oklab, var(--soft-sky) 45%, var(--surface)); }
+.sticker.got-clay     { background: color-mix(in oklab, var(--soft-clay) 45%, var(--surface)); }
+.sticker.got-mint     { background: color-mix(in oklab, var(--soft-mint) 45%, var(--surface)); }
+.sticker[class*="got-"] { border-color: transparent; color: var(--ink); }
+/* «Слово дня» — это одна фраза: «taciturn — неразговорчивый». Собранная
+   флексом, она рвалась по тире, и тире уезжало на отдельную строку.
+   Строка текста и должна вести себя как строка текста. */
+.wod-main { display: block; }
+.wod-main > * { display: inline; vertical-align: baseline; }
+.wod-tr { color: var(--ink); }
+/* Кнопка не наследует цвет текста — браузер ставит ей системный buttontext.
+   Пока внутри эмодзи, это незаметно; как только туда попадёт слово, ночью
+   оно станет чёрным на тёмной карточке. Наследование чинит целый класс
+   будущих ошибок разом. */
+button { color: inherit; font-family: inherit; }
+/* Стрик был на #FFE3E0 с текстом #D64533 — 3,64:1 и ровно тот оранжевый,
+   от которого уходили. Огонь в эмодзи и так читается, подложке достаточно
+   быть тёплой: чернила по тёплому дают 10:1. */
+.streak-chip { background: var(--warm-soft); color: var(--ink); font-weight: 700; }
+.xp-chip { background: var(--accent-soft); color: var(--accent-deep); }
+/* Три места, где фон брался чернилами, а текст был литеральным #fff: ночью
+   чернила становятся почти белыми, и надпись пропадала (1,17:1). */
+.level-chip, .msg-user, .ach-toast { color: var(--paper); }
+.ach-toast i { opacity: 1; color: var(--paper); }
+.msg-cat { background: var(--accent-soft); color: var(--ink); }
+/* ==========================================================================
+   9. ПУСТЫЕ СОСТОЯНИЯ: ЭТО НЕ ПОЛОМКА, ЭТО НАЧАЛО
+   ========================================================================== */
+
+/* Было: серый текст без опоры посреди белого экрана — выглядит ровно так,
+   будто страница не догрузилась.
+   Пунктирная рамка на бумаге, а не залитая панель: залитая читалась бы как
+   ещё один готовый блок (и путалась с подвалом), а пунктир прямо говорит
+   «место есть, содержимого пока нет». Это единственный пунктир на сайте —
+   поэтому он однозначен. */
+.empty-state {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-16);
+  padding: var(--space-48) var(--space-24);
+  background: none;
+  border: var(--border-w) dashed var(--line-soft);
+  border-radius: var(--radius-panel);
+  color: var(--ink-soft);          /* 5,5:1 днём, 7,9:1 ночью на бумаге */
+  font-weight: 400;
+  text-align: center;
+}
+.empty-state h2 { font-size: var(--text-heading-sm); color: var(--ink); margin: 0; }
+.empty-state p {
+  margin: 0;
+  max-width: 36ch;
+  font-size: var(--text-body-sm);
+  line-height: var(--leading-normal);
+}
+.empty-state .cat-avatar { width: 96px; margin: 0; }
+.empty-state .btn, .empty-state .quiz-buttons { margin-top: var(--space-8); }
+/* Кот в пустом состоянии не дышит: тут он объясняет, а не развлекает. */
+.empty-state .cat-avatar svg { animation: none; }
+/* «Ничего не нашлось» в словаре — та же логика, но короче: это результат
+   поиска, а не тупик. */
+.dict-list > .muted-small {
+  display: block;
+  padding: var(--space-40) var(--space-24);
+  background: var(--surface-alt);
+  border-radius: var(--radius-panel);
+  font-size: var(--text-body-sm);
+}
+/* ==========================================================================
+   10. ТЕЛЕФОН — ГЛАВНЫЙ ЭКРАН УЧЕНИКА
+   ========================================================================== */
+
+@media (max-width: 720px) {
+  .screen { padding: var(--space-24) var(--space-16) var(--space-48); }
+  /* Два столбца справочных карточек: один даёт бесконечную ленту, три не
+     помещаются. Цель дня занимает обе колонки и остаётся главной. */
+  .stats-grid { grid-template-columns: repeat(2, 1fr); gap: var(--space-8); }
+  .stat-card { padding: var(--space-16) var(--space-16); }
+  .stat-card .stat-value { font-size: var(--text-subheading); }
+  .stat-card.goal-card { padding: var(--space-20); }
+  /* Заголовок и действие рядом не помещаются — ставим друг под другом.
+     flex-start, а не stretch: кнопка «Ещё слова» во всю ширину экрана
+     выглядела бы как главное действие страницы, а она вспомогательная. */
+  .section-head {
+    flex-direction: column;
+    align-items: flex-start;
+    margin: var(--space-40) 0 var(--space-16);
+    padding-top: var(--space-20);
+    gap: var(--space-12);
+  }
+  .dash-head { margin-bottom: var(--space-24); }
+  /* Палец ребёнка промахивается по мелким целям. 44px — минимум, ниже
+     которого нажатие становится лотереей. */
+  .btn, .btn-small, .chip, .tab, .nav-btn, .mic-btn, .stt-lang-btn, .d-del {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .say-btn, .msg-say { min-width: 40px; min-height: 40px; }
+  /* Шапка съедает пятую часть экрана двумя рядами меню. Кегль не режем —
+     16px это нижняя ступень шкалы, ниже дети уже щурятся. Отбираем
+     горизонтальные отступы: так в первый ряд влезает больше пунктов.
+     Прокрутку вместо переноса не делаем осознанно: у неё нет намёка, что
+     она есть, и «Награды» с «Чатом» просто пропадут за краем. */
+  .topbar-inner { padding: var(--space-4) var(--space-12) 0; gap: var(--space-8); }
+  .nav-btn { padding: var(--space-8) var(--space-8); font-size: var(--text-caption); }
+  .nav { gap: 0; }
+  .empty-state { padding: var(--space-32) var(--space-16); }
+  .empty-state .cat-avatar { width: 76px; }
+}
+@media (max-width: 380px) {
+  /* На 360–375px две колонки статистики держатся только на коротких
+     подписях; «Занимались за неделю» уже не влезает — отдаём одну колонку. */
+  .stats-grid { grid-template-columns: 1fr; }
+  .stat-card.goal-card { grid-column: span 1; }
+}
+/* ==========================================================================
+   11. ПАНЕЛЬ РЕПЕТИТОРА: ЭТО ИНСТРУМЕНТ, А НЕ ЗАНЯТИЕ
+   --------------------------------------------------------------------------
+   У ученика задача — не заскучать за час. У репетитора — за минуту увидеть,
+   кто отвалился, и выдать домашку. Это разные задачи, и мерки у них разные:
+   там воздух и крупный шрифт, здесь плотность и спокойствие.
+   Тон меняется не отдельными правилами, а пересборкой токенов на этой
+   странице: шкала на ступень мельче, скругления вдвое меньше, теней нет.
+   Дальше всё, что написано через var(), подстраивается само.
+
+   #screen-verify есть только в tutor.html — по нему и опознаём страницу.
+   Селектор с id весит больше, чем правила tutor.css, который грузится
+   последним: иначе его пришлось бы перебивать через !important. */
+:root:has(#screen-verify) {
+  --text-caption:    13px;
+  --text-body-sm:    15px;
+  --text-body:       16px;
+  --text-subheading: 18px;
+  --text-heading-sm: 20px;
+  --text-heading:    26px;
+  --text-heading-lg: 30px;
+  --text-display:    38px;
+
+  --radius-input: 8px;
+  --radius-card:  10px;
+  --radius-btn:   8px;      /* не таблетка: у рабочей кнопки нет игривости */
+  --radius-tag:   6px;
+  --radius-panel: 12px;
+
+  --card-padding: var(--space-20);
+  --section-gap:  var(--space-32);
+
+  /* Тени в списке из двадцати учеников превращаются в грязь. Границы честнее. */
+  --shadow-soft: none;
+  --shadow-lift: none;
+}
+:root:has(#screen-verify) body { font-size: var(--text-body); }
+:root:has(#screen-verify) .screen,
+:root:has(#screen-verify) .wide { padding: var(--space-24) var(--space-20) var(--space-64); }
+/* Меню — панель вкладок с подчёркиванием вместо ряда таблеток: таблетки
+   читаются как кнопки действия, а это переключение разделов.
+   Семь разделов не помещаются в одну строку с именем и подпиской, поэтому
+   меню уходит на собственную строку во всю ширину — как и положено вкладкам.
+   Подчёркивание активной садится ровно на нижнюю линию шапки (margin -1px). */
+:root:has(#screen-verify) .topbar-inner {
+  flex-wrap: wrap;
+  row-gap: var(--space-8);
+  padding-bottom: 0;
+  align-items: center;
+}
+:root:has(#screen-verify) .brand { flex: 1; }
+:root:has(#screen-verify) .nav {
+  order: 3;
+  flex: 1 0 100%;
+  gap: 0;
+  border-bottom: none;
+  /* Именно перенос, а не горизонтальная прокрутка: у прокрутки нет намёка,
+     что она есть, и «Подписка» просто пропадала бы за краем. */
+  flex-wrap: wrap;
+}
+:root:has(#screen-verify) .nav-btn {
+  border-radius: 0;
+  padding: var(--space-12) var(--space-16);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+:root:has(#screen-verify) .nav-btn:hover {
+  background: none;
+  color: var(--ink);
+  border-bottom-color: var(--line-soft);
+}
+:root:has(#screen-verify) .nav-btn.active {
+  background: none;
+  color: var(--ink);
+  font-weight: 700;
+  border-bottom-color: var(--accent);
+}
+/* Сводка сверху — приборная панель: четыре равных показателя, никакой
+   «ведущей» карточки. Тут нет одного главного числа, есть срез. */
+:root:has(#screen-verify) .stats-grid {
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--space-8);
+}
+:root:has(#screen-verify) .stat-card {
+  background: var(--surface);
+  border: var(--border-w) solid var(--line-soft);
+  padding: var(--space-16);
+}
+:root:has(#screen-verify) .stat-card .stat-value { font-size: var(--text-heading-sm); }
+/* Строка ученика. Была карточкой с воздухом и кнопкой-таблеткой во всю
+   ширину — двадцать таких занимают четыре экрана прокрутки. */
+:root:has(#screen-verify) .stu-card {
+  padding: var(--space-12) var(--space-16);
+  margin-bottom: var(--space-4);
+  border-color: var(--line-soft);
+}
+:root:has(#screen-verify) .stu-name { font-size: var(--text-body); font-weight: 700; }
+:root:has(#screen-verify) .stu-actions { margin-top: var(--space-8); gap: var(--space-16); }
+:root:has(#screen-verify) .stu-actions .btn {
+  padding: var(--space-8) var(--space-16);
+  font-size: var(--text-caption);
+  font-weight: 600;
+}
+:root:has(#screen-verify) .stu-bars { margin: var(--space-8) 0 0; }
+/* Полоса во всю ширину строки и высотой 7px при нулевом заполнении читалась
+   как разделитель, а не как прогресс. Тоньше — и она снова про число. */
+:root:has(#screen-verify) .xp-bar { height: 4px; }
+/* В tutor.css в списке растягиваемых полей перечислены input и select, но не
+   textarea — поэтому оба больших поля формы домашки сжимались до размера по
+   умолчанию и висели уступом справа от подписи.
+   Заодно выравнивание по верху: при поле в 96px подпись уезжала на середину,
+   и было неочевидно, к чему она относится. */
+:root:has(#screen-verify) .hw-form textarea,
+:root:has(#screen-verify) .msg-form textarea { flex: 1; min-width: 170px; }
+:root:has(#screen-verify) .vs-row:has(textarea) { align-items: flex-start; }
+:root:has(#screen-verify) .vs-row:has(textarea) > label { padding-top: var(--space-12); }
+/* min-width у подписи означает «не меньше», а не «ровно», поэтому длинная
+   подпись сдвигала своё поле вправо и левый край формы шёл лесенкой.
+   Фиксированная колонка выстраивает поля в линию. Ниже 721px tutor.css сам
+   раскладывает строку в столбик — туда не лезем. */
+@media (min-width: 721px) {
+  :root:has(#screen-verify) .hw-form .vs-row > label,
+  :root:has(#screen-verify) .msg-form .vs-row > label {
+    flex: 0 0 200px;
+    width: 200px;
+    min-width: 0;
+    line-height: var(--leading-snug);
+  }
+}
+/* Украшения выключаем: на рабочем экране мигающий кот — помеха. */
+:root:has(#screen-verify) .cat-avatar svg { animation: none; }
+:root:has(#screen-verify) .cat-big { width: 108px; }
+:root:has(#screen-verify) .cat-mid { width: 64px; }
+:root:has(#screen-verify) .sticker:hover,
+:root:has(#screen-verify) .card:hover { transform: none; }
+:root:has(#screen-verify) .section-head { padding-top: var(--space-16); margin-top: var(--space-32); }
+/* --- Оранжевое наследство ---------------------------------------------- */
+/* В tutor.css осталась дюжина тёплых литералов: #FFF4E8, #F0B27A, #FFD9B3,
+   #FFA96B, #FFF8F0, #FFFBF6. Это тот самый оранжевый, который просили убрать,
+   и заодно светлые прямоугольники, светящиеся в ночной теме. */
+:root:has(#screen-verify) .access-bar {
+  background: var(--accent-soft);
+  color: var(--ink);
+  border-bottom: var(--border-w) solid var(--accent-line);
+}
+:root:has(#screen-verify) .access-bar.warn { background: var(--surface-alt); }
+:root:has(#screen-verify) .access-bar.stop {
+  background: var(--err-soft);
+  color: var(--ink);
+  border-bottom-color: var(--err);
+}
+:root:has(#screen-verify) .recovery-code,
+:root:has(#screen-verify) .restore-box {
+  background: var(--surface-alt);
+  color: var(--ink);
+  border: var(--border-w) dashed var(--line);
+}
+:root:has(#screen-verify) .onboard,
+:root:has(#screen-verify) .plan-row.current {
+  background: var(--surface-alt);
+  border-color: var(--accent-line);
+}
+:root:has(#screen-verify) .ob-step + .ob-step { border-top-color: var(--line-soft); }
+:root:has(#screen-verify) .ob-step.done .ob-num {
+  background: var(--accent-soft);
+  color: var(--accent-deep);
+}
+:root:has(#screen-verify) .ob-text,
+:root:has(#screen-verify) .restore-label,
+:root:has(#screen-verify) .plan-count span,
+:root:has(#screen-verify) .plan-row-lim,
+:root:has(#screen-verify) .pack-limit,
+:root:has(#screen-verify) .photo-when,
+:root:has(#screen-verify) .photo-kind,
+:root:has(#screen-verify) .hw-word-ru { color: var(--ink-soft); }
+:root:has(#screen-verify) .plan-card,
+:root:has(#screen-verify) .pack-card,
+:root:has(#screen-verify) .plan-row,
+:root:has(#screen-verify) .check-pick,
+:root:has(#screen-verify) .photo-item,
+:root:has(#screen-verify) .modal-card,
+:root:has(#screen-verify) .hw-word {
+  background: var(--surface);
+  color: var(--ink);
+  border: var(--border-w) solid var(--line-soft);
+}
+:root:has(#screen-verify) .modal-box { background: var(--paper); }
+:root:has(#screen-verify) .pack-price { color: var(--ink); }
+:root:has(#screen-verify) .plan-chip.plan-full { background: var(--err-soft); color: var(--ink); }
+:root:has(#screen-verify) .picked-chip:hover { background: var(--accent-soft); }
+:root:has(#screen-verify) .hw-chip,
+:root:has(#screen-verify) .msg-to,
+:root:has(#screen-verify) .picked-chip { color: var(--accent-deep); background: var(--accent-soft); }
+/* Статусы в панели пришлось повторить со специфичностью страницы: общие
+   правила выше стоят в savely.css, а tutor.css грузится после и перебивал их
+   своими литералами (#FFF0E4 с зелёным текстом давал 1,49:1). */
+:root:has(#screen-verify) .task-pupil.ok,
+:root:has(#screen-verify) .hw-chip-done,
+:root:has(#screen-verify) .learned-word,
+:root:has(#screen-verify) .hw-word.picked {
+  background: var(--accent-soft);
+  color: var(--accent-deep);
+  border-color: var(--accent-line);
+}
+:root:has(#screen-verify) .task-pupil.no,
+:root:has(#screen-verify) .weak-word,
+:root:has(#screen-verify) .conn-error {
+  background: var(--warm-soft);
+  color: var(--ink);
+  border: var(--border-w) solid var(--err);
+}
+:root:has(#screen-verify) .weak-word b { color: var(--err); }
+:root:has(#screen-verify) .weak-word i { color: var(--ink-soft); }
+/* Полоска активности: пустая клетка была самым светлым пятном на карточке,
+   а «занимался много» — оранжевым. Теперь это ровная шкала одного тона. */
+/* Выбранная группа заливкой акцента становилась самым громким пятном
+   на рабочем экране. Здесь достаточно пометить, а не кричать. */
+:root:has(#screen-verify) .group-chip.active {
+  background: var(--accent-soft);
+  color: var(--accent-deep);
+  border-color: var(--accent);
+  font-weight: 700;
+}
+:root:has(#screen-verify) .act { background: var(--surface-alt); }
+:root:has(#screen-verify) .act-1 { background: var(--accent-soft); }
+:root:has(#screen-verify) .act-2 { background: var(--accent-line); }
+:root:has(#screen-verify) .act-3 { background: var(--accent); }
+:root:has(#screen-verify) .photo-item .photo-mistakes li { background: var(--surface-alt); }
+:root:has(#screen-verify) .hw-words { background: var(--surface-alt); }
+/* ================= Главный экран ученика =================
+   Блок приехал из <style> внутри index.html: там он лежал временно, пока
+   этот файл переписывали параллельно. Своих цветов и размеров нет —
+   всё из tokens.css. */
+
+    /* Приветствие — не действие: оно уступает блоку «прямо сейчас» одну
+       ступень шкалы. Остальное в .dash-head (вес, отступы, цвет) остаётся
+       из savely.css — здесь меняется только ранг двух заголовков. */
+    .dash-head h2 { font-size: var(--text-heading-sm); }
+    /* ---------- «Прямо сейчас»: единственное крупное пятно на экране ---------- */
+    .today {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: var(--space-16) var(--space-24);
+      background: var(--accent-soft);
+      border-radius: var(--radius-panel);
+      padding: var(--space-28) var(--space-32);
+      margin-bottom: var(--section-gap);
+    }
+    .today .cat-avatar { width: 104px; flex: none; margin: 0; }
+    .today-body { flex: 1 1 240px; min-width: 0; }
+    .today-kicker {
+      font-size: var(--text-caption);
+      font-weight: 600;
+      color: var(--accent);
+    }
+    .today-title {
+      font-size: clamp(27px, 6vw, 38px);
+      line-height: var(--leading-tight);
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin: var(--space-4) 0 var(--space-8);
+    }
+    .today-sub { color: var(--ink-soft); max-width: 46ch; }
+    .today-act {
+      flex: none;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: var(--space-8);
+    }
+    .today .today-go {
+      font-size: var(--text-body-sm);
+      padding: var(--space-16) var(--space-32);
+    }
+    .today-alt .link-btn { font-size: var(--text-caption); color: var(--ink-soft); }
+    /* Фото домашки — важное действие, но не второе главное: обводка вместо
+       заливки и строка вместо плаката. Кнопку показывает js/photo.js и только
+       тем, кого пригласил репетитор: остальным отправлять фото некому. */
+    .photo-cta {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-12) var(--space-16);
+      text-align: left;
+    }
+    .photo-cta .photo-cta-text { flex: 1 1 240px; margin-bottom: 0; }
+    /* ---------- Прогресс и награды ---------- */
+    /* Раздел = линия + заголовок + содержимое. Линию и ритм задаёт
+       .section-head из savely.css, здесь только внешняя рамка группы. */
+    .dash-block { margin-bottom: var(--section-gap); }
+    .dash-stats { margin-bottom: var(--space-16); }
+    #dash-ach .ach-emoji { font-size: var(--text-body-sm); }
+    /* Подпись «Дальше:» отбивает полученные награды от целей — иначе они
+       стоят вперемешку в одной строке и читаются как один список. */
+    #dash-ach .ach-next {
+      flex: 1 0 100%;
+      font-size: var(--text-caption);
+      color: var(--ink-soft);
+    }
+    /* ---------- Служебная строка: код для входа и пересдача теста ---------- */
+    .dash-service {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: var(--space-8) var(--space-24);
+      margin-top: var(--section-gap);
+      padding-top: var(--space-24);
+      border-top: var(--border-w) solid var(--line-soft);
+      font-size: var(--text-caption);
+      color: var(--ink-soft);
+    }
+    .dash-service .code-value {
+      font-size: var(--text-body-sm);
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: .06em;
+    }
+    .dash-service .link-btn { font-size: var(--text-caption); color: var(--ink-soft); }
+    @media (min-width: 721px) {
+      .dash-head .cat-avatar { width: 84px; }
+      /* Плиток три, а не семь: сетку задаём явно, иначе auto-fit оставляет
+         справа пустую колонку. Цель дня (span 2 из savely.css) — половина
+         строки, звание и слова — по четверти. */
+      .dash-stats { grid-template-columns: repeat(4, 1fr); }
+    }
+    @media (max-width: 720px) {
+      .dash-head h2 { font-size: var(--text-subheading); }
+      .today { padding: var(--space-20); gap: var(--space-12) var(--space-16); }
+      /* Кот уже стоит в приветствии двадцатью пикселями выше. Второй подряд
+         читается как опечатка и съедает высоту, которой на телефоне нет. */
+      .today .cat-avatar { display: none; }
+      /* Кнопка уходит на свою строку во всю ширину: палец попадает не глядя. */
+      .today-act { flex: 1 0 100%; }
+      .today .today-go { width: 100%; padding: var(--space-16) var(--space-20); }
+      .photo-cta .btn { width: 100%; }
+    }

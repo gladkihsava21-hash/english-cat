@@ -209,7 +209,10 @@ $("group-add").addEventListener("submit", async e => {
   e.preventDefault();
   const name = $("group-name").value.trim();
   if (!name) return;
-  const palette = ["#FF8C42", "#4CAF7D", "#7C6BD6", "#E05B5B", "#3D8BCC", "#E0A32E"];
+  // Цвета групп берём из палитры темы, а не своим списком: прежний начинался
+  // с того самого оранжевого и ночью светился на тёмном фоне.
+  const palette = ["var(--soft-mint)", "var(--soft-sky)", "var(--soft-lavender)",
+                   "var(--soft-clay)", "var(--accent-line)", "var(--line)"];
   await api("/api/tutor/group/create",
     { token: token(), name, color: palette[groups.length % palette.length] });
   $("group-name").value = "";
@@ -653,7 +656,9 @@ $("copy-link").addEventListener("click", () => {
   input.select();
   navigator.clipboard.writeText(input.value).then(() => {
     $("copy-link").textContent = "Скопировано ✓";
-    setTimeout(() => ($("copy-link").textContent = "Копировать"), 2000);
+    // возвращаем ПОЛНУЮ подпись, а не однословное «Копировать»: после
+    // копирования кнопка теряла смысл — непонятно, что именно копировать
+    setTimeout(() => ($("copy-link").textContent = "Скопировать ссылку"), 2000);
   }).catch(() => document.execCommand("copy"));
 });
 
@@ -918,3 +923,16 @@ function plural(n, one, few, many) {
   if (b === 1) return one;
   return many;
 }
+
+// Кнопка из пустого состояния: копирует ссылку прямо там, где о ней узнали.
+// Отправлять человека на другую вкладку за единственным нужным действием —
+// лишний шаг ровно в тот момент, когда панель ещё ничего не показывает.
+document.addEventListener("click", e => {
+  if (e.target.id !== "students-empty-copy") return;
+  const input = document.getElementById("invite-url");
+  if (!input || !input.value) return;
+  navigator.clipboard.writeText(input.value).then(() => {
+    e.target.textContent = "Скопировано ✓";
+    setTimeout(() => (e.target.textContent = "Скопировать ссылку"), 2000);
+  }).catch(() => { input.select(); document.execCommand("copy"); });
+});

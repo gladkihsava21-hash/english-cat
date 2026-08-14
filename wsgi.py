@@ -126,19 +126,19 @@ def application(environ, start_response):
         who = environ.get("HTTP_X_REAL_IP") or environ.get("REMOTE_ADDR") or "?"
         if not server.rate_ok(path, str(payload.get("token") or who)[:64]):
             return _json(start_response,
-                         {"ok": False, "error": "Слишком часто. Подожди немного."},
+                         {"ok": False, "error": "Слишком быстро — притормози. Через полминуты снова можно."},
                          "429 Too Many Requests")
         try:
             return _json(start_response, handler(None, payload))
         except (ValueError, TypeError, KeyError):
             # кривые типы в запросе — вина клиента; текст исключения не отдаём
             return _json(start_response,
-                         {"ok": False, "error": "Некорректные данные запроса."},
+                         {"ok": False, "error": "Запрос не разобрал. Обнови страницу и попробуй ещё раз."},
                          "400 Bad Request")
         except Exception:
             traceback.print_exc(file=environ.get("wsgi.errors", sys.stderr))
             return _json(start_response,
-                         {"ok": False, "error": "Внутренняя ошибка сервера."},
+                         {"ok": False, "error": "У нас что-то отвалилось — это точно не ты. Попробуй через минуту."},
                          "500 Internal Server Error")
 
     return _static(path, start_response)

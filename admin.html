@@ -9,12 +9,14 @@
      админка рисовалась системным — единственная страница из трёх. -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/tokens.css?v=27">
-<link rel="stylesheet" href="css/style.css?v=27">
-  <link rel="stylesheet" href="css/savely.css?v=27">
-<link rel="stylesheet" href="css/tutor.css?v=27">
-<link rel="stylesheet" href="css/admin.css?v=27">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/tokens.css?v=57">
+<link rel="stylesheet" href="css/style.css?v=57">
+  <link rel="stylesheet" href="css/savely.css?v=57">
+<link rel="stylesheet" href="css/tutor.css?v=57">
+<link rel="stylesheet" href="css/motion.css?v=57">
+<link rel="stylesheet" href="css/a11y.css?v=57">
+<link rel="stylesheet" href="css/admin.css?v=57">
 </head>
 <body>
 
@@ -40,7 +42,7 @@
 <div id="app" class="hidden">
   <header class="topbar">
     <div class="topbar-inner">
-      <button class="brand"><span class="brand-cat">🐈‍⬛</span> Савелий · админка</button>
+      <button class="brand"><span class="brand-cat cat-avatar" data-cat="hello" aria-hidden="true"></span> Савелий · админка</button>
       <div class="user-chip">
         <span id="ai-chip" class="plan-chip"></span>
         <button id="logout-btn" class="link-btn">выйти</button>
@@ -55,10 +57,12 @@
   </main>
 </div>
 
-<script src="js/theme.js?v=27"></script>
-<script src="js/cat.js?v=27"></script>
-<script src="js/util.js?v=27"></script>
-<script src="js/admin.js?v=27"></script>
+<script src="js/theme.js?v=57"></script>
+<script src="js/icons.js?v=57"></script>
+<script src="js/cat.js?v=57"></script>
+<script src="js/motion.js?v=57"></script>
+<script src="js/util.js?v=57"></script>
+<script src="js/admin.js?v=57"></script>
 
 </body>
 </html>

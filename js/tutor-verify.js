@@ -11,6 +11,7 @@ let PLANS = [
   { id: "pro",      limit: 50, price: 4990, name: "Профи" },
 ];
 let EXTRA_STUDENT_PRICE = 119;
+let TRIAL_DAYS = 3;
 
 (async function loadPrices() {
   try {
@@ -21,6 +22,7 @@ let EXTRA_STUDENT_PRICE = 119;
     if (data && data.ok && Array.isArray(data.plans) && data.plans.length) {
       PLANS = data.plans;
       EXTRA_STUDENT_PRICE = data.extraPrice;
+      if (data.trialDays) TRIAL_DAYS = data.trialDays;
       const count = document.getElementById("t-count");
       const hint = document.getElementById("plan-hint");
       if (count && hint && count.value) hint.textContent = planHintText(count.value);
@@ -40,17 +42,23 @@ function planFor(count) {
     planCost(p, n) < planCost(best, n) ? p : best, PLANS[0]);
 }
 
+/** Подсказка под полем «сколько у вас учеников».
+ *  Одна сумма без объяснения читается как «а с учеников ещё сколько?» —
+ *  поэтому цена всегда идёт вместе с тем, кто её платит и когда. */
 function planHintText(count) {
   const n = Number(count) || 0;
   if (!n) return "";
   const plan = planFor(n);
-  if (n > plan.limit) {
-    const extra = n - plan.limit;
-    return `Тариф «${plan.name}» ${plan.price} ₽/мес + ${extra} сверх лимита × ${EXTRA_STUDENT_PRICE} ₽ = ${plan.price + extra * EXTRA_STUDENT_PRICE} ₽/мес`;
-  }
-  return plan.price
-    ? `Подходит тариф «${plan.name}» — ${plan.price} ₽/мес, до ${plan.limit} учеников`
-    : `Хватит бесплатного тарифа — до ${plan.limit} учеников`;
+  if (!plan || !plan.price) return "";
+
+  const extra = Math.max(0, n - plan.limit);
+  const price = extra
+    ? `Тариф «${plan.name}» — ${plan.price} ₽ плюс ${extra} × ${EXTRA_STUDENT_PRICE} ₽ ` +
+      `за места сверх лимита. Итого ${planCost(plan, n)} ₽ в месяц`
+    : `Подходит тариф «${plan.name}» — ${plan.price} ₽ в месяц, до ${plan.limit} учеников`;
+
+  return `${price}. Это вся сумма: ученики не платят ничего. ` +
+         `Первые ${TRIAL_DAYS} дн. бесплатно, счёт — после них.`;
 }
 
 /** Оценка пароля: 0..4. Не пускаем в счёт длину сверх 16 —
@@ -100,16 +108,25 @@ document.addEventListener("DOMContentLoaded", () => {
     const res = await api("/api/tutor/verify/check", {
       token: token(), code: $$("v-code").value.trim(),
     });
-    if (!res.ok) { err.textContent = res.error || "Не получилось."; return; }
+    if (!res.ok) {
+      err.textContent = res.error ||
+        "Код не подошёл. Проверьте шесть цифр из письма или запросите новый.";
+      return;
+    }
     location.reload();
   });
 
   const resend = $$("verify-resend");
   if (resend) resend.addEventListener("click", async () => {
     const err = $$("verify-error"), note = $$("verify-note");
-    err.textContent = ""; note.textContent = "Отправляю…";
+    err.textContent = ""; note.textContent = "Отправляем письмо…";
     const res = await api("/api/tutor/verify/send", { token: token() });
-    if (!res.ok) { note.textContent = ""; err.textContent = res.error || "Не получилось."; return; }
+    if (!res.ok) {
+      note.textContent = "";
+      err.textContent = res.error ||
+        "Письмо не ушло. Попробуйте через минуту или напишите в телеграм @KOTSAVELII.";
+      return;
+    }
     note.textContent = "Письмо отправлено. Проверьте почту и папку «Спам».";
   });
 });
@@ -153,31 +170,34 @@ function renderPlan() {
       <div class="plan-head">
         <div>
           <p class="plan-name">${esc(t.planName)}</p>
-          <p class="muted-note">${t.planPrice ? t.planPrice + " ₽ в месяц" : "бесплатно"}</p>
+          <p class="muted-note">${t.planPrice ? t.planPrice + " ₽ в месяц" : "оплата не начисляется"}</p>
         </div>
         <p class="plan-count">${used} <span>из ${limit}</span></p>
       </div>
       <div class="xp-bar"><div class="xp-bar-fill${left === 0 ? " full" : ""}" style="width:${pct}%"></div></div>
-      <p class="muted-note">${left ? `Свободно мест: ${left}` : "Мест не осталось — новые ученики не смогут подключиться"}</p>
+      <p class="muted-note">${left ? `Свободно мест: ${left}` : "Мест не осталось — новый ученик не сможет подключиться по ссылке"}</p>
       <div class="plan-actions">
-        <button class="btn btn-primary btn-small" id="add-slot-btn">+ Место за ${planData.extraPrice} ₽/мес</button>
-        <button class="btn btn-ghost btn-small" id="add-slot5-btn">+ 5 мест за ${planData.extraPrice * 5} ₽/мес</button>
+        <button class="btn btn-primary btn-small" id="add-slot-btn">Добавить место — ${planData.extraPrice} ₽/мес</button>
+        <button class="btn btn-ghost btn-small" id="add-slot5-btn">Добавить 5 мест — ${planData.extraPrice * 5} ₽/мес</button>
       </div>
-      <p class="reset-note" style="margin-top:16px">Оплата пока не подключена — место открывается сразу,
-        счёт выставим отдельно. Расширение действует до конца месяца.</p>
+      <p class="reset-note" style="margin-top:16px">Место открывается сразу, счёт пришлём отдельно —
+        автосписаний нет. Доплата считается до конца месяца.</p>
     </div>
     <div class="plan-table">
       ${planData.plans.map(pl => `
         <div class="plan-row${pl.id === t.plan ? " current" : ""}">
           <span class="plan-row-name">${esc(pl.name)}</span>
           <span class="plan-row-lim">до ${pl.limit} учеников</span>
-          <span class="plan-row-price">${pl.price ? pl.price + " ₽" : "бесплатно"}</span>
+          <span class="plan-row-price">${pl.price ? pl.price + " ₽/мес" : "—"}</span>
         </div>`).join("")}
-    </div>`;
+    </div>
+    <p class="reset-note">Подписку оплачивает репетитор — с учеников не берём ничего.
+      Счёт и смена тарифа — в телеграме
+      <a class="tg-link" href="https://t.me/KOTSAVELII" target="_blank" rel="noopener">@KOTSAVELII</a>.</p>`;
 
   const add = n => async () => {
     const res = await api("/api/tutor/add-slot", { token: token(), count: n });
-    if (!res.ok) { alert(res.error || "Не получилось."); return; }
+    if (!res.ok) { alert(res.error || "Место не добавилось. Обновите страницу и попробуйте ещё раз."); return; }
     planData.tutor = res.tutor;
     renderPlan();
   };
@@ -207,17 +227,18 @@ function accessBanner(t) {
   if (t.access === "paid") {
     const d = Math.floor(t.paidDaysLeft);
     return d <= 5
-      ? `<div class="access-bar warn">Подписка заканчивается через ${d} дн. Продлите, чтобы не потерять доступ.</div>`
+      ? `<div class="access-bar warn">Продлите подписку — оплаченных дней осталось ${d}.
+         Напишите <a class="tg-link" href="https://t.me/KOTSAVELII" target="_blank" rel="noopener">@KOTSAVELII</a>, пришлём счёт.</div>`
       : "";
   }
   if (t.access === "trial") {
     const h = Math.ceil(t.trialHoursLeft);
     const text = h > 24 ? `${Math.ceil(h / 24)} дн.` : `${h} ч.`;
     return `<div class="access-bar">Пробный период: осталось ${text}.
-      Дальше нужна подписка — тариф «${esc(t.planName)}», ${t.planPrice} ₽/мес.</div>`;
+      Дальше — тариф «${esc(t.planName)}» за ${t.planPrice} ₽/мес; ученики не платят ничего.</div>`;
   }
-  return `<div class="access-bar stop">Пробный период закончился. Оформите подписку,
-    чтобы вернуть доступ к панели. Ученики продолжают заниматься.</div>`;
+  return `<div class="access-bar stop">Оформите подписку, чтобы вернуть панель —
+    пробный период закончился. Ученики всё это время занимаются как обычно.</div>`;
 }
 
 function showPaywall(t) {
@@ -232,7 +253,8 @@ function showPaywall(t) {
   if (box && t) {
     box.innerHTML = `
       <p class="plan-name">${esc(t.planName)} — ${t.planPrice} ₽/мес</p>
-      <p class="muted-note">до ${t.studentLimit} учеников · сейчас занимается ${t.studentCount}</p>`;
+      <p class="muted-note">до ${t.studentLimit} учеников · сейчас занимается ${t.studentCount}</p>
+      <p class="muted-note">Это вся сумма: с учеников не берём ничего.</p>`;
   }
 }
 
@@ -251,6 +273,12 @@ document.addEventListener("DOMContentLoaded", () => {
     location.reload();
   });
 });
+
+// ---- пустое состояние вкладки «Фото тетрадей» ----
+// Пустое состояние фотографий и подпись кнопки копирования переехали туда,
+// где им место: в renderPhotos() из js/tutor-photos.js и в сам js/tutor.js.
+// Здесь стояли два MutationObserver — они работали, но следить за чужой
+// разметкой ради двух строк текста дороже, чем поправить источник.
 
 // ---- первые шаги ----
 // Репетитор после регистрации попадал в пустую панель и сам догадывался,
@@ -280,13 +308,13 @@ function renderOnboarding() {
     <div class="onboard">
       <p class="ob-head">С чего начать</p>
       ${step(hasStudents, 1, "Позовите учеников",
-        "Скопируйте ссылку и отправьте им в чат. Ученику не нужен пароль — он откроет ссылку и введёт имя.",
+        "Скопируйте ссылку и отправьте им в чат. Ученику не нужен ни пароль, ни оплата — он откроет ссылку и введёт имя.",
         `<button class="btn btn-primary btn-small" data-goto="invite">Взять ссылку</button>`)}
       ${step(hasHomework, 2, "Выдайте первую домашку",
         "Выберите слова по теме или напишите задание текстом. Можно задать текст для чтения вслух.",
         `<button class="btn btn-primary btn-small" data-goto="homework">Выдать домашку</button>`)}
-      ${step(hasActive, 3, "Проверьте, как идут дела",
-        "Когда ученики начнут заниматься, здесь появится их прогресс: слова, очки, кто пропал.", "")}
+      ${step(hasActive, 3, "Посмотрите, кто занимается",
+        "Как только ученики начнут, здесь появятся их слова, очки и дата последнего захода — сразу видно, кто пропал.", "")}
     </div>`;
 
   slot.querySelectorAll("[data-goto]").forEach(b => b.addEventListener("click", () => {

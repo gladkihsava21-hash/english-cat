@@ -288,26 +288,39 @@ const CATEGORY_ART = {
   tech: "💻", work: "💼",
 };
 
-// Фон карточки — свой оттенок на каждую категорию, чтобы слова
-// визуально не сливались в одну кучу
+// Фон карточки — оттенок по категории, чтобы слова не сливались в кучу.
+//
+// Раньше здесь лежали тридцать захардкоженных пастелей. Две беды: треть из
+// них была оранжевой (гамма давно другая), и ночью они не темнели — плитки
+// светились на тёмном фоне, и это приходилось перебивать через !important.
+// Теперь возвращаем ИМЯ ТОКЕНА: цвет живёт в tokens.css и меняется с темой.
 const CATEGORY_TINT = {
-  food: "#FFE8CC", home: "#FFE3D3", objects: "#EFE6DA", places: "#DDEEE6",
-  nature: "#DCF0DC", time: "#E4E4F5", qualities: "#FFF0CC", feelings: "#FFE0E8",
-  people: "#E6E9FA", actions: "#FFE1D6", travel: "#D9EEF7", communication: "#E9E2F7",
-  mind: "#E3ECFB", character: "#F6E2F0", change: "#E0F0EA", money: "#E8F2D8",
-  society: "#E7E7EF", linkers: "#EDEDED",
-  family: "#FFE4EC", animals: "#E8F0D8", school: "#E2ECFA", body: "#FBE4E4",
-  clothes: "#EDE4F7", weather: "#DCEEF8", city: "#E6E7EC", health: "#DFF2EC",
-  art: "#FFEAD6", sports: "#DDEFE4", tech: "#E3E9F2", work: "#EFE9DC",
+  // тёплые: еда, дом, вещи, работа
+  food: "clay", home: "clay", objects: "clay", work: "clay", art: "clay",
+  clothes: "clay", body: "clay",
+  // зелёные: природа, здоровье, спорт, деньги
+  nature: "mint", health: "mint", sports: "mint", money: "mint",
+  places: "mint", travel: "mint", change: "mint",
+  // синие: техника, город, школа, общение
+  tech: "sky", city: "sky", school: "sky", communication: "sky",
+  society: "sky", time: "sky", people: "sky",
+  // сиреневые: чувства, характер, мышление, качества
+  feelings: "lavender", character: "lavender", mind: "lavender",
+  qualities: "lavender", family: "lavender", animals: "lavender",
+  linkers: "lavender",
 };
+
+/** Возвращает CSS-значение, а не хекс: цвет берётся из токенов и темнеет
+ *  вместе с темой. Полупрозрачность — чтобы плитка была подложкой,
+ *  а не пятном: эмодзи на ней должен читаться в обеих темах. */
+function wordTint(category) {
+  const name = CATEGORY_TINT[category] || "mint";
+  return `color-mix(in srgb, var(--soft-${name}) 38%, var(--surface))`;
+}
 
 function wordArt(word, category) {
   const key = String(word || "").toLowerCase().trim();
   return WORD_ART[key] || CATEGORY_ART[category] || "🐾";
-}
-
-function wordTint(category) {
-  return CATEGORY_TINT[category] || "#FFE8D6";
 }
 
 // Готовый блок с картинкой для карточки

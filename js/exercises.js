@@ -103,26 +103,26 @@ function normEn(s) {
 // ===== Каркас: хаб и общие блоки =====
 
 const EXERCISES = [
-  { id: "flashcards", icon: "🃏", name: "Карточки", desc: "Слово ↔ перевод, с озвучкой" },
-  { id: "picture", icon: "🖼️", name: "Слово и картинка", desc: "Выбери слово по картинке" },
-  { id: "matching", icon: "🔗", name: "Сопоставление", desc: "Соедини слово и перевод" },
-  { id: "mcq", icon: "✅", name: "Выбор варианта", desc: "Выбери правильный перевод" },
-  { id: "spelling", icon: "⌨️", name: "Ввод слова", desc: "Впиши слово по переводу" },
-  { id: "fillblank", icon: "✏️", name: "Пропуск в фразе", desc: "Допиши слово в предложении" },
-  { id: "oddone", icon: "🎯", name: "Найди лишнее", desc: "Какое слово не из той темы?" },
-  { id: "scramble", icon: "🔀", name: "Собери слово", desc: "Составь слово из букв" },
-  { id: "defmatch", icon: "📖", name: "Определения", desc: "Слово ↔ определение (англ.)" },
-  { id: "listening", icon: "🔊", name: "Аудирование", desc: "Услышь и выбери слово", audio: true },
-  { id: "dictation", icon: "🎧", name: "Диктант", desc: "Услышь и напиши фразу", audio: true },
-  { id: "context", icon: "🧩", name: "Слово в контексте", desc: "Где слово использовано верно?" },
-  { id: "synonyms", icon: "🪞", name: "Синонимы", desc: "Синонимы и антонимы" },
-  { id: "translate", icon: "🌍", name: "Перевод фразы", desc: "Переведи предложение на англ." },
-  { id: "personal", icon: "✍️", name: "Свои предложения", desc: "Составь фразы с новыми словами" },
-  { id: "blitz", icon: "⚡", name: "Блиц", desc: "Сколько слов успеешь за минуту?" },
-  { id: "collocations", icon: "🧲", name: "Сочетания", desc: "make a decision, do homework…" },
-  { id: "categories", icon: "🗂️", name: "Категории", desc: "Разложи слова по темам" },
-  { id: "wordsearch", icon: "🔍", name: "Word Search", desc: "Найди слова в сетке букв" },
-  { id: "crossword", icon: "➕", name: "Кроссворд", desc: "Отгадай слова по переводам" },
+  { id: "flashcards", icon: "flashcards", name: "Карточки", desc: "Слово ↔ перевод, с озвучкой" },
+  { id: "picture", icon: "picture", name: "Слово и картинка", desc: "Выбери слово по картинке" },
+  { id: "matching", icon: "matching", name: "Сопоставление", desc: "Соедини слово и перевод" },
+  { id: "mcq", icon: "mcq", name: "Выбор варианта", desc: "Выбери правильный перевод" },
+  { id: "spelling", icon: "spelling", name: "Ввод слова", desc: "Впиши слово по переводу" },
+  { id: "fillblank", icon: "fillblank", name: "Пропуск в фразе", desc: "Допиши слово в предложении" },
+  { id: "oddone", icon: "oddone", name: "Найди лишнее", desc: "Какое слово не из той темы?" },
+  { id: "scramble", icon: "scramble", name: "Собери слово", desc: "Составь слово из букв" },
+  { id: "defmatch", icon: "defmatch", name: "Определения", desc: "Слово ↔ определение (англ.)" },
+  { id: "listening", icon: "listening", name: "Аудирование", desc: "Услышь и выбери слово", audio: true },
+  { id: "dictation", icon: "dictation", name: "Диктант", desc: "Услышь и напиши фразу", audio: true },
+  { id: "context", icon: "context", name: "Слово в контексте", desc: "Где слово использовано верно?" },
+  { id: "synonyms", icon: "synonyms", name: "Синонимы", desc: "Синонимы и антонимы" },
+  { id: "translate", icon: "translate", name: "Перевод фразы", desc: "Переведи предложение на англ." },
+  { id: "personal", icon: "personal", name: "Свои предложения", desc: "Составь фразы с новыми словами" },
+  { id: "blitz", icon: "blitz", name: "Блиц", desc: "Сколько слов успеешь за минуту?" },
+  { id: "collocations", icon: "collocations", name: "Сочетания", desc: "make a decision, do homework…" },
+  { id: "categories", icon: "categories", name: "Категории", desc: "Разложи слова по темам" },
+  { id: "wordsearch", icon: "wordsearch", name: "Word Search", desc: "Найди слова в сетке букв" },
+  { id: "crossword", icon: "crossword", name: "Кроссворд", desc: "Отгадай слова по переводам" },
 ];
 
 let currentExId = null;
@@ -138,7 +138,7 @@ function renderPracticeHub() {
     if (ex.audio && !TTS_OK) return;
     const card = document.createElement("button");
     card.className = "card ex-card";
-    card.innerHTML = `<span class="ex-icon">${ex.icon}</span>
+    card.innerHTML = `<span class="ex-icon">${icon(ex.icon, 26)}</span>
       <span class="ex-name">${ex.name}</span>
       <span class="ex-desc">${ex.desc}</span>`;
     card.addEventListener("click", () => openExercise(ex.id));
@@ -158,7 +158,7 @@ function openExercise(id) {
   body.innerHTML = `
     <div class="ex-head">
       <button class="btn btn-ghost btn-small" data-nav="practice">← Тренировки</button>
-      <h2>${ex.icon} ${ex.name}</h2>
+      <h2><span class="ex-title-icon">${icon(ex.icon, 22)}</span> ${ex.name}</h2>
     </div>
     <div id="ex-stage"></div>`;
   EX_RUNNERS[id]();
@@ -230,10 +230,25 @@ function runMCQ(rounds, opts = {}) {
         const ok = oi === r.correct;
         if (ok) { score++; award(10); }
         if (r.statWord) statUpdate(r.statWord, ok);
+        // Знак, а не только цвет. Зелёный «верно» и шалфейный акцент —
+        // оба зелёные, по яркости их не различить, а при дальтонизме они
+        // становятся одинаковым серо-бурым. Галочка и крестик читаются всегда.
         b.classList.add(ok ? "right" : "wrong");
-        box.children[r.correct].classList.add("right");
+        b.insertAdjacentHTML("beforeend",
+          ok ? ' <span class="ans-mark" aria-hidden="true">✓</span>'
+             : ' <span class="ans-mark" aria-hidden="true">✗</span>');
+        b.setAttribute("aria-label", b.textContent.replace(/[✓✗]/g, "").trim() +
+                                     (ok ? " — верно" : " — неверно"));
+        const right = box.children[r.correct];
+        if (!ok) {
+          right.classList.add("right");
+          right.insertAdjacentHTML("beforeend",
+            ' <span class="ans-mark" aria-hidden="true">✓</span>');
+        }
         i++;
-        setTimeout(next, ok ? 650 : 1400);
+        // При ошибке даём вдвое больше времени: надо успеть прочитать,
+        // какой ответ был правильным. 1400 мс на это не хватало.
+        setTimeout(next, ok ? 700 : 2800);
       });
       box.appendChild(b);
     });
@@ -318,7 +333,7 @@ function runType(rounds, opts = {}) {
           ${r.hint ? `<button class="btn btn-ghost" id="type-hint">Подсказка</button>` : ""}
           <button class="btn btn-primary" id="type-check">Проверить</button>
         </div>
-        <p class="type-feedback" id="type-feedback"></p>
+        <p class="type-feedback" id="type-feedback" role="status" aria-live="polite"></p>
       </div>`;
     if (r.audioText) {
       const play = () => speak(r.audioText);
@@ -482,7 +497,7 @@ const EX_RUNNERS = {
           <div class="quiz-buttons">
             <button class="btn btn-ghost" id="scr-clear">Сбросить</button>
           </div>
-          <p class="type-feedback" id="scr-feedback"></p>
+          <p class="type-feedback" id="scr-feedback" role="status" aria-live="polite"></p>
         </div>`;
       const tilesBox = document.getElementById("scr-tiles");
       const answerBox = document.getElementById("scr-answer");
@@ -642,7 +657,7 @@ const EX_RUNNERS = {
         <div class="quiz-buttons">
           <button class="btn btn-primary" id="pers-check">Проверить</button>
         </div>
-        <p class="type-feedback" id="pers-feedback"></p>
+        <p class="type-feedback" id="pers-feedback" role="status" aria-live="polite"></p>
       </div>`;
     document.getElementById("pers-check").addEventListener("click", () => {
       const val = normEn(document.getElementById("pers-input").value);
@@ -751,10 +766,10 @@ const EX_RUNNERS = {
       <div class="cat-words" id="cat-words"></div>
       <div class="cat-boxes">
         ${cats.map(c => `
-          <div class="cat-box" data-cat="${c}">
-            <p class="cat-box-title">${esc(CATEGORY_NAMES[c] || c)}</p>
-            <div class="cat-box-items"></div>
-          </div>`).join("")}
+          <button type="button" class="cat-box" data-cat="${c}">
+            <span class="cat-box-title">${esc(CATEGORY_NAMES[c] || c)}</span>
+            <span class="cat-box-items"></span>
+          </button>`).join("")}
       </div>`;
     const wordsBox = document.getElementById("cat-words");
     words.forEach(wd => {

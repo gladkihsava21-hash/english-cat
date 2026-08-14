@@ -15,9 +15,13 @@ function currentTheme() {
   return matchMedia("(prefers-color-scheme: dark)").matches ? "night" : "day";
 }
 
-function applyTheme(theme) {
+/** remember=true — только когда человек нажал луну сам.
+ *  Раньше запись в хранилище шла и при обычной загрузке страницы, из-за чего
+ *  «выбора не было» не наступало никогда: сайт переставал следовать за
+ *  системной темой уже после первого визита, и обработчик ниже был мёртв. */
+function applyTheme(theme, remember) {
   document.documentElement.dataset.theme = theme;
-  localStorage.setItem(THEME_KEY, theme);
+  if (remember) localStorage.setItem(THEME_KEY, theme);
   // цвет строки состояния браузера на телефоне — иначе вокруг тёмной
   // страницы остаётся светлая полоска и выглядит как брак
   let meta = document.querySelector('meta[name="theme-color"]');
@@ -45,7 +49,7 @@ function toggleTheme(ev) {
   const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   if (!document.startViewTransition || reduced) {
-    applyTheme(next);
+    applyTheme(next, true);
     return;
   }
 
@@ -56,7 +60,12 @@ function toggleTheme(ev) {
   const y = r ? r.top + r.height / 2 : 40;
   const end = reachRadius(x, y);
 
-  const t = document.startViewTransition(() => applyTheme(next));
+  const t = document.startViewTransition(() => applyTheme(next, true));
+  // У перехода ТРИ промиса, и отклоняются они независимо. Ловил только ready,
+  // из-за чего в консоль всё равно падали непойманные InvalidStateError —
+  // их бросали finished и updateCallbackDone.
+  t.finished.catch(() => {});
+  t.updateCallbackDone.catch(() => {});
   t.ready.then(() => {
     document.documentElement.animate(
       { clipPath: [`circle(0px at ${x}px ${y}px)`,
@@ -64,6 +73,10 @@ function toggleTheme(ev) {
       { duration: 620, easing: "cubic-bezier(.22,.61,.36,1)",
         pseudoElement: "::view-transition-new(root)" }
     );
+  }).catch(() => {
+    // Переход прерван — так бывает, если нажать луну дважды подряд или
+    // если вкладка ушла в фон. Тема при этом уже применена коллбэком выше,
+    // ловить нечего: без catch это падало в консоль как InvalidStateError.
   });
 }
 

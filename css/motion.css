@@ -1,0 +1,158 @@
+/* Слой движения.
+ *
+ * Правила, из которых всё остальное следует:
+ *   — анимируем только transform и opacity: остальное заставляет браузер
+ *     пересчитывать раскладку, и на слабом телефоне это видно;
+ *   — одна кривая на весь сайт (--ease), три длительности из токенов;
+ *   — движение подсказывает, что произошло, а не развлекает. Отскоков,
+ *     вращений и «прилётов издалека» нет;
+ *   — prefers-reduced-motion гасит всё глобально (tokens.css), здесь
+ *     дублировать не нужно.
+ *
+ * Занятые имена keyframes в других файлах: spin, skeletonPulse, riseIn,
+ * catBreathe. Здесь — свои, с приставкой m-.
+ */
+
+/* ---------- Появление при прокрутке ---------- */
+/* Ставится из js/motion.js через IntersectionObserver. Один раз: возврат
+   к уже увиденному блоку не должен его снова «показывать». */
+.m-reveal {
+  opacity: 0;
+  transform: translateY(16px);
+}
+.m-reveal.m-in {
+  opacity: 1;
+  transform: none;
+  transition: opacity var(--dur-slow) var(--ease),
+              transform var(--dur-slow) var(--ease);
+}
+/* Соседи в одной группе выезжают лесенкой — глаз читает их как список,
+   а не как одновременную вспышку. */
+/* Отключаем старый riseIn там, где работает reveal: два механизма на одном
+   элементе конфликтовали — animation с both перебивал opacity перехода,
+   и лесенка не срабатывала, зато riseIn перезапускался на каждой
+   перерисовке списка. */
+.m-reveal { animation: none !important; }
+.m-in.m-d1 { transition-delay: .05s }
+.m-in.m-d2 { transition-delay: .10s }
+.m-in.m-d3 { transition-delay: .15s }
+.m-in.m-d4 { transition-delay: .20s }
+
+/* ---------- Смена экрана ---------- */
+/* Раньше экраны просто переключали .hidden — резкая подмена без намёка,
+   что произошёл переход. */
+@keyframes m-screen-in {
+  from { opacity: 0; transform: translateY(10px) }
+  to   { opacity: 1; transform: none }
+}
+.screen.m-enter {
+  animation: m-screen-in var(--dur) var(--ease) both;
+}
+
+/* ---------- Карточка слова ---------- */
+/* Переворот был .45s с 3D-перспективой — самое резкое движение на сайте.
+   Длиннее и мягче: карточка поворачивается, а не щёлкает. */
+.flashcard-inner {
+  transition: transform var(--dur-slow) var(--ease) !important;
+}
+/* Нажатие: карточка чуть проседает под пальцем */
+.flashcard:active .flashcard-inner { transform: scale(.985) }
+.flashcard.flipped:active .flashcard-inner { transform: rotateY(180deg) scale(.985) }
+
+/* ---------- Отклик на нажатие ---------- */
+/* Одинаковый у всего, на что можно нажать: интерфейс отвечает сразу,
+   не дожидаясь ответа сервера. */
+.btn:active, .btn-primary:active, .btn-ghost:active,
+.chip:active, .tab:active, .nav-btn:active,
+.mcq-option:active, .pair-item:active, .scr-tile:active,
+.ws-cell:active, .cat-box:active, .ex-card:active, .sticker:active {
+  transform: scale(.97);
+  transition-duration: var(--dur-fast);
+}
+
+/* ---------- Ответ в упражнении ---------- */
+/* Верный — короткий кивок вверх, неверный — короткое покачивание.
+   Оба движения короче 300 мс: это реакция, а не представление. */
+@keyframes m-nod {
+  0%, 100% { transform: none }
+  40%      { transform: translateY(-4px) }
+}
+@keyframes m-shake {
+  0%, 100% { transform: none }
+  25%      { transform: translateX(-5px) }
+  75%      { transform: translateX(5px) }
+}
+.mcq-option.right, .pair-item.done { animation: m-nod .3s var(--ease) }
+.mcq-option.wrong, .cw-cell input.err { animation: m-shake .28s var(--ease) }
+
+/* ---------- Сообщения чата ---------- */
+@keyframes m-msg-in {
+  from { opacity: 0; transform: translateY(8px) scale(.98) }
+  to   { opacity: 1; transform: none }
+}
+.chat-box .msg { animation: m-msg-in var(--dur) var(--ease) both }
+/* Реплики кота приходят чуть медленнее — он «печатает», а не выстреливает */
+.chat-box .msg-cat { animation-duration: var(--dur-slow) }
+
+/* ---------- «Савелий думает» ---------- */
+/* Три точки, набегающие по очереди. Конечная анимация: три цикла и стоп,
+   иначе это бесконечное движение дольше 5 секунд — нарушение WCAG 2.2.2. */
+@keyframes m-dot {
+  0%, 60%, 100% { opacity: .25; transform: translateY(0) }
+  30%           { opacity: 1;   transform: translateY(-4px) }
+}
+.typing-dots { display: inline-flex; gap: 4px; align-items: center }
+.typing-dots i {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--ink-soft); display: block;
+  /* Ровно три цикла: бесконечное движение дольше 5 секунд без
+     возможности остановить — нарушение WCAG 2.2.2, а ответ кота
+     как раз идёт 5–6 секунд. После трёх циклов точки замирают. */
+  animation: m-dot 1.1s var(--ease) 3;
+}
+.typing-dots i:nth-child(2) { animation-delay: .15s }
+.typing-dots i:nth-child(3) { animation-delay: .30s }
+
+/* ---------- Прогресс ---------- */
+/* Полоса набегает, а не прыгает — видно, что она изменилась. */
+.progress-fill, .xp-bar-fill {
+  transition: width var(--dur-slow) var(--ease);
+}
+
+/* ---------- Реакция персонажа ---------- */
+/* Кот отзывается на событие: подпрыгнул от радости, дёрнулся от ошибки.
+   Класс снимается из js/motion.js после окончания. */
+@keyframes m-cat-happy {
+  0%, 100% { transform: none }
+  30%      { transform: translateY(-10px) scale(1.04) }
+  55%      { transform: translateY(0)     scale(.99) }
+  75%      { transform: translateY(-4px) }
+}
+@keyframes m-cat-oops {
+  0%, 100% { transform: none }
+  25%      { transform: rotate(-4deg) }
+  75%      { transform: rotate(4deg) }
+}
+.cat-avatar.m-happy svg { animation: m-cat-happy .7s var(--ease) }
+.cat-avatar.m-oops  svg { animation: m-cat-oops  .4s var(--ease) }
+
+/* ---------- Награда ---------- */
+/* Всплывает снизу и уходит туда же — не перекрывает содержимое рывком. */
+@keyframes m-toast-in {
+  from { opacity: 0; transform: translateY(20px) }
+  to   { opacity: 1; transform: none }
+}
+.ach-toast { animation: m-toast-in var(--dur) var(--ease) both }
+
+/* ---------- Наклейки ---------- */
+/* Полученная награда встаёт на место с лёгким доворотом — как переводнушка,
+   которую прижали пальцем. */
+@keyframes m-sticker-in {
+  from { opacity: 0; transform: scale(.8) rotate(-6deg) }
+  to   { opacity: 1; transform: none }
+}
+.sticker.got { animation: m-sticker-in var(--dur) var(--ease) both }
+
+/* ---------- Числа ---------- */
+/* Пока счётчик набегает, цифры не должны прыгать по ширине. */
+.stat-value, .today-count, #xp-chip, .plan-count { font-variant-numeric: tabular-nums }

@@ -230,10 +230,16 @@ def create_tutor(name, email, password):
     while conn().execute("SELECT 1 FROM tutors WHERE invite_code=?", (code,)).fetchone():
         code = new_invite_code()
     token = new_token()
+    # Лимит мест ставим явно по минимальному тарифу. Раньше он не задавался,
+    # и колонка отдавала своё DEFAULT 15 — цифра, не совпадающая ни с одним
+    # тарифом. Репетитор, пропустивший поле «сколько у вас учеников» (оно
+    # необязательное), получал 15 мест по цене пяти, а в шапке висело
+    # «Старт · 3/15», что выглядело как ошибка в прайсе.
     cur = conn().execute(
         "INSERT INTO tutors (name, email, pass_hash, pass_salt, invite_code, token,"
-        " created_at, recovery_code) VALUES (?,?,?,?,?,?,?,?)",
-        (name.strip(), email, pass_hash, salt, code, token, now(), new_recovery_code()),
+        " created_at, recovery_code, plan, student_limit) VALUES (?,?,?,?,?,?,?,?,?,?)",
+        (name.strip(), email, pass_hash, salt, code, token, now(), new_recovery_code(),
+         PLANS[0]["id"], PLANS[0]["limit"]),
     )
     conn().commit()
     return get_tutor_by_id(cur.lastrowid)

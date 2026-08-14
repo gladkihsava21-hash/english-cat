@@ -6,56 +6,61 @@
   <title>Савелий — кот-репетитор английского</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/tokens.css?v=27">
-  <link rel="stylesheet" href="css/style.css?v=27">
-  <link rel="stylesheet" href="css/savely.css?v=27">
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/tokens.css?v=57">
+  <link rel="stylesheet" href="css/style.css?v=57">
+  <link rel="stylesheet" href="css/savely.css?v=57">
+  <link rel="stylesheet" href="css/motion.css?v=57">
+<link rel="stylesheet" href="css/a11y.css?v=57">
   <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#FF8C42">
+  <meta name="theme-color" content="#F6F5F0">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Савелий">
   <link rel="apple-touch-icon" href="icon-192.png">
+
 </head>
 <body>
+<a class="skip-link" href="#app">К содержимому</a>
 
 <!-- Шапка (видна после входа) -->
 <header id="topbar" class="topbar hidden">
   <div class="topbar-inner">
     <button class="brand" data-nav="dashboard">
-      <span class="brand-cat">🐈</span> Савелий
+      <span class="brand-cat cat-avatar" data-cat="wink" aria-hidden="true"></span> Савелий
     </button>
     <nav class="nav">
       <button class="nav-btn" data-nav="dashboard">Главная</button>
       <button class="nav-btn" data-nav="dictionary">Словарь <span id="dict-count" class="badge">0</span></button>
       <button class="nav-btn" data-nav="practice">Тренировки</button>
       <button class="nav-btn" data-nav="achievements">Награды</button>
-      <button class="nav-btn" data-nav="chat">Чат с Савелием</button>
+      <button class="nav-btn" data-nav="chat">Чат<span class="nav-long"> с Савелием</span></button>
     </nav>
     <div class="user-chip">
       <span id="streak-chip" class="streak-chip hidden" title="Дней подряд">🔥0</span>
       <span id="xp-chip" class="xp-chip" title="Очки">⭐ 0</span>
       <span id="user-level-chip" class="level-chip">—</span>
       <span id="user-name-chip"></span>
-      <button id="logout-btn" class="link-btn" title="Выйти и сбросить (тест)">выйти</button>
+      <button id="logout-btn" class="link-btn" title="Выйти и стереть прогресс">выйти</button>
     </div>
   </div>
 </header>
 
-<main id="app">
+<main id="app" tabindex="-1">
 
   <!-- ЭКРАН: приветствие + регистрация -->
   <section id="screen-welcome" class="screen">
     <div class="hero">
       <div class="hero-cat">
         <div class="cat-avatar cat-big" id="hero-cat">🐈</div>
-        <div class="speech-bubble" id="hero-bubble">Мяу! Я Савелий — твой кот-репетитор. Научу тебя новым английским словам!</div>
+        <div class="speech-bubble" id="hero-bubble">Я Савелий. Английский знаю лучше тебя — но это поправимо.</div>
       </div>
-      <h1>Учи английские слова<br>с котом Савелием</h1>
-      <p class="hero-sub">Пройди тест — я определю твой словарный запас и буду подбирать слова точно под твой уровень. Мур!</p>
+      <h1>английские слова, которые не выветрятся</h1>
+      <p class="hero-sub">Ответь на 36 слов — пойму твой уровень и дальше дам ровно то,
+        что ты потянешь. И напомню повторить, пока не забылось.</p>
 
       <p id="invite-note" class="invite-note hidden"></p>
-      <p id="demo-note" class="demo-note hidden">Это витрина проекта: занимайся сколько хочешь,
-        но прогресс сохранится только в этом браузере и не уйдёт репетитору.</p>
+      <p id="demo-note" class="demo-note hidden">Это демо: заниматься можно сколько угодно, но прогресс живёт
+        только в этом браузере. Репетитор его не увидит.</p>
 
       <div class="card auth-card hidden" id="restore-card">
         <h3 style="font-weight:900;margin-bottom:6px">Вход по личному коду</h3>
@@ -96,9 +101,12 @@
     <div class="narrow">
       <div class="test-intro" id="test-intro">
         <div class="cat-avatar cat-mid">🐈</div>
-        <h2 id="test-hello">Отлично! Теперь давай проверим твой словарный запас</h2>
-        <p>Я покажу <b>36 слов</b> — от простых к сложным. Честно отвечай, знаешь ты слово или нет (знаешь = помнишь перевод, а не «где-то видел»). Обманешь — подберу слишком сложные слова, мяу!</p>
-        <button class="btn btn-primary" id="start-test-btn">Начать тест</button>
+        <h2 id="test-hello">посчитаем, сколько слов ты уже знаешь</h2>
+        <p><b>36 слов</b>, от простых к сложным. «Знаю» — это когда помнишь перевод,
+          а не когда где-то видел. Соврёшь — получишь слова не по зубам,
+          и мучиться будешь ты, а не я.</p>
+        <p class="handnote">честно — не подглядывать</p>
+        <button class="btn btn-primary" id="start-test-btn">Поехали, 36 слов</button>
       </div>
 
       <div class="test-run hidden" id="test-run">
@@ -106,7 +114,7 @@
         <p class="test-counter" id="test-counter">1 / 30</p>
         <div class="card word-quiz-card">
           <p class="quiz-label">Знаешь это слово?</p>
-          <div class="quiz-word" id="quiz-word">apple</div>
+          <div class="quiz-word" id="quiz-word" lang="en">apple</div>
           <div class="quiz-buttons">
             <button class="btn btn-ghost" id="btn-dont-know">Не знаю</button>
             <button class="btn btn-primary" id="btn-know">Знаю</button>
@@ -135,42 +143,65 @@
     </div>
   </section>
 
-  <!-- ЭКРАН: главная / подбор слов -->
+  <!-- ЭКРАН: главная / подбор слов
+       Порядок блоков = порядок важности для ученика:
+       кто я → что делать прямо сейчас → что просил репетитор →
+       где я в прогрессе → чем ещё заняться → служебное. -->
   <section id="screen-dashboard" class="screen hidden">
     <div class="wide">
+
+      <!-- 1. Приветствие. Одна строка: подробности про уровень — ниже. -->
       <div class="dash-head">
-        <div class="cat-avatar cat-mid">🐈</div>
+        <div class="cat-avatar cat-mid" data-cat="hello">🐈</div>
         <div>
           <h2 id="dash-greeting">Привет!</h2>
-          <p class="muted" id="dash-stats">Уровень B1 · ~2400 слов · в словаре 0 слов</p>
+          <p class="muted" id="dash-stats">Уровень B1 · Средний</p>
         </div>
       </div>
 
-      <div class="stats-grid" id="dash-widgets"></div>
+      <!-- 2. ГЛАВНОЕ: одно действие. Единственное крупное пятно на экране,
+           обязано помещаться в первый экран телефона без прокрутки. -->
+      <div id="today-box"></div>
 
+      <!-- 3. От репетитора: сообщения, домашка, фото.
+           Появляются только у тех, кого репетитор пригласил. -->
       <div id="tutor-msg-box" class="hidden"></div>
-
       <div id="homework-box" class="hidden"></div>
       <div id="photo-box"></div>
       <div id="photo-cta" class="card photo-cta hidden">
-        <p class="photo-cta-text">Сделал домашку в тетради? Покажи Савелию —
-          он проверит и отправит результат репетитору.</p>
+        <p class="photo-cta-text">Домашка в тетради? Сфоткай — Савелий проверит
+          и отправит результат репетитору.</p>
         <input type="file" id="photo-input" accept="image/*" capture="environment" hidden>
-        <button class="btn btn-primary btn-wide" id="photo-btn">📸 Сфоткать домашку</button>
+        <button class="btn btn-ghost" id="photo-btn"><span data-icon="camera" data-icon-size="20"></span> Сфоткать домашку</button>
       </div>
 
-      <div class="dash-cols">
-        <div id="due-box"></div>
+      <!-- 4. Прогресс — во вторую очередь и втрое компактнее: три плитки. -->
+      <section class="dash-block">
+        <div class="section-head"><h3>Твой прогресс</h3></div>
+        <div class="stats-grid dash-stats" id="dash-widgets"></div>
         <div id="leaderboard-box" class="hidden"></div>
-      </div>
+      </section>
 
+      <!-- 5. Награды — отдельной группой и наклейками, а не карточками. -->
+      <section class="dash-block">
+        <div class="section-head">
+          <h3>Награды</h3>
+          <button class="btn btn-ghost btn-small" data-nav="achievements">Все награды →</button>
+        </div>
+        <div class="sticker-row" id="dash-ach"></div>
+      </section>
+
+      <!-- 6. Слова: слово дня и подборка под уровень. -->
       <div id="word-of-day"></div>
 
-      <div class="section-head">
+      <div class="section-head" id="words-head">
         <h3>Слова для тебя <span class="muted-small">(подобраны под твой уровень)</span></h3>
-        <button class="btn btn-ghost btn-small" id="refresh-words-btn">↻ Ещё слова</button>
+        <button class="btn btn-ghost btn-small" id="refresh-words-btn"><span data-icon="refresh" data-icon-size="18"></span> другие слова</button>
       </div>
       <div class="word-grid" id="recommend-grid"></div>
+
+      <!-- 7. Служебное: код для входа и пересдача теста. Нужное, но не главное. -->
+      <p class="dash-service" id="dash-service"></p>
     </div>
   </section>
 
@@ -183,13 +214,13 @@
       </div>
 
       <form id="add-word-form" class="add-word-row">
-        <input type="text" id="add-word-en" placeholder="слово по-английски" required>
-        <input type="text" id="add-word-ru" placeholder="перевод" required>
+        <input type="text" id="add-word-en" placeholder="слово по-английски" aria-label="Слово по-английски" required>
+        <input type="text" id="add-word-ru" placeholder="перевод" aria-label="Перевод на русский" required>
         <button type="submit" class="btn btn-ghost">+ Добавить</button>
       </form>
 
       <div class="dict-controls">
-        <input type="text" id="dict-search" placeholder="🔍 Поиск по словарю…">
+        <input type="text" id="dict-search" placeholder="🔍 Поиск по словарю…" aria-label="Поиск по словарю">
         <div class="dict-filters">
           <button class="chip dict-filter active" data-f="all" type="button">все</button>
           <button class="chip dict-filter" data-f="new" type="button">новые</button>
@@ -198,9 +229,16 @@
         </div>
       </div>
 
+      <!-- Пустое состояние = что здесь будет + один выход. Раньше была одна
+           строка «словарь пока пуст» — констатация беды без действия, и
+           ученик упирался в тупик. Кот спит: экран пустой не по его вине. -->
       <div id="dict-empty" class="empty-state hidden">
-        <div class="cat-avatar cat-mid">🐈</div>
-        <p>Словарь пока пуст. Добавь слова с главной страницы или попроси у меня в чате, мяу!</p>
+        <div class="cat-avatar cat-mid" data-cat="sleep"></div>
+        <h3>Чистый разворот</h3>
+        <p>Здесь будут слова, которые ты забрал себе: с переводом, примером
+          и озвучкой. Начинать с нуля не придётся — я уже подобрал первые.</p>
+        <button class="btn btn-primary" id="dict-empty-go">Забрать первые слова</button>
+        <p class="handnote">это ненадолго</p>
       </div>
       <div class="dict-list" id="dict-list"></div>
     </div>
@@ -225,6 +263,7 @@
   <!-- ЭКРАН: тренажёр-карточки -->
   <section id="screen-trainer" class="screen hidden">
     <div class="narrow">
+      <h2 class="visually-hidden">Карточки со словами</h2>
       <div id="trainer-empty" class="empty-state hidden">
         <div class="cat-avatar cat-mid">🐈</div>
         <p>Нечего тренировать — словарь пуст! Сначала добавь слова.</p>
@@ -233,23 +272,29 @@
 
       <div id="trainer-run" class="hidden">
         <p class="test-counter" id="trainer-counter">1 / 10</p>
-        <div class="flashcard" id="flashcard">
+        <!-- Не <button>: внутри лежит кнопка «Произношение», а кнопка в кнопке —
+             невалидная разметка. Поэтому role + tabindex, а нажатие с клавиатуры
+             ловим в app.js. Без этого перевернуть карточку было невозможно
+             вообще, и перевод оставался недоступен. -->
+        <div class="flashcard" id="flashcard" role="button" tabindex="0"
+             aria-expanded="false"
+             aria-label="Карточка со словом. Нажми, чтобы перевернуть">
           <div class="flashcard-inner" id="flashcard-inner">
             <div class="flashcard-face flashcard-front">
               <div class="word-art word-art-big" id="flash-art">🍎</div>
-              <div class="quiz-word" id="flash-word">apple</div>
-              <button class="btn btn-ghost btn-small" id="flash-audio" type="button">🔊 Произношение</button>
+              <div class="quiz-word" id="flash-word" lang="en">apple</div>
+              <button class="btn btn-ghost btn-small" id="flash-audio" type="button"><span data-icon="sound" data-icon-size="18"></span> Произношение</button>
               <p class="flip-hint">нажми на карточку, чтобы перевернуть</p>
             </div>
-            <div class="flashcard-face flashcard-back">
+            <div class="flashcard-face flashcard-back" aria-hidden="true">
               <div class="quiz-word quiz-word-small" id="flash-translation">яблоко</div>
-              <p class="flash-example" id="flash-example"></p>
+              <p class="flash-example" id="flash-example" lang="en"></p>
             </div>
           </div>
         </div>
         <div class="quiz-buttons" id="flash-buttons">
-          <button class="btn btn-ghost" id="flash-forgot">😿 Забыл</button>
-          <button class="btn btn-primary" id="flash-knew">😸 Помню</button>
+          <button class="btn btn-ghost" id="flash-forgot">Забыл</button>
+          <button class="btn btn-primary" id="flash-knew">Помню</button>
         </div>
       </div>
 
@@ -282,10 +327,10 @@
       <div class="chat-head">
         <div class="cat-avatar cat-small">🐈</div>
         <div class="chat-head-info">
-          <b>Савелий</b>
-          <p class="muted-small">кот-репетитор · онлайн</p>
+          <h2 class="chat-title">Савелий</h2>
+          <p class="muted-small chat-sub">кот-репетитор · онлайн</p>
         </div>
-        <button class="btn btn-ghost btn-small" id="voice-mode-btn" type="button">🎙️ Голосовой чат</button>
+        <button class="btn btn-ghost btn-small" id="voice-mode-btn" type="button"><span data-icon="mic" data-icon-size="18"></span> Голосовой чат</button>
         <button class="btn btn-ghost btn-small" id="voice-settings-btn" type="button" title="Настройки голоса">⚙️</button>
       </div>
 
@@ -314,17 +359,18 @@
         </div>
         <p class="muted-small">Качество зависит от голосов в системе. В Chrome обычно есть голоса Google — они лучшие. На маке можно докачать «улучшенные» голоса: Настройки → Универсальный доступ → Устная речь → Голоса. Если русский голос бесит — включи «только английские слова».</p>
       </div>
-      <div class="chat-box" id="chat-box"></div>
+      <div class="chat-box" id="chat-box" role="log" aria-live="polite" tabindex="0"
+           aria-relevant="additions" aria-label="Переписка с Савелием"></div>
       <div class="chat-chips" id="chat-chips">
         <button class="chip" data-chip="Дай новое слово">Дай новое слово</button>
         <button class="chip" data-chip="Проверь меня">Проверь меня</button>
         <button class="chip" data-chip="Как мои успехи?">Как мои успехи?</button>
       </div>
       <form class="chat-input-row" id="chat-form">
-        <button type="button" class="mic-btn" id="mic-btn" title="Сказать голосом">🎤</button>
+        <button type="button" class="mic-btn" id="mic-btn" aria-label="Сказать голосом"><span aria-hidden="true">🎤</span</button>
         <button type="button" class="stt-lang-btn" id="stt-lang-btn" title="Язык распознавания">RU</button>
-        <input type="text" id="chat-input" placeholder="Напиши или скажи Савелию…" autocomplete="off">
-        <button type="submit" class="btn btn-primary">➤</button>
+        <input type="text" id="chat-input" placeholder="Напиши или скажи Савелию…" aria-label="Сообщение Савелию" autocomplete="off">
+        <button type="submit" class="btn btn-primary" aria-label="Отправить сообщение"><span data-icon="send" data-icon-size="20"></span></button>
       </form>
     </div>
   </section>
@@ -340,19 +386,21 @@
     <a href="https://t.me/KOTSAVELII" target="_blank" rel="noopener">@KOTSAVELII</a></p>
 </footer>
 
-<script src="js/theme.js?v=27"></script>
-<script src="js/cat.js?v=27"></script>
-<script src="js/util.js?v=27"></script>
-<script src="js/words.js?v=27"></script>
-<script src="js/srs.js?v=27"></script>
-<script src="js/images.js?v=27"></script>
-<script src="js/app.js?v=27"></script>
-<script src="js/achievements.js?v=27"></script>
-<script src="js/exercises.js?v=27"></script>
-<script src="js/voice.js?v=27"></script>
-<script src="js/sync.js?v=27"></script>
-  <script src="js/reading.js?v=27"></script>
-  <script src="js/photo.js?v=27"></script>
+<script src="js/theme.js?v=57"></script>
+<script src="js/icons.js?v=57"></script>
+<script src="js/cat.js?v=57"></script>
+<script src="js/motion.js?v=57"></script>
+<script src="js/util.js?v=57"></script>
+<script src="js/words.js?v=57"></script>
+<script src="js/srs.js?v=57"></script>
+<script src="js/images.js?v=57"></script>
+<script src="js/app.js?v=57"></script>
+<script src="js/achievements.js?v=57"></script>
+<script src="js/exercises.js?v=57"></script>
+<script src="js/voice.js?v=57"></script>
+<script src="js/sync.js?v=57"></script>
+  <script src="js/reading.js?v=57"></script>
+  <script src="js/photo.js?v=57"></script>
 <script>
   // офлайн-режим: сайт открывается без интернета и ставится на телефон
   if ("serviceWorker" in navigator && location.protocol !== "file:") {

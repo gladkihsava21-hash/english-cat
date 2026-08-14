@@ -57,9 +57,13 @@ function renderPhotos() {
   if (!box) return;
   if (counter) counter.textContent = photoItems.filter(p => !p.seen).length;
 
+  // Пустое состояние — отдельный блок в разметке, а не строка внутри сетки:
+  // голый текст в grid-контейнере выглядел так, будто рендер оборвался
+  const empty = document.getElementById("photos-empty");
+  if (empty) empty.classList.toggle("hidden", photoItems.length > 0);
+
   if (!photoItems.length) {
-    box.innerHTML = `<p class="muted-note">Пока никто не присылал фото.
-      Ученик увидит кнопку «Сфоткать домашку» у себя на главной.</p>`;
+    box.innerHTML = "";
     return;
   }
   box.innerHTML = photoItems.map(p => `

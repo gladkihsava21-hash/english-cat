@@ -1,0 +1,469 @@
+/* Заплатка под смену тегов ради клавиатуры: корзины «Категорий» стали
+   <button>, а их содержимое — <span>. Возвращаем блочное поведение,
+   иначе строки схлопываются в одну. */
+.cat-box { font-family: inherit; text-align: inherit; width: 100%;
+           background: var(--surface); cursor: pointer; }
+.cat-box-title, .cat-box-items { display: block; }
+.flashcard { cursor: pointer; }
+
+/* ===== Горизонтальная прокрутка на 320–375px =====
+   Замер аудита: словарь 437px при окне 320 (+117), чат 394 (+74),
+   «Пары» 382 (+62). На телефоне кнопка удаления слова уезжала за край —
+   удалить слово было нельзя вообще. */
+
+/* Четыре фильтра словаря в одну строку не помещаются */
+.dict-filters { display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* min-width:auto у flex-элемента держит ширину по содержимому и распирает
+   строку изнутри — отсюда и вылет за экран */
+.dict-row .d-en { min-width: 0; flex: 1 1 auto; }
+.chat-input-row { display: flex; gap: 10px; flex-wrap: wrap; }
+.chat-input-row input { min-width: 0; flex: 1 1 140px; }
+.pair-item, .scr-tile { min-width: 0; }
+
+@media (max-width: 720px) {
+  /* Перевод уходит на свою строку: в одну строку с оригиналом и кнопками
+     он не помещается ни при каком раскладе */
+  .dict-row { flex-wrap: wrap; }
+  .dict-row .d-ru { flex: 1 0 100%; }
+  /* Цель нажатия: было 20px по ширине при 44px по высоте */
+  .d-del { min-width: 44px; }
+}
+
+/* ===== Ответ различается знаком, а не только цветом =====
+   Зелёный «верно» и шалфейный акцент по яркости почти совпадают (1,07:1),
+   а при дальтонизме верный и неверный ответ становятся одним серо-бурым.
+   Галочка и крестик работают всегда — это требование WCAG 1.4.1. */
+.ans-mark { font-weight: 800; margin-left: 4px; }
+.mcq-option.right { background: var(--accent); color: var(--on-accent);
+                    border-color: var(--accent-deep); }
+.mcq-option.wrong { border-width: 2px; border-color: var(--err); }
+
+/* Живые области: результат ответа менялся молча — скринридер о нём
+   не сообщал ничего. */
+.type-feedback { min-height: 1.4em; }
+
+/* Логотип рисуется тем же движком, что и персонаж: системный эмодзи выглядел
+   по-разному на каждой ОС и в шалфейной гамме бил ярче всего на экране. */
+.brand-cat { width: 28px; height: 28px; display: inline-flex; flex: none; }
+.brand-cat svg { width: 100%; height: auto; animation: none; }
+
+/* Заголовок лендинга: без <br> и с балансировкой строк — браузер сам
+   раскладывает их ровно, вместо четырёх рваных получается две-три. */
+.hero { max-width: min(900px, 92vw); padding-top: var(--space-48); }
+.hero h1 {
+  font-size: clamp(42px, 6.4vw, var(--text-display));
+  letter-spacing: -0.03em;
+  text-wrap: balance;
+  max-width: 18ch;
+}
+/* Кот на входных экранах рисует уши выше своего бокса — без отступа сверху
+   они срезались краем окна на всех трёх страницах. */
+@media (max-width: 480px) { .hero { padding-top: var(--space-32); } }
+
+/* Второй кот в приветствии главной — лишний: персонаж уже стоит в карточке
+   действия двадцатью пикселями ниже и там он что-то говорит. */
+.dash-head .cat-avatar { display: none; }
+
+/* ===== Панель репетитора и экран ученика — одна система =====
+   Арт-директор осознанно сделал панель плотнее: это рабочий инструмент,
+   а не игра. Спорить с этим не буду — но он ушёл слишком далеко.
+   Замер критика: у панели текст 13px против 18 у ученика, кнопка 8px радиуса
+   против 999, и цена «799 ₽» на экране подписки оказалась МЕЛЬЧЕ основного
+   текста ученика. Экран, где берут деньги, не может быть самым мелким.
+
+   Плотность оставляем, но выражаем её ШАГОМ ШКАЛЫ, а не отдельной системой:
+   нижняя граница кегля 14px, форма кнопок общая с ученической. */
+:root:has(#screen-verify) {
+  --text-caption:    14px;   /* было 13 — ниже этого читать тяжело */
+  --text-body-sm:    16px;
+  --text-body:       17px;
+  --text-subheading: 20px;
+  --text-heading-sm: 22px;
+  --text-heading:    28px;
+
+  --radius-card: 14px;       /* было 10, у ученика 18 — плотнее, но родное */
+  --radius-btn:  999px;      /* форма общая: кнопка везде кнопка */
+  --radius-tag:  999px;
+}
+:root:has(#screen-verify) .card,
+:root:has(#screen-verify) .plan-card,
+:root:has(#screen-verify) .admin-stat,
+:root:has(#screen-verify) .pack-card {
+  /* Без тени карточки читались как строки таблицы — отсюда и ощущение,
+     что панель собрана другим человеком. */
+  box-shadow: var(--shadow-soft);
+}
+/* Цена — это главное число экрана подписки, а не подпись к нему. */
+:root:has(#screen-verify) .plan-price,
+:root:has(#screen-verify) .pack-price { font-size: var(--text-heading); font-weight: 800; }
+
+/* Единственная разница, которую стоит УСИЛИТЬ: у панели нет персонажа.
+   Кот — язык ученика, а не рабочего инструмента взрослого. */
+:root:has(#screen-verify) .topbar .brand-cat { display: none; }
+
+/* ===== Мобильная шапка: 143px из 812 — это 17,6% экрана, и она липкая =====
+   Три ряда: марка + чипы, потом навигация в две строки вразнобой.
+   На телефоне меню уезжает вниз — туда, где его достаёт большой палец,
+   а сверху остаётся только марка и переключатель темы. */
+@media (max-width: 600px) {
+  /* backdrop-filter на шапке создаёт containing block, и position: fixed
+     внутри неё отсчитывается от самой шапки, а не от окна — меню вставало
+     сверху вместо низа. На 56-пиксельной полосе размытие всё равно не видно. */
+  .topbar { backdrop-filter: none; }
+  .topbar-inner {
+    flex-wrap: nowrap;
+    gap: var(--space-8);
+    padding: var(--space-8) var(--space-16);
+    min-height: 56px;
+  }
+
+  /* Меню — нижняя панель. position: fixed, а не sticky: панель обязана
+     стоять на месте и при прокрутке длинного словаря. */
+  .topbar .nav {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    z-index: 40;
+    display: flex;
+    justify-content: space-around;
+    gap: 0;
+    padding: var(--space-8) var(--space-8) max(var(--space-8), env(safe-area-inset-bottom));
+    background: color-mix(in srgb, var(--paper) 94%, transparent);
+    backdrop-filter: blur(12px);
+    border-top: var(--border-w) solid var(--line-soft);
+  }
+  .topbar .nav-btn {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 10px 4px;
+    font-size: 12px;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    border-radius: var(--radius-card);
+  }
+  /* Контент не должен уезжать под панель */
+  main { padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
+  .site-footer { margin-bottom: calc(64px + env(safe-area-inset-bottom)); }
+
+  /* Очки и уровень дублируются карточками прогресса двумя экранами ниже —
+     в шапке они только отнимают место у имени и кнопки выхода. */
+  .user-chip #xp-chip,
+  .user-chip #streak-chip,
+  .user-chip #user-level-chip { display: none; }
+  .user-chip { gap: var(--space-8); flex: 0 1 auto; min-width: 0; }
+  .user-chip #user-name-chip {
+    max-width: 9ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  /* Цель нажатия: ссылки «выйти» и «пароль» были 12px без запаса */
+  .user-chip .link-btn { min-height: 44px; display: inline-flex; align-items: center; }
+}
+
+/* Длинные подписи меню не влезают в нижнюю панель на 375px: «Чат с Савелием»
+   обрезался на половине слова. На узком экране остаётся короткая форма. */
+@media (max-width: 820px) {
+  .nav-long { display: none; }
+  .topbar .nav-btn {
+    font-size: 12px;
+    letter-spacing: -0.01em;
+    white-space: nowrap;      /* подпись в одну строку, иначе панель распухает */
+  }
+  .topbar .nav-btn .badge { font-size: 10px; padding: 1px 5px; }
+}
+
+/* ===== Две гарнитуры, а не одна =====
+   --font-ui: "Inter" был объявлен в токенах, но шрифт не загружался: поля
+   ввода рендерились системным (SF Pro на Маке, Segoe UI на Windows), всё
+   остальное — Nunito. Получалась случайная двухшрифтовость, худший из
+   вариантов. Теперь Inter загружен и роли разведены честно:
+     Nunito — заголовки и слово-герой: округлый, тёплый, с характером;
+     Inter  — весь рабочий текст: цифры, метки, кнопки, таблицы.
+   Nunito на длинном тексте читается «детским», Inter на заголовках —
+   безликим; каждый на своём месте работает. */
+body, input, textarea, select, button,
+.btn, .btn-primary, .btn-ghost, .chip, .tab, .nav-btn,
+.stat-label, .stat-note, .muted, .muted-small, .section-note,
+.hero-sub, .d-ru, .ex-desc, .plan-row, .at-table, .lb-row {
+  font-family: var(--font-ui);
+}
+
+h1, h2, h3, .section-title, .dash-head h2,
+.today-title, .stat-value, .quiz-word, .w-en, .d-en,
+.result-value, .plan-price, .pack-price, .brand, .handnote {
+  font-family: var(--font-display);
+}
+
+/* Inter плотнее Nunito на том же кегле — вторичный текст компенсируем весом,
+   иначе он выглядит бледнее, чем задумано. */
+.muted, .muted-small, .stat-note, .section-note { font-weight: 450; }
+
+/* ===== Чат на узком экране =====
+   Замер критика на 375: ряд ввода низом 753 против верха нижней панели 751 —
+   перекрытие в 2px, поле ввода ужато до 168px, плейсхолдер обрезан,
+   шапка чата «кот-репетитор · онлайн» ломалась на три строки. */
+@media (max-width: 600px) {
+  .chat-head, .chat-head-info {
+    flex-wrap: wrap;
+    row-gap: var(--space-4);
+  }
+  .chat-head-info { flex: 1 1 100%; min-width: 0; }
+  /* Подпись «онлайн» и название роли не должны рвать слово пополам */
+  .chat-head-info .chat-sub { white-space: nowrap; }
+
+  /* Поле не может быть уже 180px: иначе в нём не видно, что пишешь */
+  .chat-input-row input { min-width: 180px; flex: 1 1 180px; }
+  /* Зазор до нижней панели: без него ряд ввода лез под неё */
+  .chat-input-row { margin-bottom: var(--space-16); }
+  /* Коробка чата занимала фиксированную высоту и оставляла 190px пустоты
+     под единственной репликой */
+  .chat-box { min-height: 40vh; max-height: 52vh; }
+
+  /* Кнопка голосового чата — иконкой, подпись съедала строку */
+  #voice-mode-btn { min-width: 44px; }
+  #voice-mode-btn .vm-label { display: none; }
+}
+
+/* Нижняя панель включалась только ниже 768 — ровно на 768 шапка снова
+   становилась двухэтажной и занимала 104px. Планшет тоже телефон, если
+   ширины не хватает на семь пунктов в строку. */
+@media (max-width: 820px) {
+  .topbar { backdrop-filter: none; }
+  .topbar .nav {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+    display: flex; justify-content: space-around; gap: 0;
+    padding: var(--space-8) var(--space-8) max(var(--space-8), env(safe-area-inset-bottom));
+    background: color-mix(in srgb, var(--paper) 94%, transparent);
+    backdrop-filter: blur(12px);
+    border-top: var(--border-w) solid var(--line-soft);
+  }
+  .topbar .nav-btn { flex: 1 1 0; min-width: 0; text-align: center; }
+  main { padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
+  .site-footer { margin-bottom: calc(64px + env(safe-area-inset-bottom)); }
+  .topbar-inner { flex-wrap: nowrap; min-height: 56px; }
+}
+
+/* Высота чата считалась как 100vh минус 140 — число взято под старую шапку
+   в 143px и не учитывает нижнюю панель. Плюс форма ввода вылезала за
+   пределы обёртки: флекс-ребёнок не сжимается ниже своего содержимого,
+   пока ему не поставить min-height: 0. Без него любая max-height
+   на родителе игнорируется содержимым.
+   dvh вместо vh: на мобильном Safari 100vh считается по развёрнутому
+   адресному полю, и низ экрана всегда оказывается за кадром. */
+@media (max-width: 820px) {
+  .chat-wrap {
+    display: flex;
+    flex-direction: column;
+    /* шапка 57 + нижняя панель 61 + воздух */
+    height: calc(100dvh - 130px);
+    max-height: none;
+    min-height: 0;
+    overflow: hidden;
+  }
+  .chat-box {
+    flex: 1 1 auto;
+    min-height: 0;          /* вот без этого всё и разъезжалось */
+    max-height: none;
+    overflow-y: auto;
+  }
+  .chat-form, .chat-input-row { flex: 0 0 auto; }
+}
+
+/* Ряд ввода в чате: микрофон, язык, поле и отправка должны стоять в одну
+   строку. Из-за flex-wrap кнопка отправки уезжала на вторую и съедала
+   ещё 60px высоты — на телефоне это заметно. */
+@media (max-width: 820px) {
+  .chat-input-row {
+    flex-wrap: nowrap;
+    gap: var(--space-8);
+    align-items: center;
+  }
+  .chat-input-row input { flex: 1 1 auto; min-width: 0; }
+  /* Иконочные кнопки не должны растягиваться и не должны сжиматься ниже пальца */
+  .chat-input-row .mic-btn,
+  .chat-input-row .stt-lang-btn,
+  .chat-input-row button[type="submit"] {
+    flex: 0 0 auto;
+    width: 44px; min-width: 44px; height: 44px;
+    padding: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  /* Шапка чата: кот и подпись рядом, а не столбиком — экономит 90px */
+  .chat-head { flex-direction: row; align-items: center; gap: var(--space-12); }
+  .chat-head .cat-avatar { width: 48px; flex: none; }
+  .chat-head-info { flex: 1 1 auto; }
+}
+
+/* Пузырь реплики кота ночью сливался с лентой — 1,07:1. Отдельная,
+   самая светлая поверхность: только у неё в тёмной теме есть право
+   выделяться, потому что это единственное, что нужно отличать глазом. */
+[data-theme="night"] .speech-bubble,
+[data-theme="night"] .msg-cat,
+[data-theme="night"] .ach-toast { background: var(--surface-hi); }
+[data-theme="night"] .ach-card,
+[data-theme="night"] .stat-card { border: var(--border-w) solid var(--line-soft); }
+
+/* Наведение ночью не давало никакого отклика: тень чёрным по чёрному
+   не видна. Отзываемся границей — она в тёмной теме единственное,
+   что читается. */
+[data-theme="night"] .card:hover,
+[data-theme="night"] .stat-card:hover,
+[data-theme="night"] .ach-card:hover,
+[data-theme="night"] .pack-card:hover {
+  border-color: var(--accent-line);
+  box-shadow: none;
+}
+
+/* Формы на десктопе растягивались во всю ширину карточки: поле «Имя»
+   на лендинге было 850px. Ввести туда можно два слова — ширина обещает
+   абзац и сбивает с толку. */
+@media (min-width: 821px) {
+  .auth-card form, #reset-form, #verify-form { max-width: 420px; margin-inline: auto; }
+}
+
+/* Заголовок, видимый только скринридеру: экран должен иметь имя в структуре
+   документа, даже если визуально оно избыточно. */
+.visually-hidden {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+/* Имя собеседника было <b> — жирность без семантики. Стал заголовком,
+   размер оставляем прежним. */
+.chat-title { font-size: var(--text-body-sm); font-weight: 800; margin: 0; }
+
+/* Ссылка «к содержимому»: на телефоне меню — это 5 остановок Tab перед
+   каждым экраном. Появляется только при фокусе с клавиатуры. */
+.skip-link {
+  position: absolute; left: -9999px; top: 0; z-index: 100;
+}
+.skip-link:focus {
+  left: var(--space-12); top: var(--space-12);
+  background: var(--surface); color: var(--ink);
+  padding: 10px 18px; border-radius: var(--radius-btn);
+  box-shadow: var(--focus-ring);
+}
+
+/* ===== «Слово дня»: три уровня вместо одной строки =====
+   Слово было 20px в общем потоке с кнопкой и переводом — строка рвалась
+   посреди фразы, а само слово, ради которого карточка и существует,
+   ничем не выделялось. */
+.wod-main {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  margin: var(--space-8) 0 var(--space-4);
+}
+.wod-word {
+  font-family: var(--font-display);
+  font-size: var(--text-heading);
+  font-weight: 800;
+  line-height: var(--leading-tight);
+  letter-spacing: -0.02em;
+}
+/* Кнопка озвучки — отдельный круглый контрол, а не знак внутри строки */
+.wod-say-btn {
+  flex: none;
+  width: 40px; height: 40px; min-width: 40px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: var(--border-w) solid var(--line-control);
+  border-radius: 999px;
+  background: var(--surface);
+}
+.wod-tr {
+  display: block;
+  font-size: var(--text-body-sm);
+  color: var(--ink-soft);
+}
+.wod-card .w-ex {
+  display: block;
+  margin-top: var(--space-12);
+  font-size: var(--text-caption);
+  color: var(--ink-soft);
+}
+
+/* ===== Иконки =====
+   Контур наследует цвет текста и меняется вместе с темой — в отличие от
+   эмодзи, которые рисуются шрифтом ОС, всегда полноцветные и всегда ярче
+   окружения. Двадцать карточек тренировок были радугой поверх шалфея. */
+.ic { display: block; flex: none; }
+[data-icon] { display: inline-flex; align-items: center; justify-content: center; }
+
+/* Иконка в карточке упражнения: спокойный вторичный тон, акцент — только
+   у выбранного. Раньше каждая карточка кричала своим цветом. */
+.ex-icon { color: var(--ink-soft); margin-bottom: var(--space-8); }
+.ex-card:hover .ex-icon, .ex-card:focus-visible .ex-icon { color: var(--accent); }
+.ex-title-icon { display: inline-flex; vertical-align: -3px; color: var(--accent); }
+
+/* Награда: полученная — акцентом, закрытая — приглушённой линией.
+   Разница читается силуэтом и тоном, а не цветным пятном. */
+.ach-icon { color: var(--accent); }
+/* Прозрачность роняет контраст: .65 от --ink-soft давало ниже 3:1.
+   Закрытая награда должна читаться приглушённо, но читаться. */
+.ach-card:not(.got) .ach-icon { color: var(--ink-soft); opacity: 1; }
+.ach-toast-icon { color: var(--accent); }
+
+/* Кнопки с иконкой и подписью: зазор и выравнивание по центру строки */
+.btn [data-icon], .btn .ic { vertical-align: -4px; margin-right: 6px; }
+.say-btn [data-icon], .mic-btn [data-icon] { margin: 0; }
+
+/* ===== Карточка слова =====
+   Содержимое стояло впритык к краям: картинка касалась верхней границы,
+   подсказка — нижней. Формально ничего не вылезало, но выглядело так,
+   будто вылезает. Плюс пропорция 668×260 — это не карточка, а полоса. */
+.flashcard {
+  max-width: 420px;
+  margin-inline: auto;
+  min-height: 320px;
+  display: flex;              /* иначе внутренняя часть не растянется */
+}
+/* Высота задавалась внешнему элементу, а рисуется внутренний: лишние 60px
+   висели пустотой под видимой карточкой — оттуда и оторванные кнопки,
+   и ощущение, что содержимое жмётся кверху. */
+.flashcard-inner {
+  flex: 1 1 auto;
+  min-height: 320px;
+}
+.flashcard-face {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-16);
+  padding: var(--space-32) var(--space-24);
+  text-align: center;
+}
+/* Картинка к слову — крупная, но не в полкарточки */
+.flashcard .word-art { font-size: 44px; line-height: 1; margin: 0; }
+/* Слово — главное на карточке, ему и вес */
+.flashcard .quiz-word {
+  font-size: var(--text-heading);
+  line-height: var(--leading-tight);
+  margin: 0;
+  word-break: break-word;
+}
+/* Подсказка отбивается от кнопки и не липнет к нижнему краю */
+.flip-hint {
+  font-size: var(--text-caption);
+  color: var(--ink-soft);
+  margin: 0;
+}
+/* Кнопки ответа — на своей строке, с воздухом от карточки */
+.quiz-buttons { margin-top: var(--space-24); gap: var(--space-12); }
+
+@media (max-width: 600px) {
+  .flashcard, .flashcard-inner { min-height: 280px; }
+  .flashcard { max-width: none; }
+  .flashcard-face { padding: var(--space-24) var(--space-16); }
+  .flashcard .word-art { font-size: 38px; }
+}
+
+/* Короткие экраны (тренажёр, упражнение) заканчивались на середине окна,
+   и футер подползал сразу за ними — кот из подвала выглядывал из-под
+   нижнего меню и читался как артефакт. Экран занимает высоту окна за
+   вычетом шапки и панели, футер уходит за фолд. */
+.screen:not(.hidden) {
+  min-height: calc(100dvh - 130px);
+}
+@media (min-width: 821px) {
+  .screen:not(.hidden) { min-height: calc(100dvh - 80px); }
+}
