@@ -239,10 +239,17 @@
     --paper: #141917; --surface-alt: #1F2622; --surface: #2A332E;
     --surface-hi: #354039;
     --ink: #E9EEEA; --ink-soft: #A6B2AA;
-    --accent: #8FC0A0; --accent-deep: #A8D3B6; --accent-soft: #2A3B31;
-    --accent-line: #78897F; --line: #78897F;
+    /* Значения ОБЯЗАНЫ совпадать с блоком :root[data-theme="night"] выше.
+       Это два пути к одной теме: сюда попадает тот, кто луну не жал,
+       туда — кто жал. Разъедутся — половина пользователей увидит одно,
+       половина другое, и заметить это можно только сравнив два браузера.
+       Так и вышло при смене зелёного: там #65D97A, здесь оставался
+       прежний #8FC0A0. */
+    --accent: #65D97A; --accent-deep: #8AE79B; --accent-soft: #223A28;
+    --accent-line: #4E9460; --line: #78897F;
     --line-control: #7B8C82; --line-soft: #333E38;
-    --focus: #8FC0A0; --on-accent: #16201A;
+    --accent-fill: #65D97A; --on-accent-fill: #0E2614;
+    --focus: #65D97A; --on-accent: #16201A;
     --soft-lavender: #6E668A; --soft-sky: #5B7C93;
     --soft-clay: #8E7264; --soft-mint: #6A8C7C;
     --cat-fur: #C2BDB0; --cat-fur-dark: #A29B8C; --cat-muzzle: #D8D3C8;
