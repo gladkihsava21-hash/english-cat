@@ -162,6 +162,15 @@ for _group, _words in _BLOCK_EN_GROUPS.items():
 for _w in COUNTRIES:
     SENTENCE_BLOCK_EN.setdefault(_w, "страны и национальности")
 
+# Безобидные омографы: индейка, полировать, фарфор, перец — их блокировать не за что.
+HOMOGRAPH_ALLOW = set("turkey polish china chile chili".split())
+
+# Если слово нельзя показать ребёнку в ПРИМЕРЕ, то и карточкой оно быть не может:
+# «murder — убивать» с примером «Цезарь был убит» школьнику незачем. Раньше
+# такие слова проходили, потому что формы самого заголовка из проверки примера
+# исключаются (иначе у war никогда не нашлось бы примера).
+HEADWORD_BLOCK |= set(SENTENCE_BLOCK_EN) - HOMOGRAPH_ALLOW
+
 # Служебные слова закрытого класса: предлоги, местоимения, определители,
 # союзы, вспомогательные и модальные глаголы. Робот делает из них негодные
 # карточки — «off → вон» с примером «Shove off! / С глаз долой!» ничему не
@@ -216,6 +225,10 @@ def acceptable_headword(word, existing, min_len=3, max_len=14):
         return False, "уже есть в базе"
     if w in HEADWORD_BLOCK:
         return False, "недетская лексика"
+    # словоформы того же: drugs, killing, wounded
+    for _suffix in ("s", "es", "ed", "ing", "d"):
+        if w.endswith(_suffix) and w[: -len(_suffix)] in HEADWORD_BLOCK:
+            return False, "недетская лексика"
     if w in FUNCTION_WORDS:
         return False, "служебное слово"
     if w in IRREGULAR_FORMS:

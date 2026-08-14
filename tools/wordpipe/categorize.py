@@ -58,7 +58,10 @@ HEAD_RULES = [
     ("art", r"\b(art|music|painting|artistic|literature|poem|theatre|theater|film|song)\b", None),
     ("society", r"\b(society|government|political|law|legal|public|community|citizen|social)\b", None),
     ("home", r"\b(house|home|room|furniture|household|domestic|apartment)\b", None),
-    ("family", r"\b(parent|mother|father|child of|sibling|relative|married|family)\b", None),
+    # «family» берём только с артиклем: «the lute family» и «family Numididae» —
+    # это систематика инструментов и биологии, а не родственники.
+    ("family", r"\b(parent|mother|father|child of|sibling|relative|married)\b"
+               r"|\b(a|the|his|her|my|your|their|our) family\b", None),
     ("time", r"\b(period of time|moment|season|duration|hour|day|month|year)\b", NOUNS),
     ("objects", r"^(a |an )?(tool|instrument|object|device|container|piece of equipment)\b|\b(used for|used to)\b", NOUNS),
     ("actions", r"^(an? |the )?(act|action|process|attempt|effort|method|way) (of|to)\b", NOUNS),
@@ -86,7 +89,7 @@ KEYWORDS = {
     "time": "time day night year month week hour minute season past future present early late duration",
     "food": "food eat drink meal bread meat fruit vegetable cook kitchen taste sweet dinner breakfast",
     "nature": "nature tree plant forest mountain river sea ocean sky earth stone flower grass wild world planet globe life alive living species",
-    "school": "school study learn teacher student lesson class exam homework university subject knowledge",
+    "school": "school study learn teacher student lesson class exam homework university subject knowledge mathematics arithmetic algebra geometry science physics chemistry biology geography history grammar textbook",
     "travel": "travel journey trip road car train plane ticket hotel visit tourist map luggage abroad",
     "tech": "computer internet phone digital data software program device screen electric machine online",
     "home": "house home room door window furniture bed kitchen wall floor roof garden household lodging dwelling quarters accommodation apartment flat",
@@ -177,8 +180,13 @@ class Categorizer:
         return cls(existing.categories, learned)
 
     def classify(self, word, definition, pos, example=""):
-        """-> (категория|None, уверенность 0..1, как определили)"""
-        text = " ".join([definition or "", example or ""])
+        """-> (категория|None, уверенность 0..1, как определили)
+
+        Пример намеренно НЕ используется: он про конкретный случай, а не про
+        слово. «Elephants are majestic animals» уводило majestic в категорию
+        animals, хотя это качество, а не животное.
+        """
+        text = definition or ""
 
         for cat, pattern, pos_filter in HEAD_RULES:
             if cat not in self.allowed_set:

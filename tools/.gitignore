@@ -1,4 +1,6 @@
+# Кэш ответов Wiktionary/Tatoeba и частотных списков — только локальный.
+# Удалять можно в любой момент, прогон просто заново скачает нужное.
 cache/
-out/*.js
-out/*.json
-out/*.tsv
+
+# Дубль manual-review.tsv в JSON — большой и нужен только скриптам.
+out/manual-review.json

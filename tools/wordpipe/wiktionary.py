@@ -355,13 +355,61 @@ def clean_definition(raw):
     text = _CSS_LEFTOVER.sub(" ", text)
     text = html.unescape(text)
     text = text.replace("’", "'").replace(" ", " ")
+    # редакторские пометки Wiktionary: [with to (+ infinitive)], [person]'s
+    text = re.sub(r"\[[^\]]*\]", " ", text)
+    # разжёвывания, которые школьнику только мешают
+    text = re.sub(r"\s*\((?:in other words|i\.e\.|e\.g\.|that is)[^()]*\)", "", text, flags=re.I)
     text = re.sub(r"\s+", " ", text).strip()
     text = re.sub(r"^\((?:[^()]{0,40})\)\s*", "", text)  # (transitive), (figuratively)
-    text = re.sub(r"\s*\[[^\]]*\]\s*$", "", text)
-    return text.strip(" ;:,")
+    text = re.sub(r"\s+([,.;:])", r"\1", text)
+    text = re.sub(r"(\.\s*){2,}", ". ", text)
+    return text.strip(" ;:,").strip()
 
 
-def pick_definition(payload, pos, min_len=12, max_len=130):
+_ELABORATION = re.compile(
+    r",\s+(?:such as|made (?:of|from)|especially|typically|usually|often|sometimes|"
+    r"which|who|that is|in particular|e\.g\.|including|generally|normally|and sometimes|"
+    r"or (?:more )?(?:generally|specifically))\b",
+    re.I,
+)
+
+
+def shorten_definition(text, min_len, max_len):
+    """Укоротить длинное определение, не теряя главного.
+
+    Раньше слишком длинное определение просто пропускалось, и выбиралось
+    следующее — короткое, но редкое: у «jewellery» вместо украшений
+    получался «инструмент внутри бурильной трубы». Лучше аккуратно отрезать
+    уточнения, чем взять не то значение.
+    """
+    if len(text) <= max_len:
+        return text
+    candidates = []
+    first_sentence = re.split(r"(?<=[.!?])\s+", text)[0]
+    candidates.append(first_sentence)
+    for cut in (";", ":", " ("):
+        head = text.split(cut)[0]
+        if head != text:
+            candidates.append(head)
+    m = _ELABORATION.search(text)
+    if m:
+        candidates.append(text[: m.start()])
+    if len(text) > max_len:
+        head = text[:max_len]
+        comma = head.rfind(",")
+        if comma > min_len:
+            candidates.append(head[:comma])
+    fitting = []
+    for cand in candidates:
+        cand = cand.strip().strip(" ,;:")
+        if min_len <= len(cand) <= max_len:
+            fitting.append(cand)
+    if not fitting:
+        return None
+    return max(fitting, key=len)      # самое информативное из подходящих
+
+
+def pick_definition(payload, pos, min_len=12, max_len=140):
     """Первое пригодное определение нужной части речи.
 
     Отбрасывает служебные статьи («plural of ...», «given name»), слишком
@@ -387,12 +435,11 @@ def pick_definition(payload, pos, min_len=12, max_len=130):
                 reason = "имя собственное"
                 continue
             if len(text) > max_len:
-                short = re.split(r"[;:]|\s+\(", text)[0].strip(" ,;:")
-                if min_len <= len(short) <= max_len:
-                    text = short
-                else:
+                short = shorten_definition(text, min_len, max_len)
+                if not short:
                     reason = "определение слишком длинное"
                     continue
+                text = short
             if len(text) < min_len:
                 reason = "определение слишком короткое"
                 continue

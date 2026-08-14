@@ -66,6 +66,20 @@ def score_sentence(word, en, ru, guard):
     if not (forms & set(toks)):
         return None, "слова нет в предложении"
 
+    # Слово должно стоять как обычное слово, а не как имя собственное:
+    # для «polish» пример «I'm Polish.» — это про национальность, а не про
+    # «полировать», и карточка развалится.
+    words_in_order = re.findall(r"[A-Za-z']+", en)
+    plain = False
+    for i, tok in enumerate(words_in_order):
+        if tok.lower() not in forms:
+            continue
+        if i == 0 or tok[0].islower():
+            plain = True
+            break
+    if not plain:
+        return None, "слово в примере — имя собственное"
+
     blocked = guard.check(en, ru)
     if blocked:
         return None, blocked
