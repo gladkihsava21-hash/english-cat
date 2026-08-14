@@ -1450,3 +1450,28 @@ h1, h2, h3, .section-title, .dash-head h2,
   .lesson-card { flex-wrap: wrap; }
   .lesson-go { width: 100%; text-align: center; }
 }
+
+/* ==========================================================================
+   «СОБЕРИ ВЫРАЖЕНИЕ»
+   --------------------------------------------------------------------------
+   Строка собранного отделена от плиток: без неё непонятно, что уже нажато,
+   а порядок слов — ровно то, что тут и проверяется.
+   ========================================================================== */
+.built-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-8);
+  min-height: 48px;              /* не прыгает, когда появляется первое слово */
+  align-items: center;
+  padding: var(--space-8);
+  margin-bottom: var(--space-16);
+  border-bottom: 2px dashed var(--line-control);
+}
+.scr-tile.built {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: var(--accent-line);
+  cursor: default;
+}
+.scr-tile.used { opacity: .35; cursor: not-allowed; }

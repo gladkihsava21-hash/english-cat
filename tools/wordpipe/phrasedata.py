@@ -108,7 +108,7 @@ PHRASAL = [
     ("check in", "регистрироваться (в гостинице, на рейс)", "проверить внутрь", "travel", "B1", "to report your arrival at a hotel or airport"),
     ("check out", "выписываться из гостиницы", "проверить наружу", "travel", "B1", "to pay and leave a hotel"),
     ("come across", "наткнуться, случайно найти", "прийти поперёк", "mind", "B1", "to find something by chance"),
-    ("cut down", "сократить (потребление)", "резать вниз", "health", "B1", "to use less of something"),
+    ("cut down", "сократить (расходы); срубить (дерево)", "резать вниз", "health", "B1", "to use less of something"),
     ("keep on", "продолжать делать", "держать на", "actions", "B1", "to continue doing something"),
     ("give in", "уступить, сдаться", "дать внутрь", "feelings", "B1", "to stop resisting"),
     ("go over", "просматривать, повторять", "идти над", "school", "B1", "to look at something again carefully"),

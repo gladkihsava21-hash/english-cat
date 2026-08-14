@@ -137,6 +137,7 @@ function normEn(s) {
 // пишет фразы или играет. Механическое «по 5 штук в ряд» ничего бы не дало.
 const EX_GROUPS = [
   { id: "words",   title: "По словам" },
+  { id: "phrases", title: "Выражения" },
   { id: "audio",   title: "На слух" },
   { id: "writing", title: "Письмо и речь" },
   { id: "games",   title: "Игры" },
@@ -167,6 +168,11 @@ const EXERCISES = [
   { id: "collocations", group: "writing", icon: "collocations", name: "Сочетания", desc: "Соедини слова, которые ходят парой" },
 
   // --- игры: тот же словарь, но на скорость и азарт ---
+  // --- выражения: фразовые глаголы, идиомы, устойчивые сочетания ---
+  { id: "notliteral", group: "phrases", icon: "translate", name: "Не буквально", desc: "Что значит на самом деле" },
+  { id: "buildphrase", group: "phrases", icon: "scramble", name: "Собери выражение", desc: "Составь фразу из слов" },
+  { id: "collocpair", group: "phrases", icon: "collocations", name: "Что с чем", desc: "Какое слово подходит" },
+
   { id: "oddone", group: "games", icon: "oddone", name: "Найди лишнее", desc: "Какое слово не из той темы?" },
   { id: "blitz", group: "games", icon: "blitz", name: "Блиц", desc: "Сколько слов успеешь за минуту?" },
   { id: "categories", group: "games", icon: "categories", name: "Категории", desc: "Разложи слова по темам" },
@@ -528,6 +534,168 @@ function runType(rounds, opts = {}) {
 // ===== Упражнения =====
 
 const EX_RUNNERS = {
+
+  /* ===== ВЫРАЖЕНИЯ =====
+   * Фразовые глаголы, идиомы и устойчивые сочетания — отдельный материал,
+   * и учить их как обычные слова нельзя. Трудность у них другая: значение
+   * НЕ СКЛАДЫВАЕТСЯ из частей. «Give up» — не «дать вверх», «a piece of
+   * cake» — не «кусок торта». Ученик, знающий оба слова, всё равно не
+   * поймёт фразу, и обычная карточка «слово ↔ перевод» этому не учит:
+   * она проверяет память, а мешает здесь ложная догадка.
+   *
+   * Поэтому три упражнения бьют в три разные стороны трудности:
+   *   notliteral  — буквальный смысл против настоящего (в лоб по догадке);
+   *   buildphrase — порядок слов внутри фразы (его не выведешь из перевода);
+   *   collocpair  — какое слово с каким ходит (make/do, strong/heavy).
+   */
+
+  /** Пул выражений по уровню ученика. Своего «словаря выражений» у него
+   *  нет, поэтому берём из базы: уровень и соседний снизу — фраза сложнее
+   *  своего уровня не учится, а разбивается о непонимание. */
+  _phrasePool(kind, n, need) {
+    if (typeof PHRASES === "undefined") return [];
+    const lvl = state.level || "A1";
+    const idx = LEVELS.indexOf(lvl);
+    const near = new Set([LEVELS[Math.max(0, idx - 1)], lvl,
+                          LEVELS[Math.min(LEVELS.length - 1, idx + 1)]]);
+    const all = kind === "colloc" ? PHRASES.colloc
+              : kind === "idiom"  ? PHRASES.idioms
+              : [...(PHRASES.phrasal || []), ...(PHRASES.idioms || [])];
+    const fit = all.filter(x => near.has(x.level) && (need || []).every(f => x[f]));
+    // Если на своём уровне не набралось — расширяем, но не молча падаем
+    const pool = fit.length >= n ? fit : all.filter(x => (need || []).every(f => x[f]));
+    return shuffled(pool).slice(0, n);
+  },
+
+  /** «Не буквально»: показываем фразу и её БУКВАЛЬНЫЙ перевод, спрашиваем
+   *  настоящее значение. Буквальный перевод здесь не подсказка, а ловушка —
+   *  ровно та, в которую ученик попадает сам. Увидев её рядом с верным
+   *  ответом, он запоминает не перевод, а сам факт, что догадка не работает. */
+  notliteral() {
+    const pool = EX_RUNNERS._phrasePool("any", 8, ["literal", "t"]);
+    if (!pool.length) { EX_RUNNERS._noPhrases(); return; }
+    const rounds = pool.map(p => {
+      // Отвлекающие не должны СОВПАДАТЬ с верным ответом по тексту:
+      // у разных выражений перевод иногда одинаковый («сдаваться»),
+      // и тогда на экране два одинаковых варианта, один из которых
+      // засчитывается неверным. Сверяем по строке, а не по слову.
+      const others = [...new Set(
+        shuffled((PHRASES.phrasal || []).concat(PHRASES.idioms || [])
+          .filter(x => x.w !== p.w && x.t && x.t !== p.t))
+          .map(x => x.t))].slice(0, 3);
+      const options = shuffled([p.t, ...others]);
+      return {
+        sub: "Буквально это «" + p.literal + "». А на самом деле?",
+        prompt: p.w,
+        options,
+        correct: options.indexOf(p.t),
+      };
+    });
+    runMCQ(rounds, { note: "У устойчивых выражений значение не складывается из слов." });
+  },
+
+  /** «Собери выражение»: порядок слов. Из перевода он не выводится —
+   *  «сдаваться» не говорит, что сначала give, потом up. */
+  buildphrase() {
+    const pool = EX_RUNNERS._phrasePool("any", 6, ["parts", "t"])
+      .filter(p => (p.parts || []).length >= 2);
+    if (!pool.length) { EX_RUNNERS._noPhrases(); return; }
+    let i = 0, correct = 0;
+
+    const next = () => {
+      if (i >= pool.length) { exFinish(correct, pool.length,
+        "Порядок слов в выражении менять нельзя — он и есть выражение."); return; }
+      const p = pool[i];
+      const tiles = shuffled(p.parts.map((w, idx) => ({ w, idx })));
+      let built = [];
+      stage().innerHTML = `
+        ${exProgress(i, pool.length)}
+        <div class="card word-quiz-card">
+          <p class="quiz-label">Собери выражение</p>
+          <div class="quiz-word quiz-word-small">${esc(p.t)}</div>
+          <div class="built-row" id="built" aria-live="polite"></div>
+          <div class="scr-tiles" id="tiles"></div>
+          <p class="type-feedback" id="bp-msg"></p>
+        </div>`;
+      const tilesBox = document.getElementById("tiles");
+      const builtBox = document.getElementById("built");
+      const draw = () => {
+        builtBox.innerHTML = built.length
+          ? built.map(b => `<span class="scr-tile built">${esc(b.w)}</span>`).join("")
+          : `<span class="muted-small">нажимай слова по порядку</span>`;
+      };
+      draw();
+      tilesBox.innerHTML = tiles.map((t, n) =>
+        `<button class="scr-tile" type="button" data-n="${n}">${esc(t.w)}</button>`).join("");
+      tilesBox.querySelectorAll("[data-n]").forEach(btn => {
+        btn.addEventListener("click", () => {
+          if (btn.disabled) return;
+          btn.disabled = true;
+          btn.classList.add("used");
+          built.push(tiles[+btn.dataset.n]);
+          draw();
+          if (built.length < p.parts.length) return;
+          const ok = built.every((b, n) => b.w === p.parts[n]);
+          const msg = document.getElementById("bp-msg");
+          if (ok) {
+            correct++; award(12);
+            msg.className = "type-feedback ok";
+            msg.textContent = "Верно! " + p.w + " — " + p.t;
+            if (typeof catReact === "function") catReact("happy");
+            i++; setTimeout(next, 1100);
+          } else {
+            msg.className = "type-feedback err";
+            msg.textContent = "Не так. Правильно: " + p.w;
+            if (typeof catReact === "function") catReact("oops");
+            i++; setTimeout(next, 2000);
+          }
+        });
+      });
+    };
+    next();
+  },
+
+  /** «Что с чем»: коллокации. Проверяем ровно то, чем они и трудны, —
+   *  какое слово с каким ходит. В переводе разницы нет («сделать
+   *  домашку» / «совершить ошибку»), а по-английски do и make не
+   *  взаимозаменяемы. */
+  collocpair() {
+    const pool = EX_RUNNERS._phrasePool("colloc", 8, ["parts", "t"])
+      .filter(p => (p.parts || []).length >= 2);
+    if (!pool.length) { EX_RUNNERS._noPhrases(); return; }
+    const rounds = pool.map(p => {
+      const head = p.parts[0];
+      const rest = p.parts.slice(1).join(" ");
+      // Отвлекающие — первые слова ДРУГИХ сочетаний: именно между ними
+      // ученик и путается, а случайное слово из словаря отсеивается сходу.
+      const others = shuffled((PHRASES.colloc || [])
+        .filter(x => x.parts && x.parts[0] && x.parts[0] !== head))
+        .map(x => x.parts[0]);
+      const options = shuffled([head, ...[...new Set(others)].slice(0, 3)]);
+      return {
+        sub: "Какое слово подходит? (" + p.t + ")",
+        prompt: "… " + rest,
+        options,
+        correct: options.indexOf(head),
+      };
+    });
+    runMCQ(rounds, { note: "Эти пары надо запомнить целиком: логики в них нет." });
+  },
+
+  /** Общий экран, когда база выражений не загрузилась. Молчаливый пустой
+   *  экран здесь хуже честной надписи: ученик решит, что сломался он. */
+  _noPhrases() {
+    stage().innerHTML = `
+      <div class="empty-state">
+        <div class="cat-avatar cat-mid" data-cat="sad"></div>
+        <h2>Выражения не загрузились</h2>
+        <p>Обнови страницу. Если не помогло — напиши нам, починим.</p>
+        <div class="quiz-buttons">
+          <button class="btn btn-primary" data-nav="practice">К тренировкам</button>
+        </div>
+      </div>`;
+    if (typeof paintCats === "function") paintCats(stage());
+  },
 
   // Показываем картинку — ученик выбирает слово.
   // Берём только слова с собственным образом, иначе картинка ничего не подсказывает.

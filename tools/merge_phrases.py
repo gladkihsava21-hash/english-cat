@@ -48,6 +48,16 @@ FIELDS = ["w", "t", "ex", "exr", "def", "cat", "level", "kind", "parts", "litera
 # всплывёт при вычитке или при следующем пополнении.
 REJECT_PHRASE = {}
 
+# Обратная сторона: пословный фильтр иногда срабатывает на безобидной фразе,
+# потому что слово опасно в одиночку, а в составе выражения — нет. Тот же
+# приём, что HOMOGRAPH_ALLOW в filters.py, только на уровне фразы. Каждое
+# исключение — с обоснованием: без него через месяц непонятно, почему оно тут.
+ALLOW_PHRASE = {
+    "beat around the bush":
+        "beat в чёрном списке как «бить», но здесь это «ходить вокруг да около» — "
+        "стандартная школьная идиома B2 без всякого насилия",
+}
+
 # Пример негодный, но фраза нужная: карточка живёт и без примера, часть
 # упражнений его просто не предложит. Каждая строка — результат вычитки
 # глазами; автоматика этого поймать не могла, потому что предложение
@@ -93,8 +103,11 @@ def own_words(phrase):
 def bad_example(rec):
     """Правила примеров из merge_words, но «своим» считается любое слово фразы.
 
-    У слова исключение было одно (само слово), у фразы их несколько: иначе
-    «play with fire» и «hit the road» останутся без примеров навсегда.
+    У слова исключение было одно (само слово), у фразы их несколько, и
+    совпадение бывает многословным. Правило про лозунги ищет «down with» — и
+    выбрасывало совершенно нормальный пример к фразе come down with. Поэтому
+    сравниваем не строку целиком, а множество слов: если всё, что нашлось,
+    входит в саму фразу, это не чужая лексика, а она сама.
     """
     ex = rec.get("ex") or ""
     if not ex:
@@ -102,8 +115,11 @@ def bad_example(rec):
     mine = own_words(rec["w"])
     for rx, why in merge_words.REJECT_EXAMPLE:
         hit = rx.search(ex)
-        if hit and hit.group(0).lower() not in mine:
-            return why
+        if not hit:
+            continue
+        if set(re.findall(r"[a-z']+", hit.group(0).lower())) <= mine:
+            continue
+        return why
     return None
 
 
@@ -122,9 +138,11 @@ def clean(payload):
                 dropped.append((phrase, kind, merge_words.REJECT_WORD[key]))
                 continue
             blocked = phrases_mod.blocked_tokens(phrase)
-            if blocked:
+            if blocked and key not in ALLOW_PHRASE:
                 dropped.append((phrase, kind, "недетское слово во фразе: %s" % ", ".join(blocked)))
                 continue
+            if blocked:
+                fixed.append((phrase, "оставлено вопреки фильтру", ALLOW_PHRASE[key]))
 
             rec = dict(rec)
             why = bad_example(rec)
