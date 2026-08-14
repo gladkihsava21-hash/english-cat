@@ -1263,6 +1263,29 @@ h1, h2, h3, .section-title, .dash-head h2,
   border-top: var(--border-w) solid var(--line-soft);
 }
 .dict-folders.hidden { display: none; }
+/* Ряд стоит всегда, даже без папок: иначе завести первую можно только
+   через безымянный значок в строке слова, а способ, который невозможно
+   найти, равносилен отсутствующему. Пока папок нет — здесь подсказка,
+   зачем они, и кнопка «+ Папка». */
+.dict-folders .folders-hint {
+  color: var(--ink-soft);
+  font-size: var(--text-body-sm);
+  align-self: center;
+  margin-right: auto;               /* кнопка «+ Папка» уходит вправо */
+}
+.chip-add {
+  border-style: dashed;             /* «здесь ещё ничего нет, но можно завести» */
+  font-weight: 700;
+}
+.folder-del {
+  align-self: center;
+  color: var(--red);
+  font-size: var(--text-body-sm);
+}
+@media (max-width: 600px) {
+  /* На 375px подсказка занимает три строки и отжимает кнопку за экран */
+  .dict-folders .folders-hint { display: none; }
+}
 .dict-folder b {
   margin-left: 4px;
   font-weight: 700;

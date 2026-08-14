@@ -25,6 +25,7 @@ function loadState() {
   st.counters = st.counters || {};   // события для наград
   st.modesTried = st.modesTried || [];
   st.leaderboard = st.leaderboard || [];
+  st.folders = st.folders || [];     // папки словаря; пустая папка живёт здесь
   // словам из старых версий добавляем поля интервального повторения
   if (typeof srsInit === "function") st.dictionary.forEach(srsInit);
   return st;
@@ -891,22 +892,45 @@ document.querySelectorAll(".dict-filter").forEach(btn => {
  * они про смысл слова и назначены заранее, а папка нужна под задачу,
  * которая у каждого своя.
  *
- * Храним имена папок В САМОМ СЛОВЕ (d.folders), а не отдельным списком
- * со ссылками по id. Причина простая: словарь синхронизируется целиком
- * и переезжает между устройствами, а отдельная таблица связей при
- * слиянии двух устройств разъезжается с ним и оставляет папки, ссылающиеся
- * в пустоту. Список папок собираем из самих слов — он не может
- * рассинхронизироваться с ними по определению.
+ * Хранение двойное, и это не дублирование, а страховка:
+ *   state.folders   — список имён. Нужен, чтобы папка могла быть ПУСТОЙ:
+ *                     человек заводит «К контрольной» и только потом
+ *                     складывает туда слова, а не наоборот.
+ *   d.folders       — в каком слове какие папки. По нему идёт фильтрация.
  *
- * Пустая папка при этом не хранится нигде и исчезает сама. Это осознанный
- * размен: заводить папку заранее, «на будущее», нельзя, зато невозможно
- * и накопить два десятка пустых. */
+ * Ни один из двух не считается главным: показываем ОБЪЕДИНЕНИЕ. Словарь
+ * синхронизируется целиком и переезжает между устройствами, и при слиянии
+ * список папок может разойтись с самими словами. Объединение делает
+ * расхождение безобидным: папка из списка без слов покажется пустой,
+ * папка из слов без списка — просто покажется. Взять что-то одно за
+ * источник истины значило бы, что второе молча теряется. */
 let dictFolder = null;      // null — показывать все слова
 
 function allFolders() {
-  const names = new Set();
+  const names = new Set(state.folders || []);
   state.dictionary.forEach(d => (d.folders || []).forEach(f => names.add(f)));
   return [...names].sort((a, b) => a.localeCompare(b, "ru"));
+}
+
+/** Заводит папку. Возвращает false, если такая уже есть или имя пустое. */
+function createFolder(rawName) {
+  const name = String(rawName || "").trim().slice(0, 30);
+  if (!name) return false;
+  state.folders = state.folders || [];
+  if (allFolders().includes(name)) return false;
+  state.folders.push(name);
+  saveState();
+  return true;
+}
+
+function deleteFolder(name) {
+  state.folders = (state.folders || []).filter(f => f !== name);
+  // Слова не трогаем — убираем только принадлежность к папке
+  state.dictionary.forEach(d => {
+    if (d.folders) d.folders = d.folders.filter(f => f !== name);
+  });
+  if (dictFolder === name) dictFolder = null;
+  saveState();
 }
 
 function wordsInFolder(name) {
@@ -917,23 +941,50 @@ function renderFolders() {
   const box = document.getElementById("dict-folders");
   if (!box) return;
   const names = allFolders();
-  // Ряд появляется только когда папки есть. Пустая полоса с одной кнопкой
-  // «все» — это подпись к тому, чего нет.
-  box.classList.toggle("hidden", !names.length);
-  if (!names.length) { dictFolder = null; return; }
-  // Папку могли опустошить, пока она была выбрана
+  // Папку могли удалить, пока она была выбрана
   if (dictFolder && !names.includes(dictFolder)) dictFolder = null;
+
+  // Кнопка «+ Папка» стоит здесь ВСЕГДА, даже когда папок ещё нет.
+  // В первой версии ряд прятался до появления первой папки, а завести её
+  // можно было только через значок в строке слова — значок без подписи,
+  // о назначении которого надо догадаться. Способ, который невозможно
+  // найти, равносилен отсутствующему.
   box.innerHTML =
-    `<button class="chip dict-folder${dictFolder === null ? " active" : ""}"
-             type="button" data-folder="">${iconInline("categories", 14)} все слова</button>`
-    + names.map(n => `
-      <button class="chip dict-folder${dictFolder === n ? " active" : ""}"
-              type="button" data-folder="${esc(n)}">${esc(n)} <b>${wordsInFolder(n)}</b></button>`).join("");
+    (names.length
+      ? `<button class="chip dict-folder${dictFolder === null ? " active" : ""}"
+                 type="button" data-folder="">${iconInline("categories", 14)} все слова</button>`
+        + names.map(n => `
+          <button class="chip dict-folder${dictFolder === n ? " active" : ""}"
+                  type="button" data-folder="${esc(n)}">${esc(n)} <b>${wordsInFolder(n)}</b></button>`).join("")
+      : `<span class="folders-hint">Папки — свои темы: «к контрольной», «неправильные глаголы».</span>`)
+    + `<button class="chip chip-add" type="button" id="folder-add">+ Папка</button>`
+    + (dictFolder
+      ? `<button class="link-btn folder-del" type="button" id="folder-del">удалить «${esc(dictFolder)}»</button>`
+      : "");
+
   box.querySelectorAll("[data-folder]").forEach(b => {
     b.addEventListener("click", () => {
       dictFolder = b.dataset.folder || null;
       renderDictionary();
     });
+  });
+
+  document.getElementById("folder-add").addEventListener("click", () => {
+    const name = prompt("Название папки:");
+    if (name === null) return;                  // нажали «Отмена»
+    if (!createFolder(name)) {
+      if (name.trim()) alert("Такая папка уже есть.");
+      return;
+    }
+    dictFolder = name.trim().slice(0, 30);      // сразу открываем новую
+    renderDictionary();
+  });
+
+  const del = document.getElementById("folder-del");
+  if (del) del.addEventListener("click", () => {
+    if (!confirm(`Удалить папку «${dictFolder}»?\n\nСлова останутся в словаре — исчезнет только папка.`)) return;
+    deleteFolder(dictFolder);
+    renderDictionary();
   });
 }
 
@@ -977,6 +1028,7 @@ function openFolderPicker(word) {
     const input = document.getElementById("folder-new-name");
     const name = input.value.trim().slice(0, 30);
     if (!name) return;
+    createFolder(name);                 // заводим папку и сразу кладём слово
     word.folders = word.folders || [];
     if (!word.folders.includes(name)) word.folders.push(name);
     input.value = "";
@@ -1013,7 +1065,13 @@ function renderDictionary() {
     (!q || d.w.toLowerCase().includes(q) || d.t.toLowerCase().includes(q)));
 
   if (state.dictionary.length && !items.length) {
-    list.innerHTML = `<p class="muted-small" style="text-align:center">Ничего не нашлось, мяу.</p>`;
+    // Пустая папка — не «ничего не нашлось»: человек её только что завёл
+    // и ждёт, что ему скажут, как наполнить. Значок в строке слова без
+    // подсказки не находят.
+    list.innerHTML = dictFolder && !q
+      ? `<p class="muted-small" style="text-align:center">Папка «${esc(dictFolder)}» пока пустая.<br>
+           Открой «все слова» и нажми ${icon("categories", 16)} у нужного слова.</p>`
+      : `<p class="muted-small" style="text-align:center">Ничего не нашлось, мяу.</p>`;
     return;
   }
 

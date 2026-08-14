@@ -156,6 +156,9 @@ MIGRATIONS = [
     ("tutors", "reset_code", "TEXT"),
     ("tutors", "reset_sent_at", "TEXT"),
     ("tutors", "reset_tries", "INTEGER DEFAULT 0"),
+    # Список папок словаря. Отдельно от слов, потому что папка может
+    # быть ПУСТОЙ: её заводят под задачу и только потом наполняют.
+    ("students", "folders", "TEXT DEFAULT '[]'"),
 ]
 
 
@@ -467,6 +470,12 @@ def sync_student(token, state):
             "ease": min(3.0, max(1.0, float(d.get("ease") or 2.0))) if isinstance(d.get("ease"), (int, float)) else 2.0,
             "lastReview": str(d.get("lastReview") or "")[:12] or None,
             "seen": bool(d.get("seen")),
+            # Папки ученика. Чистим так же, как всё остальное: имена —
+            # строки до 30 знаков, не больше 20 штук на слово. Это не про
+            # злой умысел, а про то, что снимок приходит из браузера и
+            # верить ему на слово нельзя ни в одном поле.
+            "folders": [str(f)[:30] for f in (d.get("folders") or [])
+                        if isinstance(f, str) and f.strip()][:20],
         })
     # ---- защита от затирания ----
     # Клиент может прислать пустое состояние по куче причин: сбой скрипта,
@@ -480,6 +489,16 @@ def sync_student(token, state):
     prev_ach = json.loads(row["achievements"] or "[]") if "achievements" in row.keys() else []
     if not achievements and prev_ach:
         achievements = prev_ach
+
+    # Список папок: те же правила, что у папок внутри слова.
+    folders = state.get("folders")
+    clean_folders = [str(f)[:30] for f in (folders or [])
+                     if isinstance(f, str) and f.strip()][:50]
+    prev_folders = json.loads((row["folders"] if "folders" in row.keys() else "[]") or "[]")
+    # Пустому списку не верим по той же причине, что и пустому словарю:
+    # чаще всего это сбой, а не «человек удалил все папки».
+    if not clean_folders and prev_folders:
+        clean_folders = prev_folders
 
     clean_activity = {}
     # берём ПОСЛЕДНИЕ дни: срез сначала выбрасывал бы свежую активность
@@ -502,7 +521,7 @@ def sync_student(token, state):
     new_level = str(state.get("level") or "")[:4] or row["level"]
     conn().execute(
         "UPDATE students SET level=?, vocab=?, xp=?, streak=?, blitz_best=?,"
-        " dictionary=?, activity=?, achievements=?, goal=?, last_seen=? WHERE id=?",
+        " dictionary=?, activity=?, achievements=?, goal=?, folders=?, last_seen=? WHERE id=?",
         (
             new_level,
             new_vocab,
@@ -513,6 +532,7 @@ def sync_student(token, state):
             json.dumps(clean_activity, ensure_ascii=False),
             json.dumps([str(a)[:40] for a in achievements[:100]], ensure_ascii=False),
             _as_int(state.get("goal"), 50, 10, 500),
+            json.dumps(clean_folders, ensure_ascii=False),
             now(),
             row["id"],
         ),
@@ -535,6 +555,7 @@ def student_state(row):
         "dictionary": json.loads(row["dictionary"] or "[]"),
         "activity": json.loads(row["activity"] or "{}"),
         "achievements": json.loads((row["achievements"] if "achievements" in row.keys() else "[]") or "[]"),
+        "folders": json.loads((row["folders"] if "folders" in keys else "[]") or "[]"),
     }
 
 

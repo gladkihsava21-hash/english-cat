@@ -83,6 +83,10 @@ function adoptServerState(srv) {
   state.goal = srv.goal || state.goal;
   state.achievements = [...new Set([...(state.achievements || []), ...(srv.achievements || [])])];
   state.activity = Object.assign({}, srv.activity || {}, state.activity || {});
+  // Папки объединяем, как награды: у пришедшего с сервера и у здешнего
+  // списка нет старшинства, а потерять папку при переезде — это ровно та
+  // беда, ради которой выход и переделывали.
+  state.folders = [...new Set([...(state.folders || []), ...(srv.folders || [])])];
   // слова с сервера дополняем локальными, не теряя ни те, ни другие
   const byWord = new Map((srv.dictionary || []).map(d => [d.w.toLowerCase(), d]));
   (state.dictionary || []).forEach(d => byWord.set(d.w.toLowerCase(), d));
@@ -153,7 +157,14 @@ function snapshot() {
       w: d.w, t: d.t, status: d.status, knew: d.knew, forgot: d.forgot,
       due: d.due, interval: d.interval, reps: d.reps, ease: d.ease,
       lastReview: d.lastReview, seen: d.seen,
+      // Папки ездят вместе со словом. Без этого выход и возврат по личному
+      // коду — тот самый сценарий общего устройства — стирал бы всю
+      // раскладку по темам, хотя сами слова возвращались.
+      folders: d.folders || [],
     })),
+    // Список папок отдельно: иначе пустая папка нигде не хранится и
+    // при переезде исчезает, а завести её заранее — половина смысла.
+    folders: state.folders || [],
     homeworkDone: state.homeworkDone || [],
     activity: state.activity,
   };
