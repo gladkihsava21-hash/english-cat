@@ -237,8 +237,15 @@ function applyHomework(tasks) {
  * По статусу "learned" считать нельзя: SRS присваивает его только после
  * четырёх повторов с интервалами 1-3-7-14 дней, то есть почти через месяц —
  * домашку «к четвергу» было бы невозможно сдать в принципе. */
+/** Слово засчитано в домашке ТОЛЬКО если ответ проверялся: ввод с
+ *  клавиатуры, выбор варианта, диктант. Раньше хватало одного нажатия
+ *  «Помню» на карточке — то есть ученик мог протыкать не читая, а
+ *  репетитор видел бы «сдал 10 из 10». Это ровно то, за что он платит,
+ *  и ровно то, что ломалось за тридцать секунд.
+ *  status === "learned" оставляем: до него слово доходит только через
+ *  четыре успешных повтора, накрутить его нажатием нельзя. */
 function wordDoneForHomework(d) {
-  return !!d && ((d.knew || 0) >= 1 || (d.reps || 0) >= 1 || d.status === "learned");
+  return !!d && ((d.checked || 0) >= 1 || d.status === "learned");
 }
 
 function homeworkProgress(task) {
@@ -266,21 +273,21 @@ function renderHomework() {
     return `
       <div class="card hw-card${finished ? " hw-done" : ""}">
         <div class="hw-head">
-          <span class="hw-label">📋 Домашка от репетитора</span>
+          <span class="hw-label">${iconInline("book", 15)} Домашка от репетитора</span>
           ${task.dueDate ? `<span class="hw-due">до ${esc(task.dueDate)}</span>` : ""}
         </div>
         <p class="hw-title">${esc(task.title)}</p>
         ${task.taskText ? `<p class="hw-task">${esc(task.taskText)}</p>` : ""}
         ${task.readingText ? `
           <div class="hw-reading">
-            <p class="hw-reading-label">🎤 Прочитай вслух:</p>
+            <p class="hw-reading-label">${iconInline("mic", 15)} Прочитай вслух:</p>
             <p class="hw-reading-text" id="rd-text-${task.id}">${esc(task.readingText)}</p>
             <button class="btn btn-ghost btn-small" data-read="${task.id}">Начать чтение</button>
             <div class="rd-result" id="rd-res-${task.id}"></div>
           </div>` : ""}
         <div class="xp-bar"><div class="xp-bar-fill" style="width:${pct}%"></div></div>
         <p class="stat-note">${done} из ${total} слов выучено${finished ? " — готово, мяу! 🎉" : ""}</p>
-        <button class="btn btn-primary btn-small" data-hw="${task.id}">Добавить слова и учить</button>
+        <button class="btn btn-primary btn-small" data-hw="${task.id}">Сделать домашку</button>
       </div>`;
   }).join("");
   box.querySelectorAll("[data-read]").forEach(btn => {
@@ -323,7 +330,11 @@ function renderHomework() {
         w: w.w, t: w.t, ex: w.ex || "", level: w.level || state.level,
       }));
       renderHomework();
-      show("practice");
+      // Сразу в упражнение с проверкой, а не в список из двадцати:
+      // домашку закрывают только проверенные ответы, и выбирать
+      // подходящий режим — не работа ученика.
+      if (typeof openExercise === "function") openExercise("spelling");
+      else show("practice");
     });
   });
 }
@@ -339,7 +350,7 @@ function renderTutorMessages() {
   const who = localStorage.getItem(TUTOR_NAME_KEY) || "репетитор";
   box.innerHTML = msgs.map(m => `
     <div class="card tmsg-card${seen.has(String(m.id)) ? "" : " tmsg-new"}">
-      <span class="tmsg-icon">✉️</span>
+      <span class="tmsg-icon">${icon("chat", 18)}</span>
       <div class="tmsg-body">
         <span class="tmsg-from">${esc(who)}${seen.has(String(m.id)) ? "" : " · новое"}</span>
         <p class="tmsg-text">${esc(m.text)}</p>

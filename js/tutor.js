@@ -226,6 +226,17 @@ function daysAgo(iso) {
   return Math.floor(diff / 86400000);
 }
 
+/** Аватар ученика: первая буква имени в кружке.
+ *  Раньше тут стоял 🧑‍🎓 в блоке с классом .cat-avatar — то есть и чужой
+ *  рисовки эмодзи, и класс от другой сущности: paintCats() при случайном
+ *  вызове подменял «ученика» котом. Буква решает обе задачи сразу и в
+ *  списке из двадцати учеников работает лучше двадцати одинаковых значков. */
+function studentAvatar(name, size) {
+  const letter = String(name || "?").trim().charAt(0).toUpperCase() || "?";
+  return `<span class="stu-avatar" data-size="${size || "small"}"`
+       + ` aria-hidden="true">${esc(letter)}</span>`;
+}
+
 function renderOverview() {
   const total = students.length;
   const learned = students.reduce((s, x) => s + (x.words?.learned || 0), 0);
@@ -286,12 +297,12 @@ function renderStudents() {
       <div class="card stu-card">
         <div class="stu-main">
           <div class="stu-id">
-            <div class="cat-avatar cat-small">🧑‍🎓</div>
+            ${studentAvatar(s.name, "small")}
             <div>
               <b class="stu-name">${esc(s.name)}</b>
               <p class="muted-small">
                 <span class="seen ${seen.cls}">${seen.text}</span>
-                ${s.streak >= 2 ? ` · 🔥 ${s.streak} дн. подряд` : ""}
+                ${s.streak >= 2 ? ` · ${iconInline("streak", 14)} ${s.streak} дн. подряд` : ""}
               </p>
             </div>
           </div>
@@ -314,7 +325,7 @@ function renderStudents() {
 
         ${hw.length ? `<div class="stu-hw">${hw.map(h => `
           <span class="hw-chip ${h.done >= h.total ? "hw-chip-done" : ""}">
-            📋 ${esc(h.title)}: ${h.done}/${h.total}
+            ${iconInline("book", 15)} ${esc(h.title)}: ${h.done}/${h.total}
           </span>`).join("")}</div>` : ""}
 
         ${s.weak && s.weak.length ? `
@@ -389,13 +400,13 @@ async function openStudent(id) {
 
   $("modal-body").innerHTML = `
     <div class="modal-head">
-      <div class="cat-avatar cat-mid">🧑‍🎓</div>
+      ${studentAvatar(s.name, "mid")}
       <div>
         <h2>${esc(s.name)}</h2>
         <p class="muted-small">
           <span class="seen ${seen.cls}">${seen.text}</span>
           ${grp ? ` · ${esc(grp.name)}` : ""}
-          ${s.streak >= 2 ? ` · 🔥 ${s.streak} дн.` : ""}
+          ${s.streak >= 2 ? ` · ${iconInline("streak", 14)} ${s.streak} дн.` : ""}
         </p>
       </div>
     </div>
@@ -419,7 +430,7 @@ async function openStudent(id) {
         <p class="stat-value">⭐ ${s.xpWeek || 0}</p>
         <p class="stat-note">за месяц: ${s.xpMonth || 0}</p></div>
       <div class="card stat-card"><p class="stat-label">Награды</p>
-        <p class="stat-value">🏅 ${(s.achievements || []).length}</p>
+        <p class="stat-value">${iconInline("medal", 20)} ${(s.achievements || []).length}</p>
         <p class="stat-note">блиц-рекорд ${s.blitzBest || 0}</p></div>
     </div>
 
@@ -450,7 +461,7 @@ async function openStudent(id) {
       placeholder="Например: пропускает вторники, догнать времена">${esc(s.note || "")}</textarea>
     <div class="quiz-buttons" style="justify-content:flex-start">
       <button class="btn btn-primary btn-small" id="note-save">Сохранить заметку</button>
-      <button class="btn btn-ghost btn-small" id="report-btn">📄 Отчёт родителям</button>
+      <button class="btn btn-ghost btn-small" id="report-btn">${icon("book", 16)} Отчёт родителям</button>
     </div>
     <p class="type-feedback" id="note-msg"></p>`;
 
@@ -626,7 +637,7 @@ function renderTasks() {
         <div class="task-rows">
           ${rows.map(r => `
             <span class="task-pupil ${r.ok ? "ok" : "no"}">
-              ${r.ok ? "✅" : "⏳"} ${esc(r.name)} <b>${r.done}/${r.total}</b>
+              ${r.ok ? iconInline("check", 15) : iconInline("clock", 15)} ${esc(r.name)} <b>${r.done}/${r.total}</b>
             </span>`).join("")}
         </div>
         <div class="task-words">${t.words.slice(0, 12).map(w =>
@@ -751,7 +762,7 @@ function togglePick(word) {
 function renderPicked() {
   $("hw-selected").innerHTML = picked.length
     ? `<p class="muted-small">Выбрано слов: <b>${picked.length}</b></p>` +
-      picked.map(p => `<span class="picked-chip" data-rm="${esc(p.w)}">${esc(p.w)} <i>${esc(p.t)}</i> ✕</span>`).join("")
+      picked.map(p => `<span class="picked-chip" data-rm="${esc(p.w)}">${esc(p.w)} <i>${esc(p.t)}</i> ${iconInline("cross", 13)}</span>`).join("")
     : `<p class="muted-small">Слова ещё не выбраны.</p>`;
   $("hw-selected").querySelectorAll("[data-rm]").forEach(chip => {
     chip.addEventListener("click", () => togglePick({ w: chip.dataset.rm, t: "" }));
@@ -870,7 +881,7 @@ function renderChecks() {
 
   if (freeForAll) {
     $("checks-bill").innerHTML = `<div class="card"><p class="stat-note">
-      🎁 У вас проверка домашек бесплатно навсегда — вы подключились, когда она
+      ${iconInline("sparkle", 16)} У вас проверка домашек бесплатно навсегда — вы подключились, когда она
       входила в основной тариф. Ничего доплачивать не нужно.</p></div>`;
   } else {
     $("checks-bill").innerHTML = `

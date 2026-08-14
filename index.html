@@ -7,11 +7,11 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/tokens.css?v=58">
-  <link rel="stylesheet" href="css/style.css?v=58">
-  <link rel="stylesheet" href="css/savely.css?v=58">
-  <link rel="stylesheet" href="css/motion.css?v=58">
-<link rel="stylesheet" href="css/a11y.css?v=58">
+  <link rel="stylesheet" href="css/tokens.css?v=69">
+  <link rel="stylesheet" href="css/style.css?v=69">
+  <link rel="stylesheet" href="css/savely.css?v=69">
+  <link rel="stylesheet" href="css/motion.css?v=69">
+<link rel="stylesheet" href="css/a11y.css?v=69">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#F6F5F0">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -28,15 +28,33 @@
     <button class="brand" data-nav="dashboard">
       <span class="brand-cat cat-avatar" data-cat="wink" aria-hidden="true"></span> Савелий
     </button>
+    <!-- Иконка + подпись в отдельных span: на телефоне меню становится нижней
+         панелью, и там подпись без иконки не опознаётся с одного взгляда.
+         Иконки рисует paintIcons() из js/icons.js по data-icon. -->
     <nav class="nav">
-      <button class="nav-btn" data-nav="dashboard">Главная</button>
-      <button class="nav-btn" data-nav="dictionary">Словарь <span id="dict-count" class="badge">0</span></button>
-      <button class="nav-btn" data-nav="practice">Тренировки</button>
-      <button class="nav-btn" data-nav="achievements">Награды</button>
-      <button class="nav-btn" data-nav="chat">Чат<span class="nav-long"> с Савелием</span></button>
+      <button class="nav-btn" data-nav="dashboard">
+        <span class="nav-ico" data-icon="target" data-icon-size="22" aria-hidden="true"></span>
+        <span class="nav-label">Главная</span>
+      </button>
+      <button class="nav-btn" data-nav="dictionary">
+        <span class="nav-ico" data-icon="book" data-icon-size="22" aria-hidden="true"></span>
+        <span class="nav-label">Словарь <span id="dict-count" class="badge">0</span></span>
+      </button>
+      <button class="nav-btn" data-nav="practice">
+        <span class="nav-ico" data-icon="flashcards" data-icon-size="22" aria-hidden="true"></span>
+        <span class="nav-label">Тренировки</span>
+      </button>
+      <button class="nav-btn" data-nav="achievements">
+        <span class="nav-ico" data-icon="medal" data-icon-size="22" aria-hidden="true"></span>
+        <span class="nav-label">Награды</span>
+      </button>
+      <button class="nav-btn" data-nav="chat">
+        <span class="nav-ico" data-icon="chat" data-icon-size="22" aria-hidden="true"></span>
+        <span class="nav-label">Чат<span class="nav-long"> с Савелием</span></span>
+      </button>
     </nav>
     <div class="user-chip">
-      <span id="streak-chip" class="streak-chip hidden" title="Дней подряд">🔥0</span>
+      <span id="streak-chip" class="streak-chip hidden" title="Дней подряд"></span>
       <span id="xp-chip" class="xp-chip" title="Очки">⭐ 0</span>
       <span id="user-level-chip" class="level-chip">—</span>
       <span id="user-name-chip"></span>
@@ -51,7 +69,7 @@
   <section id="screen-welcome" class="screen">
     <div class="hero">
       <div class="hero-cat">
-        <div class="cat-avatar cat-big" id="hero-cat">🐈</div>
+        <div class="cat-avatar cat-big" id="hero-cat"></div>
         <div class="speech-bubble" id="hero-bubble">Я Савелий. Английский знаю лучше тебя — но это поправимо.</div>
       </div>
       <h1>английские слова, которые не выветрятся</h1>
@@ -100,7 +118,7 @@
   <section id="screen-test" class="screen hidden">
     <div class="narrow">
       <div class="test-intro" id="test-intro">
-        <div class="cat-avatar cat-mid">🐈</div>
+        <div class="cat-avatar cat-mid"></div>
         <h2 id="test-hello">посчитаем, сколько слов ты уже знаешь</h2>
         <p><b>36 слов</b>, от простых к сложным. «Знаю» — это когда помнишь перевод,
           а не когда где-то видел. Соврёшь — получишь слова не по зубам,
@@ -123,7 +141,7 @@
       </div>
 
       <div class="test-result hidden" id="test-result">
-        <div class="cat-avatar cat-mid">🐈</div>
+        <div class="cat-avatar cat-mid"></div>
         <h2>Готово, мяу!</h2>
         <div class="result-cards">
           <div class="card result-card">
@@ -152,7 +170,7 @@
 
       <!-- 1. Приветствие. Одна строка: подробности про уровень — ниже. -->
       <div class="dash-head">
-        <div class="cat-avatar cat-mid" data-cat="hello">🐈</div>
+        <div class="cat-avatar cat-mid" data-cat="hello"></div>
         <div>
           <h2 id="dash-greeting">Привет!</h2>
           <p class="muted" id="dash-stats">Уровень B1 · Средний</p>
@@ -220,7 +238,7 @@
       </form>
 
       <div class="dict-controls">
-        <input type="text" id="dict-search" placeholder="🔍 Поиск по словарю…" aria-label="Поиск по словарю">
+        <input type="text" id="dict-search" placeholder="Поиск по словарю…" aria-label="Поиск по словарю">
         <div class="dict-filters">
           <button class="chip dict-filter active" data-f="all" type="button">все</button>
           <button class="chip dict-filter" data-f="new" type="button">новые</button>
@@ -251,7 +269,9 @@
         <h2>Тренировки</h2>
         <p class="muted-small" id="practice-pool-note"></p>
       </div>
-      <div class="ex-grid" id="practice-grid"></div>
+      <!-- Внутрь ложатся section.ex-group, у каждой свой .ex-grid.
+           Сетка теперь на группе, а не на контейнере. -->
+      <div class="ex-groups" id="practice-grid"></div>
     </div>
   </section>
 
@@ -265,7 +285,7 @@
     <div class="narrow">
       <h2 class="visually-hidden">Карточки со словами</h2>
       <div id="trainer-empty" class="empty-state hidden">
-        <div class="cat-avatar cat-mid">🐈</div>
+        <div class="cat-avatar cat-mid"></div>
         <p>Нечего тренировать — словарь пуст! Сначала добавь слова.</p>
         <button class="btn btn-primary" data-nav="dashboard">К подбору слов</button>
       </div>
@@ -281,7 +301,7 @@
              aria-label="Карточка со словом. Нажми, чтобы перевернуть">
           <div class="flashcard-inner" id="flashcard-inner">
             <div class="flashcard-face flashcard-front">
-              <div class="word-art word-art-big" id="flash-art">🍎</div>
+              <div class="word-art word-art-big" id="flash-art"></div>
               <div class="quiz-word" id="flash-word" lang="en">apple</div>
               <button class="btn btn-ghost btn-small" id="flash-audio" type="button"><span data-icon="sound" data-icon-size="18"></span> Произношение</button>
               <p class="flip-hint">нажми на карточку, чтобы перевернуть</p>
@@ -299,7 +319,7 @@
       </div>
 
       <div id="trainer-done" class="hidden empty-state">
-        <div class="cat-avatar cat-mid">🐈</div>
+        <div class="cat-avatar cat-mid"></div>
         <h2>Тренировка окончена!</h2>
         <p id="trainer-score">Помнишь 7 из 10 — мур-мур!</p>
         <div class="quiz-buttons">
@@ -325,13 +345,13 @@
   <section id="screen-chat" class="screen hidden">
     <div class="narrow chat-wrap">
       <div class="chat-head">
-        <div class="cat-avatar cat-small">🐈</div>
+        <div class="cat-avatar cat-small"></div>
         <div class="chat-head-info">
           <h2 class="chat-title">Савелий</h2>
           <p class="muted-small chat-sub">кот-репетитор · онлайн</p>
         </div>
         <button class="btn btn-ghost btn-small" id="voice-mode-btn" type="button"><span data-icon="mic" data-icon-size="18"></span> Голосовой чат</button>
-        <button class="btn btn-ghost btn-small" id="voice-settings-btn" type="button" title="Настройки голоса">⚙️</button>
+        <button class="btn btn-ghost btn-small" id="voice-settings-btn" type="button" title="Настройки голоса"><span data-icon="settings" data-icon-size="18"></span></button>
       </div>
 
       <div class="card voice-settings hidden" id="voice-settings">
@@ -367,7 +387,7 @@
         <button class="chip" data-chip="Как мои успехи?">Как мои успехи?</button>
       </div>
       <form class="chat-input-row" id="chat-form">
-        <button type="button" class="mic-btn" id="mic-btn" aria-label="Сказать голосом"><span aria-hidden="true">🎤</span</button>
+        <button type="button" class="mic-btn" id="mic-btn" aria-label="Сказать голосом"><span data-icon="mic" data-icon-size="20"></span></button>
         <button type="button" class="stt-lang-btn" id="stt-lang-btn" title="Язык распознавания">RU</button>
         <input type="text" id="chat-input" placeholder="Напиши или скажи Савелию…" aria-label="Сообщение Савелию" autocomplete="off">
         <button type="submit" class="btn btn-primary" aria-label="Отправить сообщение"><span data-icon="send" data-icon-size="20"></span></button>
@@ -386,21 +406,21 @@
     <a href="https://t.me/KOTSAVELII" target="_blank" rel="noopener">@KOTSAVELII</a></p>
 </footer>
 
-<script src="js/theme.js?v=58"></script>
-<script src="js/icons.js?v=58"></script>
-<script src="js/cat.js?v=58"></script>
-<script src="js/motion.js?v=58"></script>
-<script src="js/util.js?v=58"></script>
-<script src="js/words.js?v=58"></script>
-<script src="js/srs.js?v=58"></script>
-<script src="js/images.js?v=58"></script>
-<script src="js/app.js?v=58"></script>
-<script src="js/achievements.js?v=58"></script>
-<script src="js/exercises.js?v=58"></script>
-<script src="js/voice.js?v=58"></script>
-<script src="js/sync.js?v=58"></script>
-  <script src="js/reading.js?v=58"></script>
-  <script src="js/photo.js?v=58"></script>
+<script src="js/theme.js?v=69"></script>
+<script src="js/icons.js?v=69"></script>
+<script src="js/cat.js?v=69"></script>
+<script src="js/motion.js?v=69"></script>
+<script src="js/util.js?v=69"></script>
+<script src="js/words.js?v=69"></script>
+<script src="js/srs.js?v=69"></script>
+<script src="js/images.js?v=69"></script>
+<script src="js/app.js?v=69"></script>
+<script src="js/achievements.js?v=69"></script>
+<script src="js/exercises.js?v=69"></script>
+<script src="js/voice.js?v=69"></script>
+<script src="js/sync.js?v=69"></script>
+  <script src="js/reading.js?v=69"></script>
+  <script src="js/photo.js?v=69"></script>
 <script>
   // офлайн-режим: сайт открывается без интернета и ставится на телефон
   if ("serviceWorker" in navigator && location.protocol !== "file:") {

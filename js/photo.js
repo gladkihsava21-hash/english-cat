@@ -48,7 +48,7 @@ function renderPhotoResult(p) {
   const mistakes = Array.isArray(r.mistakes) ? r.mistakes : [];
   return `<div class="photo-verdict">
     <p class="photo-summary">${esc(r.summary || "")}</p>
-    ${r.praise ? `<p class="photo-praise">👏 ${esc(r.praise)}</p>` : ""}
+    ${r.praise ? `<p class="photo-praise">${iconInline("sparkle", 16)} ${esc(r.praise)}</p>` : ""}
     ${mistakes.length ? `
       <p class="photo-mistakes-head">Что поправить (${mistakes.length}):</p>
       <ul class="photo-mistakes">
@@ -86,7 +86,7 @@ async function sendHomeworkPhoto(file, homeworkId) {
     if (res.notice) {
       const note = document.createElement("div");
       note.className = "card";
-      note.innerHTML = `<p class="stat-note">📬 Домашка отправлена репетитору.<br>${esc(res.notice)}</p>`;
+      note.innerHTML = `<p class="stat-note">${iconInline("chat", 15)} Домашка отправлена репетитору.<br>${esc(res.notice)}</p>`;
       if (box) box.prepend(note);
     }
   } catch (e) {
@@ -105,7 +105,7 @@ async function loadMyPhotos() {
   box.innerHTML = photos.slice(0, 3).map(p => `
     <div class="card photo-card">
       <div class="hw-head">
-        <span class="hw-label">📸 Домашка на проверке</span>
+        <span class="hw-label">${iconInline("camera", 15)} Домашка на проверке</span>
         <span class="hw-due">${esc((p.createdAt || "").slice(0, 10))}</span>
       </div>
       ${renderPhotoResult(p)}

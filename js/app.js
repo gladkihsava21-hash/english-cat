@@ -231,12 +231,12 @@ function updateChrome() {
   document.getElementById("dict-count").textContent = state.dictionary.length;
   const rank = rankInfo(state.xp);
   const xpChip = document.getElementById("xp-chip");
-  xpChip.textContent = "⭐ " + state.xp;
+  xpChip.innerHTML = `${iconInline("star", 15)} ${state.xp}`;
   xpChip.title = rank.name + (rank.next ? ` · до «${rank.next.name}» ${rank.next.xp - state.xp} очков` : "");
   const s = streakDays();
   const streakChip = document.getElementById("streak-chip");
   streakChip.classList.toggle("hidden", s < 2);
-  streakChip.textContent = "🔥" + s;
+  streakChip.innerHTML = `${iconInline("streak", 15)} ${s}`;
 }
 
 // ===== Тест словарного запаса =====
@@ -340,7 +340,7 @@ function finishTest() {
     C1: "Ого! Ты почти как я. Будем добивать редкие и красивые слова.",
     C2: "Мяу?! Может, это ТЫ будешь меня учить? Но пару слов я всё же найду.",
   };
-  document.getElementById("result-comment").textContent = "🐈 " + comments[level];
+  document.getElementById("result-comment").textContent = comments[level];
 }
 
 document.getElementById("to-dashboard-btn").addEventListener("click", () => show("dashboard"));
@@ -407,7 +407,7 @@ function renderWordOfDay() {
   box.innerHTML = `
     <div class="card wod-card">
       <div class="word-art word-art-small" aria-hidden="true" style="background:${wordTint(wd.cat)}">${wordArt(wd.w, wd.cat)}</div>
-      <span class="wod-label">🐾 Слово дня</span>
+      <span class="wod-label">${iconInline("paw", 16)} Слово дня</span>
       <!-- Слово, перевод и озвучка жили в одном текстовом потоке: строка
            «support 🔊   — поддерживать; поддержка» рвалась посреди фразы,
            а само слово терялось среди служебных знаков. Теперь три уровня:
@@ -415,12 +415,12 @@ function renderWordOfDay() {
       <div class="wod-main">
         <b class="wod-word" lang="en">${esc(wd.w)}</b>
         <button class="say-btn wod-say-btn" id="wod-say"
-                aria-label="Произношение: ${esc(wd.w)}"><span aria-hidden="true">🔊</span></button>
+                aria-label="Произношение: ${esc(wd.w)}">${icon("sound", 20)}</button>
       </div>
       <span class="wod-tr">${esc(wd.t)}</span>
       <span class="w-ex" lang="en">${esc(wd.ex)}</span>
       ${inDict
-        ? `<span class="added">✓ в словаре</span>`
+        ? `<span class="added">${iconInline("check", 16)} в словаре</span>`
         : `<button class="btn btn-primary btn-small" id="wod-add">+ В словарь</button>`}
     </div>`;
   document.getElementById("wod-say").addEventListener("click", () => speak(wd.w));
@@ -460,7 +460,7 @@ function todayPlan() {
     const p = homeworkProgress(hw);
     const left = p.total - p.done;
     return {
-      state: "homework", cat: "hello", kicker: "📋 Задание от репетитора",
+      state: "homework", cat: "hello", kicker: `${iconInline("personal", 16)} Задание от репетитора`,
       title: hw.title,
       sub: `Осталось ${left} ${wordsWord(left)} из ${p.total}. Добавлю в словарь и открою карточки.`,
       btn: "Взяться за домашку",
@@ -473,7 +473,7 @@ function todayPlan() {
   // говорим не «у тебя 0 слов», а что произойдёт за ближайшие пять минут.
   if (!dict.length) {
     return {
-      state: "first", cat: "hello", kicker: "🐾 Начинаем",
+      state: "first", cat: "hello", kicker: `${iconInline("paw", 16)} Начинаем`,
       title: "Первое занятие — 5 минут",
       sub: `${RECOMMEND_COUNT} слов уровня ${state.level} — карточки с картинкой и звуком. Завтра напомню их повторить.`,
       btn: "Поехали →",
@@ -485,7 +485,7 @@ function todayPlan() {
   // 3. Повторение. Слова начали забываться — это и есть занятие дня.
   if (s.due) {
     return {
-      state: "due", cat: "happy", kicker: "🐾 Прямо сейчас",
+      state: "due", cat: "happy", kicker: `${iconInline("paw", 16)} Прямо сейчас`,
       title: `Повторить ${s.due} ${wordsWord(s.due)}`,
       sub: "Савелий выбрал те, что начали забываться. Пять минут — и они снова твои.",
       btn: `Повторить ${s.due} ${wordsWord(s.due)}`,
@@ -497,12 +497,12 @@ function todayPlan() {
   // 4. Цель закрыта, повторять нечего. Это победа, а не пустой экран.
   if (got >= goal) {
     return {
-      state: "done", cat: "love", kicker: "🎉 На сегодня всё",
+      state: "done", cat: "love", kicker: `${iconInline("sparkle", 16)} На сегодня всё`,
       title: "Цель дня закрыта",
       sub: s.tomorrow
-        ? `${got} ⭐ за сегодня, повторять больше нечего. Завтра вернутся ${s.tomorrow} ${wordsWord(s.tomorrow)} — приходи.`
-        : `${got} ⭐ за сегодня. Можно закрывать ноутбук — или устроить блиц на минуту.`,
-      btn: "Блиц на минуту ⚡",
+        ? `${got} очков за сегодня, повторять больше нечего. Завтра вернутся ${s.tomorrow} ${wordsWord(s.tomorrow)} — приходи.`
+        : `${got} очков за сегодня. Можно закрывать ноутбук — или устроить блиц на минуту.`,
+      btn: "Блиц на минуту",
       act: () => (typeof openExercise === "function" ? openExercise("blitz") : show("practice")),
       alt: { label: "другое занятие", nav: "practice" },
     };
@@ -510,9 +510,9 @@ function todayPlan() {
 
   // 5. Обычный день: повторов нет, но до цели ещё далеко.
   return {
-    state: "free", cat: "wink", kicker: "🐾 Прямо сейчас",
+    state: "free", cat: "wink", kicker: `${iconInline("paw", 16)} Прямо сейчас`,
     title: "Позаниматься 5 минут",
-    sub: `Повторять пока нечего — возьмём слова уровня ${state.level}. До цели дня ещё ${goal - got} ⭐.`,
+    sub: `Повторять пока нечего — возьмём слова уровня ${state.level}. До цели дня ещё ${goal - got} очков.`,
     btn: "Позаниматься 5 минут",
     act: () => show("practice"),
     alt: { label: "добавить новых слов", scrollTo: "words-head" },
@@ -526,7 +526,7 @@ function renderTodayCard() {
   // Заголовок домашки пишет репетитор — экранируем. Остальные строки наши.
   box.innerHTML = `
     <div class="today" data-state="${p.state}">
-      <div class="cat-avatar" data-cat="${p.cat}">🐈</div>
+      <div class="cat-avatar" data-cat="${p.cat}"></div>
       <div class="today-body">
         <p class="today-kicker">${p.kicker}</p>
         <h2 class="today-title">${esc(p.title)}</h2>
@@ -586,7 +586,12 @@ function startHomeworkLesson(task) {
     w: w.w, t: w.t, ex: w.ex || "", level: w.level || state.level,
   }));
   if (typeof renderHomework === "function") renderHomework();
-  show("trainer");
+  // Ведём на упражнение С ПРОВЕРКОЙ, а не на карточки. Карточки — самооценка,
+  // и с недавних пор они домашку не закрывают: репетитор должен видеть
+  // «сдал» только тогда, когда ответ действительно сверялся. Если оставить
+  // здесь тренажёр, домашку стало бы невозможно закрыть в принципе.
+  if (typeof openExercise === "function") openExercise("spelling");
+  else show("trainer");
 }
 
 // ===== Прогресс и награды =====
@@ -615,17 +620,18 @@ function renderDashWidgets() {
   // «Осталось 50 очков» новичку ничего не говорит: он не знает, сколько это.
   // Переводим цель в занятия — в понятную ему единицу.
   const goalNote = goalPct >= 100
-    ? "Цель выполнена — мур-р-р! 🎉"
-    : got ? `осталось ${goal - got} ⭐`
-          : "занятие — это примерно 40 ⭐";
-  // «🔥 0 дней» — единственная цифра, которую видел каждый новичок.
+    ? "Цель выполнена — мур-р-р!"
+    : got ? `осталось ${goal - got} очков`
+          : "занятие — это примерно 40 очков";
+  // «0 дней подряд» — единственная цифра, которую видел каждый новичок.
   // Стрик показываем, только когда он есть.
-  const streakNote = s >= 1 ? ` · 🔥 ${s} ${daysWord(s)} подряд` : "";
+  const streakNote = s >= 1
+    ? ` · ${iconInline("streak", 14)} ${s} ${daysWord(s)} подряд` : "";
 
   box.innerHTML = `
     <div class="card stat-card goal-card">
       <p class="stat-label">Цель на сегодня</p>
-      <p class="stat-value">${got} <span class="stat-unit">из ${goal} ⭐</span></p>
+      <p class="stat-value">${got} <span class="stat-unit">из ${goal} ${iconInline("star", 14)}</span></p>
       <div class="xp-bar"><div class="xp-bar-fill${goalPct >= 100 ? " done" : ""}" style="width:${goalPct}%"></div></div>
       <p class="stat-note">${goalNote}${streakNote}
         <button class="link-btn" id="goal-edit" type="button">изменить цель</button></p>
@@ -735,15 +741,20 @@ function renderLeaderboard() {
   const rows = state.leaderboard || [];
   if (rows.length < 2) { box.classList.add("hidden"); return; }
   box.classList.remove("hidden");
-  const medal = p => p === 1 ? "🥇" : p === 2 ? "🥈" : p === 3 ? "🥉" : `${p}.`;
+  // Золото-серебро-бронза сюда не вернутся: три тёплых пятна на шалфейном
+  // экране — ровно та палитра, от которой уходили. Призовую тройку метит
+  // сам значок, место по-прежнему написано цифрой.
+  const place = p => p <= 3
+    ? `${icon("medal", 18)}<b>${p}</b>`
+    : `${p}.`;
   box.innerHTML = `
     <div class="card lb-card">
       <p class="stat-label">Рейтинг за неделю</p>
       ${rows.map(r => `
         <div class="lb-row${r.me ? " lb-me" : ""}">
-          <span class="lb-place">${medal(r.place)}</span>
+          <span class="lb-place${r.place <= 3 ? " lb-top" : ""}">${place(r.place)}</span>
           <span class="lb-name">${r.me ? "Ты" : esc(r.name)}</span>
-          <span class="lb-xp">⭐ ${r.xpWeek}</span>
+          <span class="lb-xp">${iconInline("star", 14)} ${r.xpWeek}</span>
         </div>`).join("")}
     </div>`;
 }
@@ -760,7 +771,8 @@ function renderRecGrid() {
         <div class="word-art word-art-small" style="background:${wordTint(rec.cat)}">${wordArt(rec.w, rec.cat)}</div>
         <span class="w-level">${rec.level}</span>
       </div>
-      <div class="w-en">${esc(rec.w)} <button class="say-btn" title="Произношение">🔊</button></div>
+      <div class="w-en">${esc(rec.w)} <button class="say-btn" title="Произношение"
+              aria-label="Произношение: ${esc(rec.w)}">${icon("sound", 18)}</button></div>
       <div class="w-ru">${esc(rec.t)}</div>
       <div class="w-ex">${esc(rec.ex)}</div>
     `;
@@ -768,7 +780,7 @@ function renderRecGrid() {
     if (inDict.has(rec.w)) {
       const done = document.createElement("div");
       done.className = "added";
-      done.textContent = "✓ в словаре";
+      done.innerHTML = `${iconInline("check", 16)} в словаре`;
       card.appendChild(done);
     } else {
       const btn = document.createElement("button");
@@ -851,7 +863,7 @@ function renderDictionary() {
     });
     row.innerHTML = `
       <span class="word-art word-art-tiny" aria-hidden="true" style="background:${wordTint(info0.cat)}">${wordArt(d.w, info0.cat)}</span>
-      <span class="d-en" lang="en">${esc(d.w)} <button class="say-btn" aria-label="Произношение: ${esc(d.w)}"><span aria-hidden="true">🔊</span></button></span>
+      <span class="d-en" lang="en">${esc(d.w)} <button class="say-btn" aria-label="Произношение: ${esc(d.w)}">${icon('sound', 18)}</button></span>
       <span class="d-ru">${esc(d.t)}</span>
       <span class="d-status ${d.status}">${statusText[d.status]}</span>
     `;
@@ -863,9 +875,9 @@ function renderDictionary() {
     del.className = "d-del";
     // В списке из сорока слов сорок одинаковых «Удалить» — имя обязано
     // называть, что именно удаляем. title скринридером здесь игнорируется:
-    // у кнопки есть содержимое (эмодзи), и оно перебивает подсказку.
+    // у кнопки есть содержимое, и оно перебивает подсказку.
     del.setAttribute("aria-label", `Удалить ${d.w} из словаря`);
-    del.innerHTML = '<span aria-hidden="true">✕</span>';
+    del.innerHTML = icon("trash", 18);
     del.addEventListener("click", e => {
       e.stopPropagation();
       const idx = state.dictionary.indexOf(d);
@@ -894,9 +906,10 @@ function renderDictionary() {
       const det = document.createElement("div");
       det.className = "dict-detail";
       det.innerHTML = `
-        ${info.def ? `<p>📖 ${esc(info.def)}</p>` : ""}
-        ${ex ? `<p>💬 <i>${esc(ex)}</i>${info.exr ? " — " + esc(info.exr) : ""}
-          <button class="say-btn" title="Озвучить пример">🔊</button></p>` : ""}`;
+        ${info.def ? `<p>${iconInline("book", 16)} ${esc(info.def)}</p>` : ""}
+        ${ex ? `<p>${iconInline("chat", 16)} <i>${esc(ex)}</i>${info.exr ? " — " + esc(info.exr) : ""}
+          <button class="say-btn" title="Озвучить пример"
+                  aria-label="Озвучить пример">${icon("sound", 18)}</button></p>` : ""}`;
       const sayEx = det.querySelector(".say-btn");
       if (sayEx) sayEx.addEventListener("click", () => speak(ex));
       row.after(det);
@@ -1012,8 +1025,12 @@ document.getElementById("flash-audio").addEventListener("click", e => e.stopProp
 function answerFlash(knew) {
   const item = trainQueue[trainIndex];
   const real = state.dictionary.find(d => d.w === item.w);
-  if (real) srsReview(real, knew);
-  if (knew) { trainScore++; addXP(8); }
+  // true — «оценил сам»: на карточке никто ответ не сверяет
+  if (real) srsReview(real, knew, true);
+  // За самооценку — втрое меньше, чем за проверенный ответ (10).
+  // Раньше давали 8: протыкать карточки не глядя было почти так же
+  // выгодно, как честно отвечать, и это прямая мотивация врать.
+  if (knew) { trainScore++; addXP(3); }
   saveState();
 
   trainIndex++;

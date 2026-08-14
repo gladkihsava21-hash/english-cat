@@ -70,7 +70,7 @@ function renderPhotos() {
     <div class="photo-item${p.seen ? "" : " unseen"}" data-photo="${p.id}">
       <div class="photo-item-head">
         <span class="photo-student">${esc(p.studentName)}</span>
-        <span class="photo-kind">${p.kind === "reading" ? "🎤 чтение" : "📸 тетрадь"}</span>
+        <span class="photo-kind">${p.kind === "reading" ? iconInline("mic", 14) + " чтение" : iconInline("camera", 14) + " тетрадь"}</span>
         <span class="photo-when">${esc((p.createdAt || "").replace("T", " ").slice(0, 16))}</span>
         ${p.seen ? "" : `<span class="photo-new">новое</span>`}
       </div>

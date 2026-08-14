@@ -7,19 +7,19 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/tokens.css?v=58">
-  <link rel="stylesheet" href="css/style.css?v=58">
-  <link rel="stylesheet" href="css/savely.css?v=58">
-  <link rel="stylesheet" href="css/tutor.css?v=58">
-<link rel="stylesheet" href="css/motion.css?v=58">
-<link rel="stylesheet" href="css/a11y.css?v=58">
+  <link rel="stylesheet" href="css/tokens.css?v=69">
+  <link rel="stylesheet" href="css/style.css?v=69">
+  <link rel="stylesheet" href="css/savely.css?v=69">
+  <link rel="stylesheet" href="css/tutor.css?v=69">
+<link rel="stylesheet" href="css/motion.css?v=69">
+<link rel="stylesheet" href="css/a11y.css?v=69">
 </head>
 <body>
 
 <!-- ВХОД -->
 <section id="screen-auth" class="screen">
   <div class="hero">
-    <div class="cat-avatar cat-big">🐈‍⬛</div>
+    <div class="cat-avatar cat-big"></div>
     <h1>Видно, кто учил слова, а&nbsp;кто нет</h1>
     <p class="hero-sub">Вы выдаёте домашку и&nbsp;смотрите прогресс каждого ученика —
       без «сделал, честное слово». Ученикам платить не&nbsp;нужно, им хватит вашей ссылки.</p>
@@ -161,7 +161,7 @@
           <div class="hw-pick-controls">
             <select id="hw-level"></select>
             <select id="hw-topic"></select>
-            <input type="text" id="hw-search" placeholder="🔍 поиск слова…">
+            <input type="text" id="hw-search" placeholder="поиск слова…">
             <button type="button" class="chip" id="hw-pick-all">выбрать всё</button>
           </div>
           <div class="hw-words" id="hw-words"></div>
@@ -199,7 +199,7 @@
 
       <div id="tasks-list"></div>
       <div id="tasks-empty" class="empty-state hidden">
-        <div class="cat-avatar cat-mid">🐈</div>
+        <div class="cat-avatar cat-mid"></div>
         <p>Здесь появятся выданные домашки — и&nbsp;будет видно, кто уже сдал,
           а&nbsp;кто ещё нет.</p>
         <p class="muted-small">Соберите первую на&nbsp;вкладке «Выдать домашку»: слова
@@ -219,7 +219,7 @@
         Разбор ошибок Савелием подключается отдельно, на&nbsp;вкладке «Проверка домашек».</p>
       <div id="photo-list" class="photo-grid"></div>
       <div id="photos-empty" class="empty-state hidden">
-        <div class="cat-avatar cat-mid">🐈</div>
+        <div class="cat-avatar cat-mid"></div>
         <p>Здесь появятся фото тетрадей — по&nbsp;одному на&nbsp;каждую сданную работу.</p>
         <p class="muted-small">Кнопка «Сфоткать домашку» уже есть у&nbsp;ученика на&nbsp;главной.
           Напомните о&nbsp;ней сообщением на&nbsp;вкладке «Домашки».</p>
@@ -268,7 +268,7 @@
 
 <section id="screen-paywall" class="screen hidden">
   <div class="hero">
-    <div class="cat-avatar cat-big">🔒</div>
+    <div class="cat-avatar cat-big"></div>
     <h1>Оформите подписку, и&nbsp;панель вернётся</h1>
     <p class="hero-sub">Пробные дни закончились. Списаний нет: вы пишете нам,
       мы выставляем счёт, панель открывается в&nbsp;день оплаты.</p>
@@ -286,7 +286,7 @@
 
 <section id="screen-verify" class="screen hidden">
   <div class="hero">
-    <div class="cat-avatar cat-big">📬</div>
+    <div class="cat-avatar cat-big"></div>
     <h1>Введите код из&nbsp;письма</h1>
     <p class="hero-sub">Отправили шесть цифр на <b id="verify-email"></b> — введите их,
       и&nbsp;кабинет откроется.<br>
@@ -315,7 +315,7 @@
 <!-- Карточка ученика -->
 <div id="stu-modal" class="modal hidden">
   <div class="modal-box">
-    <button class="modal-close" id="modal-close">✕</button>
+    <button class="modal-close" id="modal-close" aria-label="Закрыть"><span data-icon="cross" data-icon-size="18"></span></button>
     <div id="modal-body"></div>
   </div>
 </div>
@@ -339,16 +339,16 @@
     <a href="https://t.me/KOTSAVELII" target="_blank" rel="noopener">@KOTSAVELII</a></p>
 </footer>
 
-<script src="js/theme.js?v=58"></script>
-<script src="js/icons.js?v=58"></script>
-<script src="js/cat.js?v=58"></script>
-<script src="js/motion.js?v=58"></script>
-<script src="js/util.js?v=58"></script>
-<script src="js/words.js?v=58"></script>
-<script src="js/images.js?v=58"></script>
-<script src="js/tutor.js?v=58"></script>
-<script src="js/tutor-photos.js?v=58"></script>
-<script src="js/tutor-auth.js?v=58"></script>
-<script src="js/tutor-verify.js?v=58"></script>
+<script src="js/theme.js?v=69"></script>
+<script src="js/icons.js?v=69"></script>
+<script src="js/cat.js?v=69"></script>
+<script src="js/motion.js?v=69"></script>
+<script src="js/util.js?v=69"></script>
+<script src="js/words.js?v=69"></script>
+<script src="js/images.js?v=69"></script>
+<script src="js/tutor.js?v=69"></script>
+<script src="js/tutor-photos.js?v=69"></script>
+<script src="js/tutor-auth.js?v=69"></script>
+<script src="js/tutor-verify.js?v=69"></script>
 </body>
 </html>

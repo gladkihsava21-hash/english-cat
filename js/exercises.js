@@ -102,47 +102,79 @@ function normEn(s) {
 
 // ===== Каркас: хаб и общие блоки =====
 
+// Группы тренировок. Двадцать равновесных плиток подряд — стена, в которой
+// нечего выбирать: глазу не за что зацепиться, и ученик жмёт первую попавшуюся.
+// Деление смысловое, по тому, ЧТО ученик делает: узнаёт слово, слушает,
+// пишет фразы или играет. Механическое «по 5 штук в ряд» ничего бы не дало.
+const EX_GROUPS = [
+  { id: "words",   title: "По словам" },
+  { id: "audio",   title: "На слух" },
+  { id: "writing", title: "Письмо и речь" },
+  { id: "games",   title: "Игры" },
+];
+
+// Порядок внутри массива = порядок на экране: от узнавания слова к его
+// свободному употреблению, игры в конце.
 const EXERCISES = [
-  { id: "flashcards", icon: "flashcards", name: "Карточки", desc: "Слово ↔ перевод, с озвучкой" },
-  { id: "picture", icon: "picture", name: "Слово и картинка", desc: "Выбери слово по картинке" },
-  { id: "matching", icon: "matching", name: "Сопоставление", desc: "Соедини слово и перевод" },
-  { id: "mcq", icon: "mcq", name: "Выбор варианта", desc: "Выбери правильный перевод" },
-  { id: "spelling", icon: "spelling", name: "Ввод слова", desc: "Впиши слово по переводу" },
-  { id: "fillblank", icon: "fillblank", name: "Пропуск в фразе", desc: "Допиши слово в предложении" },
-  { id: "oddone", icon: "oddone", name: "Найди лишнее", desc: "Какое слово не из той темы?" },
-  { id: "scramble", icon: "scramble", name: "Собери слово", desc: "Составь слово из букв" },
-  { id: "defmatch", icon: "defmatch", name: "Определения", desc: "Слово ↔ определение (англ.)" },
-  { id: "listening", icon: "listening", name: "Аудирование", desc: "Услышь и выбери слово", audio: true },
-  { id: "dictation", icon: "dictation", name: "Диктант", desc: "Услышь и напиши фразу", audio: true },
-  { id: "context", icon: "context", name: "Слово в контексте", desc: "Где слово использовано верно?" },
-  { id: "synonyms", icon: "synonyms", name: "Синонимы", desc: "Синонимы и антонимы" },
-  { id: "translate", icon: "translate", name: "Перевод фразы", desc: "Переведи предложение на англ." },
-  { id: "personal", icon: "personal", name: "Свои предложения", desc: "Составь фразы с новыми словами" },
-  { id: "blitz", icon: "blitz", name: "Блиц", desc: "Сколько слов успеешь за минуту?" },
-  { id: "collocations", icon: "collocations", name: "Сочетания", desc: "make a decision, do homework…" },
-  { id: "categories", icon: "categories", name: "Категории", desc: "Разложи слова по темам" },
-  { id: "wordsearch", icon: "wordsearch", name: "Word Search", desc: "Найди слова в сетке букв" },
-  { id: "crossword", icon: "crossword", name: "Кроссворд", desc: "Отгадай слова по переводам" },
+  // --- по словам: узнать и вспомнить одно слово ---
+  { id: "flashcards", group: "words", icon: "flashcards", name: "Карточки", desc: "Слово ↔ перевод, с озвучкой" },
+  { id: "picture", group: "words", icon: "picture", name: "Слово и картинка", desc: "Выбери слово по картинке" },
+  { id: "matching", group: "words", icon: "matching", name: "Сопоставление", desc: "Соедини слово и перевод" },
+  { id: "mcq", group: "words", icon: "mcq", name: "Выбор варианта", desc: "Выбери правильный перевод" },
+  { id: "spelling", group: "words", icon: "spelling", name: "Ввод слова", desc: "Впиши слово по переводу" },
+  { id: "scramble", group: "words", icon: "scramble", name: "Собери слово", desc: "Составь слово из букв" },
+  { id: "defmatch", group: "words", icon: "defmatch", name: "Определения", desc: "Слово ↔ определение (англ.)" },
+
+  // --- на слух: работает только при синтезе речи ---
+  { id: "listening", group: "audio", icon: "listening", name: "Аудирование", desc: "Услышь и выбери слово", audio: true },
+  { id: "dictation", group: "audio", icon: "dictation", name: "Диктант", desc: "Услышь и напиши фразу", audio: true },
+
+  // --- письмо и речь: слово внутри фразы ---
+  { id: "fillblank", group: "writing", icon: "fillblank", name: "Пропуск в фразе", desc: "Допиши слово в предложении" },
+  { id: "translate", group: "writing", icon: "translate", name: "Перевод фразы", desc: "Переведи предложение на англ." },
+  { id: "personal", group: "writing", icon: "personal", name: "Свои предложения", desc: "Составь фразы с новыми словами" },
+  { id: "context", group: "writing", icon: "context", name: "Слово в контексте", desc: "Где слово использовано верно?" },
+  { id: "synonyms", group: "writing", icon: "synonyms", name: "Синонимы", desc: "Синонимы и антонимы" },
+  { id: "collocations", group: "writing", icon: "collocations", name: "Сочетания", desc: "Соедини слова, которые ходят парой" },
+
+  // --- игры: тот же словарь, но на скорость и азарт ---
+  { id: "oddone", group: "games", icon: "oddone", name: "Найди лишнее", desc: "Какое слово не из той темы?" },
+  { id: "blitz", group: "games", icon: "blitz", name: "Блиц", desc: "Сколько слов успеешь за минуту?" },
+  { id: "categories", group: "games", icon: "categories", name: "Категории", desc: "Разложи слова по темам" },
+  { id: "wordsearch", group: "games", icon: "wordsearch", name: "Поиск слов", desc: "Найди слова в сетке букв" },
+  { id: "crossword", group: "games", icon: "crossword", name: "Кроссворд", desc: "Отгадай слова по переводам" },
 ];
 
 let currentExId = null;
 
 function renderPracticeHub() {
-  const grid = document.getElementById("practice-grid");
+  const host = document.getElementById("practice-grid");
   document.getElementById("practice-pool-note").textContent =
     state.dictionary.length
       ? `Тренируем твой словарь (${state.dictionary.length} слов) + слова уровня ${state.level}`
       : `Словарь пуст — тренируем слова уровня ${state.level}`;
-  grid.innerHTML = "";
-  EXERCISES.forEach(ex => {
-    if (ex.audio && !TTS_OK) return;
-    const card = document.createElement("button");
-    card.className = "card ex-card";
-    card.innerHTML = `<span class="ex-icon">${icon(ex.icon, 26)}</span>
-      <span class="ex-name">${ex.name}</span>
-      <span class="ex-desc">${ex.desc}</span>`;
-    card.addEventListener("click", () => openExercise(ex.id));
-    grid.appendChild(card);
+  host.innerHTML = "";
+  EX_GROUPS.forEach(g => {
+    const list = EXERCISES.filter(ex => ex.group === g.id && !(ex.audio && !TTS_OK));
+    // Без синтеза речи «на слух» исчезает целиком — заголовок над пустотой
+    // хуже, чем отсутствие раздела.
+    if (!list.length) return;
+    const sec = document.createElement("section");
+    sec.className = "ex-group";
+    sec.innerHTML = `
+      <div class="section-head ex-group-head"><h3>${g.title}</h3></div>
+      <div class="ex-grid"></div>`;
+    const grid = sec.querySelector(".ex-grid");
+    list.forEach(ex => {
+      const card = document.createElement("button");
+      card.className = "card ex-card";
+      card.innerHTML = `<span class="ex-icon">${icon(ex.icon, 32)}</span>
+        <span class="ex-name">${ex.name}</span>
+        <span class="ex-desc">${ex.desc}</span>`;
+      card.addEventListener("click", () => openExercise(ex.id));
+      grid.appendChild(card);
+    });
+    host.appendChild(sec);
   });
 }
 
@@ -178,18 +210,23 @@ function exFinish(correct, total, note = "") {
     pct >= 0.7 ? "Отлично идём, мяу! 😸" :
     pct >= 0.4 ? "Неплохо, но повторим ещё. 🐾" :
     "Ничего, повторение — мать учения! 😿";
+  // Поза кота под результат: без data-cat сюда падал системный эмодзи —
+  // единственная во всём интерфейсе кошка чужого рисунка.
+  const pose = pct === 1 ? "love" : pct >= 0.7 ? "happy" : pct >= 0.4 ? "hello" : "wink";
   stage().innerHTML = `
     <div class="empty-state">
-      <div class="cat-avatar cat-mid">🐈</div>
+      <div class="cat-avatar cat-mid" data-cat="${pose}"></div>
       <h2>Готово!</h2>
       <p>Верно ${correct} из ${total}. ${mood}</p>
-      ${exSessionXP ? `<p class="xp-earned">+${exSessionXP} ⭐</p>` : ""}
+      ${exSessionXP ? `<p class="xp-earned">+${exSessionXP} ${iconInline("star", 16)}</p>` : ""}
       ${note ? `<p class="muted-small">${note}</p>` : ""}
       <div class="quiz-buttons">
         <button class="btn btn-ghost" data-nav="practice">К тренировкам</button>
         <button class="btn btn-primary" id="ex-again">Ещё раз</button>
       </div>
     </div>`;
+  // Экран нарисован после загрузки страницы — cat.js сам сюда не придёт.
+  if (typeof paintCats === "function") paintCats(stage());
   document.getElementById("ex-again").addEventListener("click", () => openExercise(currentExId));
 }
 
@@ -210,7 +247,7 @@ function runMCQ(rounds, opts = {}) {
         <p class="quiz-label">${r.sub || ""}</p>
         ${r.art ? `<div class="word-art word-art-mid" style="background:${wordTint(r.artCat)}">${r.art}</div>` : ""}
         <div class="${opts.smallPrompt ? "quiz-word quiz-word-small" : "quiz-word"}">${r.prompt || ""}</div>
-        ${r.audioText ? `<button class="btn btn-ghost btn-small" id="mcq-audio">🔊 Прослушать</button>` : ""}
+        ${r.audioText ? `<button class="btn btn-ghost btn-small" id="mcq-audio">${iconInline("sound", 16)} Прослушать</button>` : ""}
         <div class="mcq-options" id="mcq-options"></div>
       </div>`;
     if (r.audioText) {
@@ -234,21 +271,34 @@ function runMCQ(rounds, opts = {}) {
         // оба зелёные, по яркости их не различить, а при дальтонизме они
         // становятся одинаковым серо-бурым. Галочка и крестик читаются всегда.
         b.classList.add(ok ? "right" : "wrong");
+        // Имя снимаем ДО вставки значка: он рисуется svg и в textContent
+        // не попадает, но так порядок не зависит от способа отрисовки.
+        const label = b.textContent.trim();
         b.insertAdjacentHTML("beforeend",
-          ok ? ' <span class="ans-mark" aria-hidden="true">✓</span>'
-             : ' <span class="ans-mark" aria-hidden="true">✗</span>');
-        b.setAttribute("aria-label", b.textContent.replace(/[✓✗]/g, "").trim() +
-                                     (ok ? " — верно" : " — неверно"));
-        const right = box.children[r.correct];
-        if (!ok) {
-          right.classList.add("right");
-          right.insertAdjacentHTML("beforeend",
-            ' <span class="ans-mark" aria-hidden="true">✓</span>');
-        }
+          ` <span class="ans-mark">${icon(ok ? "check" : "cross", 17)}</span>`);
+        b.setAttribute("aria-label", label + (ok ? " — верно" : " — неверно"));
+        // Варианты уже не кликаются (answered), но выглядели живыми: убираем
+        // и наведение. Не disabled — тогда скринридер перестал бы читать
+        // проставленные «верно/неверно».
+        Array.from(box.children).forEach(x => x.setAttribute("aria-disabled", "true"));
         i++;
-        // При ошибке даём вдвое больше времени: надо успеть прочитать,
-        // какой ответ был правильным. 1400 мс на это не хватало.
-        setTimeout(next, ok ? 700 : 2800);
+        if (ok) { setTimeout(next, 700); return; }
+
+        // Ошибка: правильный ответ висит, пока ученик сам не нажмёт «Дальше».
+        // Был автопереход через 2800 мс — экран угоняло ровно в тот момент,
+        // когда ученик дочитывал, где ошибся. Сколько нужно на разбор,
+        // таймер знать не может, а ученик знает.
+        const right = box.children[r.correct];
+        right.classList.add("right");
+        right.insertAdjacentHTML("beforeend",
+          ` <span class="ans-mark">${icon("check", 17)}</span>`);
+        const row = document.createElement("div");
+        row.className = "quiz-buttons";
+        row.innerHTML = '<button type="button" class="btn btn-primary" id="mcq-next">Дальше →</button>';
+        box.insertAdjacentElement("afterend", row);
+        const nextBtn = row.querySelector("#mcq-next");
+        nextBtn.addEventListener("click", next);
+        nextBtn.focus();   // с клавиатуры продолжаем без лишнего Tab
       });
       box.appendChild(b);
     });
@@ -325,7 +375,7 @@ function runType(rounds, opts = {}) {
         <p class="quiz-label">${r.sub || ""}</p>
         ${r.art ? `<div class="word-art word-art-mid" style="background:${wordTint(r.artCat)}">${r.art}</div>` : ""}
         <div class="quiz-word quiz-word-small">${r.prompt || ""}</div>
-        ${r.audioText ? `<button class="btn btn-ghost btn-small" id="type-audio">🔊 Прослушать</button>` : ""}
+        ${r.audioText ? `<button class="btn btn-ghost btn-small" id="type-audio">${iconInline("sound", 16)} Прослушать</button>` : ""}
         ${opts.textarea
           ? `<textarea class="type-input type-area" id="type-input" rows="3" placeholder="${opts.placeholder || "Напиши по-английски…"}"></textarea>`
           : `<input class="type-input" id="type-input" autocomplete="off" placeholder="${opts.placeholder || "Введи слово…"}">`}
@@ -472,7 +522,7 @@ const EX_RUNNERS = {
       const options = shuffled([...three.map(x => x.w), odd.w]);
       rounds.push({
         sub: "Какое слово лишнее?",
-        prompt: "🐾",
+        prompt: icon("paw", 44),
         options,
         correct: options.indexOf(odd.w),
       });
@@ -550,7 +600,7 @@ const EX_RUNNERS = {
       const options = shuffled([p.w, ...distractors(p, 3, "w")]);
       return {
         sub: "Послушай и выбери, что услышал",
-        prompt: "🔊",
+        prompt: icon("sound", 44),
         audioText: p.w,
         options,
         correct: options.indexOf(p.w),
@@ -563,7 +613,7 @@ const EX_RUNNERS = {
     const pool = trainPool(3, ["ex"]);
     runType(pool.map(p => ({
       sub: "Послушай и напиши предложение",
-      prompt: "🎧",
+      prompt: icon("listening", 44),
       audioText: p.ex,
       answer: p.ex,
       check: v => {
@@ -594,7 +644,7 @@ const EX_RUNNERS = {
       const options = shuffled([p.ex, ...donors]);
       rounds.push({
         sub: `Где слово «${p.w}» (${p.t}) использовано правильно?`,
-        prompt: "🧩",
+        prompt: icon("context", 44),
         options,
         correct: options.indexOf(p.ex),
         statWord: p.w,
@@ -730,16 +780,18 @@ const EX_RUNNERS = {
         if (typeof bump === "function") bump("exercises");
         stage().innerHTML = `
           <div class="empty-state">
-            <div class="cat-avatar cat-mid">🐈</div>
+            <div class="cat-avatar cat-mid" data-cat="${isRecord ? "love" : "happy"}"></div>
             <h2>Время, мяу!</h2>
-            <p>Ты набрал <b>${score}</b> очков.${isRecord ? " Новый рекорд! 🏆" : ""}</p>
-            ${exSessionXP ? `<p class="xp-earned">+${exSessionXP} ⭐</p>` : ""}
+            <p>Ты набрал <b>${score}</b> очков.${isRecord
+              ? ` ${iconInline("medal", 16)} Новый рекорд!` : ""}</p>
+            ${exSessionXP ? `<p class="xp-earned">+${exSessionXP} ${iconInline("star", 16)}</p>` : ""}
             <p class="muted-small">Лучший результат: ${best}</p>
             <div class="quiz-buttons">
               <button class="btn btn-ghost" data-nav="practice">К тренировкам</button>
               <button class="btn btn-primary" id="ex-again">Ещё раз</button>
             </div>
           </div>`;
+        if (typeof paintCats === "function") paintCats(stage());
         document.getElementById("ex-again").addEventListener("click", () => openExercise("blitz"));
       }
     }, 1000);
@@ -748,7 +800,7 @@ const EX_RUNNERS = {
   collocations() {
     const picks = shuffled(COLLOCATIONS).slice(0, 5);
     runPairs(picks.map(c => ({ l: c.h, r: c.tl })),
-      { hint: "Соедини части устойчивых сочетаний", note: "make a decision, do homework, take a photo…" });
+      { hint: "Соедини части устойчивых сочетаний", note: "Примеры: make a decision, do homework, take a photo…" });
   },
 
   categories() {

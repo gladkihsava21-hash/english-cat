@@ -798,10 +798,6 @@ input::placeholder, textarea::placeholder { color: var(--ink-soft); opacity: 1; 
    треть из них оранжевые. Смысла ученик в них не читает — категорию по цвету
    никто не расшифровывает, — а гамму они ломали в одиночку. */
 .word-art { background: var(--art-tile) !important; }
-/* Значок награды приходит с фоном из JS (#EFEAE3 у закрытых) — ночью это
-   светлый прямоугольник на тёмной карточке. */
-.ach-icon {  }
-.ach-card.ach-done .ach-icon {  }
 /* «получено» приходило инлайновым бронзовым / золотым / серебряным цветом:
    2,15–2,81:1 и ровно тот оранжевый, который заказчик просил убрать. */
 .ach-got {
@@ -815,12 +811,10 @@ input::placeholder, textarea::placeholder { color: var(--ink-soft); opacity: 1; 
    только картинку, текст оставляем читаемым: это же список целей. */
 .ach-card { opacity: 1; }
 .ach-card:not(.ach-done) { background: var(--surface-alt); border-color: transparent; }
-.ach-card:not(.ach-done) .ach-icon {
-  opacity: .5;
-  background: none !important;
-  border: var(--border-w) dashed var(--line-soft);   /* пустая рамка = «место под награду» */
-}
 .ach-card:not(.ach-done) .ach-name { color: var(--ink-soft); }
+/* Сам значок (размер, кольцо, заливка, замок) собран одним куском в
+   css/a11y.css — раньше он описывался отсюда и оттуда одновременно, и правки
+   в одном файле молча отменялись другим. Здесь остаётся только текст карточки. */
 /* Карточка слова: 18px внутрь при 24px заголовке — слово упиралось в край. */
 .word-card { padding: var(--space-20); gap: var(--space-8); }
 /* Наклейки наград. tokens.css прямо разрешает пастель на наклейках — не спорю.

@@ -123,7 +123,8 @@ function updateVoiceUI() {
   const btn = document.getElementById("voice-mode-btn");
   if (btn) {
     btn.classList.toggle("voice-active", voiceMode);
-    btn.textContent = voiceMode ? "🎙️ Голос: вкл" : "🎙️ Голосовой чат";
+    btn.innerHTML = icon("mic", 16)
+      + (voiceMode ? " Голос: вкл" : " Голосовой чат");
   }
 }
 
@@ -202,7 +203,8 @@ window.onCatMessage = (text, el) => {
     const b = document.createElement("button");
     b.className = "msg-say";
     b.title = "Озвучить";
-    b.textContent = "🔊";
+    b.setAttribute("aria-label", "Озвучить ответ Савелия");
+    b.innerHTML = icon("sound", 16);
     b.addEventListener("click", () => speakSavely(text));
     el.appendChild(b);
   }
