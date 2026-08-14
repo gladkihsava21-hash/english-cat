@@ -1342,3 +1342,42 @@ h1, h2, h3, .section-title, .dash-head h2,
    вырастает выше экрана и кнопка «Готово» уезжает за край. */
 .folder-pick { max-height: 40vh; overflow-y: auto; margin-bottom: var(--space-12); }
 .folder-pick .ack-row { margin: 0; }
+
+/* ==========================================================================
+   ГЛАВНАЯ КНОПКА — НА ЦВЕТЕ ЗАКАЗЧИКА
+   --------------------------------------------------------------------------
+   #65D97A светлый: белым по нему 1,79:1, читать нельзя. Тёмными чернилами
+   по нему — 7,7:1 днём и 9,0:1 ночью. Поэтому кнопка заливается им, а
+   текст на ней тёмный. Это не компромисс: светлая заливка с тёмной
+   подписью — нормальная и часто более живая пара, чем тёмная с белой,
+   и именно она даёт тот свежий зелёный, который был нужен.
+
+   Наведение — темнее заливки, а не светлее: светлее уже некуда, а
+   направление изменения должно быть одно на весь интерфейс.
+   ========================================================================== */
+.btn-primary {
+  background: var(--accent-fill);
+  color: var(--on-accent-fill);
+}
+.btn-primary:hover {
+  background: color-mix(in oklab, var(--accent-fill) 84%, var(--ink));
+  color: var(--on-accent-fill);
+}
+.btn-primary:active {
+  background: color-mix(in oklab, var(--accent-fill) 74%, var(--ink));
+}
+/* Отмеченный верный ответ — та же заливка: «правильно» и «главное
+   действие» в интерфейсе говорят одним голосом. */
+.mcq-option.right {
+  background: var(--accent-fill);
+  color: var(--on-accent-fill);
+  border-color: var(--accent-fill);
+}
+.mcq-option.right .ans-mark { color: var(--on-accent-fill); }
+/* Полученная награда высшей ступени — тоже заливка, а не тёмный акцент */
+.sticker.got-lavender {
+  background: var(--accent-fill);
+  color: var(--on-accent-fill);
+  border-color: var(--accent-fill);
+}
+.sticker.got-lavender .ic { color: var(--on-accent-fill); }
