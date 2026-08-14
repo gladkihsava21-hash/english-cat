@@ -206,6 +206,7 @@ async function loadStudents() {
   renderStudents();
   renderInvite();
   if (typeof renderLesson === "function") renderLesson();
+  if (typeof fillGameSelect === "function") fillGameSelect();
   fillStudentSelect();
   fillMsgTarget();
   renderMessages();
@@ -837,6 +838,7 @@ $("hw-send").addEventListener("click", async () => {
     dueDate: $("hw-due").value || null,
     taskText: ($("hw-task") ? $("hw-task").value.trim() : ""),
     readingText: ($("hw-reading") ? $("hw-reading").value.trim() : ""),
+    game: ($("hw-game") ? $("hw-game").value : ""),
     words: picked,
   });
   if (!res.ok) {
@@ -1048,3 +1050,45 @@ document.addEventListener("DOMContentLoaded", () => {
   $("lesson-open").addEventListener("click", () => toggle(true));
   $("lesson-close").addEventListener("click", () => toggle(false));
 });
+
+/* ===== Игра для домашки =====
+ * Список здесь СВОЙ, а не импорт EXERCISES из js/exercises.js, и это
+ * не дублирование по недосмотру. Панель не грузит движок упражнений —
+ * он тянет за собой словарь, картинки, интервальное повторение и синтез
+ * речи, а репетитору из всего этого не нужно ничего.
+ *
+ * И список сознательно КОРОТКИЙ. В движке 26 упражнений, но выдавать
+ * домашку имеет смысл не всеми: «свои предложения» проверяются вручную,
+ * «блиц» — про скорость, а не про конкретные слова. Двадцать шесть
+ * пунктов в выпадающем списке — это не выбор, а прокрутка.
+ */
+const HOMEWORK_GAMES = [
+  { id: "flashcards", name: "Карточки" },
+  { id: "mcq",        name: "Выбор варианта" },
+  { id: "spelling",   name: "Ввод слова" },
+  { id: "matching",   name: "Сопоставление" },
+  { id: "scramble",   name: "Собери слово" },
+  { id: "listening",  name: "Аудирование", note: "нужен звук на устройстве ученика" },
+  { id: "fillblank",  name: "Пропуск в фразе", note: "только для слов с примером" },
+  { id: "wordsearch", name: "Поиск слов" },
+  { id: "crossword",  name: "Кроссворд" },
+  { id: "memory",     name: "Найди пару" },
+  { id: "wheel",      name: "Колесо" },
+];
+
+function fillGameSelect() {
+  const sel = $("hw-game");
+  if (!sel || sel.dataset.filled) return;
+  sel.dataset.filled = "1";
+  HOMEWORK_GAMES.forEach(g => {
+    const o = document.createElement("option");
+    o.value = g.id;
+    o.textContent = g.name;
+    sel.appendChild(o);
+  });
+  const hint = $("hw-game-hint");
+  sel.addEventListener("change", () => {
+    const g = HOMEWORK_GAMES.find(x => x.id === sel.value);
+    hint.textContent = g && g.note ? g.note : "";
+  });
+}

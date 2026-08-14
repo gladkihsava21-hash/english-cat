@@ -693,6 +693,9 @@ class Api:
             due_date=str(p.get("dueDate") or "") or None,
             task_text=p.get("taskText", ""),
             reading_text=p.get("readingText", ""),
+            # Игра, которой ученик отрабатывает эти слова. Пустая строка —
+            # прежнее поведение: ученик выбирает упражнение сам.
+            game=str(p.get("game") or "")[:32],
         )
         return {"ok": True, "id": row["id"]}
 
@@ -782,6 +785,7 @@ class Api:
                 "dueDate": x["due_date"],
                 "taskText": x["task_text"] if "task_text" in k else "",
                 "readingText": x["reading_text"] if "reading_text" in k else "",
+                "game": (x["game"] if "game" in k else "") or "",
             })
         msgs = db.messages_for_student(db.list_messages(row["tutor_id"]), row)
         return {

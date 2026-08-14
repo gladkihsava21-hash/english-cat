@@ -71,7 +71,19 @@ function isTrainingWholeDict() {
 
 /** Слова, из которых собирается тренировка: либо весь словарь, либо
  *  только выбранные папки. */
+/* Слова текущей домашки. Пока он не пуст, тренировка идёт ТОЛЬКО по ним
+ * и папки не учитываются: репетитор задал конкретные двадцать слов
+ * к четвергу, и подмешивать к ним словарь ученика — значит выдать ему
+ * вместо домашки что-то другое. Сбрасывается при выходе из упражнения. */
+let homeworkScope = null;
+
 function trainingDictionary() {
+  if (homeworkScope && homeworkScope.length) {
+    const set = new Set(homeworkScope);
+    const only = state.dictionary.filter(d => set.has(d.w.toLowerCase()));
+    if (only.length) return only;
+    homeworkScope = null;   // слова не доехали в словарь — не запираем ученика
+  }
   const picked = trainingFolders();
   if (!picked.length) return state.dictionary;
   return state.dictionary.filter(d => (d.folders || []).some(f => picked.includes(f)));
@@ -95,7 +107,7 @@ function trainPool(n, need = []) {
   // выбрал «к контрольной», подсунуть ему туда посторонние слова значит
   // молча отменить его выбор: он просил конкретные слова, а не «примерно
   // столько же слов». Пусть лучше тренировка будет короче.
-  if (picked.length < n && isTrainingWholeDict()) {
+  if (picked.length < n && isTrainingWholeDict() && !homeworkScope) {
     const inPool = new Set(picked.map(p => p.w.toLowerCase()));
     const lvl = state.level || "A1";
     const nextLvl = LEVELS[Math.min(LEVELS.indexOf(lvl) + 1, LEVELS.length - 1)];

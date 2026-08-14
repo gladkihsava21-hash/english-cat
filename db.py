@@ -179,6 +179,10 @@ MIGRATIONS = [
     # Когда репетитор нажал «начать урок». Ученик по этому времени видит
     # «идёт урок» и не заходит в пустую комнату гадать, придёт ли кто-то.
     ("tutors", "lesson_open_at", "TEXT"),
+    # Каким упражнением ученик отрабатывает слова этой домашки. Пусто —
+    # как раньше: ученик выбирает сам. Это и есть «репетитор собирает игру»:
+    # список слов и адресация у домашки уже были, не хватало выбора игры.
+    ("homework", "game", "TEXT DEFAULT ''"),
 ]
 
 
@@ -735,10 +739,10 @@ def delete_student_account(student_id):
 # ---------- домашка ----------
 
 def create_homework(tutor_id, title, words, student_id=None, group_id=None,
-                    due_date=None, task_text="", reading_text=""):
+                    due_date=None, task_text="", reading_text="", game=""):
     cur = conn().execute(
         "INSERT INTO homework (tutor_id, student_id, group_id, title, words, due_date,"
-        " created_at, task_text, reading_text) VALUES (?,?,?,?,?,?,?,?,?)",
+        " created_at, task_text, reading_text, game) VALUES (?,?,?,?,?,?,?,?,?,?)",
         (
             tutor_id,
             student_id,
@@ -749,6 +753,7 @@ def create_homework(tutor_id, title, words, student_id=None, group_id=None,
             now(),
             str(task_text or "")[:4000],
             str(reading_text or "")[:2000],
+            str(game or "")[:32],
         ),
     )
     conn().commit()

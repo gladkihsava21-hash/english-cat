@@ -119,6 +119,13 @@ function show(screen) {
     b.classList.toggle("active", b.dataset.nav === screen ||
       (b.dataset.nav === "practice" && (screen === "trainer" || screen === "exercise")));
   });
+  // Уходим из упражнения — снимаем область домашки. Без этого ученик,
+  // открывший домашку и вернувшийся к обычной тренировке, навсегда
+  // остался бы в её двадцати словах и не понял бы, почему словарь
+  // «не работает».
+  if (screen !== "exercise" && screen !== "trainer" && typeof homeworkScope !== "undefined") {
+    homeworkScope = null;
+  }
   if ("speechSynthesis" in window) speechSynthesis.cancel();
   if (screen !== "chat" && typeof deactivateVoice === "function") deactivateVoice();
   if (screen === "test") resetTestScreen();
@@ -654,11 +661,20 @@ function startHomeworkLesson(task) {
     w: w.w, t: w.t, ex: w.ex || "", level: w.level || state.level,
   }));
   if (typeof renderHomework === "function") renderHomework();
-  // Ведём на упражнение С ПРОВЕРКОЙ, а не на карточки. Карточки — самооценка,
-  // и с недавних пор они домашку не закрывают: репетитор должен видеть
-  // «сдал» только тогда, когда ответ действительно сверялся. Если оставить
-  // здесь тренажёр, домашку стало бы невозможно закрыть в принципе.
-  if (typeof openExercise === "function") openExercise("spelling");
+
+  // Слова домашки тренируются ТОЛЬКО ими самими — на время этого подхода
+  // подменяем область тренировки. Иначе ученик открывает домашку, а ему
+  // подмешиваются слова из его словаря: репетитор задал двадцать слов
+  // к четвергу, а в упражнении их треть.
+  homeworkScope = (task.words || []).map(w => String(w.w).toLowerCase());
+
+  // Игру выбирает репетитор. Если не выбрал — прежнее поведение:
+  // упражнение С ПРОВЕРКОЙ, а не карточки. Карточки — самооценка, и
+  // домашку они не закрывают: репетитор должен видеть «сдал» только
+  // когда ответ действительно сверялся.
+  const game = task.game && typeof EX_RUNNERS === "object" && EX_RUNNERS[task.game]
+    ? task.game : "spelling";
+  if (typeof openExercise === "function") openExercise(game);
   else show("trainer");
 }
 

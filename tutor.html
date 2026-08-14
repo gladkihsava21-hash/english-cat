@@ -7,13 +7,13 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/tokens.css?v=98">
-  <link rel="stylesheet" href="css/style.css?v=98">
-  <link rel="stylesheet" href="css/savely.css?v=98">
-  <link rel="stylesheet" href="css/tutor.css?v=98">
-<link rel="stylesheet" href="css/motion.css?v=98">
-<link rel="stylesheet" href="css/a11y.css?v=98">
-<link rel="stylesheet" href="css/cat.css?v=98">
+  <link rel="stylesheet" href="css/tokens.css?v=99">
+  <link rel="stylesheet" href="css/style.css?v=99">
+  <link rel="stylesheet" href="css/savely.css?v=99">
+  <link rel="stylesheet" href="css/tutor.css?v=99">
+<link rel="stylesheet" href="css/motion.css?v=99">
+<link rel="stylesheet" href="css/a11y.css?v=99">
+<link rel="stylesheet" href="css/cat.css?v=99">
 </head>
 <body>
 
@@ -197,6 +197,18 @@
         <div class="vs-row">
           <label for="hw-due">Срок (необязательно)</label>
           <input type="date" id="hw-due">
+        </div>
+
+        <!-- Чем ученик отрабатывает эти слова. По умолчанию выбирает он сам:
+             так было раньше, и для большинства домашек это верно. Но когда
+             репетитор ставит конкретную цель («на этой неделе — на слух»),
+             выбор нужен ему, а не ученику. -->
+        <div class="vs-row">
+          <label for="hw-game">Чем тренировать</label>
+          <select id="hw-game">
+            <option value="">Ученик выберет сам</option>
+          </select>
+          <span class="plan-hint" id="hw-game-hint"></span>
         </div>
 
         <p class="muted-small" style="margin:14px 0 8px">Выберите слова из базы или добавьте свои:</p>
@@ -419,17 +431,17 @@
     <a href="https://t.me/KOTSAVELII" target="_blank" rel="noopener">@KOTSAVELII</a></p>
 </footer>
 
-<script src="js/theme.js?v=98"></script>
-<script src="js/icons.js?v=98"></script>
-<script src="js/cat.js?v=98"></script>
-<script src="js/motion.js?v=98"></script>
-<script src="js/util.js?v=98"></script>
-<script src="js/words.js?v=98"></script>
-<script src="js/images.js?v=98"></script>
-<script src="js/word-photos.js?v=98"></script>
-<script src="js/tutor.js?v=98"></script>
-<script src="js/tutor-photos.js?v=98"></script>
-<script src="js/tutor-auth.js?v=98"></script>
-<script src="js/tutor-verify.js?v=98"></script>
+<script src="js/theme.js?v=99"></script>
+<script src="js/icons.js?v=99"></script>
+<script src="js/cat.js?v=99"></script>
+<script src="js/motion.js?v=99"></script>
+<script src="js/util.js?v=99"></script>
+<script src="js/words.js?v=99"></script>
+<script src="js/images.js?v=99"></script>
+<script src="js/word-photos.js?v=99"></script>
+<script src="js/tutor.js?v=99"></script>
+<script src="js/tutor-photos.js?v=99"></script>
+<script src="js/tutor-auth.js?v=99"></script>
+<script src="js/tutor-verify.js?v=99"></script>
 </body>
 </html>
