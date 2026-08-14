@@ -9,6 +9,8 @@ Tatoeba ищет по подстроке и охотно возвращает о
 import re
 import urllib.parse
 
+from . import filters
+
 SEARCH_URL = "https://tatoeba.org/en/api_v0/search?from=eng&to=rus&query=%s&limit=%d"
 
 MAX_EN = 90     # требование ТЗ
@@ -36,7 +38,7 @@ def _tokens(text):
     return re.findall(r"[a-z]+(?:'[a-z]+)?", text.lower())
 
 
-def score_sentence(word, en, ru, blocklist):
+def score_sentence(word, en, ru, guard):
     """Оценка пары. None — пара не годится."""
     en = (en or "").strip()
     ru = (ru or "").strip()
@@ -64,11 +66,9 @@ def score_sentence(word, en, ru, blocklist):
     if not (forms & set(toks)):
         return None, "слова нет в предложении"
 
-    lowered = en.lower()
-    ru_lower = ru.lower()
-    for bad in blocklist:
-        if re.search(r"\b%s" % re.escape(bad), lowered) or bad in ru_lower:
-            return None, "недетская лексика: %s" % bad
+    blocked = guard.check(en, ru)
+    if blocked:
+        return None, blocked
 
     ru_words = len(re.findall(r"[а-яёА-ЯЁ]+", ru))
     if ru_words < 2 and len(toks) > 4:
@@ -82,10 +82,12 @@ def score_sentence(word, en, ru, blocklist):
         score += 1.0
     if en.endswith("."):
         score += 0.5
+    if not filters.TATOEBA_NAMES.search(en):
+        score += 1.5                      # пример без «Tom» и «Mary» нагляднее
     return score, None
 
 
-def fetch_pair(fetcher, word, blocklist, min_interval, limit=20, confirm=None):
+def fetch_pair(fetcher, word, guard, min_interval, limit=20, confirm=None):
     """confirm — функция (русский текст) -> bool: подтверждает ли перевод примера
     выбранное значение. Такие примеры получают заметный бонус: карточка, где
     перевод слова и перевод примера говорят об одном и том же, честнее.
@@ -109,7 +111,7 @@ def fetch_pair(fetcher, word, blocklist, min_interval, limit=20, confirm=None):
         for tr in flat:
             if (tr.get("lang") or "rus") != "rus":
                 continue
-            score, reason = score_sentence(word, en, tr.get("text"), blocklist)
+            score, reason = score_sentence(word, en, tr.get("text"), guard)
             if score is None:
                 last_reason = reason
                 continue

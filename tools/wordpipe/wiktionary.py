@@ -70,7 +70,36 @@ PROPER_NAME_TEXT = re.compile(
     r"country in|municipality|island in|habitational)\b", re.I
 )
 
-_RU_TEMPLATE = re.compile(r"\{\{t{1,2}\+?(?:-check|\+check)?\|ru\|([^{}|]+)((?:\|[^{}|]*)*)\}\}")
+_RU_TEMPLATE = re.compile(r"\{\{t{1,2}\+?(?:-check|\+check)?\|ru\|([^{}]*)\}\}")
+
+
+def split_template_params(body):
+    """Разбить тело шаблона по '|', не разрезая викиссылки [[a|b]].
+
+    Наивный split('|') превращает {{t+|ru|[[чрезвычайный|чрезвычайная]]
+    [[ситуация]]}} в обрывок «[[чрезвычайный» — он и попадал в базу переводом.
+    """
+    parts, depth, cur, i = [], 0, [], 0
+    while i < len(body):
+        if body.startswith("[[", i):
+            depth += 1
+            cur.append("[[")
+            i += 2
+            continue
+        if body.startswith("]]", i):
+            depth = max(0, depth - 1)
+            cur.append("]]")
+            i += 2
+            continue
+        ch = body[i]
+        if ch == "|" and depth == 0:
+            parts.append("".join(cur))
+            cur = []
+        else:
+            cur.append(ch)
+        i += 1
+    parts.append("".join(cur))
+    return parts
 _TRANS_TOP = re.compile(r"\{\{trans-top(?:-also|-see)?\s*\|([^}]*)\}\}")
 _HEADING = re.compile(r"^(={2,6})\s*(.+?)\s*\1\s*$")
 _STRESS = "́̀"
@@ -95,6 +124,8 @@ def clean_russian(term):
     term = term.strip(" ,;.")
     if not term:
         return None
+    if "[" in term or "]" in term or "{" in term or "}" in term:
+        return None  # разметка не разобралась — лучше без перевода, чем с мусором
     if not re.search(r"[а-яёА-ЯЁ]", term):
         return None
     # латиница внутри = транслит/мусор
@@ -208,15 +239,13 @@ def parse_wikitext(word, wikitext):
         if not (stripped.startswith("* Russian") or stripped.startswith("*Russian")):
             continue
         terms = []
-        for raw_term, params in _RU_TEMPLATE.findall(stripped):
-            cleaned = clean_russian(raw_term)
+        for body in _RU_TEMPLATE.findall(stripped):
+            fields = split_template_params(body)
+            cleaned = clean_russian(fields[0])
             if not cleaned:
                 continue
-            aspect = ""
-            if re.search(r"\|impf\b", params):
-                aspect = "impf"
-            elif re.search(r"\|pf\b", params):
-                aspect = "pf"
+            params = fields[1:]
+            aspect = "impf" if "impf" in params else ("pf" if "pf" in params else "")
             terms.append({"t": cleaned, "aspect": aspect})
         if not terms:
             continue

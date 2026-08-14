@@ -27,6 +27,7 @@ ADJ = ("Adjective", "Adverb")
 
 HEAD_RULES = [
     ("people", r"\b(a |an )?(person|someone|somebody|one) who\b|\b(a )?(man|woman|boy|girl|child) who\b", NOUNS),
+    ("people", r"^(a |an )?(person|someone|somebody|individual|human)\b", NOUNS),
     ("people", r"\b(profession|occupation)\b", NOUNS),
     ("places", r"^(a |an |the )?(place|building|area|region|location|site|venue)\b|\bplace where\b", NOUNS),
     ("city", r"\b(town|city|urban|street|district|neighbourhood|neighborhood)\b", None),
@@ -59,6 +60,12 @@ HEAD_RULES = [
     ("objects", r"^(a |an )?(tool|instrument|object|device|container|piece of equipment)\b|\b(used for|used to)\b", NOUNS),
     ("actions", r"^(an? |the )?(act|action|process|attempt|effort|method|way) (of|to)\b", NOUNS),
     ("change", r"\b(to become|to increase|to decrease|to grow|to change|to turn into|to convert)\b", VERBS),
+    # Последнее правило для существительных: определение описывает физический
+    # предмет или вещество. Существующая база кладёт такие слова в objects
+    # (ложка, тарелка), так что это её правило, а не выдумка.
+    ("objects", r"\b(a |an )?(piece|pad|sheet|device|tool|instrument|container|substance|"
+                r"material|covering|passage|box|bag|vehicle|machine|structure|garment|"
+                r"liquid|powder|cloth|rod|wire|source of light)\b|\bmade (of|from)\b", NOUNS),
 ]
 HEAD_RULES = [(cat, re.compile(pattern, re.I), pos) for cat, pattern, pos in HEAD_RULES]
 
@@ -82,7 +89,7 @@ KEYWORDS = {
     "home": "house home room door window furniture bed kitchen wall floor roof garden household",
     "clothes": "clothes wear shirt dress shoe coat hat trousers jacket fashion sleeve pocket",
     "work": "work job office company employee boss business career salary staff manager project professional",
-    "sports": "sport game play team match player ball run jump swim race win competition training",
+    "sports": "sport game play match player ball jump swim race win competition training athlete",
     "objects": "thing object tool box bag key paper bottle table chair item equipment container",
     "body": "body head hand arm leg eye ear face hair finger heart skin bone muscle",
     "weather": "weather rain snow sun wind cloud storm cold hot warm temperature fog ice",
@@ -121,6 +128,23 @@ much something someone anything person thing used usually especially often typic
 
 def _tokens(text):
     return [w for w in re.findall(r"[a-z]+", (text or "").lower()) if len(w) > 2 and w not in _STOP]
+
+
+def _with_stems(tokens):
+    """Добавить огрублённые основы: warning -> warn, travelling -> travel.
+
+    Без этого определение «An instance of warning someone» не находит ключевое
+    слово «warn» и категория не определяется на ровном месте.
+    """
+    out = set(tokens)
+    for tok in tokens:
+        for suffix in ("ing", "ed", "es", "s", "ion", "ment", "ness", "ity", "ly"):
+            if tok.endswith(suffix) and len(tok) - len(suffix) >= 3:
+                stem = tok[: -len(suffix)]
+                out.add(stem)
+                if suffix in ("ing", "ed", "ion"):
+                    out.add(stem + "e")
+    return out
 
 
 class Categorizer:
@@ -162,7 +186,7 @@ class Categorizer:
                 return cat, 0.9, "правило по определению"
 
         lemma = word.lower()
-        tokens = set(_tokens(text)) | {lemma}
+        tokens = _with_stems(_tokens(text)) | {lemma}
         scores = Counter()
         for cat in self.allowed:
             kw = KEYWORDS.get(cat, set())

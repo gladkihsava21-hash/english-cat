@@ -116,11 +116,11 @@ def build_word(word, ctx):
 
     # 4. Пример с переводом. Если значение уже выбрано — просим Tatoeba-отбор
     #    предпочесть предложение, чей русский перевод подтверждает именно его.
-    blocklist = filters.sentence_blocklist(word, tatoeba.inflections(word))
+    guard = filters.SentenceGuard(word, tatoeba.inflections(word))
     confirm = None
     if sense is not None:
         confirm = lambda ru, terms=tuple(sense["ru"]): any(wiktionary.mentions(t, ru) for t in terms)
-    pair, pair_err = tatoeba.fetch_pair(fetcher, word, blocklist, cfg.tatoeba_delay, confirm=confirm)
+    pair, pair_err = tatoeba.fetch_pair(fetcher, word, guard, cfg.tatoeba_delay, confirm=confirm)
     if pair:
         partial["ex"] = pair["ex"]
         partial["exr"] = pair["exr"]

@@ -41,6 +41,9 @@ def parse_args(argv):
     p.add_argument("--limit", type=int, default=0, help="сколько слов-кандидатов обработать (0 = пока не наберём --target)")
     p.add_argument("--target", type=int, default=0, help="сколько готовых слов нужно набрать")
     p.add_argument("--skip-top", type=int, default=100, help="пропустить N самых частых слов (the, of, a...)")
+    p.add_argument("--per-level", type=int, default=0,
+                   help="брать по N кандидатов на каждый уровень A1..C2 и чередовать их — "
+                        "чтобы база пополнялась на всех уровнях, а не только на A1")
     p.add_argument("--stride", type=int, default=1,
                    help="брать каждое N-е слово — выборка по всему диапазону частот, "
                         "чтобы честно оценить долю годного на полном прогоне")
@@ -97,7 +100,26 @@ def main(argv=None):
         candidates.append(word)
 
     limit = args.limit or (args.target * 3 if args.target else 200)
-    todo = candidates[:: args.stride][:limit] if args.stride > 1 else candidates[:limit]
+    if args.per_level:
+        # Раскладываем кандидатов по уровням и берём с каждого поровну, чередуя.
+        # Иначе прогон по частотному списку сверху вниз даёт одни A1, а ученики
+        # у нас в основном B1 — им из такой базы тренироваться нечем.
+        buckets = {level: [] for level in emit.LEVELS}
+        for word in candidates:
+            buckets[freq.level(word)].append(word)
+        print("  кандидатов по уровням: %s"
+              % ", ".join("%s:%d" % (l, len(buckets[l])) for l in emit.LEVELS))
+        picked = {l: buckets[l][: args.per_level] for l in emit.LEVELS}
+        todo = []
+        for i in range(args.per_level):
+            for level in emit.LEVELS:
+                if i < len(picked[level]):
+                    todo.append(picked[level][i])
+        todo = todo[:limit] if args.limit else todo
+    elif args.stride > 1:
+        todo = candidates[:: args.stride][:limit]
+    else:
+        todo = candidates[:limit]
     print("Кандидатов после фильтров: %d (отсеяно: %s). Беру %d."
           % (len(candidates), ", ".join("%s %d" % (k, v) for k, v in prefiltered.items()), len(todo)))
 
