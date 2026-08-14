@@ -975,23 +975,67 @@ function renderFolders() {
     });
   });
 
-  document.getElementById("folder-add").addEventListener("click", () => {
-    const name = prompt("Название папки:");
-    if (name === null) return;                  // нажали «Отмена»
-    if (!createFolder(name)) {
-      if (name.trim()) alert("Такая папка уже есть.");
-      return;
-    }
-    dictFolder = name.trim().slice(0, 30);      // сразу открываем новую
-    renderDictionary();
+  // Поле прямо в ряду, а не системное окно. prompt() рисует диалог
+  // операционной системы посреди продукта для школьников — на телефоне
+  // это выглядит как ошибка сайта, а не как его часть. Заодно в поле
+  // видно, сколько влезает: «Неправильные глаголы» в prompt не проверить.
+  document.getElementById("folder-add").addEventListener("click", e => {
+    const btn = e.currentTarget;
+    if (document.getElementById("folder-new-inline")) return;
+    btn.classList.add("hidden");
+    const form = document.createElement("form");
+    form.className = "folder-new-inline";
+    form.id = "folder-new-inline";
+    form.innerHTML = `
+      <input type="text" id="folder-inline-name" maxlength="30" required
+             placeholder="название папки" aria-label="Название новой папки">
+      <button type="submit" class="btn btn-primary btn-small">Создать</button>
+      <button type="button" class="link-btn" id="folder-inline-cancel">отмена</button>`;
+    btn.parentElement.insertBefore(form, btn);
+    const input = form.querySelector("input");
+    input.focus();
+
+    const close = () => { form.remove(); btn.classList.remove("hidden"); };
+    form.querySelector("#folder-inline-cancel").addEventListener("click", close);
+    input.addEventListener("keydown", ev => { if (ev.key === "Escape") close(); });
+    form.addEventListener("submit", ev => {
+      ev.preventDefault();
+      const name = input.value.trim();
+      if (!name) return;
+      if (!createFolder(name)) {
+        input.setCustomValidity("Такая папка уже есть");
+        input.reportValidity();
+        setTimeout(() => input.setCustomValidity(""), 2000);
+        return;
+      }
+      dictFolder = name.slice(0, 30);           // сразу открываем новую
+      renderDictionary();
+    });
   });
 
+  // Удаление в два нажатия вместо системного confirm(): тот же приём,
+  // что у выхода из аккаунта. Системное окно посреди продукта выглядит
+  // чужим, а во встроенных браузерах его иногда просто не показывают.
   const del = document.getElementById("folder-del");
-  if (del) del.addEventListener("click", () => {
-    if (!confirm(`Удалить папку «${dictFolder}»?\n\nСлова останутся в словаре — исчезнет только папка.`)) return;
-    deleteFolder(dictFolder);
-    renderDictionary();
-  });
+  if (del) {
+    let armed = false, timer = null;
+    del.addEventListener("click", () => {
+      if (!armed) {
+        armed = true;
+        del.textContent = "нажми ещё раз — слова останутся";
+        del.classList.add("danger");
+        timer = setTimeout(() => {
+          armed = false;
+          del.textContent = `удалить «${dictFolder}»`;
+          del.classList.remove("danger");
+        }, 4000);
+        return;
+      }
+      clearTimeout(timer);
+      deleteFolder(dictFolder);
+      renderDictionary();
+    });
+  }
 }
 
 /** Окно «в какую папку положить слово». Работает как переключатели:

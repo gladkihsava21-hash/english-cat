@@ -335,6 +335,36 @@ function wordArt(word, category) {
  *
  *  alt пустой: плитка декоративная, слово написано рядом текстом, и
  *  озвучивать его скринридеру второй раз незачем. */
+/** Монолинейная заглушка по категории — то, что стоит в плитке, когда
+ *  фотографии у слова нет.
+ *
+ *  Раньше там был эмодзи-метафора, и это оказалось хуже, чем казалось:
+ *  фото есть у 110 слов из 2500, то есть эмодзи стояли ПОЧТИ ВЕЗДЕ.
+ *  В списке словаря из четырнадцати строк получалось четырнадцать
+ *  разноцветных системных значков — самые насыщенные пиксели экрана,
+ *  а в ночной теме единственные цветные вообще. Плюс метафора у трёх
+ *  разных слов выходила одна и та же (✨ у translucent, cordial и
+ *  sluggish), то есть не различала их, а сливала. И ✅ у слова suitable
+ *  читался как «выучено» и спорил со статусом строки.
+ *
+ *  Иконка из общего набора решает всё это разом: один цвет, наследуемый
+ *  от родителя, одна толщина линии, и она честно говорит «это категория»,
+ *  не притворяясь изображением предмета. */
+const CATEGORY_ICON = {
+  food: "categories", home: "home", objects: "categories", places: "target",
+  nature: "sparkle", time: "clock", qualities: "sparkle", feelings: "chat",
+  people: "personal", actions: "blitz", travel: "target", communication: "chat",
+  mind: "mcq", character: "personal", change: "refresh", money: "categories",
+  society: "personal", linkers: "matching", family: "personal", animals: "paw",
+  school: "book", body: "personal", clothes: "categories", weather: "sparkle",
+  city: "categories", health: "sparkle", art: "picture", sports: "medal",
+};
+
+function categoryIcon(category) {
+  const name = CATEGORY_ICON[category] || "paw";
+  return typeof icon === "function" ? icon(name, 22) : "";
+}
+
 function wordArtHTML(word, category) {
   const key = String(word || "").toLowerCase().trim();
   if (typeof WORD_PHOTOS !== "undefined" && WORD_PHOTOS[key]) {
@@ -346,9 +376,9 @@ function wordArtHTML(word, category) {
     return `<img class="word-photo" src="img/words/${encodeURIComponent(key)}.webp"`
          + ` alt="" width="480" height="480" loading="lazy" decoding="async">`;
   }
-  // Эмодзи тоже экранируем: иначе функция «иногда HTML, иногда нет»,
-  // и первое же значение с кавычкой порвёт вёрстку.
-  return esc(wordArt(word, category));
+  // Фотографии нет — ставим монолинейную заглушку по категории, а не
+  // эмодзи: почему именно так, расписано у CATEGORY_ICON выше.
+  return `<span class="word-icon">${categoryIcon(category)}</span>`;
 }
 
 // Готовый блок с картинкой для карточки

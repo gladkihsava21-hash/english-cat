@@ -613,7 +613,8 @@ h3, .section-head h3 {
 }
 /* Активный фильтр и активная группа заливались акцентом с белым текстом.
    Ночью акцент светлый — белым по светлому получалось 2,06:1. */
-.dict-filter.active, .group-chip.active, #voice-mode-btn.voice-active, .photo-new, .ob-num {
+.dict-filter.active, .group-chip.active, .scope-chip.active,
+.dict-folder.active, #voice-mode-btn.voice-active, .photo-new, .ob-num {
   background: var(--accent);
   color: var(--on-accent);
   border-color: var(--accent);
