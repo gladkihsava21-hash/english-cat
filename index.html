@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="css/savely.css?v=89">
   <link rel="stylesheet" href="css/motion.css?v=89">
 <link rel="stylesheet" href="css/a11y.css?v=89">
+  <link rel="stylesheet" href="css/account.css?v=89">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#F6F5F0">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -413,6 +414,23 @@
     </div>
   </section>
 
+  <!-- ЭКРАН: мой профиль
+       Пароля у ученика нет: вход по личному коду, и код здесь заменяет
+       собой пару «логин + пароль». Поэтому экран построен вокруг кода —
+       показать, скопировать, перевыпустить, — а не вокруг формы смены
+       пароля, которую нечем было бы наполнить.
+       Содержимое рисует renderAccount() из js/account.js: значения
+       приходят с сервера и вставляются через esc(). -->
+  <section id="screen-account" class="screen hidden">
+    <div class="narrow">
+      <div class="section-head">
+        <h2>Мой профиль</h2>
+      </div>
+      <p class="ac-lead" id="ac-lead"></p>
+      <div id="ac-body"></div>
+    </div>
+  </section>
+
 </main>
 
 
@@ -491,6 +509,8 @@
 <script src="js/sync.js?v=89"></script>
   <script src="js/reading.js?v=89"></script>
   <script src="js/photo.js?v=89"></script>
+  <!-- После sync.js: профиль ходит на сервер через api() оттуда -->
+  <script src="js/account.js?v=89"></script>
 <script>
   // офлайн-режим: сайт открывается без интернета и ставится на телефон
   if ("serviceWorker" in navigator && location.protocol !== "file:") {

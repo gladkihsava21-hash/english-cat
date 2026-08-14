@@ -108,7 +108,7 @@ function saveStateQuiet() {
 
 // ===== Навигация =====
 const screens = ["welcome", "test", "dashboard", "dictionary", "trainer", "practice",
-                 "exercise", "achievements", "chat"];
+                 "exercise", "achievements", "chat", "account"];
 
 function show(screen) {
   screens.forEach(s => {
@@ -128,6 +128,7 @@ function show(screen) {
   if (screen === "practice") renderPracticeHub();
   if (screen === "achievements") renderAchievements();
   if (screen === "chat") initChat();
+  if (screen === "account") renderAccount();
   window.scrollTo(0, 0);
 }
 

@@ -171,6 +171,14 @@ MIGRATIONS = [
     # разговора: «код не подходит» — «ты менял его тогда-то, работает новый».
     # Без даты это неотличимо от поломки сайта.
     ("students", "code_changed_at", "TEXT"),
+    # ---- видеоурок ----
+    # Ссылка на комнату репетитора: его собственная — Zoom, Google Meet,
+    # Телемост, что угодно. Хранится у РЕПЕТИТОРА, а не у ученика: комната
+    # у него одна, а учеников двадцать.
+    ("tutors", "lesson_url", "TEXT DEFAULT ''"),
+    # Когда репетитор нажал «начать урок». Ученик по этому времени видит
+    # «идёт урок» и не заходит в пустую комнату гадать, придёт ли кто-то.
+    ("tutors", "lesson_open_at", "TEXT"),
 ]
 
 
@@ -930,6 +938,8 @@ def tutor_public(row):
         "trialHoursLeft": trial_left(row),
         "paidDaysLeft": paid_left(row),
         "trialDays": TRIAL_DAYS,
+        "lessonUrl": (row["lesson_url"] if "lesson_url" in keys else "") or "",
+        "lessonLive": lesson_state(row)["live"],
     }
 
 
@@ -1398,6 +1408,59 @@ CHECK_PACKS = [
 DEFAULT_CHECK_PACK = "normal"
 EXTRA_CHECK_PRICE = 19   # за проверку сверх лимита пакета
 SINGLE_CHECK_PRICE = 29  # разовая проверка без подписки
+
+
+# ---------- видеоурок ----------
+# Ссылка на комнату у репетитора СВОЯ. Мы её не создаём и не хостим.
+#
+# Почему так, а не встроенное видео. Посчитал стоимость на Daily.co
+# (10 000 бесплатных участнико-минут в месяц, дальше $0,004 за минуту),
+# при двух участниках и восьми уроках по 45 минут на ученика:
+#
+#   тариф      учеников   цена ₽   мин/мес   ₽ за видео   доля цены
+#   Старт          5        799      3600         0           0%
+#   Практика      10       1299      7200         0           0%
+#   Школа         20       2399     14400      1549          65%
+#   Профи         50       4990     36000      9152         183%
+#
+# То есть на старших тарифах видео стоит дороже самой подписки. Строить
+# на этом основную функцию — значит продавать себе в убыток тем сильнее,
+# чем крупнее клиент. Поэтому: ссылка репетитора, ноль расходов, работает
+# сегодня. У любого репетитора уже есть Zoom или Телемост, ему не нужен
+# двадцать первый видеосервис — ему нужно, чтобы ученик нажал одну кнопку
+# и попал куда надо.
+LESSON_OPEN_MINUTES = 90   # столько ученик видит «идёт урок» после нажатия
+
+
+def set_lesson_url(tutor_id, url):
+    """Сохраняет ссылку на комнату. Пустая строка — убрать ссылку."""
+    conn().execute("UPDATE tutors SET lesson_url=? WHERE id=?",
+                   (str(url or "").strip()[:500], tutor_id))
+    conn().commit()
+
+
+def open_lesson(tutor_id, on=True):
+    conn().execute("UPDATE tutors SET lesson_open_at=? WHERE id=?",
+                   (now() if on else None, tutor_id))
+    conn().commit()
+
+
+def lesson_state(tutor_row):
+    """Что показать ученику: адрес комнаты и идёт ли урок прямо сейчас."""
+    keys = tutor_row.keys()
+    url = (tutor_row["lesson_url"] if "lesson_url" in keys else "") or ""
+    if not url:
+        return {"url": "", "live": False}
+    opened = tutor_row["lesson_open_at"] if "lesson_open_at" in keys else None
+    live = False
+    if opened:
+        started = _parse_ts(opened)
+        if started:
+            mins = (datetime.now(timezone.utc) - started).total_seconds() / 60
+            live = 0 <= mins <= LESSON_OPEN_MINUTES
+    # Ссылку отдаём всегда: ученик может опоздать, а урок уже идти. Флаг
+    # live управляет только тем, насколько громко зовёт кнопка.
+    return {"url": url, "live": live}
 PHOTOS_PER_CHECK = 5     # больше пяти снимков на одну домашку не принимаем
 CHAT_MONTHLY_LIMIT = 150  # fair-use: отрезает хвост, обычный ученик не заметит
 

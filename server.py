@@ -293,6 +293,7 @@ _HIT_LIMITS = {
     # Считается по IP (токена на этом шаге ещё нет). Без лимита форма
     # «забыли пароль» становится способом завалить чужой ящик письмами;
     # второй заслон — RESET_RESEND, не чаще раза в минуту на кабинет.
+    "/api/tutor/lesson/open": (30, 300),
     "/api/tutor/reset/send": (5, 900),
     # Проверка кода: перебрать шесть цифр — миллион вариантов, но пробовать
     # их надо где-то, и здесь. Счётчик попыток на сам код тоже есть.
@@ -789,7 +790,73 @@ class Api:
             "leaderboard": db.leaderboard(row),
             "messages": [{"id": m["id"], "text": m["text"], "createdAt": m["created_at"]}
                          for m in msgs[:5]],
+            # Видеоурок приходит той же синхронизацией, что и домашка:
+            # отдельный запрос раз в три секунды ради одной строки —
+            # лишняя нагрузка на хостинг, где и так всё на одном процессе.
+            "lesson": db.lesson_state(db.get_tutor_by_id(row["tutor_id"])),
         }
+
+    # --- личный кабинет ученика ---
+    #
+    # Пароля у ученика нет. Это решение, а не пробел: ему 10-15 лет, вход
+    # по ссылке репетитора занимает одно поле «имя», а пароль он забудет
+    # к третьему занятию — и превратит репетитора в службу поддержки.
+    # Роль пары «логин + пароль» здесь играет ЛИЧНЫЙ КОД: один секрет,
+    # который можно показать, скопировать и перевыпустить. Поэтому здесь
+    # нет ни «показать пароль» (в базе лежал бы хеш, показать сохранённый
+    # пароль нельзя в принципе), ни «сменить пароль» — есть «перевыпустить
+    # код», и это ровно тот же сброс доступа, только без второго секрета,
+    # который нечем восстанавливать.
+
+    @staticmethod
+    def student_profile(h, p):
+        """Всё, что ученик видит и меняет о себе."""
+        row, err = student_owner(p)
+        if err:
+            return err
+        return {"ok": True, "profile": db.student_profile(row)}
+
+    @staticmethod
+    def student_name(h, p):
+        """Смена имени. Имя видно репетитору в панели, поэтому правила
+        те же, что при входе по ссылке, — одна проверка на оба места."""
+        row, err = student_owner(p)
+        if err:
+            return err
+        problem = db.student_name_problem(p.get("name"))
+        if problem:
+            return {"ok": False, "error": problem}
+        row = db.set_student_name(row["id"], p.get("name"))
+        return {"ok": True, "name": row["name"]}
+
+    @staticmethod
+    def student_code_new(h, p):
+        """Перевыпуск личного кода — сброс доступа по-нашему.
+
+        Старый код умирает сразу: иначе подсмотревший одноклассник
+        остаётся в аккаунте, и вся операция бессмысленна. Токен живёт,
+        так что устройство, с которого нажали кнопку, не вылетает.
+        """
+        row, err = student_owner(p)
+        if err:
+            return err
+        return {"ok": True, "restoreCode": db.reissue_restore_code(row["id"])}
+
+    @staticmethod
+    def student_delete(h, p):
+        """Удаление своего аккаунта. Необратимо и по-настоящему:
+        словарь, очки, домашка и присланные фото уходят с сервера.
+
+        Отдельное поле confirm — чтобы случайный повтор запроса (кнопка
+        нажата дважды, клиент переотправил) не сносил аккаунт молча.
+        """
+        row, err = student_owner(p)
+        if err:
+            return err
+        if p.get("confirm") is not True:
+            return {"ok": False, "error": "Удаление не подтверждено."}
+        db.delete_student_account(row["id"])
+        return {"ok": True}
 
     @staticmethod
     def tutor_password_change(h, p):
@@ -940,6 +1007,38 @@ class Api:
             return {"ok": False,
                     "error": "Не получилось отправить письмо. Проверь адрес или напиши нам."}
         return {"ok": True, "sentVia": how}
+
+    @staticmethod
+    def tutor_lesson_set(h, p):
+        """Сохранить ссылку на свою комнату (Zoom, Meet, Телемост…)."""
+        tutor = db.get_tutor_by_token(p.get("token"))
+        if not tutor:
+            return {"ok": False, "error": "unauthorized"}
+        url = str(p.get("url", "")).strip()
+        if url:
+            # Только http(s) и только абсолютный адрес. Без этой проверки
+            # в поле можно положить javascript:… — и ученик, нажав кнопку
+            # «на урок», выполнит чужой скрипт у себя на странице.
+            if not re.match(r"^https://[^\s<>\"']+$", url):
+                return {"ok": False, "error":
+                        "Нужна полная ссылка, начинающаяся с https:// — "
+                        "скопируйте её из Zoom, Google Meet или Телемоста."}
+            if len(url) > 500:
+                return {"ok": False, "error": "Ссылка слишком длинная."}
+        db.set_lesson_url(tutor["id"], url)
+        return {"ok": True, "url": url}
+
+    @staticmethod
+    def tutor_lesson_open(h, p):
+        """Позвать учеников: у них загорается «идёт урок»."""
+        tutor = db.get_tutor_by_token(p.get("token"))
+        if not tutor:
+            return {"ok": False, "error": "unauthorized"}
+        row = db.get_tutor_by_id(tutor["id"])
+        if not (row["lesson_url"] if "lesson_url" in row.keys() else ""):
+            return {"ok": False, "error": "Сначала добавьте ссылку на свою комнату."}
+        db.open_lesson(tutor["id"], bool(p.get("on", True)))
+        return {"ok": True, "minutes": db.LESSON_OPEN_MINUTES}
 
     @staticmethod
     def tutor_reset_send(h, p):
@@ -1328,6 +1427,10 @@ ROUTES = {
     "/api/student/restore": Api.student_restore,
     "/api/student/pull": Api.student_pull,
     "/api/student/sync": Api.student_sync,
+    "/api/student/profile": Api.student_profile,
+    "/api/student/name": Api.student_name,
+    "/api/student/code/new": Api.student_code_new,
+    "/api/student/delete": Api.student_delete,
     "/api/admin/login": Api.admin_login,
     "/api/admin/logout": Api.admin_logout,
     "/api/admin/data": Api.admin_data,
@@ -1339,6 +1442,8 @@ ROUTES = {
     "/api/tutor/add-slot": Api.tutor_add_slot,
     "/api/tutor/verify/send": Api.tutor_verify_send,
     "/api/tutor/verify/check": Api.tutor_verify_check,
+    "/api/tutor/lesson/set": Api.tutor_lesson_set,
+    "/api/tutor/lesson/open": Api.tutor_lesson_open,
     "/api/tutor/reset/send": Api.tutor_reset_send,
     "/api/tutor/reset/check": Api.tutor_reset_check,
     "/api/tutor/password": Api.tutor_password_change,

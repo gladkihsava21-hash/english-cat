@@ -121,6 +121,7 @@
         <button class="nav-btn" data-tab="tasks">Домашки</button>
         <button class="nav-btn" data-tab="photos">Фото тетрадей <span id="photo-count" class="badge">0</span></button>
         <button class="nav-btn" data-tab="checks">Проверка домашек</button>
+        <button class="nav-btn" data-tab="lesson">Видеоурок</button>
         <button class="nav-btn" data-tab="invite">Ссылка для учеников</button>
         <button class="nav-btn" data-tab="plan">Подписка</button>
       </nav>
@@ -281,6 +282,42 @@
     <section id="tab-plan" class="hidden">
       <h2 class="section-title">Подписка</h2>
       <div id="plan-box"></div>
+    </section>
+
+    <!-- ВИДЕОУРОК.
+         Комнату не создаём и не хостим: у репетитора она своя. Причина
+         в деньгах, а не в лени — расчёт лежит в db.py у LESSON_OPEN_MINUTES.
+         Коротко: встроенное видео на старшем тарифе стоит дороже самой
+         подписки, а Zoom или Телемост у репетитора уже есть. Наша работа —
+         чтобы ученик попадал туда одной кнопкой и в нужный момент. -->
+    <section id="tab-lesson" class="hidden">
+      <div class="section-head"><h2>Видеоурок</h2></div>
+      <div class="card">
+        <p>Занимайтесь там, где вам привычно, — Zoom, Google&nbsp;Meet, Телемост.
+          Вставьте сюда ссылку на&nbsp;свою постоянную комнату, и&nbsp;у&nbsp;учеников
+          на&nbsp;главной появится кнопка «На&nbsp;урок».</p>
+        <label for="lesson-url">Ссылка на комнату</label>
+        <div class="invite-link">
+          <input type="url" id="lesson-url" placeholder="https://telemost.yandex.ru/j/..."
+                 autocomplete="off" spellcheck="false">
+          <button class="btn btn-ghost" id="lesson-save">Сохранить</button>
+        </div>
+        <p class="type-feedback" id="lesson-msg"></p>
+
+        <div id="lesson-live-box" class="hidden">
+          <hr class="soft-rule">
+          <p>Когда начнёте занятие — нажмите. У&nbsp;учеников кнопка загорится
+            и&nbsp;будет звать на&nbsp;урок полтора часа.</p>
+          <div class="quiz-buttons">
+            <button class="btn btn-primary" id="lesson-open">Начать урок</button>
+            <button class="btn btn-ghost hidden" id="lesson-close">Урок закончен</button>
+          </div>
+          <p class="muted-small" id="lesson-live-note"></p>
+        </div>
+
+        <p class="muted-small" style="margin-top:16px">Ссылку видят только ваши ученики.
+          Если комнату нужно закрыть — сотрите ссылку и&nbsp;сохраните пустое поле.</p>
+      </div>
     </section>
 
     <section id="tab-invite" class="hidden">

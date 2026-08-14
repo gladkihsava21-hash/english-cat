@@ -205,6 +205,7 @@ async function loadStudents() {
   renderGroups();
   renderStudents();
   renderInvite();
+  if (typeof renderLesson === "function") renderLesson();
   fillStudentSelect();
   fillMsgTarget();
   renderMessages();
@@ -984,4 +985,66 @@ document.addEventListener("click", e => {
     e.target.textContent = "Скопировано ✓";
     setTimeout(() => (e.target.textContent = "Скопировать ссылку"), 2000);
   }).catch(() => { input.select(); document.execCommand("copy"); });
+});
+
+/* ===== Видеоурок =====
+ * Комнату не создаём: у репетитора она своя. Наша работа — донести её до
+ * ученика в нужный момент одной кнопкой. Расчёт, почему не встроенное
+ * видео, лежит в db.py у LESSON_OPEN_MINUTES.
+ */
+function renderLesson() {
+  const url = (tutor && tutor.lessonUrl) || "";
+  const input = $("lesson-url");
+  if (!input) return;
+  // Не затираем то, что человек печатает прямо сейчас: renderLesson
+  // зовётся и по таймеру обновления списка учеников.
+  if (document.activeElement !== input) input.value = url;
+  $("lesson-live-box").classList.toggle("hidden", !url);
+  const live = tutor && tutor.lessonLive;
+  $("lesson-open").classList.toggle("hidden", !!live);
+  $("lesson-close").classList.toggle("hidden", !live);
+  $("lesson-live-note").textContent = live
+    ? "Идёт урок — ученики видят кнопку «На урок»."
+    : "";
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  const save = $("lesson-save");
+  if (!save) return;
+
+  save.addEventListener("click", async () => {
+    const msg = $("lesson-msg");
+    msg.className = "type-feedback";
+    msg.textContent = "Сохраняю…";
+    const res = await api("/api/tutor/lesson/set", {
+      token: token(), url: $("lesson-url").value.trim(),
+    });
+    if (!res.ok) {
+      msg.className = "type-feedback err";
+      msg.textContent = res.error || "Не получилось сохранить.";
+      return;
+    }
+    msg.className = "type-feedback ok";
+    msg.textContent = res.url ? "Ссылка сохранена." : "Ссылка убрана — кнопки у учеников больше нет.";
+    if (tutor) { tutor.lessonUrl = res.url; tutor.lessonLive = false; }
+    renderLesson();
+  });
+
+  const toggle = async on => {
+    const msg = $("lesson-msg");
+    const res = await api("/api/tutor/lesson/open", { token: token(), on });
+    if (!res.ok) {
+      msg.className = "type-feedback err";
+      msg.textContent = res.error || "Не получилось.";
+      return;
+    }
+    if (tutor) tutor.lessonLive = on;
+    msg.className = "type-feedback ok";
+    msg.textContent = on
+      ? `Ученики приглашены. Кнопка у них горит ${res.minutes} минут.`
+      : "Урок закрыт.";
+    renderLesson();
+  };
+  $("lesson-open").addEventListener("click", () => toggle(true));
+  $("lesson-close").addEventListener("click", () => toggle(false));
 });
