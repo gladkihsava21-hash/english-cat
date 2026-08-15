@@ -7,13 +7,13 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/tokens.css?v=100">
-  <link rel="stylesheet" href="css/style.css?v=100">
-  <link rel="stylesheet" href="css/savely.css?v=100">
-  <link rel="stylesheet" href="css/tutor.css?v=100">
-<link rel="stylesheet" href="css/motion.css?v=100">
-<link rel="stylesheet" href="css/a11y.css?v=100">
-<link rel="stylesheet" href="css/cat.css?v=100">
+  <link rel="stylesheet" href="css/tokens.css?v=101">
+  <link rel="stylesheet" href="css/style.css?v=101">
+  <link rel="stylesheet" href="css/savely.css?v=101">
+  <link rel="stylesheet" href="css/tutor.css?v=101">
+<link rel="stylesheet" href="css/motion.css?v=101">
+<link rel="stylesheet" href="css/a11y.css?v=101">
+<link rel="stylesheet" href="css/cat.css?v=101">
 </head>
 <body>
 
@@ -411,6 +411,38 @@
   </div>
 </div>
 
+<!-- Смена пароля. Раньше это были два системных prompt() подряд и alert()
+     на результат: диалоги операционной системы посреди платного продукта,
+     без глазка, без проверки совпадения и без единого шанса увидеть,
+     что набрал. -->
+<div id="pass-modal" class="modal hidden">
+  <div class="modal-card">
+    <h3>Смена пароля</h3>
+    <form id="pass-form">
+      <label>Текущий пароль
+        <span class="pass-field">
+          <input type="password" id="pw-old" autocomplete="current-password" required>
+          <button type="button" class="pass-eye" data-eye="pw-old"
+                  aria-label="Показать пароль" aria-pressed="false"></button>
+        </span>
+      </label>
+      <label>Новый пароль
+        <span class="pass-field">
+          <input type="password" id="pw-new" autocomplete="new-password"
+                 placeholder="от 8 символов" required>
+          <button type="button" class="pass-eye" data-eye="pw-new"
+                  aria-label="Показать пароль" aria-pressed="false"></button>
+        </span>
+      </label>
+      <p class="type-feedback" id="pw-msg"></p>
+      <div class="quiz-buttons">
+        <button type="button" class="btn btn-ghost" id="pw-cancel">Отмена</button>
+        <button type="submit" class="btn btn-primary">Сменить</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <div id="recovery-modal" class="modal hidden">
   <div class="modal-card">
     <h3>Сохраните код восстановления</h3>
@@ -431,17 +463,17 @@
     <a href="https://t.me/KOTSAVELII" target="_blank" rel="noopener">@KOTSAVELII</a></p>
 </footer>
 
-<script src="js/theme.js?v=100"></script>
-<script src="js/icons.js?v=100"></script>
-<script src="js/cat.js?v=100"></script>
-<script src="js/motion.js?v=100"></script>
-<script src="js/util.js?v=100"></script>
-<script src="js/words.js?v=100"></script>
-<script src="js/images.js?v=100"></script>
-<script src="js/word-photos.js?v=100"></script>
-<script src="js/tutor.js?v=100"></script>
-<script src="js/tutor-photos.js?v=100"></script>
-<script src="js/tutor-auth.js?v=100"></script>
-<script src="js/tutor-verify.js?v=100"></script>
+<script src="js/theme.js?v=101"></script>
+<script src="js/icons.js?v=101"></script>
+<script src="js/cat.js?v=101"></script>
+<script src="js/motion.js?v=101"></script>
+<script src="js/util.js?v=101"></script>
+<script src="js/words.js?v=101"></script>
+<script src="js/images.js?v=101"></script>
+<script src="js/word-photos.js?v=101"></script>
+<script src="js/tutor.js?v=101"></script>
+<script src="js/tutor-photos.js?v=101"></script>
+<script src="js/tutor-auth.js?v=101"></script>
+<script src="js/tutor-verify.js?v=101"></script>
 </body>
 </html>

@@ -99,18 +99,49 @@ document.addEventListener("DOMContentLoaded", () => {
     location.reload();
   });
 
-  // смена пароля из панели
+  // Смена пароля из панели. Было два системных prompt() подряд и alert()
+  // на результат — диалоги операционной системы посреди платного продукта.
+  // Там нельзя ни увидеть, что набрал, ни понять требования к паролю,
+  // ни отменить по-человечески: на телефоне это выглядит как сбой сайта.
   const passBtn = $$("pass-btn");
-  if (passBtn) passBtn.addEventListener("click", async () => {
-    const oldP = prompt("Текущий пароль:");
-    if (!oldP) return;
-    const newP = prompt("Новый пароль (от 8 символов):");
-    if (!newP) return;
-    const res = await api("/api/tutor/password", {
-      token: token(), oldPassword: oldP, newPassword: newP,
+  const passModal = $$("pass-modal");
+  if (passBtn && passModal) {
+    const close = () => {
+      passModal.classList.add("hidden");
+      $$("pw-old").value = ""; $$("pw-new").value = "";
+      $$("pw-msg").textContent = "";
+      passBtn.focus();               // фокус возвращается туда, откуда пришли
+    };
+    passBtn.addEventListener("click", () => {
+      passModal.classList.remove("hidden");
+      if (typeof paintPassEyes === "function") paintPassEyes(passModal);
+      $$("pw-old").focus();
     });
-    if (!res.ok) { alert(res.error || "Не получилось сменить пароль."); return; }
-    localStorage.setItem("savelyTutorToken", res.token);
-    alert(res.note || "Пароль изменён.");
-  });
+    $$("pw-cancel").addEventListener("click", close);
+    passModal.addEventListener("keydown", e => { if (e.key === "Escape") close(); });
+
+    $$("pass-form").addEventListener("submit", async e => {
+      e.preventDefault();
+      const msg = $$("pw-msg");
+      msg.className = "type-feedback";
+      msg.textContent = "Меняю…";
+      let res;
+      try {
+        res = await api("/api/tutor/password", {
+          token: token(),
+          oldPassword: $$("pw-old").value,
+          newPassword: $$("pw-new").value,
+        });
+      } catch (err) { res = null; }
+      if (!res || !res.ok) {
+        msg.className = "type-feedback err";
+        msg.textContent = (res && res.error) || "Не дозвонились до сервера. Попробуйте ещё раз.";
+        return;
+      }
+      localStorage.setItem("savelyTutorToken", res.token);
+      msg.className = "type-feedback ok";
+      msg.textContent = res.note || "Пароль изменён.";
+      setTimeout(close, 1400);
+    });
+  }
 });

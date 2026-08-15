@@ -65,7 +65,13 @@ function renderPhotoResult(p) {
 async function sendHomeworkPhoto(file, homeworkId) {
   if (photoBusy) return;
   if (!studentToken()) {
-    alert("Фото можно отправить только если ты зашёл по ссылке репетитора.");
+    // Сообщение в самом блоке, а не системным окном: окно операционной
+    // системы посреди детского продукта читается как поломка сайта,
+    // и на телефоне его иногда просто не показывают.
+    const box = document.getElementById("photo-box");
+    if (box) box.innerHTML = `<div class="card"><p class="stat-note">`
+      + `Отправить фото можно, только если ты зашёл по ссылке репетитора — `
+      + `иначе Савелию некому её показать.</p></div>`;
     return;
   }
   photoBusy = true;

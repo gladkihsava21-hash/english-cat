@@ -24,7 +24,11 @@ body {
   font-family: "Nunito", system-ui, sans-serif;
   background: var(--bg);
   color: var(--ink);
-  min-height: 100vh;
+  /* dvh, а не vh: на мобильном Safari 100vh считается по РАЗВЁРНУТОМУ
+     окну — без адресной строки, — и страница оказывается выше экрана.
+     Появляется лишняя прокрутка на пустой странице и прыжок вёрстки
+     в момент, когда строка прячется. dvh считает по фактическому. */
+  min-height: 100dvh;
 }
 .hidden { display: none !important; }
 .muted { color: var(--muted); }
