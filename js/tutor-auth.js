@@ -5,14 +5,14 @@ function showRecoveryCode(code) {
   const val = document.getElementById("recovery-value");
   if (!modal || !val || !code) return;
   val.textContent = code;
-  modal.classList.remove("hidden");
+  openModal(modal);
 }
 
 document.addEventListener("DOMContentLoaded", () => {
   const $$ = id => document.getElementById(id);
 
   const okBtn = $$("recovery-ok");
-  if (okBtn) okBtn.addEventListener("click", () => $$("recovery-modal").classList.add("hidden"));
+  if (okBtn) okBtn.addEventListener("click", () => closeModal("recovery-modal"));
 
   // Три формы на одной карточке: вход, сброс по коду с почты и сброс
   // по коду восстановления. Показываем ровно одну.
@@ -106,19 +106,19 @@ document.addEventListener("DOMContentLoaded", () => {
   const passBtn = $$("pass-btn");
   const passModal = $$("pass-modal");
   if (passBtn && passModal) {
+    // Возврат фокуса, Escape и ловушку табом теперь держит closeModal —
+    // см. js/util.js. Здесь остаётся только чистка полей: пароль не должен
+    // оставаться набранным в закрытом окне.
     const close = () => {
-      passModal.classList.add("hidden");
       $$("pw-old").value = ""; $$("pw-new").value = "";
       $$("pw-msg").textContent = "";
-      passBtn.focus();               // фокус возвращается туда, откуда пришли
+      closeModal(passModal);
     };
     passBtn.addEventListener("click", () => {
-      passModal.classList.remove("hidden");
+      openModal(passModal, { focus: "#pw-old" });
       if (typeof paintPassEyes === "function") paintPassEyes(passModal);
-      $$("pw-old").focus();
     });
     $$("pw-cancel").addEventListener("click", close);
-    passModal.addEventListener("keydown", e => { if (e.key === "Escape") close(); });
 
     $$("pass-form").addEventListener("submit", async e => {
       e.preventDefault();

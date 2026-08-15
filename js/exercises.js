@@ -350,6 +350,24 @@ function openExercise(id) {
     });
     return;
   }
+
+  // Упражнения на выражения живут в отдельном файле на 150 КБ. Его качают
+  // только те, кто до них дошёл: раньше он висел на странице у всех, а
+  // нужен трём упражнениям из двадцати семи. Пока едет — показываем кота
+  // и надпись, а не пустой экран.
+  if (ex && ex.group === "phrases" && typeof PHRASES === "undefined") {
+    stage().innerHTML = `
+      <div class="empty-state">
+        <div class="cat-avatar cat-mid" data-cat="hello"></div>
+        <h2>Достаю выражения…</h2>
+      </div>`;
+    if (typeof paintCats === "function") paintCats(stage());
+    ensurePhrases()
+      .then(() => { if (stage()) EX_RUNNERS[id](); })
+      .catch(() => { if (stage()) EX_RUNNERS._noPhrases(); });
+    return;
+  }
+
   EX_RUNNERS[id]();
 }
 
@@ -1345,15 +1363,28 @@ const EX_RUNNERS = {
       <div class="cw-clues">
         ${placed.map(p => `<p><b>${p.num}${p.horiz ? "→" : "↓"}</b> ${esc(p.t)}</p>`).join("")}
       </div>
-      <div class="quiz-buttons"><button class="btn btn-primary" id="cw-check">Проверить</button></div>`;
+      <div class="quiz-buttons"><button class="btn btn-primary" id="cw-check">Проверить</button></div>
+      <p class="type-feedback" id="cw-result" role="status" aria-live="polite"></p>`;
     const gridEl = document.getElementById("cw-grid");
     const inputs = {};
+    // Какие слова проходят через клетку и какая это буква по счёту —
+    // нужно для подписей: без них программа чтения объявляет тридцать
+    // два поля подряд как «поле ввода, пусто», и понять, где ты сейчас
+    // находишься и что сюда писать, невозможно в принципе.
+    const through = {};
+    placed.forEach(p => {
+      for (let k = 0; k < p.w.length; k++) {
+        const kk = key(p.horiz ? p.r : p.r + k, p.horiz ? p.c + k : p.c);
+        (through[kk] = through[kk] || []).push({ p, idx: k });
+      }
+    });
     for (let r = 0; r <= maxR; r++) {
       for (let c = 0; c <= maxC; c++) {
         const cell = owns[key(r, c)];
         if (!cell) {
           const sp = document.createElement("div");
           sp.className = "cw-empty";
+          sp.setAttribute("aria-hidden", "true");
           gridEl.appendChild(sp);
         } else {
           const wrap = document.createElement("div");
@@ -1362,6 +1393,13 @@ const EX_RUNNERS = {
           const inp = document.createElement("input");
           inp.maxLength = 1;
           inp.autocomplete = "off";
+          // «Слово 2 вниз, «собака», буква 3 из 6» — по такой подписи
+          // клетку можно найти на слух и не глядя на сетку.
+          inp.setAttribute("aria-label",
+            (through[key(r, c)] || []).map(({ p, idx }) =>
+              `Слово ${p.num} ${p.horiz ? "по горизонтали" : "по вертикали"}, `
+              + `«${p.t}», буква ${idx + 1} из ${p.w.length}`).join("; ")
+            || "Клетка кроссворда");
           wrap.appendChild(inp);
           gridEl.appendChild(wrap);
           inputs[key(r, c)] = { inp, ch: cell.ch };
@@ -1369,13 +1407,26 @@ const EX_RUNNERS = {
       }
     }
     document.getElementById("cw-check").addEventListener("click", () => {
-      let allOk = true;
+      let allOk = true, wrong = 0, empty = 0;
       Object.values(inputs).forEach(({ inp, ch }) => {
-        const ok = inp.value.trim().toLowerCase() === ch;
+        const val = inp.value.trim().toLowerCase();
+        const ok = val === ch;
         inp.classList.toggle("ok", ok);
         inp.classList.toggle("err", !ok);
-        if (!ok) allOk = false;
+        // Цвет — не единственный носитель смысла: дальтоник и незрячий
+        // не различат зелёную клетку и красную. aria-invalid слышно,
+        // а надпись ниже сообщает итог словами всем сразу.
+        inp.setAttribute("aria-invalid", ok ? "false" : "true");
+        if (!ok) { allOk = false; val ? wrong++ : empty++; }
       });
+      const say = document.getElementById("cw-result");
+      if (say) {
+        say.className = "type-feedback " + (allOk ? "ok" : "err");
+        say.textContent = allOk
+          ? "Всё верно, мяу! Кроссворд собран."
+          : [wrong && `неверных букв: ${wrong}`, empty && `пустых клеток: ${empty}`]
+              .filter(Boolean).join(", ").replace(/^./, m => m.toUpperCase()) + ".";
+      }
       if (allOk) {
         placed.forEach(p => statUpdate(p.w, true));
         award(15 * placed.length);

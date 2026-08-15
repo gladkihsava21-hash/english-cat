@@ -148,8 +148,20 @@ function pendingEmail() { return localStorage.getItem("savelyTutorEmail") || "";
 async function openPanel() {
   $("screen-auth").classList.add("hidden");
   $("app").classList.remove("hidden");
+  // Словарь нужен только внутри панели — выбрать слова для домашки.
+  // На экране входа он не нужен вообще, а это 326 КБ сжатыми: раньше
+  // их качал каждый, кто просто открыл форму. Не ждём: список учеников
+  // важнее, а подборщик слов лежит на другой вкладке.
+  ensureWords().then(fillWordPicker).catch(() => {});
   await loadStudents();
   setInterval(loadStudents, 60000);  // подтягиваем свежий прогресс раз в минуту
+}
+
+/** Всё, что нельзя нарисовать без словаря. Зовётся, когда он приехал. */
+function fillWordPicker() {
+  fillLevels();
+  renderWordPicker();
+  renderPicked();
 }
 
 function showConnError(on) {
@@ -499,7 +511,7 @@ async function openStudent(id) {
     </div>
     <p class="type-feedback" id="note-msg"></p>`;
 
-  $("stu-modal").classList.remove("hidden");
+  openModal("stu-modal");
 
   $("note-save").addEventListener("click", async () => {
     await api("/api/tutor/student/note",
@@ -511,13 +523,10 @@ async function openStudent(id) {
   $("report-btn").addEventListener("click", () => printReport(s, grp));
 }
 
-$("modal-close").addEventListener("click", () => $("stu-modal").classList.add("hidden"));
-$("stu-modal").addEventListener("click", e => {
-  if (e.target.id === "stu-modal") $("stu-modal").classList.add("hidden");
-});
-document.addEventListener("keydown", e => {
-  if (e.key === "Escape") $("stu-modal").classList.add("hidden");
-});
+// Escape, клик по затемнению и возврат фокуса — всё внутри closeModal,
+// см. js/util.js. Раньше слушатель Escape висел на документе постоянно
+// и закрывал карточку ученика даже когда её никто не открывал.
+$("modal-close").addEventListener("click", () => closeModal("stu-modal"));
 
 /** Печатный отчёт — то, что репетитор сейчас пишет родителям руками. */
 function printReport(s, grp) {
@@ -721,6 +730,10 @@ function fillStudentSelect() {
 }
 
 function fillLevels() {
+  // Словарь подгружается отдельно (см. openPanel). Если репетитор успел
+  // щёлкнуть по вкладке раньше, чем он приехал, — говорим об этом, а
+  // не падаем с пустым списком, из которого не понять, что происходит.
+  if (typeof WORDS === "undefined") return;
   $("hw-level").innerHTML = LEVELS.map(l =>
     `<option value="${l}">${l} — ${LEVEL_NAMES[l]}</option>`).join("");
   $("hw-level").value = "A2";
@@ -737,6 +750,7 @@ $("hw-pick-all").addEventListener("click", () => {
   const lvl = $("hw-level").value;
   const q = $("hw-search").value.trim().toLowerCase();
   const topic = $("hw-topic").value;
+  if (typeof WORDS === "undefined") return;
   (WORDS[lvl] || [])
     .filter(w => (!topic || w.cat === topic) &&
                  (!q || w.w.toLowerCase().includes(q) || w.t.toLowerCase().includes(q)))
@@ -756,6 +770,10 @@ $("hw-pick-all").addEventListener("click", () => {
 $("hw-topic").addEventListener("change", renderWordPicker);
 
 function renderWordPicker() {
+  if (typeof WORDS === "undefined") {
+    $("hw-words").innerHTML = '<p class="muted-small">Загружаю словарь…</p>';
+    return;
+  }
   const lvl = $("hw-level").value;
   const q = $("hw-search").value.trim().toLowerCase();
   const topic = $("hw-topic") ? $("hw-topic").value : "";
@@ -857,9 +875,8 @@ $("hw-send").addEventListener("click", async () => {
 });
 
 // ===== Старт =====
-fillLevels();
-renderWordPicker();
-renderPicked();
+// Подборщик слов рисуется не здесь, а в openPanel — после входа и после
+// того, как приедет словарь. До входа его всё равно никто не видит.
 
 // Витрина без бэкенда: панели тут работать негде, и лучше сказать это
 // прямо, чем показывать форму входа, которая всегда отвечает ошибкой.

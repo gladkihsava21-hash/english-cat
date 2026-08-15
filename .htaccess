@@ -31,6 +31,14 @@ DirectoryIndex index.html
     Options +ExecCGI
 </Files>
 
+# Шрифты лежат у нас (css/fonts/), и Apache по умолчанию отдаёт их с
+# устаревшим application/font-woff2. Работать работает, но правильный
+# тип с 2017 года — font/woff2, и по нему браузеры и прокси понимают,
+# что файл уже сжат и упаковывать его второй раз незачем.
+<IfModule mod_mime.c>
+    AddType font/woff2 .woff2
+</IfModule>
+
 <IfModule mod_rewrite.c>
     RewriteEngine On
 

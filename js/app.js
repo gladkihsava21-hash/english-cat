@@ -148,6 +148,37 @@ function show(screen) {
   if (screen === "chat") initChat();
   if (screen === "account") renderAccount();
   window.scrollTo(0, 0);
+  announceScreen(screen);
+}
+
+/** Названия разделов для программы чтения с экрана — те же слова, что
+ *  написаны на кнопках внизу, чтобы «нажал Словарь» и «попал в Словарь»
+ *  звучали одинаково. */
+const SCREEN_NAMES = {
+  dashboard: "Главная", practice: "Тренировки", trainer: "Тренировка",
+  exercise: "Упражнение", dictionary: "Словарь", achievements: "Награды",
+  chat: "Чат с Савелием", account: "Профиль", test: "Тест на уровень",
+  welcome: "Начало",
+};
+
+/** Сайт — одна страница, адрес при переходах не меняется, перезагрузки
+ *  нет. Для зрячего это плюс, а незрячий нажимал «Словарь» и не получал
+ *  НИЧЕГО: ни звука, ни смены заголовка, ни перемещения фокуса — только
+ *  тишина, по которой не понять, сработало ли вообще.
+ *
+ *  Поэтому вручную делаем то, что при обычном переходе делает браузер:
+ *  переводим фокус на заголовок нового раздела и называем его вслух. */
+function announceScreen(screen) {
+  const host = document.getElementById("screen-" + screen);
+  if (!host) return;
+  const name = SCREEN_NAMES[screen] || "";
+  if (typeof announce === "function" && name) announce(name);
+  const head = host.querySelector("h1, h2");
+  if (!head) return;
+  // tabindex="-1": фокус ставится программно, но в обход табом заголовок
+  // не попадает — иначе он мешал бы всем остальным.
+  head.setAttribute("tabindex", "-1");
+  head.focus({ preventScroll: true });
 }
 
 function resetTestScreen() {
@@ -260,7 +291,7 @@ document.getElementById("logout-btn").addEventListener("click", () => {
   document.getElementById("logout-unsafe").classList.toggle("hidden", safe);
   document.getElementById("logout-go").disabled = safe;   // включит галочка
   document.getElementById("logout-ack").checked = false;
-  box.classList.remove("hidden");
+  openModal(box);
 });
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -271,7 +302,7 @@ document.addEventListener("DOMContentLoaded", () => {
   $("logout-ack").addEventListener("change", e => {
     $("logout-go").disabled = !e.target.checked;
   });
-  $("logout-cancel").addEventListener("click", () => box.classList.add("hidden"));
+  $("logout-cancel").addEventListener("click", () => closeModal(box));
   $("logout-go").addEventListener("click", doLogout);
 
   $("logout-copy").addEventListener("click", async () => {
@@ -360,6 +391,13 @@ function renderTestWord() {
   document.getElementById("quiz-word").textContent = testWords[testIndex].w;
   document.getElementById("test-counter").textContent = `${testIndex + 1} / ${total}`;
   document.getElementById("test-progress").style.width = `${(testIndex / total) * 100}%`;
+  // Полоску прогресса видно глазами; для программы чтения то же самое
+  // говорят эти два числа.
+  const bar = document.getElementById("test-progress-bar");
+  if (bar) {
+    bar.setAttribute("aria-valuemax", total);
+    bar.setAttribute("aria-valuenow", testIndex);
+  }
 }
 
 function answerTest(knows) {
@@ -1112,13 +1150,15 @@ function openFolderPicker(word) {
     draw();
     renderFolders();
   };
-  modal.classList.remove("hidden");
+  // Фокус сразу в поле новой папки: чаще всего окно открывают именно
+  // ради неё, а список галочек всё равно рядом по табу.
+  openModal(modal, { focus: "#folder-new-name" });
 }
 
 document.addEventListener("DOMContentLoaded", () => {
   const close = document.getElementById("folder-close");
   if (close) close.addEventListener("click", () => {
-    document.getElementById("folder-modal").classList.add("hidden");
+    closeModal("folder-modal");
     renderDictionary();
   });
 });
@@ -1754,11 +1794,20 @@ document.addEventListener("DOMContentLoaded", () => {
   const close = document.getElementById("phrases-close");
   if (!open) return;
   open.addEventListener("click", () => {
-    document.getElementById("phrases-modal").classList.remove("hidden");
-    renderPhrasePicker();
+    openModal("phrases-modal");
+    // Выражения лежат в отдельном файле на 150 КБ и подгружаются только
+    // здесь — их открывает малая часть учеников, а платили за них все.
+    const list = document.getElementById("phrase-list");
+    if (typeof PHRASES === "undefined" && list) {
+      list.innerHTML = '<p class="muted-small">Достаю выражения…</p>';
+    }
+    ensurePhrases().then(renderPhrasePicker).catch(() => {
+      if (list) list.innerHTML =
+        '<p class="muted-small">Не получилось загрузить выражения. Проверь связь и открой ещё раз.</p>';
+    });
   });
   close.addEventListener("click", () => {
-    document.getElementById("phrases-modal").classList.add("hidden");
+    closeModal("phrases-modal");
     renderDictionary();
   });
 });

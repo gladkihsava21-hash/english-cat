@@ -10,7 +10,7 @@
        подмножества браузер возьмёт сам, если встретит редкую букву. -->
   <link rel="preload" href="css/fonts/nunito-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="css/fonts/inter-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="css/fonts.css?v=114">
+  <link rel="stylesheet" href="css/fonts.css?v=118">
   <!-- Тему ставим ДО первой отрисовки, отдельным крошечным скриптом.
        Всё остальное грузится с defer, а defer выполняется после разбора
        страницы — то есть уже после того, как браузер её покажет. Если
@@ -26,14 +26,14 @@
       document.documentElement.dataset.theme = t;
     } catch (e) { /* приватный режим — просто останется дневная */ }
   </script>
-  <link rel="stylesheet" href="css/tokens.css?v=114">
-  <link rel="stylesheet" href="css/style.css?v=114">
-  <link rel="stylesheet" href="css/savely.css?v=114">
-  <link rel="stylesheet" href="css/motion.css?v=114">
-<link rel="stylesheet" href="css/a11y.css?v=114">
-  <link rel="stylesheet" href="css/games.css?v=114">
-  <link rel="stylesheet" href="css/cat.css?v=114">
-  <link rel="stylesheet" href="css/account.css?v=114">
+  <link rel="stylesheet" href="css/tokens.css?v=118">
+  <link rel="stylesheet" href="css/style.css?v=118">
+  <link rel="stylesheet" href="css/savely.css?v=118">
+  <link rel="stylesheet" href="css/motion.css?v=118">
+<link rel="stylesheet" href="css/a11y.css?v=118">
+  <link rel="stylesheet" href="css/games.css?v=118">
+  <link rel="stylesheet" href="css/cat.css?v=118">
+  <link rel="stylesheet" href="css/account.css?v=118">
   <!-- Ссылку на сайт репетитор кидает ученикам в чат — это единственный
        канал раздачи. Без этих тегов она приходила туда голым адресом,
        без картинки и описания, то есть выглядела как спам. -->
@@ -172,12 +172,21 @@
         <button class="btn btn-primary" id="start-test-btn">Поехали, 36 слов</button>
       </div>
 
-      <div class="test-run hidden" id="test-run">
-        <div class="progress"><div class="progress-fill" id="test-progress"></div></div>
-        <p class="test-counter" id="test-counter">1 / 30</p>
+      <!-- Тест — это 36 экранов подряд, на которых меняется одно слово,
+           а адрес и заголовок остаются прежними. Зрячий видит смену
+           сразу; незрячему без aria-live не сообщается НИЧЕГО — он
+           нажимает «Знаю» и не знает, засчиталось ли и что теперь на
+           экране. Область объявляет и номер вопроса, и само слово. -->
+      <div class="test-run hidden" id="test-run" role="group"
+           aria-label="Тест на уровень: 36 слов">
+        <div class="progress" id="test-progress-bar" role="progressbar"
+             aria-valuemin="0" aria-valuemax="36" aria-valuenow="0"
+             aria-label="Пройдено слов"><div class="progress-fill" id="test-progress"></div></div>
+        <p class="test-counter" id="test-counter" role="status" aria-live="polite">1 / 30</p>
         <div class="card word-quiz-card">
-          <p class="quiz-label">Знаешь это слово?</p>
-          <div class="quiz-word" id="quiz-word" lang="en">apple</div>
+          <p class="quiz-label" id="quiz-label">Знаешь это слово?</p>
+          <div class="quiz-word" id="quiz-word" lang="en" role="status" aria-live="polite"
+               aria-atomic="true">apple</div>
           <div class="quiz-buttons">
             <button class="btn btn-ghost" id="btn-dont-know">Не знаю</button>
             <button class="btn btn-primary" id="btn-know">Знаю</button>
@@ -557,26 +566,28 @@
     <a href="https://t.me/KOTSAVELII" target="_blank" rel="noopener">@KOTSAVELII</a></p>
 </footer>
 
-<script defer src="js/theme.js?v=114"></script>
-<script defer src="js/icons.js?v=114"></script>
-<script defer src="js/cat.js?v=114"></script>
-<script defer src="js/motion.js?v=114"></script>
-<script defer src="js/util.js?v=114"></script>
-<script defer src="js/words.js?v=114"></script>
-<script defer src="js/phrases.js?v=114"></script>
-<script defer src="js/srs.js?v=114"></script>
-<script defer src="js/images.js?v=114"></script>
-<script defer src="js/word-photos.js?v=114"></script>
-<script defer src="js/app.js?v=114"></script>
-<script defer src="js/achievements.js?v=114"></script>
-<script defer src="js/exercises.js?v=114"></script>
-<script defer src="js/games.js?v=114"></script>
-<script defer src="js/voice.js?v=114"></script>
-<script defer src="js/sync.js?v=114"></script>
-  <script defer src="js/reading.js?v=114"></script>
-  <script defer src="js/photo.js?v=114"></script>
+<script defer src="js/theme.js?v=118"></script>
+<script defer src="js/icons.js?v=118"></script>
+<script defer src="js/cat.js?v=118"></script>
+<script defer src="js/motion.js?v=118"></script>
+<script defer src="js/util.js?v=118"></script>
+<script defer src="js/words.js?v=118"></script>
+<!-- js/phrases.js здесь НЕТ намеренно: 150 КБ ради трёх упражнений
+     из двадцати семи и одного раздела словаря. Подгружается по месту,
+     через ensurePhrases() — см. js/exercises.js и js/app.js. -->
+<script defer src="js/srs.js?v=118"></script>
+<script defer src="js/images.js?v=118"></script>
+<script defer src="js/word-photos.js?v=118"></script>
+<script defer src="js/app.js?v=118"></script>
+<script defer src="js/achievements.js?v=118"></script>
+<script defer src="js/exercises.js?v=118"></script>
+<script defer src="js/games.js?v=118"></script>
+<script defer src="js/voice.js?v=118"></script>
+<script defer src="js/sync.js?v=118"></script>
+  <script defer src="js/reading.js?v=118"></script>
+  <script defer src="js/photo.js?v=118"></script>
   <!-- После sync.js: профиль ходит на сервер через api() оттуда -->
-  <script defer src="js/account.js?v=114"></script>
+  <script defer src="js/account.js?v=118"></script>
 <script>
   // офлайн-режим: сайт открывается без интернета и ставится на телефон
   if ("serviceWorker" in navigator && location.protocol !== "file:") {
