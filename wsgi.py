@@ -112,7 +112,13 @@ def application(environ, start_response):
         return [b""]
 
     if path == "/health":
-        return _json(start_response, {"ok": True})
+        # Берём из server, а не читаем файл: нужна версия кода В ПАМЯТИ,
+        # а на диске он к этому моменту уже новый. Нет атрибута вовсе —
+        # значит в памяти сборка старше этой проверки.
+        return _json(start_response, {
+            "ok": True,
+            "version": getattr(server, "ASSET_VERSION", "старая сборка"),
+        })
 
     if method == "POST":
         handler = server.ROUTES.get(path)

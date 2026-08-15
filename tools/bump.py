@@ -62,6 +62,13 @@ def main():
                   text, flags=re.S)
     sw.write_text(text, encoding="utf-8")
 
+    # Та же цифра в server.py: /health отдаёт её из ПАМЯТИ процесса, и по
+    # ней сразу видно, перезапустилось приложение на хостинге или нет.
+    # Файлы на диске об этом не говорят ничего — они обновляются всегда.
+    sp = ROOT / "server.py"
+    sp.write_text(re.sub(r"^ASSET_VERSION = \d+", f"ASSET_VERSION = {ver}",
+                         sp.read_text(encoding="utf-8"), flags=re.M), encoding="utf-8")
+
     print(f"версия: {ver}")
     print(f"страниц: {len(PAGES)}, файлов в офлайн-кэше: {len(assets)}")
     for a in assets:
