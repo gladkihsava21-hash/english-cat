@@ -1728,3 +1728,61 @@ h2[tabindex="-1"]:focus-visible { outline: none; box-shadow: none; }
    как заголовок, хотя это приписка мелким шрифтом. */
 .consent-row span { font-weight: 500; }
 .consent-row a { color: var(--accent); }
+
+/* ==========================================================================
+   КРОССВОРД НА ТЕЛЕФОНЕ
+   --------------------------------------------------------------------------
+   Сетка тянулась на всю доступную ширину и делила её на число столбцов.
+   На кроссворде в десять клеток и экране 360px это ~32px на клетку —
+   меньше минимального размера, в который человек попадает пальцем (44px),
+   да ещё и с трёхпиксельным зазором между ними. Промахи по соседней
+   клетке читаются как «не набирается».
+
+   Поэтому клетке задан минимум, а сетке разрешено уезжать вбок
+   с прокруткой: лучше прокрутить кроссворд, чем не попасть по клетке.
+   ========================================================================== */
+@media (max-width: 560px) {
+  .cw-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 4px; }
+  .cw-grid {
+    grid-auto-columns: 40px;
+    grid-auto-flow: row;
+    width: max-content;
+    max-width: none;
+    margin-inline: 0;
+  }
+  .cw-cell, .cw-empty { width: 40px; }
+  .cw-cell input { font-size: var(--text-body-sm, 17px); }
+}
+/* Клетка, в которой стоит курсор, видна отчётливее соседних: на мелкой
+   сетке без этого не понять, куда сейчас попадёт буква. */
+.cw-cell input:focus {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+/* Объяснение под разобранным вопросом. Отступ сверху больше, чем снизу:
+   оно относится к вариантам над ним, а не к кнопке «Дальше» под ним. */
+.quiz-why {
+  margin: var(--space-16) auto 0;
+  max-width: 34rem;
+  text-align: center;
+  line-height: 1.5;
+}
+
+/* «Эти слова ещё не твои» на экране результата упражнения.
+   Отделено карточкой: это предложение, а не часть отчёта, и его легко
+   пропустить, если оно сольётся со строкой «верно 5 из 8». */
+.missed-card {
+  margin: var(--space-20) auto 0;
+  max-width: 34rem;
+  text-align: left;
+  border: 2px solid var(--accent-line);
+  background: var(--accent-soft);
+}
+.missed-head { font-weight: 700; color: var(--ink); margin-bottom: var(--space-8); }
+.missed-list {
+  color: var(--ink-soft);
+  font-size: var(--text-caption);
+  line-height: 1.55;
+  margin-bottom: var(--space-12);
+}

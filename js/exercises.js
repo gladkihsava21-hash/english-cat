@@ -163,9 +163,27 @@ function distractors(word, n, field) {
   return out;
 }
 
+/** Слова, на которых ученик ошибся за этот подход и которых НЕТ в его
+ *  словаре. Копится здесь, предлагается в конце — см. exFinish.
+ *
+ *  Зачем. Упражнения добирают слова уровня, когда своего словаря мало
+ *  (см. trainPool). Ошибся на таком слове — и оно исчезало: в словарь
+ *  не попадало, SRS его не планировал, повторить было негде. То есть
+ *  ровно те слова, которые ученик НЕ ЗНАЕТ, теряться и не должны, а
+ *  терялись именно они. */
+let exMissed = [];
+
 function statUpdate(w, ok) {
   const d = state.dictionary.find(x => x.w.toLowerCase() === String(w).toLowerCase());
-  if (!d) return;
+  if (!d) {
+    // Слова нет в словаре. Ошибку запоминаем — предложим добавить.
+    if (!ok) {
+      const key = String(w).toLowerCase();
+      const info = typeof wordInfo === "function" ? wordInfo(w) : null;
+      if (info && !exMissed.some(x => x.w.toLowerCase() === key)) exMissed.push(info);
+    }
+    return;
+  }
   srsReview(d, ok);       // интервал следующего показа считает SRS
   saveState();
   updateChrome();
@@ -399,6 +417,7 @@ function openExercise(id) {
     return;
   }
 
+  exMissed = [];   // копилка ошибок — своя на каждый подход
   EX_RUNNERS[id]();
 }
 
@@ -426,11 +445,37 @@ function exFinish(correct, total, note = "") {
       <p>Верно ${correct} из ${total}. ${mood}</p>
       ${exSessionXP ? `<p class="xp-earned">+${exSessionXP} ${iconInline("star", 16)}</p>` : ""}
       ${note ? `<p class="muted-small">${note}</p>` : ""}
+      ${exMissed.length ? `
+        <div class="card missed-card">
+          <p class="missed-head">${iconInline("book", 16)} Эти слова ещё не твои — забрать в словарь?</p>
+          <p class="missed-list">${exMissed.map(m => esc(m.w) + " — " + esc(m.t)).join(" · ")}</p>
+          <button class="btn btn-primary btn-small" id="ex-take">
+            Добавить ${exMissed.length} ${wordsWord(exMissed.length)}</button>
+          <p class="type-feedback" id="ex-take-msg" role="status" aria-live="polite"></p>
+        </div>` : ""}
       <div class="quiz-buttons">
         <button class="btn btn-ghost" data-nav="practice">К тренировкам</button>
         <button class="btn btn-primary" id="ex-again">Ещё раз</button>
       </div>
     </div>`;
+
+  // Слова, на которых ошибся, — в словарь одним нажатием. Раньше их
+  // нельзя было забрать вообще: они приходили из добора по уровню и
+  // после подхода исчезали.
+  const take = document.getElementById("ex-take");
+  if (take) take.addEventListener("click", () => {
+    const n = exMissed.length;
+    exMissed.forEach(m => addToDictionary({ ...m, level: m.level || state.level }));
+    exMissed = [];
+    take.disabled = true;
+    take.textContent = "Готово";
+    const msg = document.getElementById("ex-take-msg");
+    if (msg) {
+      msg.className = "type-feedback ok";
+      msg.textContent = `${n} ${wordsWord(n)} в словаре. Савелий напомнит их, когда придёт время.`;
+    }
+    if (typeof updateChrome === "function") updateChrome();
+  });
   // Экран нарисован после загрузки страницы — cat.js сам сюда не придёт.
   if (typeof paintCats === "function") paintCats(stage());
   document.getElementById("ex-again").addEventListener("click", () => openExercise(currentExId));
@@ -504,10 +549,19 @@ function runMCQ(rounds, opts = {}) {
         right.classList.add("right");
         right.insertAdjacentHTML("beforeend",
           ` <span class="ans-mark">${icon("check", 17)}</span>`);
+        // Объяснение, если раунд его дал. Показать правильный ответ мало:
+        // ученик видит, ЧТО верно, но не понимает ПОЧЕМУ — и в следующий
+        // раз ошибается так же.
+        if (r.why) {
+          const ex = document.createElement("p");
+          ex.className = "muted-small quiz-why";
+          ex.textContent = r.why;
+          box.insertAdjacentElement("afterend", ex);
+        }
         const row = document.createElement("div");
         row.className = "quiz-buttons";
         row.innerHTML = '<button type="button" class="btn btn-primary" id="mcq-next">Дальше →</button>';
-        box.insertAdjacentElement("afterend", row);
+        (document.querySelector(".quiz-why") || box).insertAdjacentElement("afterend", row);
         const nextBtn = row.querySelector("#mcq-next");
         nextBtn.addEventListener("click", next);
         nextBtn.focus();   // с клавиатуры продолжаем без лишнего Tab
@@ -895,11 +949,18 @@ const EX_RUNNERS = {
       const three = shuffled(byCat[catA]).slice(0, 3);
       const odd = shuffled(byCat[catB])[0];
       const options = shuffled([...three.map(x => x.w), odd.w]);
+      // Названия тем человеческие: «еда», «животные». Если у категории
+      // имени нет — берём саму категорию, это лучше, чем молчать.
+      const nameA = (typeof CATEGORY_NAMES === "object" && CATEGORY_NAMES[catA]) || catA;
+      const nameB = (typeof CATEGORY_NAMES === "object" && CATEGORY_NAMES[catB]) || catB;
       rounds.push({
         sub: "Какое слово лишнее?",
         promptHTML: icon("paw", 44),
         options,
         correct: options.indexOf(odd.w),
+        // «banana — это еда, а home, room, kitchen — про дом.»
+        why: `${odd.w} (${odd.t}) — это ${nameB.toLowerCase()}, `
+           + `а ${three.map(x => x.w).join(", ")} — ${nameA.toLowerCase()}.`,
       });
     }
     runMCQ(rounds, { note: "Лишнее — слово из другой темы." });
@@ -1390,7 +1451,8 @@ const EX_RUNNERS = {
       }
     });
     stage().innerHTML = `
-      <div class="cw-grid" style="grid-template-columns: repeat(${maxC + 1}, 1fr)" id="cw-grid"></div>
+      <div class="cw-scroll"><div class="cw-grid"
+           style="grid-template-columns: repeat(${maxC + 1}, 1fr)" id="cw-grid"></div></div>
       <div class="cw-clues">
         ${placed.map(p => `<p><b>${p.num}${p.horiz ? "→" : "↓"}</b> ${esc(p.t)}</p>`).join("")}
       </div>
@@ -1398,6 +1460,7 @@ const EX_RUNNERS = {
       <p class="type-feedback" id="cw-result" role="status" aria-live="polite"></p>`;
     const gridEl = document.getElementById("cw-grid");
     const inputs = {};
+    const order = [];   // клетки слева направо, сверху вниз — для перехода
     // Какие слова проходят через клетку и какая это буква по счёту —
     // нужно для подписей: без них программа чтения объявляет тридцать
     // два поля подряд как «поле ввода, пусто», и понять, где ты сейчас
@@ -1423,7 +1486,23 @@ const EX_RUNNERS = {
           if (cell.starts.length) wrap.dataset.num = cell.starts[0];
           const inp = document.createElement("input");
           inp.maxLength = 1;
+          // Набор с телефона. Репетитор написал: «не получается вбивать
+          // буквы» — и это ровно так и было.
+          //
+          // maxlength=1 на телефоне работает плохо: экранная клавиатура
+          // собирает слово целиком (подсказки, автозамена, T9) и отдаёт
+          // его одним куском, а поле на один символ такой ввод просто
+          // отбрасывает. Со стороны — «нажимаю, ничего не появляется».
+          // Поэтому ниже мы не полагаемся на maxlength, а сами берём
+          // ПОСЛЕДНИЙ введённый символ.
           inp.autocomplete = "off";
+          inp.setAttribute("autocorrect", "off");
+          inp.setAttribute("autocapitalize", "characters");
+          inp.setAttribute("spellcheck", "false");
+          inp.setAttribute("enterkeyhint", "next");
+          // inputmode не ставим: нужна обычная буквенная клавиатура,
+          // а любое сужение (numeric, latin) на части прошивок открывает
+          // не тот раскладочный набор.
           // «Слово 2 вниз, «собака», буква 3 из 6» — по такой подписи
           // клетку можно найти на слух и не глядя на сетку.
           inp.setAttribute("aria-label",
@@ -1433,10 +1512,44 @@ const EX_RUNNERS = {
             || "Клетка кроссворда");
           wrap.appendChild(inp);
           gridEl.appendChild(wrap);
-          inputs[key(r, c)] = { inp, ch: cell.ch };
+          inputs[key(r, c)] = { inp, ch: cell.ch, r, c };
+          order.push(inp);
         }
       }
     }
+    // Ввод и переход между клетками.
+    //
+    // Берём последний символ, а не полагаемся на maxlength: телефонная
+    // клавиатура умеет прислать сразу несколько (автозамена, вставка).
+    // И сразу прыгаем в следующую клетку — иначе на телефоне после каждой
+    // буквы надо целиться пальцем в соседний квадратик, а это и есть то,
+    // что читается как «не набирается».
+    order.forEach((inp, idx) => {
+      inp.addEventListener("input", () => {
+        const v = inp.value.replace(/\s/g, "");
+        if (!v) return;
+        inp.value = v.slice(-1).toLowerCase();
+        inp.classList.remove("ok", "err");
+        inp.removeAttribute("aria-invalid");
+        const nxt = order[idx + 1];
+        if (nxt) { nxt.focus(); nxt.select(); }
+      });
+      inp.addEventListener("keydown", e => {
+        // Backspace в пустой клетке возвращает в предыдущую — иначе
+        // исправить опечатку можно только мышью.
+        if (e.key === "Backspace" && !inp.value && order[idx - 1]) {
+          e.preventDefault();
+          const prev = order[idx - 1];
+          prev.value = "";
+          prev.focus();
+        }
+        if (e.key === "ArrowRight" && order[idx + 1]) order[idx + 1].focus();
+        if (e.key === "ArrowLeft" && order[idx - 1]) order[idx - 1].focus();
+      });
+      // Тап по клетке ставит курсор, а не дописывает в конец
+      inp.addEventListener("focus", () => inp.select());
+    });
+
     document.getElementById("cw-check").addEventListener("click", () => {
       let allOk = true, wrong = 0, empty = 0;
       Object.values(inputs).forEach(({ inp, ch }) => {
