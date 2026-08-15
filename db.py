@@ -9,6 +9,7 @@ import os
 import secrets
 import sqlite3
 import threading
+import time
 from datetime import datetime, timedelta, timezone
 
 # На сервере база должна лежать ВНЕ папки с кодом: git pull при обновлении
@@ -103,6 +104,22 @@ CREATE TABLE IF NOT EXISTS admin_sessions (
     token        TEXT PRIMARY KEY,
     created_at   TEXT NOT NULL
 );
+
+-- Ограничение частоты запросов. Раньше счётчик был обычным словарём
+-- в памяти процесса — и на боевом хостинге не работал ВООБЩЕ.
+-- Запросы там обслуживает не один процесс, а сколько поднимет Apache,
+-- у каждого свой словарь: пятнадцать запросов подряд размазывались
+-- по нескольким процессам, и ни один не доходил до порога. Проверено
+-- на живом сайте — 15 из 15 прошли при лимите 10.
+--
+-- База одна на всех, поэтому счётчик переехал сюда. Цена — одна
+-- короткая запись на запрос к API; на фоне остальных обращений
+-- к той же базе это незаметно.
+CREATE TABLE IF NOT EXISTS rate_hits (
+    k    TEXT NOT NULL,
+    ts   REAL NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_rate_hits ON rate_hits(k, ts);
 
 CREATE INDEX IF NOT EXISTS idx_photo_tutor ON photo_homework(tutor_id);
 CREATE INDEX IF NOT EXISTS idx_students_tutor ON students(tutor_id);
@@ -245,6 +262,54 @@ def hash_password(password, salt=None):
 def check_password(password, pass_hash, salt):
     h, _ = hash_password(password, salt)
     return secrets.compare_digest(h, pass_hash)
+
+
+# ---------- ограничение частоты ----------
+
+def rate_hit(key, limit, window):
+    """Отметить обращение. True — можно, False — слишком часто.
+
+    Считать надо в базе, а не в памяти: см. комментарий у таблицы
+    rate_hits. Ключ приходит из server.py и складывается ТОЛЬКО из
+    проверенных данных — адреса запроса и адреса клиента. Ничего
+    из тела запроса в ключе быть не должно: клиент подставит туда
+    новое значение и получит чистый счётчик.
+
+    BEGIN IMMEDIATE — чтобы посчитать и записать одним куском. Без
+    него два процесса читают «девять» одновременно и оба проходят
+    десятый раз.
+    """
+    c = conn()
+    edge = time.time() - window
+    try:
+        c.execute("BEGIN IMMEDIATE")
+    except sqlite3.OperationalError:
+        # база занята дольше таймаута — пропускаем, но не открываем поток
+        return True
+    try:
+        c.execute("DELETE FROM rate_hits WHERE k=? AND ts<?", (key, edge))
+        n = c.execute("SELECT COUNT(*) FROM rate_hits WHERE k=?", (key,)).fetchone()[0]
+        if n >= limit:
+            c.commit()
+            return False
+        c.execute("INSERT INTO rate_hits (k, ts) VALUES (?, ?)", (key, time.time()))
+        c.commit()
+        return True
+    except Exception:
+        c.rollback()
+        # Сбой счётчика не должен ронять сам запрос: ученик не виноват,
+        # что база подвисла, а урок у него идёт сейчас.
+        return True
+
+
+def rate_sweep(older_than=3600):
+    """Уборка старых отметок. Дёргается редко — раз в сотню запросов."""
+    try:
+        c = conn()
+        c.execute("DELETE FROM rate_hits WHERE ts<?", (time.time() - older_than,))
+        c.commit()
+    except Exception:
+        pass
 
 
 def new_token():
