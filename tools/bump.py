@@ -32,7 +32,7 @@ def current():
 # обязаны попасть — иначе ученик в метро откроет тренировку и получит
 # «не дозвонился до словаря». Это единственное место, где список нужно
 # дополнить руками, поэтому оно и лежит наверху на виду.
-LAZY = ["js/words.js", "js/phrases.js"]
+LAZY = ["js/words.js", "js/phrases.js", "js/wordform.js", "js/grammar.js"]
 
 
 def assets_from_pages():

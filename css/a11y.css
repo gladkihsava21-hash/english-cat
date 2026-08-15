@@ -1786,3 +1786,64 @@ h2[tabindex="-1"]:focus-visible { outline: none; box-shadow: none; }
   line-height: 1.55;
   margin-bottom: var(--space-12);
 }
+
+/* ==========================================================================
+   ГРАММАТИКА И СЛОВООБРАЗОВАНИЕ
+   ========================================================================== */
+/* Предложение с пропуском. Кегль меньше слова-героя: здесь важна
+   не сама фраза, а то, что стоит в пропуске. */
+.wf-sentence {
+  display: block;
+  font-family: var(--font-ui);
+  font-size: var(--text-body-sm, 17px);
+  font-weight: 500;
+  line-height: 1.55;
+  max-width: 30rem;
+  margin-inline: auto;
+}
+/* Пропуск — видимое место, а не три подчёркивания: подчёркивания
+   на телефоне сливаются с рамкой поля ввода под ними. */
+.wf-gap {
+  display: inline-block;
+  min-width: 4.5em;
+  border-bottom: 2px solid var(--accent-line);
+  color: var(--accent);
+  text-align: center;
+  vertical-align: baseline;
+}
+/* Выбор темы грамматики. Список, а не сетка плиток: названия тем
+   разной длины, и в сетке они рвались бы посреди слова. */
+.gr-topics {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  max-width: 30rem;
+  margin: var(--space-16) auto 0;
+}
+.gr-topic {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12);
+  width: 100%;
+  min-height: 52px;
+  padding: var(--space-12) var(--space-16);
+  text-align: left;
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: var(--radius-card, 16px);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: var(--text-body-sm, 17px);
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color var(--dur) var(--ease), transform var(--dur) var(--ease);
+}
+.gr-topic:hover { border-color: var(--accent-line); transform: translateY(-1px); }
+.gr-topic:active { transform: translateY(0); }
+.gr-topic-count {
+  flex: none;
+  color: var(--ink-soft);
+  font-weight: 500;
+  font-size: var(--text-caption);
+}

@@ -213,6 +213,7 @@ const EX_GROUPS = [
   { id: "phrases", title: "Выражения" },
   { id: "audio",   title: "На слух" },
   { id: "writing", title: "Письмо и речь" },
+  { id: "exam",    title: "Грамматика и экзамен" },
   { id: "games",   title: "Игры" },
 ];
 
@@ -251,6 +252,10 @@ const EXERCISES = [
   { id: "categories", group: "games", icon: "categories", name: "Категории", desc: "Разложи слова по темам" },
   { id: "wordsearch", group: "games", icon: "wordsearch", name: "Поиск слов", desc: "Найди слова в сетке букв" },
   { id: "crossword", group: "games", icon: "crossword", name: "Кроссворд", desc: "Отгадай слова по переводам" },
+  { id: "wordform", group: "exam", icon: "translate", name: "Словообразование",
+    desc: "Поставь слово в нужную форму — как в ОГЭ" },
+  { id: "grammar", group: "exam", icon: "book", name: "Грамматика",
+    desc: "Времена, артикли, предлоги — с разбором" },
 ];
 
 let currentExId = null;
@@ -393,6 +398,35 @@ function openExercise(id) {
           <div class="empty-state">
             <div class="cat-avatar cat-mid" data-cat="oops"></div>
             <h2>Не дозвонился до словаря</h2>
+            <p>Проверь связь и открой упражнение ещё раз.</p>
+          </div>`;
+        if (typeof paintCats === "function") paintCats(stage());
+      });
+    return;
+  }
+
+  // Грамматика и словообразование лежат в своих файлах и грузятся
+  // только тем, кто до них дошёл — как выражения и сам словарь.
+  const EXAM_DATA = {
+    wordform: { ready: () => typeof WORD_FORMS !== "undefined", load: ensureWordForms },
+    grammar:  { ready: () => typeof GRAMMAR !== "undefined",    load: ensureGrammar },
+  };
+  const need = EXAM_DATA[id];
+  if (need && !need.ready()) {
+    stage().innerHTML = `
+      <div class="empty-state">
+        <div class="cat-avatar cat-mid" data-cat="hello"></div>
+        <h2>Достаю задания…</h2>
+      </div>`;
+    if (typeof paintCats === "function") paintCats(stage());
+    need.load()
+      .then(() => { if (stage()) openExercise(id); })
+      .catch(() => {
+        if (!stage()) return;
+        stage().innerHTML = `
+          <div class="empty-state">
+            <div class="cat-avatar cat-mid" data-cat="oops"></div>
+            <h2>Не дозвонился до заданий</h2>
             <p>Проверь связь и открой упражнение ещё раз.</p>
           </div>`;
         if (typeof paintCats === "function") paintCats(stage());
@@ -647,7 +681,7 @@ function runType(rounds, opts = {}) {
           ? `<textarea class="type-input type-area" id="type-input" rows="3" placeholder="${opts.placeholder || "Напиши по-английски…"}"></textarea>`
           : `<input class="type-input" id="type-input" autocomplete="off" placeholder="${opts.placeholder || "Введи слово…"}">`}
         <div class="quiz-buttons">
-          ${r.hint ? `<button class="btn btn-ghost" id="type-hint">Подсказка</button>` : ""}
+          ${r.hint ? `<button class="btn btn-ghost" id="type-hint">${esc(opts.hintLabel || "Подсказка")}</button>` : ""}
           <button class="btn btn-primary" id="type-check">Проверить</button>
         </div>
         <p class="type-feedback" id="type-feedback" role="status" aria-live="polite"></p>
@@ -661,7 +695,8 @@ function runType(rounds, opts = {}) {
     input.focus();
     if (r.hint) {
       document.getElementById("type-hint").addEventListener("click", () => {
-        document.getElementById("type-feedback").textContent = "Подсказка: " + r.hint;
+        document.getElementById("type-feedback").textContent =
+          (opts.hintLabel ? opts.hintLabel[0].toUpperCase() + opts.hintLabel.slice(1) : "Подсказка") + ": " + r.hint;
       });
     }
     let done = false;
@@ -678,8 +713,28 @@ function runType(rounds, opts = {}) {
       fb.textContent = ok
         ? "Верно, мяу! " + (r.sample ? "Образец: " + r.sample : "")
         : "Не совсем. Правильно: " + (r.sample || r.answer);
+      input.disabled = true;
       i++;
-      setTimeout(next, ok ? 900 : 2200);
+      if (ok) { setTimeout(next, 900); return; }
+
+      // Ошибка с разбором: экран НЕ угоняем по таймеру. Разбор нужно
+      // дочитать, а сколько на это надо, таймер знать не может — ровно
+      // та же логика, что в вопросах с вариантами.
+      if (r.why) {
+        const ex = document.createElement("p");
+        ex.className = "muted-small quiz-why";
+        ex.textContent = r.why;
+        fb.insertAdjacentElement("afterend", ex);
+        const row = document.createElement("div");
+        row.className = "quiz-buttons";
+        row.innerHTML = '<button type="button" class="btn btn-primary" id="type-next">Дальше →</button>';
+        ex.insertAdjacentElement("afterend", row);
+        const nb = row.querySelector("#type-next");
+        nb.addEventListener("click", next);
+        nb.focus();
+        return;
+      }
+      setTimeout(next, 2200);
     };
     document.getElementById("type-check").addEventListener("click", check);
     input.addEventListener("keydown", e => {
@@ -1382,6 +1437,93 @@ const EX_RUNNERS = {
         cells.push(b);
       }
     }
+  },
+
+  /* =========================================================
+   * СЛОВООБРАЗОВАНИЕ — формат ОГЭ и ЕГЭ
+   *
+   * Предложение с пропуском, справа ЗАГЛАВНЫМИ исходное слово.
+   * Ученик пишет форму сам: выбор из вариантов тут не годится —
+   * на экзамене вариантов не дают, и половина смысла задания в том,
+   * чтобы вспомнить суффикс, а не узнать его среди четырёх.
+   *
+   * Подбор по уровню ученика и соседнему снизу: задание уровнем выше
+   * своего решается угадыванием, а не пониманием.
+   * ========================================================= */
+  wordform() {
+    const lvl = state.level || "A1";
+    const idx = LEVELS.indexOf(lvl);
+    const near = new Set([LEVELS[Math.max(0, idx - 1)], lvl, LEVELS[Math.min(LEVELS.length - 1, idx + 1)]]);
+    const fit = WORD_FORMS.filter(x => near.has(x.lvl));
+    const pool = shuffled(fit.length >= 8 ? fit : WORD_FORMS).slice(0, 8);
+    if (!pool.length) { exFinish(0, 0, "Заданий пока нет."); return; }
+
+    runType(pool.map(r => ({
+      sub: r.base,
+      promptHTML: `<span class="wf-sentence">${esc(r.s).replace("___",
+        '<span class="wf-gap">…</span>')}</span>`,
+      hint: r.ru,
+      answer: r.a,
+      // Принимаем и запасные варианты (realise / realize), регистр не важен —
+      // это проверяется в runType через check.
+      check: v => {
+        const got = String(v || "").trim().toLowerCase();
+        return got === r.a.toLowerCase()
+            || (r.alt || []).some(x => x.toLowerCase() === got);
+      },
+      why: r.why,
+      placeholder: "форма слова",
+    })), {
+      note: "Как в экзамене: слева предложение, справа исходное слово заглавными.",
+      hintLabel: "перевод",
+    });
+  },
+
+  /* =========================================================
+   * ГРАММАТИКА — по темам, с разбором каждой ошибки
+   *
+   * Тему ученик выбирает сам: «десять тем вперемешку» это не
+   * тренировка, а проверка, и от неё ничего не запоминается.
+   * ========================================================= */
+  grammar() {
+    const lvl = state.level || "A1";
+    const idx = LEVELS.indexOf(lvl);
+    const near = new Set([LEVELS[Math.max(0, idx - 1)], lvl, LEVELS[Math.min(LEVELS.length - 1, idx + 1)]]);
+
+    const start = topicId => {
+      const all = GRAMMAR[topicId] || [];
+      const fit = all.filter(x => near.has(x.lvl));
+      const pool = shuffled(fit.length >= 6 ? fit : all).slice(0, 8);
+      const topic = GRAMMAR_TOPICS.find(t => t.id === topicId);
+      runMCQ(pool.map(r => {
+        const options = shuffled(r.o.slice());
+        return {
+          sub: topic ? topic.name : "",
+          promptHTML: `<span class="wf-sentence">${esc(r.s).replace("___",
+            '<span class="wf-gap">…</span>')}</span>`,
+          options,
+          correct: options.indexOf(r.a),
+          why: r.why + "  " + r.ru,
+        };
+      }), { smallPrompt: true, note: "Ошибся — прочитай разбор целиком, он короткий." });
+    };
+
+    // Экран выбора темы
+    stage().innerHTML = `
+      <p class="muted-small ex-hint">Выбери тему — по ней и будут задания.</p>
+      <div class="gr-topics" id="gr-topics"></div>`;
+    const box = document.getElementById("gr-topics");
+    GRAMMAR_TOPICS.forEach(t => {
+      const all = GRAMMAR[t.id] || [];
+      if (!all.length) return;
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "gr-topic";
+      b.innerHTML = `<span class="gr-topic-name">${esc(t.name)}</span>`
+                  + `<span class="gr-topic-count">${all.length}</span>`;
+      b.addEventListener("click", () => start(t.id));
+      box.appendChild(b);
+    });
   },
 
   crossword() {

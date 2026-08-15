@@ -234,3 +234,15 @@ function announce(text) {
   box.textContent = "";
   setTimeout(() => { box.textContent = text; }, 40);
 }
+
+/** Словообразование — задания формата ОГЭ/ЕГЭ. */
+function ensureWordForms() {
+  if (typeof WORD_FORMS !== "undefined") return Promise.resolve(true);
+  return loadScriptOnce("js/wordform.js");
+}
+
+/** Грамматика по темам. */
+function ensureGrammar() {
+  if (typeof GRAMMAR !== "undefined") return Promise.resolve(true);
+  return loadScriptOnce("js/grammar.js");
+}
