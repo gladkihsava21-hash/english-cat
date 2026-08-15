@@ -471,26 +471,62 @@ document.getElementById("to-dashboard-btn").addEventListener("click", () => show
 // ===== Главная: подбор слов =====
 const RECOMMEND_COUNT = 6;
 
+/** Слово, которое не стыдно показать карточкой на главной.
+ *
+ *  Словарь собран из двух источников. Вычитанное ядро — 2500 слов, у
+ *  каждого есть перевод, пример с переводом, определение и категория.
+ *  Импорт — ещё девять тысяч, и там сплошь и рядом только слово и
+ *  перевод: примера нет, определения нет, категории нет. Доля полных
+ *  записей по уровням: A1 и A2 — сто процентов, B1 — половина, B2 —
+ *  шестая часть, C1 — шесть слов из ста.
+ *
+ *  Рекомендация — это большая карточка с картинкой, примером и кнопкой
+ *  «добавить». Из неполной записи она собирается в огрызок: слово,
+ *  перевод и пустота под ними. Для C1 это было не исключение, а норма.
+ *  Поэтому карточки берём из полных записей, а неполные оставляем
+ *  тренировкам — там достаточно пары «слово ↔ перевод».  */
+function recQuality(w) {
+  return !!(w && w.ex && w.cat);
+}
+
 function pickRecommendations() {
   const lvl = state.level || "A1";
   const nextLvl = LEVELS[Math.min(LEVELS.indexOf(lvl) + 1, LEVELS.length - 1)];
   const inDict = new Set(state.dictionary.map(d => d.w));
   const seen = new Set(state.recommendSeen);
 
-  const poolMain = WORDS[lvl].filter(w => !inDict.has(w.w) && !seen.has(w.w)).map(w => ({ ...w, level: lvl }));
+  // Отбор в два круга: сначала только полные записи, и лишь если их не
+  // хватило — любые. Жёсткий фильтр оставил бы C1 без рекомендаций
+  // совсем: там полных всего 369 на 5902, и они кончатся.
+  const fit = (w, l) => !inDict.has(w.w) && !seen.has(w.w);
+  const good = WORDS[lvl].filter(w => fit(w) && recQuality(w)).map(w => ({ ...w, level: lvl }));
+  const poolMain = good.length >= 4
+    ? good
+    : [...good, ...WORDS[lvl].filter(w => fit(w) && !recQuality(w)).map(w => ({ ...w, level: lvl }))];
   const mainPicks = sample(poolMain, 4);
   // на C2 nextLvl совпадает с текущим — исключаем уже выбранное,
   // иначе одно слово попадает на главную двумя карточками сразу
   const takenNow = new Set(mainPicks.map(w => w.w));
-  const poolNext = WORDS[nextLvl]
-    .filter(w => !inDict.has(w.w) && !seen.has(w.w) && !takenNow.has(w.w))
+  const fitNext = w => !inDict.has(w.w) && !seen.has(w.w) && !takenNow.has(w.w);
+  const goodNext = WORDS[nextLvl].filter(w => fitNext(w) && recQuality(w))
     .map(w => ({ ...w, level: nextLvl }));
+  const poolNext = goodNext.length >= 2
+    ? goodNext
+    : [...goodNext, ...WORDS[nextLvl].filter(w => fitNext(w) && !recQuality(w))
+        .map(w => ({ ...w, level: nextLvl }))];
 
   let picks = [...mainPicks, ...sample(poolNext, 2)];
   // если свежие слова кончились — показываем уже виденные (но не из словаря)
   if (picks.length < RECOMMEND_COUNT) {
-    const fallback = [...WORDS[lvl].map(w => ({ ...w, level: lvl })), ...WORDS[nextLvl].map(w => ({ ...w, level: nextLvl }))]
+    // И в запасном круге сначала полные записи. Сортировать нельзя:
+    // sample берёт случайные элементы, порядок ему безразличен —
+    // поэтому именно два отдельных списка, как и выше.
+    const rest = [...WORDS[lvl].map(w => ({ ...w, level: lvl })),
+                  ...WORDS[nextLvl].map(w => ({ ...w, level: nextLvl }))]
       .filter(w => !inDict.has(w.w) && !picks.some(p => p.w === w.w));
+    const restGood = rest.filter(recQuality);
+    const fallback = restGood.length >= RECOMMEND_COUNT - picks.length
+      ? restGood : rest;
     picks = [...picks, ...sample(fallback, RECOMMEND_COUNT - picks.length)];
   }
   picks.forEach(p => { if (!seen.has(p.w)) state.recommendSeen.push(p.w); });
