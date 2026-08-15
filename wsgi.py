@@ -128,7 +128,7 @@ def application(environ, start_response):
         # вместо соединения, и адрес ему больше взять неоткуда.
         # ПРИСВАИВАЕМ, а не дополняем: иначе клиент пришлёт свой "_ip".
         payload["_ip"] = who
-        if not server.rate_ok(path, str(payload.get("token") or who)[:64]):
+        if not server.rate_ok(path, who):
             return _json(start_response,
                          {"ok": False, "error": "Слишком быстро — притормози. Через полминуты снова можно."},
                          "429 Too Many Requests")

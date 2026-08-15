@@ -219,7 +219,10 @@ function fillVoiceSelects() {
   const fill = (sel, langPrefix, current) => {
     const vs = voicesFor(langPrefix);
     sel.innerHTML = vs.length
-      ? vs.map(v => `<option value="${v.name}"${current && v.name === current.name ? " selected" : ""}>${v.name} (${v.lang})</option>`).join("")
+      // Имена голосов приходят из операционной системы, а не от людей —
+      // но подставляются в разметку, и правило тут одно на весь проект:
+      // в innerHTML не уходит ни одна строка без esc().
+      ? vs.map(v => `<option value="${esc(v.name)}"${current && v.name === current.name ? " selected" : ""}>${esc(v.name)} (${esc(v.lang)})</option>`).join("")
       : `<option value="">— голосов нет —</option>`;
     sel.disabled = !vs.length;
     return vs.length;

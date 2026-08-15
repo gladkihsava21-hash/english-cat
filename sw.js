@@ -2,8 +2,10 @@
 // Ученик может тренироваться в метро — прогресс уйдёт на сервер,
 // когда связь вернётся.
 
-// ВАЖНО: этот файл НЕ ПРАВИТЬ РУКАМИ — версию и список файлов пишет
-// tools/bump.py, он же поднимает ?v= в трёх html. Пока правили руками,
+// ВАЖНО: две строчки ниже — CACHE и ASSETS — руками НЕ ПРАВИТЬ, их пишет
+// tools/bump.py, он же поднимает ?v= в трёх html. Остальное (обработчики
+// install/activate/fetch) он не трогает — правится обычным образом.
+// Пока версию правили руками,
 // sw отставал: в страницах стояло v=90, здесь v=17, а в списке половины
 // существующих файлов не было и были давно удалённые. Онлайн это
 // не било (ниже «сначала сеть»), но офлайн ученик получал код
@@ -11,7 +13,7 @@
 //
 // Список собирается из самих страниц, поэтому новый css или js попадает
 // в офлайн-кэш сам — про него не нужно помнить отдельно.
-const CACHE = "savely-v103";
+const CACHE = "savely-v107";
 const ASSETS = [
   "./",
   "./index.html",
@@ -70,6 +72,25 @@ self.addEventListener("activate", e => {
   );
 });
 
+/** Последний рубеж: сети нет и в кэше нет даже страницы. Свой ответ
+ *  вместо служебной страницы браузера — чтобы ученик понял, что дело
+ *  в связи, а не в том, что сайт сломался или его выгнали из аккаунта. */
+function OFFLINE_PAGE() {
+  return new Response(
+    '<!doctype html><meta charset="utf-8">'
+    + '<meta name="viewport" content="width=device-width,initial-scale=1">'
+    + '<title>Нет связи — Савелий</title>'
+    + '<style>body{margin:0;min-height:100dvh;display:grid;place-items:center;'
+    + 'font:16px/1.5 system-ui,sans-serif;background:#F7F5EF;color:#2A2E2B;padding:24px}'
+    + 'div{max-width:22rem;text-align:center}h1{font-size:1.25rem;margin:0 0 .5rem}'
+    + 'p{margin:0;color:#5C635E}</style>'
+    + '<div><h1>Савелий не дозвонился до интернета</h1>'
+    + '<p>Связь пропала. Как только сеть вернётся, обнови страницу — '
+    + 'весь прогресс на месте.</p></div>',
+    { status: 503, headers: { "Content-Type": "text/html; charset=utf-8" } }
+  );
+}
+
 self.addEventListener("fetch", e => {
   const url = new URL(e.request.url);
   // запросы к API никогда не кэшируем: прогресс и домашка должны быть свежими
@@ -85,6 +106,27 @@ self.addEventListener("fetch", e => {
         }
         return res;
       })
-      .catch(() => caches.match(e.request).then(hit => hit || caches.match("./index.html")))
+      .catch(() =>
+        // ignoreSearch обязателен. Страницы просят «js/app.js?v=107»,
+        // а предзагрузка кладёт «js/app.js» — без версии, чтобы копия
+        // была одна. Без этого флага совпадений не было НИ РАЗУ: каждый
+        // офлайн-запрос уходил в запасной вариант ниже.
+        caches.match(e.request, { ignoreSearch: true }).then(hit => {
+          if (hit) return hit;
+          // Запасная страница — только на переход по адресу. Отдавать
+          // разметку в ответ на запрос скрипта значит сломать сайт
+          // целиком: браузер получает «<» вместо кода и падает с
+          // SyntaxError на каждом файле, а страница остаётся пустой.
+          // Ровно это и происходило, пока обе строчки были одной.
+          if (e.request.mode === "navigate") {
+            // caches.match может вернуть undefined — например, если первая
+            // же загрузка сайта случилась без сети и класть в кэш было
+            // нечего. respondWith(undefined) роняет обработчик, и ученик
+            // видит служебную страницу браузера «сайт недоступен».
+            return caches.match("./index.html").then(page => page || OFFLINE_PAGE());
+          }
+          return new Response("", { status: 504, statusText: "Offline" });
+        })
+      )
   );
 });

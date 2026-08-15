@@ -119,14 +119,41 @@ function trainPool(n, need = []) {
 }
 
 // неверные варианты: переводы/слова/определения других слов близкого уровня
+/* Неверные варианты.
+ *
+ * Раньше брались случайно из соседних уровней, и это обесценивало всю
+ * проверку. Живой пример из прогона:
+ *     apple → яблоко / гнёт, иго / спесь, высокомерие / микропроцессор
+ * Здесь не нужно знать английский — достаточно увидеть, что три варианта
+ * «не про еду». А домашка засчитывается по такому ответу, то есть
+ * репетитор платит за цифру, которая набивается тыканьем.
+ *
+ * Теперь сначала берём слова ТОЙ ЖЕ КАТЕГОРИИ: рядом с «яблоком» встанут
+ * «банан» и «хлеб», и выбор станет проверкой знания, а не чутья.
+ * Случайные — только на добор, если своей категории не хватило.
+ */
 function distractors(word, n, field) {
   const lvl = word.level || state.level || "A1";
   const idx = LEVELS.indexOf(lvl);
-  const near = [LEVELS[Math.max(0, idx - 1)], lvl, LEVELS[Math.min(LEVELS.length - 1, idx + 1)]];
-  const pool = [...new Set(near)].flatMap(l => WORDS[l])
-    .filter(x => x.w !== word.w && x[field])
-    .map(x => x[field]);
-  return shuffled([...new Set(pool)]).slice(0, n);
+  const near = [...new Set([LEVELS[Math.max(0, idx - 1)], lvl,
+                            LEVELS[Math.min(LEVELS.length - 1, idx + 1)]])];
+  const all = near.flatMap(l => WORDS[l]).filter(x => x.w !== word.w && x[field]);
+
+  const sameCat = word.cat
+    ? shuffled(all.filter(x => x.cat === word.cat)).map(x => x[field])
+    : [];
+  const rest = shuffled(all.filter(x => !word.cat || x.cat !== word.cat)).map(x => x[field]);
+
+  // Порядок важен: сначала своя категория, добор — остальным.
+  // Set убирает совпадения по ТЕКСТУ: у разных слов перевод иногда
+  // одинаковый, и тогда на экране два одинаковых варианта.
+  const out = [];
+  for (const v of [...sameCat, ...rest]) {
+    if (v === word[field]) continue;      // не подсовываем верный ответ дважды
+    if (!out.includes(v)) out.push(v);
+    if (out.length === n) break;
+  }
+  return out;
 }
 
 function statUpdate(w, ok) {
@@ -374,9 +401,10 @@ function runMCQ(rounds, opts = {}) {
     stage().innerHTML = `
       ${exProgress(i, rounds.length)}
       <div class="card word-quiz-card">
-        <p class="quiz-label">${r.sub || ""}</p>
+        <p class="quiz-label">${esc(r.sub || "")}</p>
         ${r.art ? `<div class="word-art word-art-mid" style="background:${wordTint(r.artCat)}">${r.art}</div>` : ""}
-        <div class="${opts.smallPrompt ? "quiz-word quiz-word-small" : "quiz-word"}">${r.prompt || ""}</div>
+        <div class="${opts.smallPrompt ? "quiz-word quiz-word-small" : "quiz-word"}">${
+          r.promptHTML || esc(r.prompt || "")}</div>
         ${r.audioText ? `<button class="btn btn-ghost btn-small" id="mcq-audio">${iconInline("sound", 16)} Прослушать</button>` : ""}
         <div class="mcq-options" id="mcq-options"></div>
       </div>`;
@@ -507,9 +535,10 @@ function runType(rounds, opts = {}) {
     stage().innerHTML = `
       ${exProgress(i, rounds.length)}
       <div class="card word-quiz-card">
-        <p class="quiz-label">${r.sub || ""}</p>
+        <p class="quiz-label">${esc(r.sub || "")}</p>
         ${r.art ? `<div class="word-art word-art-mid" style="background:${wordTint(r.artCat)}">${r.art}</div>` : ""}
-        <div class="quiz-word quiz-word-small">${r.prompt || ""}</div>
+        <div class="quiz-word quiz-word-small">${
+          r.promptHTML || esc(r.prompt || "")}</div>
         ${r.audioText ? `<button class="btn btn-ghost btn-small" id="type-audio">${iconInline("sound", 16)} Прослушать</button>` : ""}
         ${opts.textarea
           ? `<textarea class="type-input type-area" id="type-input" rows="3" placeholder="${opts.placeholder || "Напиши по-английски…"}"></textarea>`
@@ -819,7 +848,7 @@ const EX_RUNNERS = {
       const options = shuffled([...three.map(x => x.w), odd.w]);
       rounds.push({
         sub: "Какое слово лишнее?",
-        prompt: icon("paw", 44),
+        promptHTML: icon("paw", 44),
         options,
         correct: options.indexOf(odd.w),
       });
@@ -838,7 +867,7 @@ const EX_RUNNERS = {
       stage().innerHTML = `
         ${exProgress(i, pool.length)}
         <div class="card word-quiz-card">
-          <p class="quiz-label">Собери слово: «${p.t}»</p>
+          <p class="quiz-label">Собери слово: «${esc(p.t)}»</p>
           <div class="scramble-answer" id="scr-answer"></div>
           <div class="scramble-tiles" id="scr-tiles"></div>
           <div class="quiz-buttons">
@@ -897,7 +926,7 @@ const EX_RUNNERS = {
       const options = shuffled([p.w, ...distractors(p, 3, "w")]);
       return {
         sub: "Послушай и выбери, что услышал",
-        prompt: icon("sound", 44),
+        promptHTML: icon("sound", 44),
         audioText: p.w,
         options,
         correct: options.indexOf(p.w),
@@ -910,7 +939,7 @@ const EX_RUNNERS = {
     const pool = trainPool(3, ["ex"]);
     runType(pool.map(p => ({
       sub: "Послушай и напиши предложение",
-      prompt: icon("listening", 44),
+      promptHTML: icon("listening", 44),
       audioText: p.ex,
       answer: p.ex,
       check: v => {
@@ -941,7 +970,7 @@ const EX_RUNNERS = {
       const options = shuffled([p.ex, ...donors]);
       rounds.push({
         sub: `Где слово «${p.w}» (${p.t}) использовано правильно?`,
-        prompt: icon("context", 44),
+        promptHTML: icon("context", 44),
         options,
         correct: options.indexOf(p.ex),
         statWord: p.w,
@@ -998,8 +1027,8 @@ const EX_RUNNERS = {
     stage().innerHTML = `
       <div class="card word-quiz-card">
         <p class="quiz-label">Напиши 1–3 предложения о себе, используя все три слова:</p>
-        <div class="quiz-word quiz-word-small">${words.join(" · ")}</div>
-        <p class="muted-small">${pool.map(p => `${p.w} — ${p.t}`).join(" · ")}</p>
+        <div class="quiz-word quiz-word-small">${words.map(esc).join(" · ")}</div>
+        <p class="muted-small">${pool.map(p => `${esc(p.w)} — ${esc(p.t)}`).join(" · ")}</p>
         <textarea class="type-input type-area" id="pers-input" rows="4" placeholder="My day was..."></textarea>
         <div class="quiz-buttons">
           <button class="btn btn-primary" id="pers-check">Проверить</button>
@@ -1194,7 +1223,7 @@ const EX_RUNNERS = {
     let selStart = null;
     stage().innerHTML = `
       <p class="muted-small ex-hint">Нажми первую и последнюю букву слова. Найди:
-        <span id="ws-targets">${placedWords.map(p => `<b class="ws-target" id="ws-t-${p.w}">${p.w}</b>`).join(", ")}</span></p>
+        <span id="ws-targets">${placedWords.map(p => `<b class="ws-target" id="ws-t-${encodeURIComponent(p.w)}">${esc(p.w)}</b>`).join(", ")}</span></p>
       <div class="ws-grid" style="grid-template-columns: repeat(${SIZE}, 1fr)" id="ws-grid"></div>`;
     const gridEl = document.getElementById("ws-grid");
     const cells = [];
@@ -1230,7 +1259,10 @@ const EX_RUNNERS = {
             statUpdate(hit.w, true);
             award(12);
             line.forEach(x => x.classList.add("found"));
-            document.getElementById("ws-t-" + hit.w).classList.add("ws-done");
+            // id собирается через encodeURIComponent при отрисовке — ищем так же,
+            // иначе слово с пробелом или кавычкой просто не найдётся
+            const tgt = document.getElementById("ws-t-" + encodeURIComponent(hit.w));
+            if (tgt) tgt.classList.add("ws-done");
             if (found.size === placedWords.length) {
               setTimeout(() => exFinish(placedWords.length, placedWords.length), 600);
             }
@@ -1311,7 +1343,7 @@ const EX_RUNNERS = {
     stage().innerHTML = `
       <div class="cw-grid" style="grid-template-columns: repeat(${maxC + 1}, 1fr)" id="cw-grid"></div>
       <div class="cw-clues">
-        ${placed.map(p => `<p><b>${p.num}${p.horiz ? "→" : "↓"}</b> ${p.t}</p>`).join("")}
+        ${placed.map(p => `<p><b>${p.num}${p.horiz ? "→" : "↓"}</b> ${esc(p.t)}</p>`).join("")}
       </div>
       <div class="quiz-buttons"><button class="btn btn-primary" id="cw-check">Проверить</button></div>`;
     const gridEl = document.getElementById("cw-grid");
