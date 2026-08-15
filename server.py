@@ -33,7 +33,7 @@ import mailer
 # Теперь это видно одним curl /health: цифра совпала с ?v= на странице —
 # приложение перезапущено; не совпала или её нет вовсе — в памяти старый
 # код, надо нажать «Перезапустить приложение» в панели хостинга.
-ASSET_VERSION = 118
+ASSET_VERSION = 123
 
 PORT = int(os.environ.get("SAVELY_PORT", "4210"))
 # За nginx сервер слушает только localhost — снаружи он не должен быть виден
@@ -592,7 +592,10 @@ class Api:
             mailer.send_verify_code(row["email"], row["name"], db.set_verify_code(row["id"]))
         except Exception:
             import traceback; traceback.print_exc()
-            sent, send_error = False, "Письмо не ушло — нажми «Отправить ещё раз»."
+            # Только факт, без совета: что делать дальше, говорит экран
+            # подтверждения, и говорит на «вы» — панель репетитора
+            # обращается к взрослому человеку, в отличие от сайта ученика.
+            sent, send_error = False, "Письмо не ушло."
         return {"ok": True, "token": row["token"], "tutor": db.tutor_public(row),
                 "recoveryCode": row["recovery_code"],
                 "trialSkipped": trial_taken,

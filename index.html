@@ -10,7 +10,7 @@
        подмножества браузер возьмёт сам, если встретит редкую букву. -->
   <link rel="preload" href="css/fonts/nunito-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="css/fonts/inter-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="css/fonts.css?v=118">
+  <link rel="stylesheet" href="css/fonts.css?v=123">
   <!-- Тему ставим ДО первой отрисовки, отдельным крошечным скриптом.
        Всё остальное грузится с defer, а defer выполняется после разбора
        страницы — то есть уже после того, как браузер её покажет. Если
@@ -26,25 +26,25 @@
       document.documentElement.dataset.theme = t;
     } catch (e) { /* приватный режим — просто останется дневная */ }
   </script>
-  <link rel="stylesheet" href="css/tokens.css?v=118">
-  <link rel="stylesheet" href="css/style.css?v=118">
-  <link rel="stylesheet" href="css/savely.css?v=118">
-  <link rel="stylesheet" href="css/motion.css?v=118">
-<link rel="stylesheet" href="css/a11y.css?v=118">
-  <link rel="stylesheet" href="css/games.css?v=118">
-  <link rel="stylesheet" href="css/cat.css?v=118">
-  <link rel="stylesheet" href="css/account.css?v=118">
+  <link rel="stylesheet" href="css/tokens.css?v=123">
+  <link rel="stylesheet" href="css/style.css?v=123">
+  <link rel="stylesheet" href="css/savely.css?v=123">
+  <link rel="stylesheet" href="css/motion.css?v=123">
+<link rel="stylesheet" href="css/a11y.css?v=123">
+  <link rel="stylesheet" href="css/games.css?v=123">
+  <link rel="stylesheet" href="css/cat.css?v=123">
+  <link rel="stylesheet" href="css/account.css?v=123">
   <!-- Ссылку на сайт репетитор кидает ученикам в чат — это единственный
        канал раздачи. Без этих тегов она приходила туда голым адресом,
        без картинки и описания, то есть выглядела как спам. -->
-  <meta name="description" content="Савелий — кот-репетитор английского. Определяет твой уровень по 36 словам и дальше даёт ровно те слова, что ты потянешь. Напомнит повторить, пока не забылось.">
+  <meta name="description" content="Савелий — кот-репетитор английского. Определяет твой уровень по 36 словам и дальше даёт ровно те слова, что ты потянешь. Сам помнит, когда какое слово пора повторить.">
   <link rel="canonical" href="https://wordcat.ru/">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://wordcat.ru/">
   <meta property="og:site_name" content="Савелий">
   <meta property="og:locale" content="ru_RU">
   <meta property="og:title" content="Савелий — кот-репетитор английского">
-  <meta property="og:description" content="Определю уровень по 36 словам и дальше дам ровно то, что ты потянешь. И напомню повторить, пока не забылось.">
+  <meta property="og:description" content="Определю уровень по 36 словам и дальше дам ровно то, что ты потянешь. И сам помню, когда какое слово пора повторить.">
   <meta property="og:image" content="https://wordcat.ru/img/share.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
@@ -113,8 +113,16 @@
         <div class="speech-bubble" id="hero-bubble">Я Савелий. Английский знаю лучше тебя — но это поправимо.</div>
       </div>
       <h1>английские слова, которые не выветрятся</h1>
+      <!-- Здесь было «И напомню повторить». Это неправда: никаких
+           напоминаний система не шлёт — ни писем, ни уведомлений, их
+           попросту нет в коде. Обещание, которое продукт не выполняет,
+           стоит дороже, чем красивая строчка: ученик ждёт напоминания,
+           не дожидается и решает, что сайт сломался.
+           Что делается на самом деле — расписание повторений: слово
+           всплывает само на нужный день. Про это и пишем. -->
       <p class="hero-sub">Ответь на 36 слов — пойму твой уровень и дальше дам ровно то,
-        что ты потянешь. И напомню повторить, пока не забылось.</p>
+        что ты потянешь. И сам помню, когда какое слово пора повторить, —
+        зайдёшь, а они уже ждут.</p>
 
       <p id="invite-note" class="invite-note hidden"></p>
       <p id="demo-note" class="demo-note hidden">Это демо: заниматься можно сколько угодно, но прогресс живёт
@@ -566,28 +574,28 @@
     <a href="https://t.me/KOTSAVELII" target="_blank" rel="noopener">@KOTSAVELII</a></p>
 </footer>
 
-<script defer src="js/theme.js?v=118"></script>
-<script defer src="js/icons.js?v=118"></script>
-<script defer src="js/cat.js?v=118"></script>
-<script defer src="js/motion.js?v=118"></script>
-<script defer src="js/util.js?v=118"></script>
-<script defer src="js/words.js?v=118"></script>
+<script defer src="js/theme.js?v=123"></script>
+<script defer src="js/icons.js?v=123"></script>
+<script defer src="js/cat.js?v=123"></script>
+<script defer src="js/motion.js?v=123"></script>
+<script defer src="js/util.js?v=123"></script>
+<script defer src="js/words.js?v=123"></script>
 <!-- js/phrases.js здесь НЕТ намеренно: 150 КБ ради трёх упражнений
      из двадцати семи и одного раздела словаря. Подгружается по месту,
      через ensurePhrases() — см. js/exercises.js и js/app.js. -->
-<script defer src="js/srs.js?v=118"></script>
-<script defer src="js/images.js?v=118"></script>
-<script defer src="js/word-photos.js?v=118"></script>
-<script defer src="js/app.js?v=118"></script>
-<script defer src="js/achievements.js?v=118"></script>
-<script defer src="js/exercises.js?v=118"></script>
-<script defer src="js/games.js?v=118"></script>
-<script defer src="js/voice.js?v=118"></script>
-<script defer src="js/sync.js?v=118"></script>
-  <script defer src="js/reading.js?v=118"></script>
-  <script defer src="js/photo.js?v=118"></script>
+<script defer src="js/srs.js?v=123"></script>
+<script defer src="js/images.js?v=123"></script>
+<script defer src="js/word-photos.js?v=123"></script>
+<script defer src="js/app.js?v=123"></script>
+<script defer src="js/achievements.js?v=123"></script>
+<script defer src="js/exercises.js?v=123"></script>
+<script defer src="js/games.js?v=123"></script>
+<script defer src="js/voice.js?v=123"></script>
+<script defer src="js/sync.js?v=123"></script>
+  <script defer src="js/reading.js?v=123"></script>
+  <script defer src="js/photo.js?v=123"></script>
   <!-- После sync.js: профиль ходит на сервер через api() оттуда -->
-  <script defer src="js/account.js?v=118"></script>
+  <script defer src="js/account.js?v=123"></script>
 <script>
   // офлайн-режим: сайт открывается без интернета и ставится на телефон
   if ("serviceWorker" in navigator && location.protocol !== "file:") {

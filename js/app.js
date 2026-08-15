@@ -598,7 +598,7 @@ function todayPlan() {
     return {
       state: "first", cat: "hello", kicker: `${iconInline("paw", 16)} Начинаем`,
       title: "Первое занятие — 5 минут",
-      sub: `${RECOMMEND_COUNT} слов уровня ${state.level} — карточки с картинкой и звуком. Завтра напомню их повторить.`,
+      sub: `${RECOMMEND_COUNT} слов уровня ${state.level} — карточки с картинкой и звуком. Завтра они сами ждут тебя на главной.`,
       btn: "Поехали →",
       act: startFirstLesson,
       alt: { label: "сначала посмотреть слова", scrollTo: "words-head" },

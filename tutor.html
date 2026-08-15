@@ -8,9 +8,31 @@
        см. css/fonts.css. Предзагрузка ровно двух файлов, которые нужны
        любой странице сайта — русский текст и английские слова. Остальные
        подмножества браузер возьмёт сам, если встретит редкую букву. -->
+  <!-- Ссылку на панель репетитор получает в переписке — из объявления,
+       от коллеги, из чата. Без этих тегов она приходила туда голым
+       адресом: ни картинки, ни описания, то есть выглядела ровно как
+       спам, которым в мессенджерах и торгуют. У страницы ученика теги
+       давно есть, у этой не было.
+       noindex — намеренно: панель не должна попадать в поиск, её
+       открывают по прямой ссылке. На превью в мессенджере это не
+       влияет — оно строится по og-тегам, а не по индексу. -->
+  <meta name="robots" content="noindex, follow">
+  <meta name="description" content="Панель репетитора: до 50 учеников, домашка в два клика, прогресс каждого и проверка фото тетрадей. Ученикам — бесплатно.">
+  <link rel="canonical" href="https://wordcat.ru/tutor.html">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://wordcat.ru/tutor.html">
+  <meta property="og:site_name" content="Савелий">
+  <meta property="og:locale" content="ru_RU">
+  <meta property="og:title" content="Савелий — панель репетитора">
+  <meta property="og:description" content="Задавайте слова, следите за прогрессом, проверяйте домашку по фото. Ученики занимаются бесплатно.">
+  <meta property="og:image" content="https://wordcat.ru/img/share.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Кот Савелий и надпись «английские слова, которые не выветрятся»">
+  <meta name="twitter:card" content="summary_large_image">
   <link rel="preload" href="css/fonts/nunito-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="css/fonts/inter-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="css/fonts.css?v=118">
+  <link rel="stylesheet" href="css/fonts.css?v=123">
   <!-- Тему ставим ДО первой отрисовки, отдельным крошечным скриптом.
        Всё остальное грузится с defer, а defer выполняется после разбора
        страницы — то есть уже после того, как браузер её покажет. Если
@@ -26,13 +48,13 @@
       document.documentElement.dataset.theme = t;
     } catch (e) { /* приватный режим — просто останется дневная */ }
   </script>
-  <link rel="stylesheet" href="css/tokens.css?v=118">
-  <link rel="stylesheet" href="css/style.css?v=118">
-  <link rel="stylesheet" href="css/savely.css?v=118">
-  <link rel="stylesheet" href="css/tutor.css?v=118">
-<link rel="stylesheet" href="css/motion.css?v=118">
-<link rel="stylesheet" href="css/a11y.css?v=118">
-<link rel="stylesheet" href="css/cat.css?v=118">
+  <link rel="stylesheet" href="css/tokens.css?v=123">
+  <link rel="stylesheet" href="css/style.css?v=123">
+  <link rel="stylesheet" href="css/savely.css?v=123">
+  <link rel="stylesheet" href="css/tutor.css?v=123">
+<link rel="stylesheet" href="css/motion.css?v=123">
+<link rel="stylesheet" href="css/a11y.css?v=123">
+<link rel="stylesheet" href="css/cat.css?v=123">
 </head>
 <body>
 
@@ -398,7 +420,7 @@
   <div class="hero">
     <div class="cat-avatar cat-big"></div>
     <h1>Введите код из&nbsp;письма</h1>
-    <p class="hero-sub">Отправили шесть цифр на <b id="verify-email"></b> — введите их,
+    <p class="hero-sub" id="verify-lead">Отправили шесть цифр на <b id="verify-email"></b> — введите их,
       и&nbsp;кабинет откроется.<br>
       Код нужен один раз: чтобы на&nbsp;вашу почту не&nbsp;завёл кабинет кто-то другой.</p>
     <div class="card auth-card">
@@ -482,19 +504,19 @@
     <a href="https://t.me/KOTSAVELII" target="_blank" rel="noopener">@KOTSAVELII</a></p>
 </footer>
 
-<script defer src="js/theme.js?v=118"></script>
-<script defer src="js/icons.js?v=118"></script>
-<script defer src="js/cat.js?v=118"></script>
-<script defer src="js/motion.js?v=118"></script>
-<script defer src="js/util.js?v=118"></script>
+<script defer src="js/theme.js?v=123"></script>
+<script defer src="js/icons.js?v=123"></script>
+<script defer src="js/cat.js?v=123"></script>
+<script defer src="js/motion.js?v=123"></script>
+<script defer src="js/util.js?v=123"></script>
 <!-- js/words.js здесь НЕТ намеренно. Это 326 КБ сжатыми, а на экране
      входа словарь не нужен вообще: он нужен только внутри панели, чтобы
      собрать домашку. Подгружается в openPanel через ensureWords(). -->
-<script defer src="js/images.js?v=118"></script>
-<script defer src="js/word-photos.js?v=118"></script>
-<script defer src="js/tutor.js?v=118"></script>
-<script defer src="js/tutor-photos.js?v=118"></script>
-<script defer src="js/tutor-auth.js?v=118"></script>
-<script defer src="js/tutor-verify.js?v=118"></script>
+<script defer src="js/images.js?v=123"></script>
+<script defer src="js/word-photos.js?v=123"></script>
+<script defer src="js/tutor.js?v=123"></script>
+<script defer src="js/tutor-photos.js?v=123"></script>
+<script defer src="js/tutor-auth.js?v=123"></script>
+<script defer src="js/tutor-verify.js?v=123"></script>
 </body>
 </html>

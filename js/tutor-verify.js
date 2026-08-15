@@ -131,8 +131,15 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 });
 
-/** Показать экран подтверждения вместо панели. */
-function showVerifyScreen(email) {
+/** Показать экран подтверждения вместо панели.
+ *
+ *  mail — что сервер ответил про письмо: { sent, error }. Раньше этот
+ *  ответ приходил и молча выбрасывался, а экран в любом случае писал
+ *  «Отправили шесть цифр на такой-то адрес». Если письмо на самом деле
+ *  не ушло (а такое бывает — почтовый ящик хостинга живёт своей жизнью),
+ *  репетитор сидел и ждал код, которого нет, и никакой подсказки, что
+ *  надо нажать «Отправить ещё раз», ему не давали. */
+function showVerifyScreen(email, mail) {
   const scr = document.getElementById("screen-verify");
   const auth = document.getElementById("screen-auth");
   const app = document.getElementById("app");
@@ -142,6 +149,19 @@ function showVerifyScreen(email) {
   scr.classList.remove("hidden");
   const box = document.getElementById("verify-email");
   if (box) box.textContent = email || "";
+
+  const lead = document.getElementById("verify-lead");
+  const err = document.getElementById("verify-error");
+  const failed = mail && mail.sent === false;
+  if (lead) lead.classList.toggle("hidden", failed);
+  if (err) {
+    err.textContent = failed
+      ? ((mail && mail.error) || "Письмо не ушло.")
+        + " Нажмите «Отправить ещё раз» — кабинет уже создан, ничего не потеряется."
+      : "";
+  }
+  const again = document.getElementById("verify-resend");
+  if (again && failed) again.focus();
 }
 
 // ---- блок подписки в панели ----

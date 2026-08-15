@@ -102,7 +102,10 @@ $("auth-form").addEventListener("submit", async e => {
     if (res.recoveryCode && typeof showRecoveryCode === "function") {
       showRecoveryCode(res.recoveryCode);
     }
-    showVerifyScreen(res.tutor && res.tutor.email);
+    // Передаём и судьбу письма: если оно не ушло, экран не должен
+    // утверждать, что ушло.
+    showVerifyScreen(res.tutor && res.tutor.email,
+                     { sent: res.mailSent, error: res.mailError });
     return;
   }
   openPanel();
@@ -1109,3 +1112,20 @@ function fillGameSelect() {
     hint.textContent = g && g.note ? g.note : "";
   });
 }
+
+// ===== Какая вкладка открыта при заходе =====
+//
+// Была всегда «Вход». Для того, кто уже пользуется панелью, это верно;
+// для того, кто первый раз перешёл по ссылке из объявления — нет: он
+// видит форму для аккаунта, которого у него ещё не существует, вводит
+// туда что-нибудь, получает «неверный email или пароль» и уходит.
+//
+// Отличить одного от другого можно точно и без гаданий: у вернувшегося
+// в браузере лежит либо токен, либо почта прошлого входа. Нет ни того,
+// ни другого — человек здесь впервые, показываем «Регистрацию».
+(function pickAuthTab() {
+  const returning = !!token() || !!localStorage.getItem("savelyTutorEmail");
+  if (returning) return;
+  const tab = document.querySelector('.tab[data-mode="register"]');
+  if (tab) tab.click();
+})();
