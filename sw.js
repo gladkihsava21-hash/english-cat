@@ -13,10 +13,13 @@
 //
 // Список собирается из самих страниц, поэтому новый css или js попадает
 // в офлайн-кэш сам — про него не нужно помнить отдельно.
-const CACHE = "savely-v109";
+const CACHE = "savely-v114";
 const ASSETS = [
   "./",
   "./index.html",
+  "./css/fonts/nunito-cyrillic.woff2",
+  "./css/fonts/inter-cyrillic.woff2",
+  "./css/fonts.css",
   "./css/tokens.css",
   "./css/style.css",
   "./css/savely.css",

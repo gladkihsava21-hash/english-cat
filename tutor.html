@@ -4,16 +4,35 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Панель репетитора — Савелий</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/tokens.css?v=109">
-  <link rel="stylesheet" href="css/style.css?v=109">
-  <link rel="stylesheet" href="css/savely.css?v=109">
-  <link rel="stylesheet" href="css/tutor.css?v=109">
-<link rel="stylesheet" href="css/motion.css?v=109">
-<link rel="stylesheet" href="css/a11y.css?v=109">
-<link rel="stylesheet" href="css/cat.css?v=109">
+  <!-- Шрифты свои, не гугловские: чужой домен из критического пути убран,
+       см. css/fonts.css. Предзагрузка ровно двух файлов, которые нужны
+       любой странице сайта — русский текст и английские слова. Остальные
+       подмножества браузер возьмёт сам, если встретит редкую букву. -->
+  <link rel="preload" href="css/fonts/nunito-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="css/fonts/inter-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="css/fonts.css?v=114">
+  <!-- Тему ставим ДО первой отрисовки, отдельным крошечным скриптом.
+       Всё остальное грузится с defer, а defer выполняется после разбора
+       страницы — то есть уже после того, как браузер её покажет. Если
+       оставить выбор темы в theme.js, ночному пользователю на долю
+       секунды мигнёт белый экран, и это заметнее любой анимации.
+       Дальше theme.js подхватит: кнопку, цвет строки состояния,
+       слежение за системной темой. -->
+  <script>
+    try {
+      var t = localStorage.getItem("savelyTheme");
+      if (t !== "night" && t !== "day")
+        t = matchMedia("(prefers-color-scheme: dark)").matches ? "night" : "day";
+      document.documentElement.dataset.theme = t;
+    } catch (e) { /* приватный режим — просто останется дневная */ }
+  </script>
+  <link rel="stylesheet" href="css/tokens.css?v=114">
+  <link rel="stylesheet" href="css/style.css?v=114">
+  <link rel="stylesheet" href="css/savely.css?v=114">
+  <link rel="stylesheet" href="css/tutor.css?v=114">
+<link rel="stylesheet" href="css/motion.css?v=114">
+<link rel="stylesheet" href="css/a11y.css?v=114">
+<link rel="stylesheet" href="css/cat.css?v=114">
 </head>
 <body>
 
@@ -463,17 +482,17 @@
     <a href="https://t.me/KOTSAVELII" target="_blank" rel="noopener">@KOTSAVELII</a></p>
 </footer>
 
-<script src="js/theme.js?v=109"></script>
-<script src="js/icons.js?v=109"></script>
-<script src="js/cat.js?v=109"></script>
-<script src="js/motion.js?v=109"></script>
-<script src="js/util.js?v=109"></script>
-<script src="js/words.js?v=109"></script>
-<script src="js/images.js?v=109"></script>
-<script src="js/word-photos.js?v=109"></script>
-<script src="js/tutor.js?v=109"></script>
-<script src="js/tutor-photos.js?v=109"></script>
-<script src="js/tutor-auth.js?v=109"></script>
-<script src="js/tutor-verify.js?v=109"></script>
+<script defer src="js/theme.js?v=114"></script>
+<script defer src="js/icons.js?v=114"></script>
+<script defer src="js/cat.js?v=114"></script>
+<script defer src="js/motion.js?v=114"></script>
+<script defer src="js/util.js?v=114"></script>
+<script defer src="js/words.js?v=114"></script>
+<script defer src="js/images.js?v=114"></script>
+<script defer src="js/word-photos.js?v=114"></script>
+<script defer src="js/tutor.js?v=114"></script>
+<script defer src="js/tutor-photos.js?v=114"></script>
+<script defer src="js/tutor-auth.js?v=114"></script>
+<script defer src="js/tutor-verify.js?v=114"></script>
 </body>
 </html>

@@ -14,7 +14,11 @@ import urllib.request
 from PIL import Image, ImageFilter, ImageOps
 
 DOWNLOAD_SOURCE = "upload"
-TILE = 480
+# Сторона плитки. 336 = 168 CSS-пикселей × 2: 168 — самая крупная
+# плитка на сайте (фото во флешкарте), двойка — retina. Было 480,
+# то есть вдвое больше пикселей, чем способен показать экран, и на
+# 40% больше байтов на каждой карточке ни за что.
+TILE = 336
 QUALITY_LADDER = (78, 72, 66, 60, 54, 48, 42)
 MAX_BYTES = 40 * 1024
 

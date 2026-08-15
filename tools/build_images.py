@@ -2,7 +2,7 @@
 """Фотографии к словам вместо эмодзи: сбор, обрезка, лицензии.
 
 Источник — лид-изображение статьи Википедии (REST API), лицензия и автор —
-Commons API. Файлы скачиваются к себе и приводятся к 480×480 WebP: хотлинк
+Commons API. Файлы скачиваются к себе и приводятся к квадратному WebP: хотлинк
 на upload.wikimedia.org запрещён правилами Викимедиа.
 
 Ничего в рабочем коде сайта не меняется. Результат:
@@ -48,6 +48,10 @@ def parse_args(argv):
     p.add_argument("--only", default="", help="через запятую: собрать только эти слова")
     p.add_argument("--offline", action="store_true", help="только кэш, в сеть не ходить")
     p.add_argument("--refresh", action="store_true", help="перекачать, игнорируя кэш")
+    # 336 = 168 CSS-пикселей × 2 — ровно под retina. 168 это фото во
+    # флешкарте, самая крупная плитка на сайте; на узких экранах она
+    # 132, в упражнениях 132/108, в списках 46 и 34. Стояло 480
+    # «на всякий случай» — на 40% больше байтов ни за что.
     p.add_argument("--size", type=int, default=imaging.TILE)
     p.add_argument("--quality", type=int, default=78, help="стартовое качество WebP")
     p.add_argument("--max-kb", type=int, default=40, help="потолок веса одной плитки")
@@ -145,13 +149,13 @@ def prune(img_dir, manifest):
     return removed
 
 
-def write_manifest(path, manifest):
+def write_manifest(path, manifest, tile=None):
     payload = {
         "generated": datetime.datetime.now().strftime("%Y-%m-%d %H:%M"),
-        "note": ("Файлы скачаны с Wikimedia Commons и приведены к 480x480 WebP. "
+        "note": ("Файлы скачаны с Wikimedia Commons и приведены к квадратному WebP. "
                  "Лицензии: public domain / CC0 / CC BY / CC BY-SA. "
                  "Атрибуция — credits.html"),
-        "size": imaging.TILE,
+        "size": tile or imaging.TILE,
         "count": len(manifest),
         "words": dict(sorted(manifest.items())),
     }
@@ -559,16 +563,19 @@ def main(argv=None):
     manifest_path = os.path.join(IMG_DIR, "manifest.json")
     if args.drop:
         # снять уже собранные плитки, забракованные глазами
-        old = {}
+        old, prev_tile = {}, None
         if os.path.exists(manifest_path):
-            old = json.load(open(manifest_path, encoding="utf-8")).get("words", {})
+            prev = json.load(open(manifest_path, encoding="utf-8"))
+            old, prev_tile = prev.get("words", {}), prev.get("size")
         for word in (w.strip().lower() for w in args.drop.split(",") if w.strip()):
             old.pop(word, None)
             path = os.path.join(IMG_DIR, "%s.webp" % word)
             if os.path.exists(path):
                 os.remove(path)
                 print("  снято: %s" % word)
-        write_manifest(manifest_path, old)
+        # --drop только удаляет плитки, размер оставшихся не трогает —
+        # поэтому берём тот, что записан в манифесте, а не текущий args
+        write_manifest(manifest_path, old, prev_tile)
         write_credits(CREDITS, old, words_meta)
         print("Манифест и credits.html пересобраны: %d картинок." % len(old))
         return 0
@@ -585,7 +592,7 @@ def main(argv=None):
         if dropped:
             print("Убраны устаревшие плитки: %s" % ", ".join(dropped))
 
-    write_manifest(manifest_path, manifest)
+    write_manifest(manifest_path, manifest, args.size)
     write_credits(CREDITS, manifest, words_meta)
     elapsed = time.time() - started
     info = write_report(os.path.join(OUT_DIR, "images-report.md"),

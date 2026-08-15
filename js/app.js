@@ -16,7 +16,17 @@ function loadState() {
     dictionary: [],      // { w, t, ex, level, status: new|learning|learned, knew: 0, forgot: 0 }
     recommendSeen: [],   // слова, уже показанные в рекомендациях
   };
-  // миграция старых сохранений
+  // Миграция старых сохранений.
+  //
+  // Список ниже обязан покрывать ВСЕ поля из объекта по умолчанию, иначе
+  // сохранение, сделанное более старой версией, роняет экран целиком.
+  // Так и было с dictionary и recommendSeen: их в списке не было, а
+  // строчкой ниже вызывается st.dictionary.forEach, и главный экран
+  // падал на state.recommendSeen.push с белым экраном вместо дашборда.
+  // Проверять «а есть ли такое сохранение у живых учеников» бессмысленно:
+  // прогресс приезжает ещё и с сервера, и оттуда может прийти что угодно.
+  st.dictionary = st.dictionary || [];
+  st.recommendSeen = st.recommendSeen || [];
   st.xp = st.xp || 0;
   st.activity = st.activity || {};   // "2026-08-05" -> очки за день
   st.blitzBest = st.blitzBest || 0;

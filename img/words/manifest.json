@@ -1,7 +1,7 @@
 {
- "generated": "2026-08-14 16:21",
- "note": "Файлы скачаны с Wikimedia Commons и приведены к 480x480 WebP. Лицензии: public domain / CC0 / CC BY / CC BY-SA. Атрибуция — credits.html",
- "size": 480,
+ "generated": "2026-08-15 04:42",
+ "note": "Файлы скачаны с Wikimedia Commons и приведены к квадратному WebP. Лицензии: public domain / CC0 / CC BY / CC BY-SA. Атрибуция — credits.html",
+ "size": 336,
  "count": 110,
  "words": {
   "airport": {
@@ -13,8 +13,8 @@
    "article": "Аэропорт",
    "article_url": "https://ru.wikipedia.org/wiki/%D0%90%D1%8D%D1%80%D0%BE%D0%BF%D0%BE%D1%80%D1%82",
    "commons_file": "Аэропорт_Внуково.JPG",
-   "bytes": 39416,
-   "quality": 66
+   "bytes": 25466,
+   "quality": 78
   },
   "alarm": {
    "file": "alarm.webp",
@@ -25,7 +25,7 @@
    "article": "Alarm clock",
    "article_url": "https://en.wikipedia.org/wiki/Alarm_clock",
    "commons_file": "2010-07-20_Black_windup_alarm_clock_face.jpg",
-   "bytes": 23328,
+   "bytes": 14504,
    "quality": 78
   },
   "apple": {
@@ -37,7 +37,7 @@
    "article": "Яблоко",
    "article_url": "https://ru.wikipedia.org/wiki/%D0%AF%D0%B1%D0%BB%D0%BE%D0%BA%D0%BE",
    "commons_file": "Apples.jpg",
-   "bytes": 30952,
+   "bytes": 16378,
    "quality": 78
   },
   "baby": {
@@ -49,7 +49,7 @@
    "article": "Infant",
    "article_url": "https://en.wikipedia.org/wiki/Infant",
    "commons_file": "The_newborn_baby_in_men.jpg",
-   "bytes": 39618,
+   "bytes": 21906,
    "quality": 78
   },
   "banana": {
@@ -61,7 +61,7 @@
    "article": "Cavendish banana",
    "article_url": "https://en.wikipedia.org/wiki/Cavendish_banana",
    "commons_file": "Cavendish_Banana_DS.jpg",
-   "bytes": 8908,
+   "bytes": 5218,
    "quality": 78
   },
   "bank": {
@@ -73,8 +73,8 @@
    "article": "Bank",
    "article_url": "https://en.wikipedia.org/wiki/Bank",
    "commons_file": "London.bankofengland.arp.jpg",
-   "bytes": 40550,
-   "quality": 48
+   "bytes": 29190,
+   "quality": 78
   },
   "battery": {
    "file": "battery.webp",
@@ -85,7 +85,7 @@
    "article": "AA battery",
    "article_url": "https://en.wikipedia.org/wiki/AA_battery",
    "commons_file": "AA_matchstick-1.jpg",
-   "bytes": 15054,
+   "bytes": 9294,
    "quality": 78
   },
   "bed": {
@@ -97,7 +97,7 @@
    "article": "Кровать",
    "article_url": "https://ru.wikipedia.org/wiki/%D0%9A%D1%80%D0%BE%D0%B2%D0%B0%D1%82%D1%8C",
    "commons_file": "3399_-_Fiescheralp_-_Hotel_Eggishorn.JPG",
-   "bytes": 20946,
+   "bytes": 10506,
    "quality": 78
   },
   "bicycle": {
@@ -109,7 +109,7 @@
    "article": "Bicycle",
    "article_url": "https://en.wikipedia.org/wiki/Bicycle",
    "commons_file": "Left_side_of_Flying_Pigeon.jpg",
-   "bytes": 26396,
+   "bytes": 16522,
    "quality": 78
   },
   "bird": {
@@ -121,7 +121,7 @@
    "article": "Bird",
    "article_url": "https://en.wikipedia.org/wiki/Bird",
    "commons_file": "Kleiber_Flug.jpg",
-   "bytes": 13166,
+   "bytes": 8442,
    "quality": 78
   },
   "book": {
@@ -133,7 +133,7 @@
    "article": "Book",
    "article_url": "https://en.wikipedia.org/wiki/Book",
    "commons_file": "Gutenberg_Bible,_Lenox_Copy,_New_York_Public_Library,_2009._Pic_01.jpg",
-   "bytes": 35946,
+   "bytes": 17606,
    "quality": 78
   },
   "boots": {
@@ -145,7 +145,7 @@
    "article": "Boot",
    "article_url": "https://en.wikipedia.org/wiki/Boot",
    "commons_file": "Cliff_Climbers_Combat_boot_Shoes_Blast.png",
-   "bytes": 15844,
+   "bytes": 8822,
    "quality": 78
   },
   "bread": {
@@ -157,8 +157,8 @@
    "article": "Bread",
    "article_url": "https://en.wikipedia.org/wiki/Bread",
    "commons_file": "Korb_mit_Brötchen.JPG",
-   "bytes": 38866,
-   "quality": 54
+   "bytes": 31756,
+   "quality": 78
   },
   "breakfast": {
    "file": "breakfast.webp",
@@ -169,8 +169,8 @@
    "article": "Breakfast",
    "article_url": "https://en.wikipedia.org/wiki/Breakfast",
    "commons_file": "Breakfast_at_the_Black_Bear_Diner.jpg",
-   "bytes": 35846,
-   "quality": 72
+   "bytes": 24298,
+   "quality": 78
   },
   "bridge": {
    "file": "bridge.webp",
@@ -181,7 +181,7 @@
    "article": "Мост",
    "article_url": "https://ru.wikipedia.org/wiki/%D0%9C%D0%BE%D1%81%D1%82",
    "commons_file": "Mainz-Theodor-Heuss-Bruecke-2005-05-16a.jpg",
-   "bytes": 40018,
+   "bytes": 18506,
    "quality": 78
   },
   "cake": {
@@ -193,7 +193,7 @@
    "article": "Cake",
    "article_url": "https://en.wikipedia.org/wiki/Cake",
    "commons_file": "Pound_layer_cake.jpg",
-   "bytes": 30126,
+   "bytes": 16660,
    "quality": 78
   },
   "camera": {
@@ -205,7 +205,7 @@
    "article": "Camera",
    "article_url": "https://en.wikipedia.org/wiki/Camera",
    "commons_file": "LEI0440_Leica_IIIf_chrom_-_Sn._580566_1951-52-M39_Blitzsynchron_front_view-6531_hf-.jpg",
-   "bytes": 29880,
+   "bytes": 14332,
    "quality": 78
   },
   "cat": {
@@ -217,7 +217,7 @@
    "article": "Cat",
    "article_url": "https://en.wikipedia.org/wiki/Cat",
    "commons_file": "Cat_August_2010-4.jpg",
-   "bytes": 25242,
+   "bytes": 10190,
    "quality": 78
   },
   "chair": {
@@ -229,7 +229,7 @@
    "article": "Chair",
    "article_url": "https://en.wikipedia.org/wiki/Chair",
    "commons_file": "Set_of_fourteen_side_chairs_MET_DP110780.jpg",
-   "bytes": 11626,
+   "bytes": 6756,
    "quality": 78
   },
   "cheese": {
@@ -241,7 +241,7 @@
    "article": "Cheese",
    "article_url": "https://en.wikipedia.org/wiki/Cheese",
    "commons_file": "Cheese_platter.jpg",
-   "bytes": 38616,
+   "bytes": 23764,
    "quality": 78
   },
   "chess": {
@@ -253,7 +253,7 @@
    "article": "Chess",
    "article_url": "https://en.wikipedia.org/wiki/Chess",
    "commons_file": "ChessSet.jpg",
-   "bytes": 17184,
+   "bytes": 11456,
    "quality": 78
   },
   "clock": {
@@ -265,7 +265,7 @@
    "article": "Clock",
    "article_url": "https://en.wikipedia.org/wiki/Clock",
    "commons_file": "Pendulum_clock_by_Jacob_Kock,_antique_furniture_photography,_IMG_0931_edit.jpg",
-   "bytes": 38914,
+   "bytes": 20956,
    "quality": 78
   },
   "cloud": {
@@ -277,7 +277,7 @@
    "article": "Облако",
    "article_url": "https://ru.wikipedia.org/wiki/%D0%9E%D0%B1%D0%BB%D0%B0%D0%BA%D0%BE",
    "commons_file": "Clouds,_cloudscape_over_Lombok_Strait,_Bali_Sea,_Gili_Islands,_West_Nusa_Tenggara,_Indonesia.jpg",
-   "bytes": 12242,
+   "bytes": 6504,
    "quality": 78
   },
   "cook": {
@@ -289,7 +289,7 @@
    "article": "Приготовление пищи",
    "article_url": "https://ru.wikipedia.org/wiki/%D0%9F%D1%80%D0%B8%D0%B3%D0%BE%D1%82%D0%BE%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5_%D0%BF%D0%B8%D1%89%D0%B8",
    "commons_file": "Wok_cooking_and_the_heat_source_by_The_Pocket_in_Nanjing.jpg",
-   "bytes": 22146,
+   "bytes": 13544,
    "quality": 78
   },
   "cow": {
@@ -301,8 +301,8 @@
    "article": "Cattle",
    "article_url": "https://en.wikipedia.org/wiki/Cattle",
    "commons_file": "Cow_(Fleckvieh_breed)_Oeschinensee_Slaunger_2009-07-07.jpg",
-   "bytes": 33732,
-   "quality": 42
+   "bytes": 33048,
+   "quality": 78
   },
   "currency": {
    "file": "currency.webp",
@@ -313,7 +313,7 @@
    "article": "Euro banknotes",
    "article_url": "https://en.wikipedia.org/wiki/Euro_banknotes",
    "commons_file": "Euro_banknotes,_Europa_series.png",
-   "bytes": 31580,
+   "bytes": 16530,
    "quality": 78
   },
   "dance": {
@@ -325,7 +325,7 @@
    "article": "Dance",
    "article_url": "https://en.wikipedia.org/wiki/Dance",
    "commons_file": "Two_dancers.jpg",
-   "bytes": 27362,
+   "bytes": 14934,
    "quality": 78
   },
   "doctor": {
@@ -337,7 +337,7 @@
    "article": "General practitioner",
    "article_url": "https://en.wikipedia.org/wiki/General_practitioner",
    "commons_file": "Doctors_stethoscope_1.jpg",
-   "bytes": 16252,
+   "bytes": 8566,
    "quality": 78
   },
   "dog": {
@@ -349,7 +349,7 @@
    "article": "Dog",
    "article_url": "https://en.wikipedia.org/wiki/Dog",
    "commons_file": "Huskiesatrest.jpg",
-   "bytes": 25370,
+   "bytes": 14908,
    "quality": 78
   },
   "dress": {
@@ -361,7 +361,7 @@
    "article": "Dress",
    "article_url": "https://en.wikipedia.org/wiki/Dress",
    "commons_file": "Afternoon_ensemble_MET_63.212a-b_CP4.jpg",
-   "bytes": 15650,
+   "bytes": 8740,
    "quality": 78
   },
   "drive": {
@@ -373,7 +373,7 @@
    "article": "Driving",
    "article_url": "https://en.wikipedia.org/wiki/Driving",
    "commons_file": "Convertible_Mercedes_Car_Driving_On_A_Highway.jpg",
-   "bytes": 37942,
+   "bytes": 20306,
    "quality": 78
   },
   "egg": {
@@ -385,7 +385,7 @@
    "article": "Egg as food",
    "article_url": "https://en.wikipedia.org/wiki/Egg_as_food",
    "commons_file": "Huevo_frito.jpg",
-   "bytes": 10036,
+   "bytes": 6338,
    "quality": 78
   },
   "family": {
@@ -397,7 +397,7 @@
    "article": "Nuclear family",
    "article_url": "https://en.wikipedia.org/wiki/Nuclear_family",
    "commons_file": "W.H._Shumard_family,_circa_1955.jpg",
-   "bytes": 18560,
+   "bytes": 11664,
    "quality": 78
   },
   "father": {
@@ -409,7 +409,7 @@
    "article": "Father",
    "article_url": "https://en.wikipedia.org/wiki/Father",
    "commons_file": "Father's_love_(cropped).jpg",
-   "bytes": 19518,
+   "bytes": 11200,
    "quality": 78
   },
   "fish": {
@@ -421,7 +421,7 @@
    "article": "Fish",
    "article_url": "https://en.wikipedia.org/wiki/Fish",
    "commons_file": "Balantiocheilos_melanopterus_-_Karlsruhe_Zoo_02_(cropped).jpg",
-   "bytes": 26906,
+   "bytes": 14970,
    "quality": 78
   },
   "fishing": {
@@ -433,7 +433,7 @@
    "article": "Fishing",
    "article_url": "https://en.wikipedia.org/wiki/Fishing",
    "commons_file": "Stilts_fishermen_Sri_Lanka_02.jpg",
-   "bytes": 37878,
+   "bytes": 18178,
    "quality": 78
   },
   "floor": {
@@ -445,8 +445,8 @@
    "article": "Floor",
    "article_url": "https://en.wikipedia.org/wiki/Floor",
    "commons_file": "Parquet_flooring_in_Musée_des_arts_décoratifs_de_Strasbourg.jpg",
-   "bytes": 30058,
-   "quality": 42
+   "bytes": 30178,
+   "quality": 78
   },
   "flower": {
    "file": "flower.webp",
@@ -457,7 +457,7 @@
    "article": "Flower",
    "article_url": "https://en.wikipedia.org/wiki/Flower",
    "commons_file": "Magnolia_grandiflora_-_flower_1.jpg",
-   "bytes": 22068,
+   "bytes": 13638,
    "quality": 78
   },
   "food": {
@@ -469,8 +469,8 @@
    "article": "Food",
    "article_url": "https://en.wikipedia.org/wiki/Food",
    "commons_file": "Good_Food_Display_-_NCI_Visuals_Online.jpg",
-   "bytes": 39298,
-   "quality": 48
+   "bytes": 32356,
+   "quality": 78
   },
   "forest": {
    "file": "forest.webp",
@@ -481,8 +481,8 @@
    "article": "Forest",
    "article_url": "https://en.wikipedia.org/wiki/Forest",
    "commons_file": "Aerial_view_of_the_Amazon_Rainforest.jpg",
-   "bytes": 39432,
-   "quality": 66
+   "bytes": 24066,
+   "quality": 78
   },
   "garden": {
    "file": "garden.webp",
@@ -493,8 +493,8 @@
    "article": "Garden",
    "article_url": "https://en.wikipedia.org/wiki/Garden",
    "commons_file": "Brooklyn_Botanic_Garden_New_York_May_2015_010.jpg",
-   "bytes": 40456,
-   "quality": 42
+   "bytes": 28486,
+   "quality": 78
   },
   "gloves": {
    "file": "gloves.webp",
@@ -505,7 +505,7 @@
    "article": "Glove",
    "article_url": "https://en.wikipedia.org/wiki/Glove",
    "commons_file": "Centre_de_Documentació_Museu_Tèxtil_de_Terrassa-_Reserves-_Teixits-_Guants002.JPG",
-   "bytes": 28214,
+   "bytes": 16690,
    "quality": 78
   },
   "guitar": {
@@ -517,7 +517,7 @@
    "article": "Guitar",
    "article_url": "https://en.wikipedia.org/wiki/Guitar",
    "commons_file": "GuitareClassique5.png",
-   "bytes": 15284,
+   "bytes": 8612,
    "quality": 78
   },
   "gym": {
@@ -529,7 +529,7 @@
    "article": "Gym",
    "article_url": "https://en.wikipedia.org/wiki/Gym",
    "commons_file": "Amsterdam_-_Gymnasium_-_0591.jpg",
-   "bytes": 22086,
+   "bytes": 12922,
    "quality": 78
   },
   "headphones": {
@@ -541,7 +541,7 @@
    "article": "Headphones",
    "article_url": "https://en.wikipedia.org/wiki/Headphones",
    "commons_file": "Słuchawki_referencyjne_K-701_firmy_AKG.jpg",
-   "bytes": 13894,
+   "bytes": 8198,
    "quality": 78
   },
   "horse": {
@@ -553,7 +553,7 @@
    "article": "Horse",
    "article_url": "https://en.wikipedia.org/wiki/Horse",
    "commons_file": "Nokota_Horses_cropped.jpg",
-   "bytes": 39588,
+   "bytes": 23272,
    "quality": 78
   },
   "hospital": {
@@ -565,7 +565,7 @@
    "article": "Hospital",
    "article_url": "https://en.wikipedia.org/wiki/Hospital",
    "commons_file": "Hospital-de-Bellvitge.jpg",
-   "bytes": 24608,
+   "bytes": 15138,
    "quality": 78
   },
   "hotel": {
@@ -577,8 +577,8 @@
    "article": "Hotel",
    "article_url": "https://en.wikipedia.org/wiki/Hotel",
    "commons_file": "Jeanne&TheForest_Façade.jpg",
-   "bytes": 39740,
-   "quality": 60
+   "bytes": 26122,
+   "quality": 78
   },
   "house": {
    "file": "house.webp",
@@ -589,7 +589,7 @@
    "article": "Single-family detached home",
    "article_url": "https://en.wikipedia.org/wiki/Single-family_detached_home",
    "commons_file": "Nordisches_Einfamilienhaus.jpg",
-   "bytes": 36096,
+   "bytes": 17332,
    "quality": 78
   },
   "jacket": {
@@ -601,8 +601,8 @@
    "article": "Куртка",
    "article_url": "https://ru.wikipedia.org/wiki/%D0%9A%D1%83%D1%80%D1%82%D0%BA%D0%B0",
    "commons_file": "Куртка_СССР_МПШО.JPG",
-   "bytes": 40534,
-   "quality": 66
+   "bytes": 23226,
+   "quality": 78
   },
   "juice": {
    "file": "juice.webp",
@@ -613,7 +613,7 @@
    "article": "Juice",
    "article_url": "https://en.wikipedia.org/wiki/Juice",
    "commons_file": "Orange_juice_1.jpg",
-   "bytes": 24234,
+   "bytes": 13868,
    "quality": 78
   },
   "jump": {
@@ -625,7 +625,7 @@
    "article": "Jumping",
    "article_url": "https://en.wikipedia.org/wiki/Jumping",
    "commons_file": "Rehbock_auf_der_Ostplate_Spiekeroog_-_Nationalpark_niedersächsisches_Wattenmeer.jpg",
-   "bytes": 19870,
+   "bytes": 10858,
    "quality": 78
   },
   "key": {
@@ -637,7 +637,7 @@
    "article": "Key (lock)",
    "article_url": "https://en.wikipedia.org/wiki/Key_%28lock%29",
    "commons_file": "Solex_99_30_padlock_with_keys_(DSCF2659).jpg",
-   "bytes": 34042,
+   "bytes": 15276,
    "quality": 78
   },
   "keyboard": {
@@ -649,7 +649,7 @@
    "article": "Компьютерная клавиатура",
    "article_url": "https://ru.wikipedia.org/wiki/%D0%9A%D0%BE%D0%BC%D0%BF%D1%8C%D1%8E%D1%82%D0%B5%D1%80%D0%BD%D0%B0%D1%8F_%D0%BA%D0%BB%D0%B0%D0%B2%D0%B8%D0%B0%D1%82%D1%83%D1%80%D0%B0",
    "commons_file": "IBM_Model_M_1395622_keyboard.jpg",
-   "bytes": 22632,
+   "bytes": 12706,
    "quality": 78
   },
   "kitchen": {
@@ -661,7 +661,7 @@
    "article": "Kitchen",
    "article_url": "https://en.wikipedia.org/wiki/Kitchen",
    "commons_file": "La_cuisine_(musée_dart_nouveau,_Riga)_(7563655820).jpg",
-   "bytes": 30776,
+   "bytes": 18942,
    "quality": 78
   },
   "luggage": {
@@ -673,8 +673,8 @@
    "article": "Baggage",
    "article_url": "https://en.wikipedia.org/wiki/Baggage",
    "commons_file": "20180520_Away_carryon_(1).jpg",
-   "bytes": 40922,
-   "quality": 72
+   "bytes": 21062,
+   "quality": 78
   },
   "milk": {
    "file": "milk.webp",
@@ -685,7 +685,7 @@
    "article": "Milk",
    "article_url": "https://en.wikipedia.org/wiki/Milk",
    "commons_file": "Glass_of_Milk_(33657535532).jpg",
-   "bytes": 8650,
+   "bytes": 4770,
    "quality": 78
   },
   "morning": {
@@ -697,7 +697,7 @@
    "article": "Morning",
    "article_url": "https://en.wikipedia.org/wiki/Morning",
    "commons_file": "Morning,_just_after_sunrise,_Namibia.jpg",
-   "bytes": 31294,
+   "bytes": 13198,
    "quality": 78
   },
   "mountain": {
@@ -709,8 +709,8 @@
    "article": "Mountain",
    "article_url": "https://en.wikipedia.org/wiki/Mountain",
    "commons_file": "Everest_North_Face_toward_Base_Camp_Tibet_Luca_Galuzzi_2006.jpg",
-   "bytes": 40468,
-   "quality": 72
+   "bytes": 21740,
+   "quality": 78
   },
   "museum": {
    "file": "museum.webp",
@@ -721,8 +721,8 @@
    "article": "Museum",
    "article_url": "https://en.wikipedia.org/wiki/Museum",
    "commons_file": "Museo_Chileno_de_Arte_Precolombino_-_2020_-_10.jpg",
-   "bytes": 34316,
-   "quality": 42
+   "bytes": 32620,
+   "quality": 78
   },
   "night": {
    "file": "night.webp",
@@ -733,8 +733,8 @@
    "article": "Night",
    "article_url": "https://en.wikipedia.org/wiki/Night",
    "commons_file": "Savault_Chapel_Under_Milky_Way_BLS.jpg",
-   "bytes": 35412,
-   "quality": 72
+   "bytes": 17790,
+   "quality": 78
   },
   "nose": {
    "file": "nose.webp",
@@ -745,7 +745,7 @@
    "article": "Нос",
    "article_url": "https://ru.wikipedia.org/wiki/%D0%9D%D0%BE%D1%81",
    "commons_file": "Neus1.jpg",
-   "bytes": 15254,
+   "bytes": 9130,
    "quality": 78
   },
   "nurse": {
@@ -757,7 +757,7 @@
    "article": "Nursing",
    "article_url": "https://en.wikipedia.org/wiki/Nursing",
    "commons_file": "Nurse_checks_blood_pressure.jpg",
-   "bytes": 18710,
+   "bytes": 10306,
    "quality": 78
   },
   "paint": {
@@ -769,7 +769,7 @@
    "article": "Paint",
    "article_url": "https://en.wikipedia.org/wiki/Paint",
    "commons_file": "Multicolored_tempera_paints.jpg",
-   "bytes": 24496,
+   "bytes": 14634,
    "quality": 78
   },
   "park": {
@@ -781,8 +781,8 @@
    "article": "Park",
    "article_url": "https://en.wikipedia.org/wiki/Park",
    "commons_file": "Halleyparknovember_b_(cropped).jpg",
-   "bytes": 40922,
-   "quality": 54
+   "bytes": 27588,
+   "quality": 78
   },
   "pen": {
    "file": "pen.webp",
@@ -793,7 +793,7 @@
    "article": "Pen",
    "article_url": "https://en.wikipedia.org/wiki/Pen",
    "commons_file": "Carandache_Ecridor.jpg",
-   "bytes": 11418,
+   "bytes": 6598,
    "quality": 78
   },
   "pencil": {
@@ -805,7 +805,7 @@
    "article": "Pencil",
    "article_url": "https://en.wikipedia.org/wiki/Pencil",
    "commons_file": "Pencils_hb.jpg",
-   "bytes": 8476,
+   "bytes": 5608,
    "quality": 78
   },
   "plate": {
@@ -817,7 +817,7 @@
    "article": "Plate (dishware)",
    "article_url": "https://en.wikipedia.org/wiki/Plate_%28dishware%29",
    "commons_file": "Botanical_plate_with_spray_of_fruiting_Indian_Bean_Tree_MET_DP-1687-038_(cropped).jpg",
-   "bytes": 20480,
+   "bytes": 12292,
    "quality": 78
   },
   "pollution": {
@@ -829,7 +829,7 @@
    "article": "Pollution",
    "article_url": "https://en.wikipedia.org/wiki/Pollution",
    "commons_file": "Air_pollution3.jpg",
-   "bytes": 6400,
+   "bytes": 3912,
    "quality": 78
   },
   "rabbit": {
@@ -841,8 +841,8 @@
    "article": "Rabbit",
    "article_url": "https://en.wikipedia.org/wiki/Rabbit",
    "commons_file": "Oryctolagus_cuniculus_Rcdo.jpg",
-   "bytes": 39156,
-   "quality": 72
+   "bytes": 25262,
+   "quality": 78
   },
   "rain": {
    "file": "rain.webp",
@@ -853,8 +853,8 @@
    "article": "Дождь",
    "article_url": "https://ru.wikipedia.org/wiki/%D0%94%D0%BE%D0%B6%D0%B4%D1%8C",
    "commons_file": "Falling_rain_in_mexico.jpg",
-   "bytes": 38164,
-   "quality": 60
+   "bytes": 24634,
+   "quality": 78
   },
   "rice": {
    "file": "rice.webp",
@@ -865,7 +865,7 @@
    "article": "White rice",
    "article_url": "https://en.wikipedia.org/wiki/White_rice",
    "commons_file": "Half_a_cup_of_rice._Brown_rice_is_the_best_choice.JPG",
-   "bytes": 30856,
+   "bytes": 16734,
    "quality": 78
   },
   "river": {
@@ -877,7 +877,7 @@
    "article": "River",
    "article_url": "https://en.wikipedia.org/wiki/River",
    "commons_file": "Pirogue_running_on_the_Mekong_at_golden_hour_between_Don_Det_and_Don_Khon_Laos.jpg",
-   "bytes": 34462,
+   "bytes": 16246,
    "quality": 78
   },
   "road": {
@@ -889,7 +889,7 @@
    "article": "Road",
    "article_url": "https://en.wikipedia.org/wiki/Road",
    "commons_file": "Singapore-Johor_Causeway.jpg",
-   "bytes": 32960,
+   "bytes": 15932,
    "quality": 78
   },
   "ruler": {
@@ -901,8 +901,8 @@
    "article": "Ruler",
    "article_url": "https://en.wikipedia.org/wiki/Ruler",
    "commons_file": "Diverse·Maßstäbe,15.365.jpg",
-   "bytes": 37710,
-   "quality": 72
+   "bytes": 22918,
+   "quality": 78
   },
   "run": {
    "file": "run.webp",
@@ -913,7 +913,7 @@
    "article": "Running",
    "article_url": "https://en.wikipedia.org/wiki/Running",
    "commons_file": "Speedsuit.jpg",
-   "bytes": 16784,
+   "bytes": 9836,
    "quality": 78
   },
   "scarf": {
@@ -925,7 +925,7 @@
    "article": "Scarf",
    "article_url": "https://en.wikipedia.org/wiki/Scarf",
    "commons_file": "100%_Kaschmir_Wolle_vonk_kaschmirprodukte.de.jpg",
-   "bytes": 9370,
+   "bytes": 4822,
    "quality": 78
   },
   "school": {
@@ -937,8 +937,8 @@
    "article": "Школа",
    "article_url": "https://ru.wikipedia.org/wiki/%D0%A8%D0%BA%D0%BE%D0%BB%D0%B0",
    "commons_file": "Молодецьке_(Маньківський_р-н)._Школа.jpg",
-   "bytes": 40164,
-   "quality": 66
+   "bytes": 24702,
+   "quality": 78
   },
   "sea": {
    "file": "sea.webp",
@@ -949,7 +949,7 @@
    "article": "Море",
    "article_url": "https://ru.wikipedia.org/wiki/%D0%9C%D0%BE%D1%80%D0%B5",
    "commons_file": "POL_2007_08_04_Jaroslawiec_zachodniopomorskie_02.JPG",
-   "bytes": 30100,
+   "bytes": 15400,
    "quality": 78
   },
   "shirt": {
@@ -961,7 +961,7 @@
    "article": "Shirt",
    "article_url": "https://en.wikipedia.org/wiki/Shirt",
    "commons_file": "Charvet_shirt.jpg",
-   "bytes": 14654,
+   "bytes": 8968,
    "quality": 78
   },
   "shoe": {
@@ -973,7 +973,7 @@
    "article": "Shoe",
    "article_url": "https://en.wikipedia.org/wiki/Shoe",
    "commons_file": "Skor_från_1700-_till_1960-talet_-_Nordiska_Museet_-_NMA.0056302.jpg",
-   "bytes": 28702,
+   "bytes": 15974,
    "quality": 78
   },
   "shop": {
@@ -985,8 +985,8 @@
    "article": "Grocery store",
    "article_url": "https://en.wikipedia.org/wiki/Grocery_store",
    "commons_file": "Westside_Market_in_Manhattan,_NYC_IMG_5615.JPG",
-   "bytes": 38316,
-   "quality": 54
+   "bytes": 28488,
+   "quality": 78
   },
   "sing": {
    "file": "sing.webp",
@@ -997,7 +997,7 @@
    "article": "Singing",
    "article_url": "https://en.wikipedia.org/wiki/Singing",
    "commons_file": "Ah_cricket_20122_(7364759010).jpg",
-   "bytes": 29598,
+   "bytes": 15662,
    "quality": 78
   },
   "sleep": {
@@ -1009,7 +1009,7 @@
    "article": "Nap",
    "article_url": "https://en.wikipedia.org/wiki/Nap",
    "commons_file": "Hammock_nap_on_patio.jpg",
-   "bytes": 22518,
+   "bytes": 14132,
    "quality": 78
   },
   "snow": {
@@ -1021,7 +1021,7 @@
    "article": "Снег",
    "article_url": "https://ru.wikipedia.org/wiki/%D0%A1%D0%BD%D0%B5%D0%B3",
    "commons_file": "Білий_ліс.jpg",
-   "bytes": 39008,
+   "bytes": 18696,
    "quality": 78
   },
   "sock": {
@@ -1033,7 +1033,7 @@
    "article": "Sock",
    "article_url": "https://en.wikipedia.org/wiki/Sock",
    "commons_file": "HandKnittedWhiteLaceSock.jpg",
-   "bytes": 23842,
+   "bytes": 12692,
    "quality": 78
   },
   "soup": {
@@ -1045,8 +1045,8 @@
    "article": "Soup",
    "article_url": "https://en.wikipedia.org/wiki/Soup",
    "commons_file": "Asparagus_soup_(spargelsuppe).jpg",
-   "bytes": 38508,
-   "quality": 48
+   "bytes": 22290,
+   "quality": 78
   },
   "spoon": {
    "file": "spoon.webp",
@@ -1057,7 +1057,7 @@
    "article": "Spoon",
    "article_url": "https://en.wikipedia.org/wiki/Spoon",
    "commons_file": "Soup_Spoon.jpg",
-   "bytes": 30614,
+   "bytes": 12618,
    "quality": 78
   },
   "stand": {
@@ -1069,8 +1069,8 @@
    "article": "Standing",
    "article_url": "https://en.wikipedia.org/wiki/Standing",
    "commons_file": "Yerevan,_Armenian_girls_posing_in_photo_shoot,_Acting,_Posture,_Body_language,_Armenia.jpg",
-   "bytes": 37526,
-   "quality": 66
+   "bytes": 23942,
+   "quality": 78
   },
   "station": {
    "file": "station.webp",
@@ -1081,7 +1081,7 @@
    "article": "Train station",
    "article_url": "https://en.wikipedia.org/wiki/Train_station",
    "commons_file": "Milan_CentralStation_016_4294.jpg",
-   "bytes": 40218,
+   "bytes": 20376,
    "quality": 78
   },
   "storm": {
@@ -1093,7 +1093,7 @@
    "article": "Storm",
    "article_url": "https://en.wikipedia.org/wiki/Storm",
    "commons_file": "Cloud_cumulonimbus_at_baltic_sea(1).jpg",
-   "bytes": 19278,
+   "bytes": 9446,
    "quality": 78
   },
   "street": {
@@ -1105,8 +1105,8 @@
    "article": "Street",
    "article_url": "https://en.wikipedia.org/wiki/Street",
    "commons_file": "Typical_Street_In_The_Royal_Borough_Of_Kensington_And_Chelsea_In_London.jpg",
-   "bytes": 37778,
-   "quality": 66
+   "bytes": 24158,
+   "quality": 78
   },
   "summer": {
    "file": "summer.webp",
@@ -1117,8 +1117,8 @@
    "article": "Summer",
    "article_url": "https://en.wikipedia.org/wiki/Summer",
    "commons_file": "Field_Hamois_Belgium_Luc_Viatour.jpg",
-   "bytes": 29412,
-   "quality": 42
+   "bytes": 38780,
+   "quality": 78
   },
   "sun": {
    "file": "sun.webp",
@@ -1129,7 +1129,7 @@
    "article": "Sun",
    "article_url": "https://en.wikipedia.org/wiki/Sun",
    "commons_file": "The_Sun_in_white_light.jpg",
-   "bytes": 5778,
+   "bytes": 2172,
    "quality": 78
   },
   "supermarket": {
@@ -1141,8 +1141,8 @@
    "article": "Supermarket",
    "article_url": "https://en.wikipedia.org/wiki/Supermarket",
    "commons_file": "Stop&Shop.jpg",
-   "bytes": 39040,
-   "quality": 48
+   "bytes": 28798,
+   "quality": 78
   },
   "swim": {
    "file": "swim.webp",
@@ -1153,8 +1153,8 @@
    "article": "Плавание",
    "article_url": "https://ru.wikipedia.org/wiki/%D0%9F%D0%BB%D0%B0%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5",
    "commons_file": "EK_Zwemmen_2006_100m_vlinder_vrouwen.jpg",
-   "bytes": 40578,
-   "quality": 66
+   "bytes": 26950,
+   "quality": 78
   },
   "taxi": {
    "file": "taxi.webp",
@@ -1165,7 +1165,7 @@
    "article": "Hackney carriage",
    "article_url": "https://en.wikipedia.org/wiki/Hackney_carriage",
    "commons_file": "2005_LTI_TXII_Silver_Automatic_2.4_Front.jpg",
-   "bytes": 38184,
+   "bytes": 19874,
    "quality": 78
   },
   "tea": {
@@ -1177,7 +1177,7 @@
    "article": "Tea",
    "article_url": "https://en.wikipedia.org/wiki/Tea",
    "commons_file": "Longjing_tea_steeping_in_gaiwan.jpg",
-   "bytes": 19328,
+   "bytes": 11742,
    "quality": 78
   },
   "teacher": {
@@ -1189,7 +1189,7 @@
    "article": "Teacher",
    "article_url": "https://en.wikipedia.org/wiki/Teacher",
    "commons_file": "A_public_high_school_teacher_in_a_classroom_in_the_United_States_08.jpg",
-   "bytes": 33868,
+   "bytes": 18610,
    "quality": 78
   },
   "temperature": {
@@ -1201,7 +1201,7 @@
    "article": "Thermometer",
    "article_url": "https://en.wikipedia.org/wiki/Thermometer",
    "commons_file": "Mercury_Thermometer.jpg",
-   "bytes": 23394,
+   "bytes": 12984,
    "quality": 78
   },
   "traffic": {
@@ -1213,8 +1213,8 @@
    "article": "Traffic",
    "article_url": "https://en.wikipedia.org/wiki/Traffic",
    "commons_file": "Crossing_the_Hudson_River_on_the_George_Washington_Bridge_from_Fort_Lee,_New_Jersey_to_Manhattan,_New_York_(7237796950).jpg",
-   "bytes": 39510,
-   "quality": 66
+   "bytes": 25360,
+   "quality": 78
   },
   "tree": {
    "file": "tree.webp",
@@ -1225,8 +1225,8 @@
    "article": "Tree",
    "article_url": "https://en.wikipedia.org/wiki/Tree",
    "commons_file": "Usamljeni_jasen_-_panoramio_(cropped).jpg",
-   "bytes": 40510,
-   "quality": 66
+   "bytes": 24754,
+   "quality": 78
   },
   "umbrella": {
    "file": "umbrella.webp",
@@ -1237,7 +1237,7 @@
    "article": "Umbrella",
    "article_url": "https://en.wikipedia.org/wiki/Umbrella",
    "commons_file": "M0354_000727-005_1.jpg",
-   "bytes": 4400,
+   "bytes": 2822,
    "quality": 78
   },
   "village": {
@@ -1249,8 +1249,8 @@
    "article": "Village",
    "article_url": "https://en.wikipedia.org/wiki/Village",
    "commons_file": "Bourton-on-the-Water_2010_PD_09.JPG",
-   "bytes": 40136,
-   "quality": 54
+   "bytes": 27114,
+   "quality": 78
   },
   "wall": {
    "file": "wall.webp",
@@ -1261,7 +1261,7 @@
    "article": "Wall",
    "article_url": "https://en.wikipedia.org/wiki/Wall",
    "commons_file": "Noel_2005_Pékin_031_muraille_de_chine_Mutianyu.jpg",
-   "bytes": 29000,
+   "bytes": 14086,
    "quality": 78
   },
   "wallet": {
@@ -1273,8 +1273,8 @@
    "article": "Wallet",
    "article_url": "https://en.wikipedia.org/wiki/Wallet",
    "commons_file": "WalletMpegMan.jpg",
-   "bytes": 40758,
-   "quality": 42
+   "bytes": 27392,
+   "quality": 78
   },
   "wash": {
    "file": "wash.webp",
@@ -1285,7 +1285,7 @@
    "article": "Washing",
    "article_url": "https://en.wikipedia.org/wiki/Washing",
    "commons_file": "Woman_washing_hands.jpg",
-   "bytes": 16880,
+   "bytes": 9902,
    "quality": 78
   },
   "water": {
@@ -1297,7 +1297,7 @@
    "article": "Drinking water",
    "article_url": "https://en.wikipedia.org/wiki/Drinking_water",
    "commons_file": "Clean_water_for_a_village_in_West_Lombok_(10686572086).jpg",
-   "bytes": 9350,
+   "bytes": 5974,
    "quality": 78
   },
   "window": {
@@ -1309,7 +1309,7 @@
    "article": "Window",
    "article_url": "https://en.wikipedia.org/wiki/Window",
    "commons_file": "Atua_Kosua_shrine4.jpg",
-   "bytes": 16924,
+   "bytes": 10120,
    "quality": 78
   },
   "winter": {
@@ -1321,8 +1321,8 @@
    "article": "Winter",
    "article_url": "https://en.wikipedia.org/wiki/Winter",
    "commons_file": "Winter_forest_silver.jpg",
-   "bytes": 37878,
-   "quality": 72
+   "bytes": 20314,
+   "quality": 78
   }
  }
 }
