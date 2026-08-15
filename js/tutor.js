@@ -123,7 +123,14 @@ $("logout-btn").addEventListener("click", () => {
 // ===== Навигация =====
 document.querySelectorAll(".nav-btn").forEach(btn => {
   btn.addEventListener("click", () => {
-    document.querySelectorAll(".nav-btn").forEach(b => b.classList.toggle("active", b === btn));
+    document.querySelectorAll(".nav-btn").forEach(b => {
+      const on = b === btn;
+      b.classList.toggle("active", on);
+      // Активную вкладку было видно только по цвету — то есть незрячий
+      // репетитор не знал, в каком он разделе. aria-current произносится.
+      if (on) b.setAttribute("aria-current", "page");
+      else b.removeAttribute("aria-current");
+    });
     // Список вкладок берём из самих кнопок: захардкоженный перечень
     // молча ломал каждую новую вкладку — она просто не открывалась
     document.querySelectorAll(".nav-btn").forEach(b => {

@@ -126,8 +126,13 @@ function show(screen) {
   });
   document.getElementById("topbar").classList.toggle("hidden", !state.user || !state.level);
   document.querySelectorAll(".nav-btn").forEach(b => {
-    b.classList.toggle("active", b.dataset.nav === screen ||
-      (b.dataset.nav === "practice" && (screen === "trainer" || screen === "exercise")));
+    const on = b.dataset.nav === screen ||
+      (b.dataset.nav === "practice" && (screen === "trainer" || screen === "exercise"));
+    b.classList.toggle("active", on);
+    // Раздел, в котором находишься, был обозначен только цветом кнопки.
+    // aria-current сообщает то же самое вслух.
+    if (on) b.setAttribute("aria-current", "page");
+    else b.removeAttribute("aria-current");
   });
   // Уходим из упражнения — снимаем область домашки. Без этого ученик,
   // открывший домашку и вернувшийся к обычной тренировке, навсегда

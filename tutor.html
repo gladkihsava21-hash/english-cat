@@ -32,7 +32,7 @@
   <meta name="twitter:card" content="summary_large_image">
   <link rel="preload" href="css/fonts/nunito-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="css/fonts/inter-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="css/fonts.css?v=131">
+  <link rel="stylesheet" href="css/fonts.css?v=135">
   <!-- Тему ставим ДО первой отрисовки, отдельным крошечным скриптом.
        Всё остальное грузится с defer, а defer выполняется после разбора
        страницы — то есть уже после того, как браузер её покажет. Если
@@ -48,13 +48,13 @@
       document.documentElement.dataset.theme = t;
     } catch (e) { /* приватный режим — просто останется дневная */ }
   </script>
-  <link rel="stylesheet" href="css/tokens.css?v=131">
-  <link rel="stylesheet" href="css/style.css?v=131">
-  <link rel="stylesheet" href="css/savely.css?v=131">
-  <link rel="stylesheet" href="css/tutor.css?v=131">
-<link rel="stylesheet" href="css/motion.css?v=131">
-<link rel="stylesheet" href="css/a11y.css?v=131">
-<link rel="stylesheet" href="css/cat.css?v=131">
+  <link rel="stylesheet" href="css/tokens.css?v=135">
+  <link rel="stylesheet" href="css/style.css?v=135">
+  <link rel="stylesheet" href="css/savely.css?v=135">
+  <link rel="stylesheet" href="css/tutor.css?v=135">
+<link rel="stylesheet" href="css/motion.css?v=135">
+<link rel="stylesheet" href="css/a11y.css?v=135">
+<link rel="stylesheet" href="css/cat.css?v=135">
 </head>
 <body>
 
@@ -156,9 +156,14 @@
 <div id="app" class="hidden">
   <header class="topbar">
     <div class="topbar-inner">
-      <button class="brand"><span class="brand-cat cat-avatar" data-cat="hello" aria-hidden="true"></span> Савелий · панель</button>
-      <nav class="nav">
-        <button class="nav-btn active" data-tab="students">Ученики <span id="stu-count" class="badge">0</span></button>
+      <!-- h1 именно здесь. Заголовки первого уровня на этой странице
+           были только у экранов входа, оплаты и подтверждения — то есть
+           у самой панели, где репетитор проводит всё время, заголовка
+           страницы не было вовсе. Для программы чтения это значит
+           «страница без названия»: непонятно, куда попал. -->
+      <h1 class="brand-h1"><button class="brand"><span class="brand-cat cat-avatar" data-cat="hello" aria-hidden="true"></span> Савелий · панель</button></h1>
+      <nav class="nav" aria-label="Разделы панели">
+        <button class="nav-btn active" aria-current="page" data-tab="students">Ученики <span id="stu-count" class="badge">0</span></button>
         <button class="nav-btn" data-tab="homework">Выдать домашку</button>
         <button class="nav-btn" data-tab="tasks">Домашки</button>
         <button class="nav-btn" data-tab="photos">Фото тетрадей <span id="photo-count" class="badge">0</span></button>
@@ -505,20 +510,20 @@
     <a href="https://t.me/KOTSAVELII" target="_blank" rel="noopener">@KOTSAVELII</a></p>
 </footer>
 
-<script defer src="js/theme.js?v=131"></script>
-<script defer src="js/icons.js?v=131"></script>
-<script defer src="js/cat.js?v=131"></script>
-<script defer src="js/motion.js?v=131"></script>
-<script defer src="js/util.js?v=131"></script>
-<script defer src="js/levels.js?v=131"></script>
+<script defer src="js/theme.js?v=135"></script>
+<script defer src="js/icons.js?v=135"></script>
+<script defer src="js/cat.js?v=135"></script>
+<script defer src="js/motion.js?v=135"></script>
+<script defer src="js/util.js?v=135"></script>
+<script defer src="js/levels.js?v=135"></script>
 <!-- js/words.js здесь НЕТ намеренно. Это 326 КБ сжатыми, а на экране
      входа словарь не нужен вообще: он нужен только внутри панели, чтобы
      собрать домашку. Подгружается в openPanel через ensureWords(). -->
-<script defer src="js/images.js?v=131"></script>
-<script defer src="js/word-photos.js?v=131"></script>
-<script defer src="js/tutor.js?v=131"></script>
-<script defer src="js/tutor-photos.js?v=131"></script>
-<script defer src="js/tutor-auth.js?v=131"></script>
-<script defer src="js/tutor-verify.js?v=131"></script>
+<script defer src="js/images.js?v=135"></script>
+<script defer src="js/word-photos.js?v=135"></script>
+<script defer src="js/tutor.js?v=135"></script>
+<script defer src="js/tutor-photos.js?v=135"></script>
+<script defer src="js/tutor-auth.js?v=135"></script>
+<script defer src="js/tutor-verify.js?v=135"></script>
 </body>
 </html>

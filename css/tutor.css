@@ -350,3 +350,9 @@
 }
 .slot-confirm .plan-name { margin-bottom: 6px; }
 .slot-confirm .muted-note { margin-bottom: 12px; }
+
+/* h1 обёрнут вокруг кнопки «Савелий · панель»: заголовок нужен программе
+   чтения, а выглядеть он должен ровно как раньше — поэтому у самого h1
+   ни отступов, ни своего кегля, всё рисует .brand внутри. */
+.brand-h1 { display: flex; align-items: center; margin: 0;
+  font-size: inherit; font-weight: inherit; line-height: inherit; }
