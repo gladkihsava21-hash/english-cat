@@ -27,6 +27,14 @@ def current():
     return max(found) if found else 0
 
 
+# Файлы, которых НЕТ в разметке: они подгружаются кодом по требованию
+# (ensureWords / ensurePhrases в js/util.js). В офлайн-кэш они всё равно
+# обязаны попасть — иначе ученик в метро откроет тренировку и получит
+# «не дозвонился до словаря». Это единственное место, где список нужно
+# дополнить руками, поэтому оно и лежит наверху на виду.
+LAZY = ["js/words.js", "js/phrases.js"]
+
+
 def assets_from_pages():
     """Список файлов берём из самих страниц, а не из головы: любой
     новый css/js попадает в офлайн-кэш сам, без отдельного напоминания."""
@@ -36,6 +44,9 @@ def assets_from_pages():
         for path in re.findall(r'(?:href|src)="((?:css|js)/[^"?]+)', text):
             if path not in seen:
                 seen.append(path)
+    for path in LAZY:
+        if path not in seen:
+            seen.append(path)
     return seen
 
 

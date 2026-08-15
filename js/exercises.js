@@ -351,6 +351,30 @@ function openExercise(id) {
     return;
   }
 
+  // То же и со словарём: упражнению без него делать нечего, а на экране
+  // приветствия он не грузится вовсе. Ждём и показываем, что ждём.
+  if (typeof WORDS === "undefined") {
+    stage().innerHTML = `
+      <div class="empty-state">
+        <div class="cat-avatar cat-mid" data-cat="hello"></div>
+        <h2>Достаю слова…</h2>
+      </div>`;
+    if (typeof paintCats === "function") paintCats(stage());
+    ensureWords()
+      .then(() => { if (stage()) openExercise(id); })
+      .catch(() => {
+        if (!stage()) return;
+        stage().innerHTML = `
+          <div class="empty-state">
+            <div class="cat-avatar cat-mid" data-cat="oops"></div>
+            <h2>Не дозвонился до словаря</h2>
+            <p>Проверь связь и открой упражнение ещё раз.</p>
+          </div>`;
+        if (typeof paintCats === "function") paintCats(stage());
+      });
+    return;
+  }
+
   // Упражнения на выражения живут в отдельном файле на 150 КБ. Его качают
   // только те, кто до них дошёл: раньше он висел на странице у всех, а
   // нужен трём упражнениям из двадцати семи. Пока едет — показываем кота

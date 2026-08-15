@@ -373,7 +373,27 @@ function sample(arr, n) {
   return out;
 }
 
-document.getElementById("start-test-btn").addEventListener("click", () => {
+document.getElementById("start-test-btn").addEventListener("click", async () => {
+  const btn = document.getElementById("start-test-btn");
+  // Первая точка, где словарь действительно нужен. У нового ученика его
+  // ещё нет — на медленной сети это несколько секунд, и молчащая кнопка
+  // выглядит как поломка. Поэтому говорим, что происходит.
+  if (typeof WORDS === "undefined") {
+    const was = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = "Достаю слова…";
+    try {
+      await ensureWords();
+    } catch (e) {
+      btn.disabled = false;
+      btn.textContent = was;
+      const hint = document.getElementById("test-hello");
+      if (hint) hint.textContent = "Не получилось загрузить слова. Проверь связь и нажми ещё раз.";
+      return;
+    }
+    btn.disabled = false;
+    btn.textContent = was;
+  }
   testWords = [];
   LEVELS.forEach(lvl => {
     sample(WORDS[lvl], TEST_PER_LEVEL).forEach(w => testWords.push({ ...w, level: lvl }));
@@ -490,6 +510,10 @@ function recQuality(w) {
 }
 
 function pickRecommendations() {
+  // Словарь подгружается отдельно (см. «Старт» внизу файла). Пока он
+  // едет, главная рисуется без карточек, а не падает; когда приедет —
+  // renderDashboard зовут ещё раз.
+  if (typeof WORDS === "undefined") return [];
   const lvl = state.level || "A1";
   const nextLvl = LEVELS[Math.min(LEVELS.indexOf(lvl) + 1, LEVELS.length - 1)];
   const inDict = new Set(state.dictionary.map(d => d.w));
@@ -559,6 +583,13 @@ function renderDashboard() {
 
 function renderWordOfDay() {
   const box = document.getElementById("word-of-day");
+  if (!box) return;
+  // Пока словарь едет, блок прячем — но обязательно возвращаем обратно,
+  // когда он приехал. Один раз добавленный hidden без парного remove
+  // означал бы «слово дня пропало навсегда» для всех, кто зашёл на
+  // главную раньше, чем догрузился словарь.
+  box.classList.toggle("hidden", typeof WORDS === "undefined");
+  if (typeof WORDS === "undefined") return;
   const pool = WORDS[state.level] || WORDS.A1;
   const days = Math.floor(Date.now() / 86400000);
   const wd = pool[days % pool.length];
@@ -1653,6 +1684,11 @@ function catReply(raw) {
 
   // — новое слово
   if (/(слово|word|выучить|новое)/.test(text)) {
+    if (typeof WORDS === "undefined") {
+      catSay("Секунду, достаю словарь…");
+      ensureWords().then(() => catSay("Готово, спрашивай ещё раз — мяу.")).catch(() => {});
+      return;
+    }
     const inDict = new Set(state.dictionary.map(d => d.w));
     const lvl = state.level || "A1";
     const pool = WORDS[lvl].filter(w => !inDict.has(w.w));
@@ -1735,8 +1771,15 @@ document.addEventListener("DOMContentLoaded", () => {
     if (typeof checkAchievements === "function") checkAchievements();
   }, 800);
 });
+// Словарь (326 КБ сжатыми) грузим ровно тогда, когда он нужен.
+//
+// Вернувшийся ученик открывает главную, а там рекомендации и слово дня —
+// значит ждём. Новый видит экран приветствия: ни аккаунта, ни уровня,
+// ни единого слова на экране, и качать ему словарь не за что. Он приедет,
+// когда ученик нажмёт «Поехали, 36 слов» (обработчик кнопки ниже).
 if (state.user && state.level) {
   show("dashboard");
+  ensureWords().then(() => { renderDashboard(); }).catch(() => {});
 } else if (state.user) {
   document.getElementById("test-hello").textContent =
     `${state.user.name}, посчитаем, сколько слов ты уже знаешь`;
