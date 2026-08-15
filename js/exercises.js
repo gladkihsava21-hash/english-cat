@@ -142,13 +142,20 @@ function distractors(word, n, field) {
   const sameCat = word.cat
     ? shuffled(all.filter(x => x.cat === word.cat)).map(x => x[field])
     : [];
-  const rest = shuffled(all.filter(x => !word.cat || x.cat !== word.cat)).map(x => x[field]);
+  // Второй эшелон — вычитанное ядро (у него есть категория), и только
+  // потом импорт. У импортированных слов перевод часто узкоспециальный:
+  // к слову save в ловушки попадала «оценка налогообложения». Такой
+  // вариант не проверяет знание — он просто явно лишний, и вопрос
+  // становится легче, чем задумано.
+  const vetted = shuffled(all.filter(x => x.cat && (!word.cat || x.cat !== word.cat)))
+    .map(x => x[field]);
+  const rest = shuffled(all.filter(x => !x.cat)).map(x => x[field]);
 
-  // Порядок важен: сначала своя категория, добор — остальным.
+  // Порядок важен: сначала своя категория, потом вычитанное, добор — остальным.
   // Set убирает совпадения по ТЕКСТУ: у разных слов перевод иногда
   // одинаковый, и тогда на экране два одинаковых варианта.
   const out = [];
-  for (const v of [...sameCat, ...rest]) {
+  for (const v of [...sameCat, ...vetted, ...rest]) {
     if (v === word[field]) continue;      // не подсовываем верный ответ дважды
     if (!out.includes(v)) out.push(v);
     if (out.length === n) break;

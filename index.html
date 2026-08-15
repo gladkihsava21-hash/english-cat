@@ -10,7 +10,7 @@
        подмножества браузер возьмёт сам, если встретит редкую букву. -->
   <link rel="preload" href="css/fonts/nunito-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="css/fonts/inter-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="css/fonts.css?v=130">
+  <link rel="stylesheet" href="css/fonts.css?v=131">
   <!-- Тему ставим ДО первой отрисовки, отдельным крошечным скриптом.
        Всё остальное грузится с defer, а defer выполняется после разбора
        страницы — то есть уже после того, как браузер её покажет. Если
@@ -26,14 +26,14 @@
       document.documentElement.dataset.theme = t;
     } catch (e) { /* приватный режим — просто останется дневная */ }
   </script>
-  <link rel="stylesheet" href="css/tokens.css?v=130">
-  <link rel="stylesheet" href="css/style.css?v=130">
-  <link rel="stylesheet" href="css/savely.css?v=130">
-  <link rel="stylesheet" href="css/motion.css?v=130">
-<link rel="stylesheet" href="css/a11y.css?v=130">
-  <link rel="stylesheet" href="css/games.css?v=130">
-  <link rel="stylesheet" href="css/cat.css?v=130">
-  <link rel="stylesheet" href="css/account.css?v=130">
+  <link rel="stylesheet" href="css/tokens.css?v=131">
+  <link rel="stylesheet" href="css/style.css?v=131">
+  <link rel="stylesheet" href="css/savely.css?v=131">
+  <link rel="stylesheet" href="css/motion.css?v=131">
+<link rel="stylesheet" href="css/a11y.css?v=131">
+  <link rel="stylesheet" href="css/games.css?v=131">
+  <link rel="stylesheet" href="css/cat.css?v=131">
+  <link rel="stylesheet" href="css/account.css?v=131">
   <!-- Ссылку на сайт репетитор кидает ученикам в чат — это единственный
        канал раздачи. Без этих тегов она приходила туда голым адресом,
        без картинки и описания, то есть выглядела как спам. -->
@@ -575,12 +575,12 @@
     <a href="https://t.me/KOTSAVELII" target="_blank" rel="noopener">@KOTSAVELII</a></p>
 </footer>
 
-<script defer src="js/theme.js?v=130"></script>
-<script defer src="js/icons.js?v=130"></script>
-<script defer src="js/cat.js?v=130"></script>
-<script defer src="js/motion.js?v=130"></script>
-<script defer src="js/util.js?v=130"></script>
-<script defer src="js/levels.js?v=130"></script>
+<script defer src="js/theme.js?v=131"></script>
+<script defer src="js/icons.js?v=131"></script>
+<script defer src="js/cat.js?v=131"></script>
+<script defer src="js/motion.js?v=131"></script>
+<script defer src="js/util.js?v=131"></script>
+<script defer src="js/levels.js?v=131"></script>
 <!-- js/words.js здесь НЕТ намеренно: 326 КБ сжатыми, и на экране
      приветствия они не нужны — там ещё нет ни аккаунта, ни уровня.
      Подгружается через ensureWords(): для вернувшегося ученика сразу,
@@ -588,19 +588,19 @@
 <!-- js/phrases.js здесь НЕТ намеренно: 150 КБ ради трёх упражнений
      из двадцати семи и одного раздела словаря. Подгружается по месту,
      через ensurePhrases() — см. js/exercises.js и js/app.js. -->
-<script defer src="js/srs.js?v=130"></script>
-<script defer src="js/images.js?v=130"></script>
-<script defer src="js/word-photos.js?v=130"></script>
-<script defer src="js/app.js?v=130"></script>
-<script defer src="js/achievements.js?v=130"></script>
-<script defer src="js/exercises.js?v=130"></script>
-<script defer src="js/games.js?v=130"></script>
-<script defer src="js/voice.js?v=130"></script>
-<script defer src="js/sync.js?v=130"></script>
-  <script defer src="js/reading.js?v=130"></script>
-  <script defer src="js/photo.js?v=130"></script>
+<script defer src="js/srs.js?v=131"></script>
+<script defer src="js/images.js?v=131"></script>
+<script defer src="js/word-photos.js?v=131"></script>
+<script defer src="js/app.js?v=131"></script>
+<script defer src="js/achievements.js?v=131"></script>
+<script defer src="js/exercises.js?v=131"></script>
+<script defer src="js/games.js?v=131"></script>
+<script defer src="js/voice.js?v=131"></script>
+<script defer src="js/sync.js?v=131"></script>
+  <script defer src="js/reading.js?v=131"></script>
+  <script defer src="js/photo.js?v=131"></script>
   <!-- После sync.js: профиль ходит на сервер через api() оттуда -->
-  <script defer src="js/account.js?v=130"></script>
+  <script defer src="js/account.js?v=131"></script>
 <script>
   // офлайн-режим: сайт открывается без интернета и ставится на телефон
   if ("serviceWorker" in navigator && location.protocol !== "file:") {
