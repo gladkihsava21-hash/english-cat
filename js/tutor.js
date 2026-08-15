@@ -55,6 +55,9 @@ document.querySelectorAll(".tab").forEach(tab => {
     authMode = tab.dataset.mode;
     document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t === tab));
     $("name-row").classList.toggle("hidden", authMode === "login");
+    const crow = $("consent-row");
+    if (crow) crow.classList.toggle("hidden", authMode === "login");
+    if ($("t-consent")) $("t-consent").required = authMode !== "login";
     const cr = $("count-row");
     if (cr) cr.classList.toggle("hidden", authMode === "login");
     $("auth-submit").textContent = authMode === "login" ? "Войти" : "Создать кабинет";
@@ -69,6 +72,15 @@ $("auth-form").addEventListener("submit", async e => {
   const name = $("t-name").value.trim();
   const countEl = $("t-count");
   const studentCount = countEl ? Number(countEl.value) || 0 : 0;
+  if (authMode === "register") {
+    const consent = $("t-consent");
+    if (consent && !consent.checked) {
+      $("auth-error").textContent =
+        "Отметьте согласие на обработку данных — без него кабинет завести нельзя.";
+      consent.focus();
+      return;
+    }
+  }
   const path = authMode === "login" ? "/api/tutor/login" : "/api/tutor/register";
   let res;
   try {

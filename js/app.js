@@ -209,6 +209,11 @@ document.querySelectorAll(".tab").forEach(tab => {
     authMode = tab.dataset.tab;
     document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t === tab));
     document.getElementById("email-row").classList.toggle("hidden", authMode === "login");
+    // При входе согласие уже дано — спрашивать второй раз незачем
+    const consent = document.getElementById("reg-consent");
+    const crow = consent && consent.closest(".consent-row");
+    if (crow) crow.classList.toggle("hidden", authMode === "login");
+    if (consent) consent.required = authMode !== "login";
     document.getElementById("auth-submit").textContent =
       authMode === "register" ? "Создать аккаунт" : "Войти";
   });
@@ -218,6 +223,13 @@ document.getElementById("auth-form").addEventListener("submit", e => {
   e.preventDefault();
   const name = document.getElementById("reg-name").value.trim();
   if (!name) return;
+  // Браузер и сам не пропустит required, но форму отправляют и с
+  // клавиатуры, и скриптом — проверяем ещё раз здесь.
+  const consent = document.getElementById("reg-consent");
+  if (consent && !consent.classList.contains("hidden") && consent.required && !consent.checked) {
+    consent.focus();
+    return;
+  }
   state.user = { name, email: document.getElementById("reg-email").value.trim() };
   saveState();
   if (typeof joinTutor === "function") joinTutor(name);
