@@ -5,6 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Что мы храним и зачем — Савелий, кот-репетитор английского</title>
   <meta name="description" content="Какие данные собирает сайт «Савелий», зачем, где они лежат, куда передаются и как их удалить.">
+  <!-- noindex: страница обязана быть открытой и доступной по ссылке из
+       подвала — это требование закона, — но в поисковой выдаче ей делать
+       нечего. На ней стоят имя и ИНН живого человека, и лишний раз
+       раздавать их поисковикам незачем. На юридическую силу документа
+       индексация не влияет. -->
+  <meta name="robots" content="noindex, follow">
   <link rel="canonical" href="https://wordcat.ru/privacy.html">
   <link rel="preload" href="css/fonts/nunito-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="css/fonts/inter-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
@@ -41,9 +47,6 @@
     .doc th { color: var(--ink); white-space: nowrap; }
     .doc td { color: var(--ink-soft); }
     .lead { font-size: var(--text-body, 18px); }
-    .todo { border: 2px dashed var(--accent-line); border-radius: 14px;
-      padding: 14px 16px; margin: 20px 0; background: var(--accent-soft); }
-    .todo p { color: var(--ink); margin: 0 0 6px; }
     .back { display: inline-block; margin-bottom: 18px; }
     .upd { color: var(--ink-soft); font-size: var(--text-caption, 16px); }
   </style>
@@ -58,19 +61,16 @@
     собираем как можно меньше. Пароля у ученика нет вообще. Рекламы и
     рекламных трекеров на сайте нет ни одного.</p>
 
-  <div class="todo">
-    <p><b>Этот документ ещё не заполнен до конца.</b></p>
-    <p>Чтобы он стал действующим, нужно вписать данные оператора —
-      того, кто отвечает за сайт по закону: имя или название, ИНН, адрес
-      и почту для обращений. Ниже они помечены как ОПЕРАТОР. Пока они
-      не вписаны, документ считается черновиком, а перед публикацией
-      его стоит показать юристу: это не юридическая консультация.</p>
-  </div>
-
   <h2>Кто отвечает за данные</h2>
-  <p>Оператор персональных данных — <b>ОПЕРАТОР: имя или название, ИНН, адрес</b>.
-    Связаться: <b>ОПЕРАТОР: почта для обращений</b> или телеграм
-    <a href="https://t.me/KOTSAVELII" target="_blank" rel="noopener">@KOTSAVELII</a>.</p>
+  <p>Оператор персональных данных — <b>Гладких Савелий Александрович</b>,
+    применяющий специальный налоговый режим «Налог на профессиональный
+    доход» (самозанятый), <b>ИНН 343528836900</b>.
+    Адрес: Волгоградская область, город Волжский.</p>
+  <p>Обращения — на <a href="mailto:support@wordcat.ru">support@wordcat.ru</a>
+    или в телеграм
+    <a href="https://t.me/KOTSAVELII" target="_blank" rel="noopener">@KOTSAVELII</a>.
+    Точный почтовый адрес для официальной переписки сообщим по запросу
+    на эту почту.</p>
 
   <h2>Что собирается у ученика</h2>
   <table>
