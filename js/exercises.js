@@ -137,6 +137,15 @@ function statUpdate(w, ok) {
   updateChrome();
 }
 
+/** «3 букв» вместо «3 буквы» — подсказка в «Вводе слова» показывалась
+ *  ребёнку при каждом слове, то есть ошибка была самой частой на сайте. */
+function lettersWord(n) {
+  const t = n % 10, h = n % 100;
+  if (t === 1 && h !== 11) return "буква";
+  if (t >= 2 && t <= 4 && (h < 12 || h > 14)) return "буквы";
+  return "букв";
+}
+
 function normEn(s) {
   return String(s).toLowerCase().replace(/[^a-z0-9\s']/g, " ").replace(/\s+/g, " ").trim();
 }
@@ -769,7 +778,7 @@ const EX_RUNNERS = {
       artCat: p.cat,
       answer: p.w,
       statWord: p.w,
-      hint: p.w[0].toUpperCase() + "… (" + p.w.length + " букв)",
+      hint: p.w[0].toUpperCase() + "… (" + p.w.length + " " + lettersWord(p.w.length) + ")",
     })));
   },
 

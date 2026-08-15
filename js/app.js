@@ -146,7 +146,7 @@ function resetTestScreen() {
   document.getElementById("test-result").classList.add("hidden");
   if (state.user) {
     document.getElementById("test-hello").textContent =
-      `${state.user.name}, давай проверим твой словарный запас!`;
+      `${state.user.name}, посчитаем, сколько слов ты уже знаешь`;
   }
 }
 
@@ -180,7 +180,7 @@ document.getElementById("auth-form").addEventListener("submit", e => {
     show("dashboard");
   } else {
     document.getElementById("test-hello").textContent =
-      `${name}, давай проверим твой словарный запас!`;
+      `${name}, посчитаем, сколько слов ты уже знаешь`;
     show("test");
   }
 });
@@ -1653,7 +1653,7 @@ if (state.user && state.level) {
   show("dashboard");
 } else if (state.user) {
   document.getElementById("test-hello").textContent =
-    `${state.user.name}, давай проверим твой словарный запас!`;
+    `${state.user.name}, посчитаем, сколько слов ты уже знаешь`;
   show("test");
 } else {
   show("welcome");

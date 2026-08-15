@@ -1646,3 +1646,15 @@ button, .chip, .ex-card, .mcq-option, .scr-tile, .phrase-row, .dict-row {
     padding-bottom: var(--space-12);
   }
 }
+
+/* Подпись под полем: объясняет, зачем поле нужно и обязательно ли оно.
+   У почты ученика это единственный способ сказать «можно не заполнять» —
+   без подписи ребёнок либо пропускает поле, либо вписывает наугад. */
+.field-hint {
+  display: block;
+  margin-top: var(--space-4);
+  font-size: var(--text-body-sm);
+  font-weight: 400;
+  color: var(--ink-soft);
+  line-height: var(--leading-snug);
+}

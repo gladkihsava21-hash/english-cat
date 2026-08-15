@@ -502,9 +502,9 @@ class Api:
         email = str(p.get("email", "")).strip()
         password = str(p.get("password", ""))
         if len(name) < 2:
-            return {"ok": False, "error": "Введи имя — хотя бы две буквы."}
+            return {"ok": False, "error": "Введите имя — хотя бы две буквы."}
         if not valid_email(email):
-            return {"ok": False, "error": "Проверь адрес почты — на него придёт код."}
+            return {"ok": False, "error": "Проверьте адрес почты — на него придёт код."}
         problem = db.password_problem(password)
         if problem:
             return {"ok": False, "error": problem}
@@ -673,7 +673,7 @@ class Api:
             words = []
         if not words and not has_task and not has_reading:
             return {"ok": False,
-                    "error": "Добавь слова, задание текстом или текст для чтения."}
+                    "error": "Добавьте слова, задание текстом или текст для чтения."}
         clean = []
         for w in words:
             if isinstance(w, dict) and w.get("w"):
@@ -1002,14 +1002,14 @@ class Api:
         age = db.seconds_since_verify_sent(tutor)
         if age is not None and age < db.VERIFY_RESEND:
             wait = int(db.VERIFY_RESEND - age)
-            return {"ok": False, "error": "Подожди %d сек перед повторной отправкой." % wait}
+            return {"ok": False, "error": "Новый код можно запросить через %d сек." % wait}
         code = db.set_verify_code(tutor["id"])
         try:
             how = mailer.send_verify_code(tutor["email"], tutor["name"], code)
         except Exception:
             import traceback; traceback.print_exc()
             return {"ok": False,
-                    "error": "Не получилось отправить письмо. Проверь адрес или напиши нам."}
+                    "error": "Письмо не ушло. Проверьте адрес или напишите @KOTSAVELII — подтвердим вручную."}
         return {"ok": True, "sentVia": how}
 
     @staticmethod
@@ -1506,17 +1506,17 @@ class Handler(SimpleHTTPRequestHandler):
         payload["_ip"] = who
         if not rate_ok(path, str(payload.get("token") or who)[:64]):
             self._send_json({"ok": False,
-                             "error": "Слишком быстро — притормози. Через полминуты снова можно."}, 429)
+                             "error": "Слишком часто — подождите полминуты."}, 429)
             return
         try:
             self._send_json(handler(self, payload))
         except (ValueError, TypeError, KeyError):
             # неверные типы в запросе — это ошибка клиента, а не сервера;
             # текст исключения наружу не отдаём
-            self._send_json({"ok": False, "error": "Запрос не разобрал. Обнови страницу и попробуй ещё раз."}, 400)
+            self._send_json({"ok": False, "error": "Запрос не разобрал. Обновите страницу и попробуйте ещё раз."}, 400)
         except Exception:
             import traceback; traceback.print_exc()
-            self._send_json({"ok": False, "error": "У нас что-то отвалилось — это точно не ты. Попробуй через минуту."}, 500)
+            self._send_json({"ok": False, "error": "У нас что-то отвалилось. Это не ваша ошибка — попробуйте через минуту."}, 500)
 
     def end_headers(self):
         # при разработке браузер не должен кэшировать css/js —

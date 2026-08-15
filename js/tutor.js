@@ -74,7 +74,7 @@ $("auth-form").addEventListener("submit", async e => {
   try {
     res = await api(path, { email, password, name, studentCount, deviceId: deviceId() });
   } catch (err) {
-    $("auth-error").textContent = "Сервер недоступен. Запущен ли server.py?";
+    $("auth-error").textContent = "Не дозвонились до сервера. Проверьте интернет и попробуйте ещё раз — данные на месте.";
     return;
   }
   if (!res.ok) {
@@ -158,7 +158,7 @@ function showConnError(on) {
     bar = document.createElement("div");
     bar.id = "conn-error";
     bar.className = "conn-error hidden";
-    bar.textContent = "Нет связи с сервером. Проверьте, запущен ли server.py — данные могут быть устаревшими.";
+    bar.textContent = "Нет связи — показываю последние загруженные данные. Обновится само, как только связь вернётся.";
     document.querySelector("main").prepend(bar);
   }
   bar.classList.toggle("hidden", !on);
@@ -315,8 +315,8 @@ function lastSeenText(iso) {
   if (d === null) return { text: "ещё не заходил", cls: "bad" };
   if (d === 0) return { text: "сегодня", cls: "good" };
   if (d === 1) return { text: "вчера", cls: "good" };
-  if (d <= 7) return { text: `${d} дн. назад`, cls: "" };
-  return { text: `${d} дн. назад`, cls: "bad" };
+  if (d <= 7) return { text: `${d} ${plural(d, "день", "дня", "дней")} назад`, cls: "" };
+  return { text: `${d} ${plural(d, "день", "дня", "дней")} назад`, cls: "bad" };
 }
 
 function renderStudents() {
@@ -336,7 +336,7 @@ function renderStudents() {
               <b class="stu-name">${esc(s.name)}</b>
               <p class="muted-small">
                 <span class="seen ${seen.cls}">${seen.text}</span>
-                ${s.streak >= 2 ? ` · ${iconInline("streak", 14)} ${s.streak} дн. подряд` : ""}
+                ${s.streak >= 2 ? ` · ${iconInline("streak", 14)} ${s.streak} ${plural(s.streak, "день", "дня", "дней")} подряд` : ""}
               </p>
             </div>
           </div>
@@ -440,7 +440,7 @@ async function openStudent(id) {
         <p class="muted-small">
           <span class="seen ${seen.cls}">${seen.text}</span>
           ${grp ? ` · ${esc(grp.name)}` : ""}
-          ${s.streak >= 2 ? ` · ${iconInline("streak", 14)} ${s.streak} дн.` : ""}
+          ${s.streak >= 2 ? ` · ${iconInline("streak", 14)} ${s.streak} ${plural(s.streak, "день", "дня", "дней")}` : ""}
         </p>
       </div>
     </div>
@@ -551,8 +551,8 @@ function printReport(s, grp) {
     <tr><td>Слов в личном словаре</td><td>${w.total || 0}</td></tr>
     <tr><td>Из них выучено</td><td>${w.learned || 0}</td></tr>
     <tr><td>В процессе изучения</td><td>${w.learning || 0}</td></tr>
-    <tr><td>Занятий за месяц</td><td>${days} ${days === 1 ? "день" : "дней"}</td></tr>
-    <tr><td>Занимается подряд</td><td>${s.streak || 0} дн.</td></tr>
+    <tr><td>Занятий за месяц</td><td>${days} ${plural(days, "день", "дня", "дней")}</td></tr>
+    <tr><td>Занимается подряд</td><td>${s.streak || 0} ${plural(s.streak || 0, "день", "дня", "дней")}</td></tr>
     <tr><td>Домашних заданий выполнено</td><td>${hwDone} из ${hw.length}</td></tr>
   </table>
 

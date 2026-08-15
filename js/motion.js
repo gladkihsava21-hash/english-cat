@@ -77,7 +77,14 @@ function watchScreens() {
    диалог. Тексты здесь одним списком — их правит копирайтер, не я. */
 const CAT_SAY = {
   oops:   ["бывает", "мур… ещё разок", "запомним это", "не страшно"],
-  streak: { 3: "три подряд!", 5: "пять! мур", 10: "десять подряд, я в шоке" },
+  // Восклицательный знак на цифре 3 — завышенная реакция: на двадцатом
+  // разе она обесценивает и десятку. Кот держится на сдержанности.
+  streak: { 3: "три подряд", 5: "пять. я слежу", 10: "десять подряд, я в шоке" },
+  // Отдельная фраза для двадцати, тридцати и дальше. Раньше там
+  // подставлялась строка десятки, и ребёнок с тридцатью верными подряд
+  // читал «десять подряд». Похвала, которая врёт про число, обесценивает
+  // всю систему разом.
+  streakMore: n => `${n} подряд. я уже сбился со счёта`,
   wake:   "мяу? я не спал",
   award:  "вот это да!"
 };
@@ -247,8 +254,8 @@ function catStreakReset() { catStreak = 0; catWrongs = 0; }
 function catAnswer(ok) {
   if (ok) {
     catStreak++;
-    const milestone = CAT_SAY.streak[catStreak] || (catStreak > 10 && catStreak % 10 === 0
-      ? CAT_SAY.streak[10] : null);
+    const milestone = CAT_SAY.streak[catStreak]
+      || (catStreak > 10 && catStreak % 10 === 0 ? CAT_SAY.streakMore(catStreak) : null);
     if (milestone) { catReact("cheer"); savelySay(milestone); }
     else catReact("happy");
   } else {
