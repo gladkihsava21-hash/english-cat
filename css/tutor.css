@@ -338,3 +338,15 @@
   border: 2px solid var(--line-control); border-radius: 12px; background: var(--surface); color: var(--ink);
 }
 .check-pick:disabled { opacity: .5; }
+
+/* Подтверждение доплаты за место сверх тарифа.
+   Выделяем рамкой акцентом: это единственное место в панели, где
+   нажатие меняет сумму счёта, и оно должно читаться как отдельный
+   шаг, а не как продолжение списка кнопок. */
+.slot-confirm {
+  margin-top: 14px;
+  border: 2px solid var(--accent-line);
+  background: var(--accent-soft);
+}
+.slot-confirm .plan-name { margin-bottom: 6px; }
+.slot-confirm .muted-note { margin-bottom: 12px; }

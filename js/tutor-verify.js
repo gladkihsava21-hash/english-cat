@@ -200,6 +200,21 @@ function renderPlan() {
         <button class="btn btn-primary btn-small" id="add-slot-btn">Добавить место — ${planData.extraPrice} ₽/мес</button>
         <button class="btn btn-ghost btn-small" id="add-slot5-btn">Добавить 5 мест — ${planData.extraPrice * 5} ₽/мес</button>
       </div>
+      <!-- Шаг подтверждения. Кнопки выше меняли сумму счёта одним
+           нажатием, а условия были написаны НИЖЕ них — то есть человек
+           узнавал, за что платит, уже заплатив. Для денег это не мелочь:
+           случайное касание на телефоне стоило репетитору реальных
+           рублей, и вернуть их можно было только через переписку. -->
+      <div class="card slot-confirm hidden" id="slot-confirm" role="group"
+           aria-labelledby="slot-confirm-title">
+        <p class="plan-name" id="slot-confirm-title">Подтвердите доплату</p>
+        <p class="muted-note" id="slot-confirm-text"></p>
+        <div class="plan-actions">
+          <button class="btn btn-primary btn-small" id="slot-yes">Да, добавить</button>
+          <button class="btn btn-ghost btn-small" id="slot-no">Отмена</button>
+        </div>
+        <p class="type-feedback" id="slot-msg" role="status" aria-live="polite"></p>
+      </div>
       <p class="reset-note" style="margin-top:16px">Место открывается сразу, счёт пришлём отдельно —
         автосписаний нет. Доплата считается до конца месяца.</p>
     </div>
@@ -215,16 +230,55 @@ function renderPlan() {
       Счёт и смена тарифа — в телеграме
       <a class="tg-link" href="https://t.me/KOTSAVELII" target="_blank" rel="noopener">@KOTSAVELII</a>.</p>`;
 
-  const add = n => async () => {
-    const res = await api("/api/tutor/add-slot", { token: token(), count: n });
-    if (!res.ok) { alert(res.error || "Место не добавилось. Обновите страницу и попробуйте ещё раз."); return; }
-    planData.tutor = res.tutor;
-    renderPlan();
+  // Имя box выше уже занято карточкой тарифа — здесь своё
+  const confirmBox = document.getElementById("slot-confirm");
+  const text = document.getElementById("slot-confirm-text");
+  const msg = document.getElementById("slot-msg");
+
+  /** Показать, во что обойдётся доплата, ДО того как её проведут. */
+  const askFor = n => () => {
+    const wordSlot = n === 1 ? "место" : "мест";
+    const extraCost = planData.extraPrice * n;
+    const now = t.planPrice || 0;
+    text.textContent =
+      `${n} ${wordSlot} сверх тарифа — плюс ${extraCost} ₽ в месяц. `
+      + `Всего станет ${now + extraCost} ₽ в месяц вместо ${now} ₽. `
+      + `Место открывается сразу, счёт пришлём отдельно — автосписаний нет, `
+      + `доплата считается до конца месяца.`;
+    msg.textContent = "";
+    confirmBox.classList.remove("hidden");
+    document.getElementById("slot-yes").focus();
+    // Само действие вешаем здесь: так подтверждается ровно то количество,
+    // которое человек только что увидел на экране, а не то, что осталось
+    // от прошлого нажатия.
+    document.getElementById("slot-yes").onclick = async () => {
+      msg.className = "type-feedback";
+      msg.textContent = "Добавляю…";
+      let res;
+      try { res = await api("/api/tutor/add-slot", { token: token(), count: n }); }
+      catch (e) { res = null; }
+      if (!res || !res.ok) {
+        // Раньше здесь стоял системный alert() — окно операционной
+        // системы посреди платного продукта, из которого не понять,
+        // списались деньги или нет.
+        msg.className = "type-feedback err";
+        msg.textContent = (res && res.error)
+          || "Место не добавилось, деньги не начислены. Обновите страницу и попробуйте ещё раз.";
+        return;
+      }
+      planData.tutor = res.tutor;
+      renderPlan();
+    };
   };
+  const cancel = document.getElementById("slot-no");
+  if (cancel) cancel.addEventListener("click", () => {
+    confirmBox.classList.add("hidden");
+    document.getElementById("add-slot-btn").focus();
+  });
   const b1 = document.getElementById("add-slot-btn");
   const b5 = document.getElementById("add-slot5-btn");
-  if (b1) b1.addEventListener("click", add(1));
-  if (b5) b5.addEventListener("click", add(5));
+  if (b1) b1.addEventListener("click", askFor(1));
+  if (b5) b5.addEventListener("click", askFor(5));
 }
 
 async function loadPlan() {
