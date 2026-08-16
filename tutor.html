@@ -32,7 +32,7 @@
   <meta name="twitter:card" content="summary_large_image">
   <link rel="preload" href="css/fonts/nunito-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="css/fonts/inter-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="css/fonts.css?v=152">
+  <link rel="stylesheet" href="css/fonts.css?v=153">
   <!-- Тему ставим ДО первой отрисовки, отдельным крошечным скриптом.
        Всё остальное грузится с defer, а defer выполняется после разбора
        страницы — то есть уже после того, как браузер её покажет. Если
@@ -48,13 +48,13 @@
       document.documentElement.dataset.theme = t;
     } catch (e) { /* приватный режим — просто останется дневная */ }
   </script>
-  <link rel="stylesheet" href="css/tokens.css?v=152">
-  <link rel="stylesheet" href="css/style.css?v=152">
-  <link rel="stylesheet" href="css/savely.css?v=152">
-  <link rel="stylesheet" href="css/tutor.css?v=152">
-<link rel="stylesheet" href="css/motion.css?v=152">
-<link rel="stylesheet" href="css/a11y.css?v=152">
-<link rel="stylesheet" href="css/cat.css?v=152">
+  <link rel="stylesheet" href="css/tokens.css?v=153">
+  <link rel="stylesheet" href="css/style.css?v=153">
+  <link rel="stylesheet" href="css/savely.css?v=153">
+  <link rel="stylesheet" href="css/tutor.css?v=153">
+<link rel="stylesheet" href="css/motion.css?v=153">
+<link rel="stylesheet" href="css/a11y.css?v=153">
+<link rel="stylesheet" href="css/cat.css?v=153">
 </head>
 <body>
 
@@ -358,6 +358,29 @@
     <section id="tab-plan" class="hidden">
       <h2 class="section-title">Подписка</h2>
       <div id="plan-box"></div>
+
+      <!-- Письма на почту. Лежат здесь, а не в отдельной вкладке
+           «Настройки»: вкладок и так восемь, а настройка одна. Путь до
+           неё написан в каждом письме, которое можно отключить, — так
+           её и найдут. Оба переключателя включены по умолчанию: письма
+           приходили и до их появления, отбирать молча нельзя. -->
+      <div class="card notify-card" id="notify-card">
+        <h3 class="plan-name">Письма на почту</h3>
+        <p class="muted-note" id="notify-lead">Приходят на адрес кабинета.
+          Коды подтверждения и письмо о конце пробного периода приходят всегда.</p>
+        <label class="ack-row notify-row">
+          <input type="checkbox" id="notify-work" checked>
+          <span><b>О новых работах на проверку</b> — когда ученик присылает фото
+            тетради или читает вслух. Не чаще раза в час, сколько бы работ ни пришло.</span>
+        </label>
+        <label class="ack-row notify-row">
+          <input type="checkbox" id="notify-remind" checked>
+          <span><b>Раз в неделю — кто пропал и у кого накопились слова.</b>
+            Ученики, которые не заходили больше недели, и те, кто забросил
+            повторения. Только если есть что сказать: пустых писем не будет.</span>
+        </label>
+        <p class="type-feedback" id="notify-msg" role="status" aria-live="polite"></p>
+      </div>
     </section>
 
     <!-- ВИДЕОУРОК.
@@ -527,20 +550,20 @@
     <a href="https://t.me/KOTSAVELII" target="_blank" rel="noopener">@KOTSAVELII</a></p>
 </footer>
 
-<script defer src="js/theme.js?v=152"></script>
-<script defer src="js/icons.js?v=152"></script>
-<script defer src="js/cat.js?v=152"></script>
-<script defer src="js/motion.js?v=152"></script>
-<script defer src="js/util.js?v=152"></script>
-<script defer src="js/levels.js?v=152"></script>
+<script defer src="js/theme.js?v=153"></script>
+<script defer src="js/icons.js?v=153"></script>
+<script defer src="js/cat.js?v=153"></script>
+<script defer src="js/motion.js?v=153"></script>
+<script defer src="js/util.js?v=153"></script>
+<script defer src="js/levels.js?v=153"></script>
 <!-- js/words.js здесь НЕТ намеренно. Это 326 КБ сжатыми, а на экране
      входа словарь не нужен вообще: он нужен только внутри панели, чтобы
      собрать домашку. Подгружается в openPanel через ensureWords(). -->
-<script defer src="js/images.js?v=152"></script>
-<script defer src="js/word-photos.js?v=152"></script>
-<script defer src="js/tutor.js?v=152"></script>
-<script defer src="js/tutor-photos.js?v=152"></script>
-<script defer src="js/tutor-auth.js?v=152"></script>
-<script defer src="js/tutor-verify.js?v=152"></script>
+<script defer src="js/images.js?v=153"></script>
+<script defer src="js/word-photos.js?v=153"></script>
+<script defer src="js/tutor.js?v=153"></script>
+<script defer src="js/tutor-photos.js?v=153"></script>
+<script defer src="js/tutor-auth.js?v=153"></script>
+<script defer src="js/tutor-verify.js?v=153"></script>
 </body>
 </html>

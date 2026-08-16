@@ -11,7 +11,9 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import time
+import traceback
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 import urllib.request
 from urllib.parse import urlparse
@@ -33,7 +35,7 @@ import mailer
 # Теперь это видно одним curl /health: цифра совпала с ?v= на странице —
 # приложение перезапущено; не совпала или её нет вовсе — в памяти старый
 # код, надо нажать «Перезапустить приложение» в панели хостинга.
-ASSET_VERSION = 152
+ASSET_VERSION = 153
 
 PORT = int(os.environ.get("SAVELY_PORT", "4210"))
 # За nginx сервер слушает только localhost — снаружи он не должен быть виден
@@ -374,33 +376,163 @@ def rate_ok(path, who):
     return db.rate_hit("%s|%s" % (path, who), count, window)
 
 
+# ---------- лог ошибок ----------
+
+def who_is(payload):
+    """(tutor_id, student_id) по токену из запроса — чтобы в логе ошибок
+    было видно, кого задело, и было кому написать. Сам токен в лог
+    не попадает: по нему входят в кабинет."""
+    token = payload.get("token") if isinstance(payload, dict) else None
+    if not token:
+        return None, None
+    try:
+        tutor = db.get_tutor_by_token(token)
+        if tutor:
+            return tutor["id"], None
+        student = db.get_student_by_token(token)
+        if student:
+            return student["tutor_id"], student["id"]
+    except Exception:
+        pass
+    return None, None
+
+
+def report_error(endpoint, exc, payload=None, status=500, stream=None):
+    """Исключение — в stderr, как и раньше, и в таблицу errors, откуда его
+    видно в админке. Раньше был только stderr: на хостинге это журнал
+    Apache, который никто не читает, и о сбоях узнавали от репетиторов.
+
+    Ничего не бросает. Ошибка в логировании ошибки не должна оставить
+    запрос без ответа."""
+    try:
+        trace = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
+    except Exception:
+        trace = ""
+    try:
+        (stream or sys.stderr).write(trace)
+    except Exception:
+        pass
+    tutor_id, student_id = who_is(payload)
+    ip = payload.get("_ip") if isinstance(payload, dict) else None
+    db.log_error(endpoint, "%s: %s" % (type(exc).__name__, exc), trace,
+                 status=status, tutor_id=tutor_id, student_id=student_id, ip=ip)
+
+
 def notify_tutor_later(tutor_id, student_name):
     """Письмо репетитору о новой работе. Ошибку отправки глотаем:
     ученик не должен видеть сбой из-за того, что почта легла."""
     try:
-        should, count = db.notify_due(tutor_id)
-        if not should:
-            return
         tutor = db.get_tutor_by_id(tutor_id)
         if not tutor or not db.is_verified(tutor):
             return
+        # Переключатель в панели. Раньше отключить письма можно было только
+        # написав в телеграм — то есть репетитор жил с ними или отписывался
+        # почтовым фильтром, а мы об этом не знали.
+        if not db.notify_on(tutor, "work"):
+            return
+        should, count = db.notify_due(tutor_id)
+        if not should:
+            return
         mailer.send_new_work(tutor["email"], tutor["name"], count, student_name)
-    except Exception:
-        import traceback; traceback.print_exc()
+    except Exception as e:
+        report_error("mail/new_work", e)
 
 
-def ai_error_text(exc):
+# ---------- фоновая работа ----------
+#
+# Расписания на виртуальном хостинге нет — есть только запросы. Поэтому
+# редкая фоновая работа (напоминания на почту) подвешена на хвост обычных
+# запросов: ответ уже отдан, процесс всё равно жив ещё мгновение. Раз в
+# несколько минут один из запросов делает чуть больше работы, чем нужно
+# ему самому, — и никто этого не замечает.
+#
+# От повторов защищено дважды. Первый заслон — время в памяти процесса:
+# не чаще раза в HOUSEKEEP_EVERY секунд НА ПРОЦЕСС. Процессов на хостинге
+# несколько, у каждого своя память, так что одного этого мало — та же
+# грабля, что у лимита частоты. Второй заслон — в базе: право на письмо
+# берётся одним условным UPDATE (db._claim), и из двух процессов его
+# получает ровно один.
+#
+# Отправка почты — до 20 секунд на таймауте SMTP. Она здесь после ответа
+# клиенту, поэтому ученик, чей запрос «попался», задержки не видит.
+HOUSEKEEP_EVERY = 600
+_NEXT_HOUSEKEEP = 0.0
+
+
+def housekeeping():
+    """Дёргается после каждого запроса к API из обоих входов. Дёшево:
+    почти всегда — одно сравнение чисел."""
+    global _NEXT_HOUSEKEEP
+    if time.time() < _NEXT_HOUSEKEEP:
+        return
+    _NEXT_HOUSEKEEP = time.time() + HOUSEKEEP_EVERY
+    try:
+        send_due_reminders()
+    except Exception as e:
+        report_error("housekeeping", e)
+
+
+def send_due_reminders():
+    """Письма репетиторам: «пробный период кончается завтра» и недельный
+    дайджест «кто пропал и у кого накопились слова». Что, кому и как
+    часто — в db.py, раздел «напоминания репетитору»."""
+    # Без настроенного SMTP — ничего не делаем, даже не отмечаем в базе.
+    # Это защита от рассылки с машины разработчика: почему именно так —
+    # у mailer.smtp_ready(). На боевом mail.conf есть.
+    if not mailer.smtp_ready():
+        return
+    for t in db.tutors_trial_ending():
+        if not db.claim_trial_warning(t["id"]):
+            continue
+        try:
+            plan = db.plan_by_id(t["plan"] or "start")
+            keys = t.keys()
+            limit = (t["student_limit"] if "student_limit" in keys else None) or plan["limit"]
+            mailer.send_trial_ending(
+                t["email"], t["name"], db.trial_end_word(t),
+                plan["name"], plan["price"], limit, db.student_count(t["id"]))
+        except Exception as e:
+            report_error("mail/trial", e, {"token": t["token"]})
+
+    for t in db.tutors_for_reminders():
+        # Считаем раз в сутки — это разбор словарей всех учеников,
+        # столько же, сколько один заход в панель.
+        if not db.claim_reminder_check(t["id"]):
+            continue
+        items = db.reminder_digest(t["id"])
+        if not items:
+            continue
+        # Есть что сказать — но не чаще раза в неделю. Право на отправку
+        # берём ПОСЛЕ проверки содержимого: иначе пустая неделя съедала бы
+        # окно, и о пропавшем на восьмой день ученике письмо пришло бы
+        # на четырнадцатый.
+        if not db.claim_reminder_send(t["id"]):
+            continue
+        try:
+            mailer.send_reminder_digest(t["email"], t["name"], items)
+        except Exception as e:
+            report_error("mail/remind", e, {"token": t["token"]})
+
+
+def ai_error_text(exc, payload=None):
     """Переводим сбой ИИ в понятную строку. Текст исключения наружу не
-    отдаём: там бывают куски запроса и обрывки ключа."""
+    отдаём: там бывают куски запроса и обрывки ключа.
+
+    Штатные состояния (ключа нет, лимит, отказ классификатора) в лог
+    ошибок не пишем — это не сбои. Всё остальное пишем: сломанный ключ
+    и упавший провайдер владелец должен увидеть в админке, а не в жалобе."""
     import urllib.error
     msg = str(exc)
     if isinstance(exc, urllib.error.HTTPError):
         if exc.code == 401:
+            report_error("ai/chat", exc, payload, status=exc.code)
             return "Ключ Claude API не принят — проверь ANTHROPIC_API_KEY."
         if exc.code == 429:
             return "Слишком много запросов к ИИ. Подожди минуту."
         if exc.code >= 500:
+            report_error("ai/chat", exc, payload, status=exc.code)
             return "ИИ временно недоступен, попробуй позже."
+        report_error("ai/chat", exc, payload, status=exc.code)
         return "Запрос к ИИ отклонён (код %d)." % exc.code
     if "not_logged_in" in msg:
         return "not_logged_in"
@@ -408,7 +540,7 @@ def ai_error_text(exc):
         return "Савелий не смог ответить на это. Спроси иначе."
     if "no_api_key" in msg:
         return "ai_off"
-    import traceback; traceback.print_exc()
+    report_error("ai/chat", exc, payload)
     return "Савелий задумался и не ответил. Попробуй ещё раз."
 
 
@@ -590,8 +722,8 @@ class Api:
         sent, send_error = True, None
         try:
             mailer.send_verify_code(row["email"], row["name"], db.set_verify_code(row["id"]))
-        except Exception:
-            import traceback; traceback.print_exc()
+        except Exception as e:
+            report_error("mail/verify", e, {"token": row["token"], "_ip": ip})
             # Только факт, без совета: что делать дальше, говорит экран
             # подтверждения, и говорит на «вы» — панель репетитора
             # обращается к взрослому человеку, в отличие от сайта ученика.
@@ -1045,6 +1177,21 @@ class Api:
         db.set_paid_until(int(p.get("tutorId") or 0), int(p.get("days") or 30))
         return {"ok": True, "tutors": db.admin_tutors(), "overview": db.admin_overview()}
 
+    @staticmethod
+    def admin_errors(h, p):
+        """Последние ошибки сервера — отдельным запросом, а не в admin_data:
+        полсотни стеков весят больше всей остальной сводки."""
+        if not db.admin_check(p.get("token")):
+            return {"ok": False, "error": "unauthorized"}
+        return {"ok": True, "errors": db.recent_errors(50), "summary": db.errors_summary()}
+
+    @staticmethod
+    def admin_errors_clear(h, p):
+        if not db.admin_check(p.get("token")):
+            return {"ok": False, "error": "unauthorized"}
+        db.clear_errors()
+        return {"ok": True, "errors": [], "summary": db.errors_summary()}
+
     # --- подтверждение почты ---
 
     @staticmethod
@@ -1061,8 +1208,8 @@ class Api:
         code = db.set_verify_code(tutor["id"])
         try:
             how = mailer.send_verify_code(tutor["email"], tutor["name"], code)
-        except Exception:
-            import traceback; traceback.print_exc()
+        except Exception as e:
+            report_error("mail/verify", e, p)
             return {"ok": False,
                     "error": "Письмо не ушло. Проверьте адрес или напишите @KOTSAVELII — подтвердим вручную."}
         return {"ok": True, "sentVia": how}
@@ -1100,6 +1247,20 @@ class Api:
         return {"ok": True, "minutes": db.LESSON_OPEN_MINUTES}
 
     @staticmethod
+    def tutor_notify_set(h, p):
+        """Переключатели писем: о новых работах и еженедельный дайджест.
+        Что не прислали — не трогаем, поэтому можно менять по одному."""
+        tutor = db.get_tutor_by_token(p.get("token"))
+        if not tutor:
+            return {"ok": False, "error": "unauthorized"}
+        work = p.get("work")
+        remind = p.get("remind")
+        db.set_notify(tutor["id"],
+                      work=bool(work) if work is not None else None,
+                      remind=bool(remind) if remind is not None else None)
+        return {"ok": True, "tutor": db.tutor_public(db.get_tutor_by_id(tutor["id"]))}
+
+    @staticmethod
     def tutor_reset_send(h, p):
         """Отправить код смены пароля на почту.
 
@@ -1115,10 +1276,10 @@ class Api:
                 code = db.set_reset_code(tutor["id"])
                 try:
                     mailer.send_reset_code(tutor["email"], tutor["name"], code)
-                except Exception:
+                except Exception as e:
                     # Наружу не выносим: по «письмо не ушло» тоже читается,
                     # что адрес в базе есть. В лог — полностью.
-                    import traceback; traceback.print_exc()
+                    report_error("mail/reset", e, {"token": tutor["token"], "_ip": p.get("_ip")})
         return {"ok": True, "sent": True}
 
     @staticmethod
@@ -1201,7 +1362,7 @@ class Api:
             status = "no_ai" if "no_api_key" in reason else "failed"
             db.set_photo_check(photo["id"], status, None)
             if status == "failed":
-                import traceback; traceback.print_exc()
+                report_error("ai/photo", e, p)
             # проверка не состоялась не по вине ученика — возвращаем списание
             db.refund_check(row["id"])
             quota = db.check_state(row["id"])
@@ -1369,7 +1530,7 @@ class Api:
         except Exception as e:
             if row:
                 db.refund_chat(row["id"])   # не ответил — не считаем
-            return {"ok": False, "error": ai_error_text(e)}
+            return {"ok": False, "error": ai_error_text(e, p)}
 
 
 # ---------- проверка фото домашки ----------
@@ -1497,6 +1658,9 @@ ROUTES = {
     "/api/admin/verify": Api.admin_verify,
     "/api/admin/pay": Api.admin_pay,
     "/api/admin/delete": Api.admin_delete,
+    "/api/admin/errors": Api.admin_errors,
+    "/api/admin/errors/clear": Api.admin_errors_clear,
+    "/api/tutor/notify/set": Api.tutor_notify_set,
     "/api/tutor/plan": Api.tutor_plan,
     "/api/tutor/add-slot": Api.tutor_add_slot,
     "/api/tutor/verify/send": Api.tutor_verify_send,
@@ -1565,13 +1729,18 @@ class Handler(SimpleHTTPRequestHandler):
             return
         try:
             self._send_json(handler(self, payload))
-        except (ValueError, TypeError, KeyError):
+        except (ValueError, TypeError, KeyError) as e:
             # неверные типы в запросе — это ошибка клиента, а не сервера;
-            # текст исключения наружу не отдаём
+            # текст исключения наружу не отдаём. В лог всё равно пишем:
+            # KeyError в нашем коде выглядит точно так же, как кривой
+            # запрос, и отличить их можно только по стеку.
+            report_error(path, e, payload, status=400)
             self._send_json({"ok": False, "error": "Запрос не разобрал. Обновите страницу и попробуйте ещё раз."}, 400)
-        except Exception:
-            import traceback; traceback.print_exc()
+        except Exception as e:
+            report_error(path, e, payload, status=500)
             self._send_json({"ok": False, "error": "У нас что-то отвалилось. Это не ваша ошибка — попробуйте через минуту."}, 500)
+        # Ответ уже ушёл — можно заняться фоновой работой, не задерживая его.
+        housekeeping()
 
     def end_headers(self):
         # при разработке браузер не должен кэшировать css/js —

@@ -121,6 +121,26 @@ CREATE TABLE IF NOT EXISTS rate_hits (
 );
 CREATE INDEX IF NOT EXISTS idx_rate_hits ON rate_hits(k, ts);
 
+-- Лог ошибок сервера. До него исключения уходили в stderr, то есть на
+-- хостинге — в журнал Apache, который никто не открывает: о том, что
+-- у ученика «что-то отвалилось», владелец узнавал от репетитора, а
+-- чаще не узнавал вовсе. Теперь последние записи видны в админке.
+--
+-- Что НЕ пишем: тело запроса. В нём токены, пароли и фото тетрадей.
+-- Пишем адрес ручки, тип и текст исключения, стек и — если по токену
+-- удалось понять — чей это был запрос, чтобы можно было связаться.
+CREATE TABLE IF NOT EXISTS errors (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    created_at   TEXT NOT NULL,
+    endpoint     TEXT NOT NULL,
+    status       INTEGER NOT NULL DEFAULT 500,
+    message      TEXT NOT NULL DEFAULT '',
+    traceback    TEXT NOT NULL DEFAULT '',
+    tutor_id     INTEGER,
+    student_id   INTEGER,
+    ip           TEXT
+);
+
 CREATE INDEX IF NOT EXISTS idx_photo_tutor ON photo_homework(tutor_id);
 CREATE INDEX IF NOT EXISTS idx_students_tutor ON students(tutor_id);
 CREATE INDEX IF NOT EXISTS idx_notes_tutor ON notes_to_students(tutor_id);
@@ -200,6 +220,23 @@ MIGRATIONS = [
     # как раньше: ученик выбирает сам. Это и есть «репетитор собирает игру»:
     # список слов и адресация у домашки уже были, не хватало выбора игры.
     ("homework", "game", "TEXT DEFAULT ''"),
+    # ---- письма репетитору ----
+    # Два переключателя, а не один: письмо «пришла работа на проверку» и
+    # еженедельное «кто пропал» — разные вещи, и человек, которому не
+    # нужно второе, не обязан терять первое. Оба включены по умолчанию —
+    # так работало до появления переключателей, и отбирать у нынешних
+    # репетиторов письма молча нельзя.
+    ("tutors", "notify_work", "INTEGER DEFAULT 1"),
+    ("tutors", "notify_remind", "INTEGER DEFAULT 1"),
+    # Когда в последний раз считали и когда в последний раз отправляли
+    # дайджест. Две даты, потому что считаем чаще, чем шлём: проверка —
+    # раз в сутки, письмо — не чаще раза в неделю и только если есть что
+    # сказать. Одна дата заставила бы выбирать между «редко проверяем»
+    # (ученик пропал, а письмо через шесть дней) и «часто шлём».
+    ("tutors", "remind_checked_at", "TEXT"),
+    ("tutors", "remind_sent_at", "TEXT"),
+    # Письмо «пробный период кончается завтра» — один раз за триал.
+    ("tutors", "trial_warned_at", "TEXT"),
 ]
 
 
@@ -1016,6 +1053,8 @@ def tutor_public(row):
         "trialDays": TRIAL_DAYS,
         "lessonUrl": (row["lesson_url"] if "lesson_url" in keys else "") or "",
         "lessonLive": lesson_state(row)["live"],
+        "notifyWork": notify_on(row, "work"),
+        "notifyRemind": notify_on(row, "remind"),
     }
 
 
@@ -1958,6 +1997,7 @@ def admin_overview():
         "chatMessages": msgs, "checksUsed": checks,
         "aiCost": ai_cost,
         "profit": round(revenue * 0.97 - ai_cost),
+        "errorsWeek": errors_summary()["count"],
     }
 
 
@@ -2064,3 +2104,251 @@ def notify_due(tutor_id):
     conn().execute("UPDATE tutors SET notified_at=? WHERE id=?", (now(), tutor_id))
     conn().commit()
     return True, unseen
+
+
+def notify_on(tutor_row, kind):
+    """Включены ли у репетитора письма этого вида: 'work' — о новых
+    работах на проверку, 'remind' — еженедельный дайджест по ученикам.
+    Колонки нет (старая база до миграции) — считаем включённым: так
+    было всегда."""
+    col = "notify_" + kind
+    keys = tutor_row.keys()
+    if col not in keys or tutor_row[col] is None:
+        return True
+    return bool(tutor_row[col])
+
+
+def set_notify(tutor_id, work=None, remind=None):
+    """Переключатели писем. None — не трогать."""
+    c = conn()
+    if work is not None:
+        c.execute("UPDATE tutors SET notify_work=? WHERE id=?", (1 if work else 0, tutor_id))
+    if remind is not None:
+        c.execute("UPDATE tutors SET notify_remind=? WHERE id=?", (1 if remind else 0, tutor_id))
+    c.commit()
+
+
+# ---------- напоминания репетитору ----------
+#
+# Обещание «напомню повторить» когда-то стояло в текстах сайта без
+# механизма за ним — и было убрано. Механизм теперь такой: раз в сутки
+# по каждому репетитору считаем, что стоит заметить, и не чаще раза в
+# неделю шлём письмо — только если есть что сказать. Push на этом
+# хостинге не сделать, а письмо есть у каждого.
+#
+# Пороги нарочно грубые. Письмо «у Пети три слова просрочено» — шум,
+# после которого отписываются; «Петя не заходил девять дней, тридцать
+# слов ждут» — повод написать ученику.
+
+REMIND_CHECK_GAP = 24 * 3600         # считать не чаще раза в сутки
+REMIND_SEND_GAP = 7 * 24 * 3600      # слать не чаще раза в неделю
+# «Не заходил» — БОЛЬШЕ недели, то есть от 8 дней. Ровно 7 не считаем:
+# ученик с одним занятием в неделю, который открывает сайт только
+# накануне урока, ходит с шагом ровно в семь дней и попадал бы в письмо
+# каждый раз. Та же граница, что у плашки «Не заходили 7+ дней» в панели.
+REMIND_SILENT_DAYS = 8
+# Дольше полутора месяцев — не «пропал», а ушёл. Такого ученика в письме
+# не поминаем вовсе, иначе репетитор получал бы каждую неделю «Петя не
+# заходит 190 дней, 300 слов ждут» про ребёнка, который давно бросил.
+REMIND_SILENT_MAX = 45
+# «Слова ждут» — не меньше стольких слов И не меньше такой доли всех
+# слов с расписанием. Абсолютный порог один ловил бы прилежных: тот, кто
+# ведёт 200 слов и повторяет через день, всегда держит десяток-другой
+# просроченных — это норма, а не запущенность.
+REMIND_OVERDUE_MIN = 10
+REMIND_OVERDUE_PCT = 30
+TRIAL_WARN_HOURS = 30                # письмо о конце триала — за сутки с небольшим
+
+# Московское время для дат в письмах: сайт русский, а сервер и база
+# живут в UTC — «завтра» по UTC в 23:00 по Москве уже «сегодня».
+MSK = timezone(timedelta(hours=3))
+
+
+def _claim(column, tutor_id, gap):
+    """Взять право на действие одним условным UPDATE: из нескольких
+    процессов хостинга, пришедших одновременно, его получит ровно один.
+    Читать дату, сравнивать и потом писать нельзя — между чтением и
+    записью второй процесс успевает прочитать то же самое (это ровно та
+    гонка, из-за которой лимит частоты переехал в базу)."""
+    edge = (datetime.now(timezone.utc) - timedelta(seconds=gap)).isoformat(timespec="seconds")
+    c = conn()
+    cur = c.execute(
+        "UPDATE tutors SET %s=? WHERE id=? AND (%s IS NULL OR %s < ?)" % (column, column, column),
+        (now(), tutor_id, edge))
+    c.commit()
+    return cur.rowcount == 1
+
+
+def student_overdue(dictionary, today=None):
+    """(просрочено, всего с расписанием). Просрочено — дата due уже
+    прошла; сегодняшние не считаем, их ещё не поздно повторить сегодня."""
+    today = today or datetime.now(MSK).date().isoformat()
+    scheduled = [d for d in dictionary if isinstance(d, dict) and d.get("due")]
+    overdue = sum(1 for d in scheduled if str(d["due"]) < today)
+    return overdue, len(scheduled)
+
+
+def reminder_digest(tutor_id):
+    """Что стоит заметить репетитору по каждому ученику. Пустой список —
+    сказать нечего, письма не будет.
+
+    Ученик попадает в письмо, если давно не заходил ИЛИ запустил
+    повторения. Кто зашёл вчера и держит повторения — не упоминается:
+    письмо про проблемы, а не отчёт."""
+    out = []
+    today_msk = datetime.now(MSK).date()
+    for s in conn().execute(
+            "SELECT id, name, dictionary, last_seen, created_at FROM students"
+            " WHERE tutor_id=? ORDER BY name", (tutor_id,)):
+        try:
+            dictionary = json.loads(s["dictionary"] or "[]")
+        except (ValueError, TypeError):
+            dictionary = []
+        seen = _parse_ts(s["last_seen"]) or _parse_ts(s["created_at"])
+        silent = (today_msk - seen.astimezone(MSK).date()).days if seen else None
+        if silent is not None and silent > REMIND_SILENT_MAX:
+            continue   # ушёл, а не пропал — см. REMIND_SILENT_MAX
+        overdue, scheduled = student_overdue(dictionary, today_msk.isoformat())
+        is_silent = silent is not None and silent >= REMIND_SILENT_DAYS
+        neglected = (overdue >= REMIND_OVERDUE_MIN
+                     and overdue * 100 >= REMIND_OVERDUE_PCT * scheduled)
+        if not is_silent and not neglected:
+            continue
+        out.append({"id": s["id"], "name": s["name"],
+                    "silentDays": silent if is_silent else 0,
+                    "overdue": overdue})
+    # Сначала те, кто пропал давнее всего; при равенстве — у кого больше слов
+    out.sort(key=lambda x: (-x["silentDays"], -x["overdue"]))
+    return out
+
+
+def tutors_for_reminders():
+    """Кому вообще имеет смысл писать: почта подтверждена, доступ жив
+    (триал или оплата), письма не выключены. Истёкшим не пишем: их
+    панель закрыта, и «Петя не заходил» им не поможет."""
+    out = []
+    for t in conn().execute("SELECT * FROM tutors WHERE email_verified=1"):
+        if not notify_on(t, "remind"):
+            continue
+        if access_state(t) == "expired":
+            continue
+        out.append(t)
+    return out
+
+
+def claim_reminder_check(tutor_id):
+    """Право посчитать дайджест этому репетитору — раз в сутки."""
+    return _claim("remind_checked_at", tutor_id, REMIND_CHECK_GAP)
+
+
+def claim_reminder_send(tutor_id):
+    """Право отправить дайджест — раз в неделю."""
+    return _claim("remind_sent_at", tutor_id, REMIND_SEND_GAP)
+
+
+def tutors_trial_ending():
+    """У кого пробный период кончается в ближайшие TRIAL_WARN_HOURS часов
+    и кому об этом ещё не писали. Оплативших пропускаем: им триал
+    неинтересен. Неподтверждённых — тоже: письмо уйдёт неизвестно кому."""
+    out = []
+    for t in conn().execute(
+            "SELECT * FROM tutors WHERE email_verified=1 AND trial_warned_at IS NULL"
+            " AND trial_ends_at IS NOT NULL"):
+        if paid_left(t) > 0:
+            continue
+        hours = trial_left(t)
+        if 0 < hours <= TRIAL_WARN_HOURS:
+            out.append(t)
+    return out
+
+
+def claim_trial_warning(tutor_id):
+    """Право отправить письмо о конце триала — один раз. Промежуток
+    большой, потому что триал один: второго письма не бывает."""
+    return _claim("trial_warned_at", tutor_id, 10 * 365 * 24 * 3600)
+
+
+def trial_end_word(row):
+    """«сегодня» / «завтра» / дата — когда по Москве кончается триал."""
+    end = _parse_ts(row["trial_ends_at"]) if "trial_ends_at" in row.keys() else None
+    if not end:
+        return "завтра"
+    end_day = end.astimezone(MSK).date()
+    today = datetime.now(MSK).date()
+    diff = (end_day - today).days
+    if diff <= 0:
+        return "сегодня"
+    if diff == 1:
+        return "завтра"
+    months = ["января", "февраля", "марта", "апреля", "мая", "июня", "июля",
+              "августа", "сентября", "октября", "ноября", "декабря"]
+    return "%d %s" % (end_day.day, months[end_day.month - 1])
+
+
+# ---------- лог ошибок ----------
+
+# Сколько записей держим. Хватает, чтобы увидеть, что сломалось на этой
+# неделе, и не даёт таблице расти бесконечно, если что-то падает на
+# каждом запросе: старое подчищаем при каждой записи.
+ERRORS_KEEP = 500
+
+
+def log_error(endpoint, message, trace="", status=500,
+              tutor_id=None, student_id=None, ip=None):
+    """Записать ошибку. НИКОГДА не бросает: это вызывается из обработчика
+    исключений, и вторая ошибка поверх первой оставила бы запрос без
+    ответа вовсе — а ответ «у нас что-то отвалилось» ученику важнее,
+    чем строчка в логе."""
+    try:
+        c = conn()
+        c.execute(
+            "INSERT INTO errors (created_at, endpoint, status, message, traceback,"
+            " tutor_id, student_id, ip) VALUES (?,?,?,?,?,?,?,?)",
+            (now(), str(endpoint or "")[:120], int(status or 500),
+             str(message or "")[:1000], str(trace or "")[:8000],
+             tutor_id, student_id, str(ip or "")[:64] or None),
+        )
+        # Уборка тем же запросом. Отдельного расписания на хостинге нет,
+        # а раз в запись — дёшево: удаляем хвост за пределами ERRORS_KEEP.
+        c.execute(
+            "DELETE FROM errors WHERE id <= (SELECT id FROM errors"
+            " ORDER BY id DESC LIMIT 1 OFFSET ?)", (ERRORS_KEEP,))
+        c.commit()
+    except Exception:
+        try:
+            conn().rollback()
+        except Exception:
+            pass
+
+
+def recent_errors(limit=50):
+    """Последние ошибки, свежие первыми, с именами — по числу в таблице
+    владелец не поймёт, кому писать."""
+    rows = conn().execute(
+        "SELECT e.*, t.name AS tutor_name, s.name AS student_name"
+        " FROM errors e"
+        " LEFT JOIN tutors t ON t.id = e.tutor_id"
+        " LEFT JOIN students s ON s.id = e.student_id"
+        " ORDER BY e.id DESC LIMIT ?", (int(limit),)).fetchall()
+    return [{
+        "id": r["id"], "createdAt": r["created_at"], "endpoint": r["endpoint"],
+        "status": r["status"], "message": r["message"], "traceback": r["traceback"],
+        "tutorId": r["tutor_id"], "tutorName": r["tutor_name"] or "",
+        "studentId": r["student_id"], "studentName": r["student_name"] or "",
+        "ip": r["ip"] or "",
+    } for r in rows]
+
+
+def errors_summary(days=7):
+    """Сколько ошибок за N дней и когда была последняя — для сводки."""
+    since = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat(timespec="seconds")
+    c = conn()
+    count = c.execute("SELECT COUNT(*) FROM errors WHERE created_at >= ?",
+                      (since,)).fetchone()[0]
+    last = c.execute("SELECT created_at FROM errors ORDER BY id DESC LIMIT 1").fetchone()
+    return {"days": days, "count": count, "last": last["created_at"] if last else None}
+
+
+def clear_errors():
+    conn().execute("DELETE FROM errors")
+    conn().commit()

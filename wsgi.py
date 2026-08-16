@@ -101,6 +101,27 @@ def _static(path, start_response):
 
 
 def application(environ, start_response):
+    """Обёртка над _handle: сначала отдаём ответ целиком, потом — фоновая
+    работа (server.housekeeping: напоминания на почту).
+
+    Генератор здесь не для красоты. WSGI-сервер отправляет клиенту каждый
+    отданный кусок сразу, поэтому к моменту housekeeping() браузер уже
+    получил тело ответа и ждать ему нечего. Сделать то же самое до return
+    значило бы задерживать ответ ученику на время отправки письма — до
+    двадцати секунд на таймауте SMTP."""
+    body = _handle(environ, start_response)
+    for chunk in body:
+        yield chunk
+    if environ.get("REQUEST_METHOD") == "POST":
+        try:
+            server.housekeeping()
+        except Exception:
+            # Ответ уже ушёл; сюда попасть можно только если сломан сам
+            # housekeeping — он ловит своё, но подстраховываемся.
+            traceback.print_exc(file=environ.get("wsgi.errors", sys.stderr))
+
+
+def _handle(environ, start_response):
     path = environ.get("PATH_INFO") or "/"
     method = environ.get("REQUEST_METHOD", "GET")
 
@@ -140,13 +161,20 @@ def application(environ, start_response):
                          "429 Too Many Requests")
         try:
             return _json(start_response, handler(None, payload))
-        except (ValueError, TypeError, KeyError):
-            # кривые типы в запросе — вина клиента; текст исключения не отдаём
+        except (ValueError, TypeError, KeyError) as e:
+            # кривые типы в запросе — вина клиента; текст исключения не
+            # отдаём. В лог ошибок пишем всё равно: KeyError в нашем коде
+            # выглядит так же, и отличить их можно только по стеку.
+            server.report_error(path, e, payload, status=400,
+                                stream=environ.get("wsgi.errors", sys.stderr))
             return _json(start_response,
                          {"ok": False, "error": "Запрос не разобрал. Обнови страницу и попробуй ещё раз."},
                          "400 Bad Request")
-        except Exception:
-            traceback.print_exc(file=environ.get("wsgi.errors", sys.stderr))
+        except Exception as e:
+            # В stderr — как раньше (журнал Apache), и в таблицу errors —
+            # её видно в админке. До этого о сбоях узнавали от репетиторов.
+            server.report_error(path, e, payload, status=500,
+                                stream=environ.get("wsgi.errors", sys.stderr))
             return _json(start_response,
                          {"ok": False, "error": "У нас что-то отвалилось — это точно не ты. Попробуй через минуту."},
                          "500 Internal Server Error")

@@ -13,7 +13,7 @@
        подмножества браузер возьмёт сам, если встретит редкую букву. -->
   <link rel="preload" href="css/fonts/nunito-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="css/fonts/inter-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="css/fonts.css?v=152">
+  <link rel="stylesheet" href="css/fonts.css?v=153">
 <!-- Тему ставим ДО первой отрисовки, отдельным крошечным скриптом.
      Всё остальное грузится с defer, а defer выполняется после разбора
      страницы — то есть уже после того, как браузер её показал. Оставить
@@ -29,14 +29,14 @@
     document.documentElement.dataset.theme = t;
   } catch (e) { /* приватный режим — просто останется дневная */ }
 </script>
-<link rel="stylesheet" href="css/tokens.css?v=152">
-<link rel="stylesheet" href="css/style.css?v=152">
-  <link rel="stylesheet" href="css/savely.css?v=152">
-<link rel="stylesheet" href="css/tutor.css?v=152">
-<link rel="stylesheet" href="css/motion.css?v=152">
-<link rel="stylesheet" href="css/cat.css?v=152">
-<link rel="stylesheet" href="css/a11y.css?v=152">
-<link rel="stylesheet" href="css/admin.css?v=152">
+<link rel="stylesheet" href="css/tokens.css?v=153">
+<link rel="stylesheet" href="css/style.css?v=153">
+  <link rel="stylesheet" href="css/savely.css?v=153">
+<link rel="stylesheet" href="css/tutor.css?v=153">
+<link rel="stylesheet" href="css/motion.css?v=153">
+<link rel="stylesheet" href="css/cat.css?v=153">
+<link rel="stylesheet" href="css/a11y.css?v=153">
+<link rel="stylesheet" href="css/admin.css?v=153">
 </head>
 <body>
 
@@ -78,15 +78,26 @@
     <div class="admin-stats" id="overview"></div>
     <h2 class="section-title">Репетиторы</h2>
     <div id="tutors"></div>
+
+    <!-- Лог ошибок. До него исключения уходили только в stderr — на
+         хостинге это журнал Apache, который никто не открывает, и о сбоях
+         владелец узнавал от репетиторов. Список грузится отдельным
+         запросом: полсотни стеков весят больше всей остальной сводки. -->
+    <div class="section-head err-head">
+      <h2 class="section-title">Ошибки сервера</h2>
+      <button class="btn btn-ghost btn-small" id="err-clear" hidden>Очистить</button>
+    </div>
+    <p class="muted-note" id="err-lead">Загружаю…</p>
+    <div id="errors"></div>
   </main>
 </div>
 
-<script defer src="js/theme.js?v=152"></script>
-<script defer src="js/icons.js?v=152"></script>
-<script defer src="js/cat.js?v=152"></script>
-<script defer src="js/motion.js?v=152"></script>
-<script defer src="js/util.js?v=152"></script>
-<script defer src="js/admin.js?v=152"></script>
+<script defer src="js/theme.js?v=153"></script>
+<script defer src="js/icons.js?v=153"></script>
+<script defer src="js/cat.js?v=153"></script>
+<script defer src="js/motion.js?v=153"></script>
+<script defer src="js/util.js?v=153"></script>
+<script defer src="js/admin.js?v=153"></script>
 
 </body>
 </html>

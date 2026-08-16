@@ -98,9 +98,9 @@ bash /opt/savely/deploy/update.sh
 | `js/photo.js` | Фото тетради на проверку |
 | `js/util.js` | Общее: экранирование, модальные окна, подгрузка по требованию |
 | `tutor.html`, `js/tutor*.js` | Панель репетитора |
-| `admin.html`, `js/admin.js` | Админка |
-| `privacy.html` | Что храним и зачем (черновик — нужны реквизиты оператора) |
-| `server.py`, `db.py` | API и SQLite |
+| `admin.html`, `js/admin.js` | Админка: репетиторы, деньги, лог ошибок сервера |
+| `privacy.html`, `offer.html` | Политика конфиденциальности и публичная оферта |
+| `server.py`, `db.py`, `mailer.py` | API, SQLite, письма репетитору (коды, работы на проверку, недельный дайджест) |
 | `sw.js`, `manifest.json` | PWA: установка на телефон, работа офлайн |
 | `css/fonts/` | Nunito и Inter лежат у нас, не у Google |
 

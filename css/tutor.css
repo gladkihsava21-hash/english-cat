@@ -262,6 +262,16 @@
 .plan-row-price { font-weight: 900; white-space: nowrap; }
 .xp-bar-fill.full { background: var(--err, var(--red)); }
 
+/* --- Письма на почту (в той же вкладке, ниже тарифа) --- */
+.notify-card { margin-top: 18px; }
+.notify-card .plan-name { margin-bottom: 4px; }
+/* Галочка по верхнему краю: подпись в две-три строки, и центрированная
+   галочка уезжает к середине абзаца — та же причина, что у .consent-row */
+.notify-row { align-items: flex-start; margin: 10px 0 0; }
+.notify-row input { margin-top: 2px; }
+.notify-row span { font-weight: 500; line-height: 1.45; }
+.notify-row span b { font-weight: 800; }
+
 /* --- Пароль и код --- */
 .pass-meter { display: block; height: 5px; background: var(--surface-alt); border-radius: 999px; margin-top: 8px; overflow: hidden; }
 .pass-meter-fill { display: block; height: 100%; width: 0; border-radius: 999px; transition: width .2s; background: var(--err, var(--red)); }

@@ -41,3 +41,31 @@
 .at-tag.paid { background: var(--accent-soft); color: var(--green); }
 .at-tag.trial { background: var(--accent-soft); color: var(--ink-soft); }
 .at-tag.stop { background: var(--surface-alt); color: var(--red); }
+
+/* --- Лог ошибок --- */
+.err-head { margin-top: 36px; }
+.err-head .section-title { margin: 0; }
+.err-item {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 0 16px; margin-bottom: 8px;
+}
+.err-item.bad { border-color: var(--red); }
+.err-item summary {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 12px;
+  padding: 12px 0; cursor: pointer; font-size: var(--text-caption); font-weight: 700;
+  list-style: none;
+}
+.err-item summary::-webkit-details-marker { display: none; }
+.err-when { color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.err-status { font-weight: 900; color: var(--red); }
+.err-item:not(.bad) .err-status { color: var(--muted); }
+.err-where { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-weight: 800; }
+.err-msg { flex: 1 1 260px; min-width: 0; overflow-wrap: anywhere; }
+.err-who { color: var(--muted); font-weight: 600; white-space: nowrap; }
+/* Стек — моноширинный, с прокруткой внутри карточки: строки в нём длинные,
+   и без overflow он растягивал бы страницу вширь на телефоне. */
+.err-trace {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: var(--text-caption);
+  line-height: 1.45; white-space: pre; overflow-x: auto; margin: 0 0 14px;
+  padding: 12px 14px; background: var(--surface-alt); border-radius: 10px; color: var(--ink);
+}

@@ -240,6 +240,7 @@ async function loadStudents() {
   renderStudents();
   renderInvite();
   if (typeof renderLesson === "function") renderLesson();
+  if (typeof renderNotify === "function") renderNotify();
   if (typeof fillGameSelect === "function") fillGameSelect();
   fillStudentSelect();
   fillMsgTarget();
@@ -1088,6 +1089,52 @@ document.addEventListener("DOMContentLoaded", () => {
   };
   $("lesson-open").addEventListener("click", () => toggle(true));
   $("lesson-close").addEventListener("click", () => toggle(false));
+});
+
+/* ===== Письма на почту =====
+ * Два переключателя: «о новых работах» и «раз в неделю — кто пропал».
+ * Сохраняются сразу по щелчку, без кнопки «сохранить»: это переключатель,
+ * а не форма, и лишняя кнопка тут читалась бы как «ещё не применилось».
+ */
+function renderNotify() {
+  const work = $("notify-work"), remind = $("notify-remind");
+  if (!work || !remind || !tutor) return;
+  // Не сбиваем то, что человек щёлкает прямо сейчас: renderNotify зовётся
+  // и по таймеру обновления списка учеников, а ответ сервера на щелчок
+  // может прийти позже этого таймера.
+  if (document.activeElement !== work) work.checked = tutor.notifyWork !== false;
+  if (document.activeElement !== remind) remind.checked = tutor.notifyRemind !== false;
+  const lead = $("notify-lead");
+  if (lead && tutor.email) {
+    lead.textContent = `Приходят на ${tutor.email}. `
+      + "Коды подтверждения и письмо о конце пробного периода приходят всегда.";
+  }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  const work = $("notify-work"), remind = $("notify-remind");
+  if (!work || !remind) return;
+  const msg = $("notify-msg");
+  const save = async (field, box) => {
+    msg.className = "type-feedback";
+    msg.textContent = "Сохраняю…";
+    let res;
+    try { res = await api("/api/tutor/notify/set", { token: token(), [field]: box.checked }); }
+    catch (e) { res = null; }
+    if (!res || !res.ok) {
+      // Откатываем галочку: иначе на экране одно, на сервере другое,
+      // и человек уверен, что письма отключены, а они идут.
+      box.checked = !box.checked;
+      msg.className = "type-feedback err";
+      msg.textContent = (res && res.error) || "Не сохранилось — проверьте связь и щёлкните ещё раз.";
+      return;
+    }
+    tutor = res.tutor || tutor;
+    msg.className = "type-feedback ok";
+    msg.textContent = box.checked ? "Включено." : "Выключено — такие письма больше не придут.";
+  };
+  work.addEventListener("change", () => save("work", work));
+  remind.addEventListener("change", () => save("remind", remind));
 });
 
 /* ===== Игра для домашки =====
