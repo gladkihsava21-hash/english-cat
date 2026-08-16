@@ -311,6 +311,11 @@ function renderOverview() {
   const learned = students.reduce((s, x) => s + (x.words?.learned || 0), 0);
   const activeWeek = students.filter(x => { const d = daysAgo(x.lastSeen); return d !== null && d <= 7; }).length;
   const sleeping = students.filter(x => { const d = daysAgo(x.lastSeen); return d === null || d > 7; }).length;
+  // Кто забросил повторения — по границе из письма-дайджеста (сервер ставит
+  // words.neglected). «Не заходили» ловит пропавших, эта плитка — тех, кто
+  // заходит, но не повторяет: до неё такое было видно только в словаре ученика.
+  const neglected = students.filter(x => x.words?.neglected).length;
+  const overdueTotal = students.reduce((s, x) => s + (x.words?.overdue || 0), 0);
   $("overview").innerHTML = `
     <div class="card stat-card">
       <p class="stat-label">Учеников</p>
@@ -331,6 +336,11 @@ function renderOverview() {
       <p class="stat-label">Выучено слов</p>
       <p class="stat-value">${learned}</p>
       <p class="stat-note">суммарно всеми</p>
+    </div>
+    <div class="card stat-card">
+      <p class="stat-label">Забросили повторения</p>
+      <p class="stat-value" style="color:${neglected ? "var(--red)" : "var(--green)"}">${neglected}</p>
+      <p class="stat-note">${overdueTotal ? `ждут повторения: ${overdueTotal} ${plural(overdueTotal, "слово", "слова", "слов")}` : "просроченных слов нет"}</p>
     </div>`;
 }
 
@@ -342,6 +352,8 @@ function sortedStudents() {
   if (sortMode === "name") arr.sort((a, b) => a.name.localeCompare(b.name, "ru"));
   if (sortMode === "active") arr.sort((a, b) => (daysAgo(a.lastSeen) ?? 999) - (daysAgo(b.lastSeen) ?? 999));
   if (sortMode === "progress") arr.sort((a, b) => (b.words?.learned || 0) - (a.words?.learned || 0));
+  // Кто больше всех запустил повторения — наверх: с них и начинать разговор
+  if (sortMode === "overdue") arr.sort((a, b) => (b.words?.overdue || 0) - (a.words?.overdue || 0));
   return arr;
 }
 
@@ -387,7 +399,11 @@ function renderStudents() {
 
         <div class="stu-bars">
           <div class="stu-bar-row">
-            <span class="muted-small">Слова: ${w.learned || 0} выучено из ${w.total || 0}</span>
+            <span class="muted-small">Слова: ${w.learned || 0} выучено из ${w.total || 0}${
+              // «Ждут повторения» — единственная цифра, по которой видно, что
+              // ученик забросил, пока он ещё заходит. Красным — по той же
+              // границе, что и письмо-дайджест (сервер ставит neglected).
+              w.overdue ? ` · <span class="${w.neglected ? "seen bad" : ""}">ждут повторения: ${w.overdue}</span>` : ""}</span>
             <div class="xp-bar"><div class="xp-bar-fill" style="width:${pct}%"></div></div>
           </div>
         </div>
@@ -495,6 +511,9 @@ async function openStudent(id) {
       <div class="card stat-card"><p class="stat-label">Выучено</p>
         <p class="stat-value">${w.learned || 0}</p>
         <p class="stat-note">из ${w.total || 0} в словаре</p></div>
+      <div class="card stat-card"><p class="stat-label">Ждут повторения</p>
+        <p class="stat-value"${w.neglected ? ` style="color:var(--red)"` : ""}>${w.overdue || 0}</p>
+        <p class="stat-note">${w.neglected ? "повторения заброшены" : `из ${w.scheduled || 0} по расписанию`}</p></div>
       <div class="card stat-card"><p class="stat-label">Очки за неделю</p>
         <p class="stat-value">⭐ ${s.xpWeek || 0}</p>
         <p class="stat-note">за месяц: ${s.xpMonth || 0}</p></div>
@@ -583,6 +602,7 @@ function printReport(s, grp) {
     <tr><td>Слов в личном словаре</td><td>${w.total || 0}</td></tr>
     <tr><td>Из них выучено</td><td>${w.learned || 0}</td></tr>
     <tr><td>В процессе изучения</td><td>${w.learning || 0}</td></tr>
+    <tr><td>Ждут повторения</td><td>${w.overdue || 0}</td></tr>
     <tr><td>Занятий за месяц</td><td>${days} ${plural(days, "день", "дня", "дней")}</td></tr>
     <tr><td>Занимается подряд</td><td>${s.streak || 0} ${plural(s.streak || 0, "день", "дня", "дней")}</td></tr>
     <tr><td>Домашних заданий выполнено</td><td>${hwDone} из ${hw.length}</td></tr>
@@ -941,10 +961,23 @@ async function loadChecks() {
 function renderChecks() {
   if (!checksData) return;
   const { students, packs, bill, extraPrice, maxPhotos, freeForAll } = checksData;
+  // Нейросети нет — говорим это первой строкой вкладки. Раньше вкладка
+  // продавала пакеты как ни в чём не бывало, а у каждой работы стояло
+  // «посмотрите сами», и связать одно с другим репетитор не мог.
+  const suspended = checksData.aiOn === false;
+  const notice = suspended ? `
+    <div class="card check-suspended" role="status">
+      <p><b>Разбор нейросетью сейчас выключен.</b> Фото тетрадей и чтение вслух
+        приходят к вам как обычно — на вкладку «Фото тетрадей», — но Савелий их
+        не разбирает: смотрите сами.</p>
+      <p class="muted-note">Пакеты ниже можно выбрать заранее. Пока проверка
+        выключена, счёт за них не начисляется — они начнут действовать и стоить
+        денег, когда разбор заработает; мы об этом сообщим.</p>
+    </div>` : "";
 
   // Тем, у кого проверка бесплатна, прайс показывать незачем —
   // он только заставляет гадать, не придёт ли счёт
-  $("checks-packs").innerHTML = freeForAll ? "" : `
+  $("checks-packs").innerHTML = notice + (freeForAll ? "" : `
     <div class="card">
       <p class="section-note" style="margin-top:0">Цена за одного ученика в месяц.
         До ${maxPhotos} фото на одну домашку. Сверх пакета — ${extraPrice} ₽ за проверку.</p>
@@ -958,12 +991,21 @@ function renderChecks() {
       </div>
       ${students.length >= 10 ? `<p class="muted-small">Скидка за объём уже учтена: у вас ${students.length} учеников.</p>`
         : `<p class="muted-small">От 10 учеников цена ниже, от 20 — ещё ниже.</p>`}
-    </div>`;
+    </div>`);
 
   if (freeForAll) {
     $("checks-bill").innerHTML = `<div class="card"><p class="stat-note">
       ${iconInline("sparkle", 16)} У вас проверка домашек бесплатно навсегда — вы подключились, когда она
       входила в основной тариф. Ничего доплачивать не нужно.</p></div>`;
+  } else if (suspended) {
+    // Счёт при выключенной проверке сервер считает нулевым (db.CHECKS_SUSPENDED);
+    // показываем не «Итого: 0 ₽», а почему ноль.
+    $("checks-bill").innerHTML = `
+      <div class="card">
+        <h3 style="margin-top:0">Счёт за месяц</h3>
+        <p>Не начисляется: проверка выключена. Выбранные пакеты станут платными,
+          когда разбор заработает.</p>
+      </div>`;
   } else {
     $("checks-bill").innerHTML = `
       <div class="card">

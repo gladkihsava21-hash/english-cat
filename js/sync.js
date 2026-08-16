@@ -76,6 +76,7 @@ async function joinTutor(name) {
 async function restoreByCode(code) {
   const res = await api("/api/student/restore", { restoreCode: code });
   if (!res.ok) return res;
+  if (typeof res.ai === "boolean") window.SAVELY_AI = res.ai;   // см. pushProgress
   localStorage.setItem(STUDENT_TOKEN_KEY, res.token);
   localStorage.setItem(TUTOR_NAME_KEY, res.tutorName || "");
   localStorage.removeItem(PENDING_JOIN_KEY);
@@ -199,6 +200,10 @@ async function pushProgress() {
   try {
     const res = await api("/api/student/sync", { token, state: snapshot() });
     syncFailed = false;
+    // Есть ли нейросеть — чат по этому флагу с первой реплики честно
+    // говорит, что умеет, и не ходит на сервер за отказом (см. aiKnownOff
+    // в app.js). Не булево — значит сервер старый, чат решит сам.
+    if (res.ok && typeof res.ai === "boolean") window.SAVELY_AI = res.ai;
     if (res.ok && Array.isArray(res.homework)) applyHomework(res.homework);
     if (res.ok && res.lesson) applyLesson(res.lesson);
     if (res.ok && Array.isArray(res.messages)) {

@@ -963,6 +963,10 @@ def student_public(row, homework=None, detail=False):
     )[:8]
     activity = json.loads(row["activity"] or "{}")
     keys = row.keys()
+    # Сколько слов ждут повторения — то, чего в панели не было, хотя это
+    # единственная цифра, которая говорит «ученик забросил», пока он ещё
+    # заходит. Считается так же, как в письме-дайджесте (student_overdue).
+    overdue, scheduled = student_overdue(dictionary)
     data = {
         "id": row["id"],
         "name": row["name"],
@@ -982,6 +986,12 @@ def student_public(row, homework=None, detail=False):
             "learned": len(learned),
             "learning": len(learning),
             "new": len(fresh),
+            "overdue": overdue,
+            "scheduled": scheduled,
+            # Та же граница, что у письма: запустил — если просрочено от
+            # REMIND_OVERDUE_MIN слов и не меньше REMIND_OVERDUE_PCT процентов
+            "neglected": (overdue >= REMIND_OVERDUE_MIN
+                          and overdue * 100 >= REMIND_OVERDUE_PCT * scheduled),
         },
         "weak": [{"w": d.get("w"), "t": d.get("t"),
                   "knew": d.get("knew") or 0, "forgot": d.get("forgot") or 0} for d in weak],
@@ -1738,15 +1748,24 @@ def set_check_pack(student_id, tutor_id, pack_id):
     return True, None
 
 
+# Проверка домашек приостановлена: нейросети нет (ключа Claude нет).
+# Ставит server.py при старте. Пока True — счёт за пакеты не начисляется
+# ни репетитору, ни в выручку админки: платить за проверку, которая не
+# проверяет, нельзя. Пакеты при этом можно выбирать заранее — они
+# начнут действовать и стоить денег, когда проверка заработает.
+CHECKS_SUSPENDED = False
+
+
 def checks_bill(tutor_id):
     """Счёт за проверку домашек: сколько выходит в месяц по всем ученикам."""
     free = conn().execute("SELECT checks_free FROM tutors WHERE id=?",
                           (tutor_id,)).fetchone()
-    if free and free["checks_free"]:
+    if (free and free["checks_free"]) or CHECKS_SUSPENDED:
         # Проверка досталась бесплатно навсегда — счёта нет и быть не должно,
-        # иначе эти репетиторы попали бы и в выручку админки, и в счёт к оплате
+        # иначе эти репетиторы попали бы и в выручку админки, и в счёт к оплате.
+        # То же, пока проверка приостановлена (см. CHECKS_SUSPENDED).
         return {"students": 0, "monthly": 0, "extras": 0, "extrasCost": 0,
-                "total": 0, "items": []}
+                "total": 0, "items": [], "suspended": bool(CHECKS_SUSPENDED)}
 
     rows = conn().execute(
         "SELECT check_pack, checks_extra, checks_period FROM students WHERE tutor_id=?",

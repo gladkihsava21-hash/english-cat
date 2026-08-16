@@ -363,7 +363,20 @@ document.addEventListener("DOMContentLoaded", () => {
 
 // ---- первые шаги ----
 // Репетитор после регистрации попадал в пустую панель и сам догадывался,
-// что делать. Показываем три шага, пока они не пройдены.
+// что делать. Показываем шаги, пока они не пройдены — или пока человек
+// сам не скажет «понятно, уберите».
+//
+// Это встроенный блок, а не окно-мастер поверх панели. Мастер надо
+// закрыть, чтобы что-то сделать, и к третьему экрану его уже не читают;
+// блок остаётся на месте, отмечает сделанное галочками и ведёт кнопкой
+// прямо на нужную вкладку.
+
+// Скрытие помним на устройстве и на конкретного репетитора: у двух
+// кабинетов на одном ноутбуке подсказки независимы, а «скрыть» одного
+// не должно прятать шаги другому.
+function onboardHiddenKey() {
+  return "savelyOnboardHidden:" + (typeof tutor !== "undefined" && tutor ? tutor.id : "");
+}
 
 function renderOnboarding() {
   const slot = document.getElementById("onboard-slot");
@@ -374,6 +387,9 @@ function renderOnboarding() {
   const hasActive = students.some(s => (s.xpWeek || 0) > 0);
 
   if (hasStudents && hasHomework && hasActive) { slot.innerHTML = ""; return; }
+  let hidden = false;
+  try { hidden = localStorage.getItem(onboardHiddenKey()) === "1"; } catch (e) { /* приватный режим */ }
+  if (hidden) { slot.innerHTML = ""; return; }
 
   const step = (done, num, title, text, action) => `
     <div class="ob-step${done ? " done" : ""}">
@@ -385,9 +401,22 @@ function renderOnboarding() {
       </div>
     </div>`;
 
+  // Самый первый вход — ни одного ученика: здороваемся и объясняем в
+  // одну строку, как это работает. Дальше заголовок короткий: человек
+  // уже в курсе, шаги напоминают, что осталось.
+  const name = typeof tutor !== "undefined" && tutor && tutor.name ? tutor.name : "";
+  const head = hasStudents
+    ? `<p class="ob-head">С чего начать</p>`
+    : `<p class="ob-head">${name ? esc(name) + ", з" : "З"}дравствуйте! Панель готова.</p>
+       <p class="ob-lead">Работает так: вы даёте ученикам ссылку, они занимаются на сайте,
+         вы здесь видите, кто что выучил, и выдаёте домашку. Три шага — и всё заработает.</p>`;
+
   slot.innerHTML = `
     <div class="onboard">
-      <p class="ob-head">С чего начать</p>
+      <div class="ob-top">
+        <div>${head}</div>
+        <button type="button" class="link-btn ob-hide" id="ob-hide">скрыть подсказки</button>
+      </div>
       ${step(hasStudents, 1, "Позовите учеников",
         "Скопируйте ссылку и отправьте им в чат. Ученику не нужен ни пароль, ни оплата — он откроет ссылку и введёт имя.",
         `<button class="btn btn-primary btn-small" data-goto="invite">Взять ссылку</button>`)}
@@ -395,11 +424,30 @@ function renderOnboarding() {
         "Выберите слова по теме или напишите задание текстом. Можно задать текст для чтения вслух.",
         `<button class="btn btn-primary btn-small" data-goto="homework">Выдать домашку</button>`)}
       ${step(hasActive, 3, "Посмотрите, кто занимается",
-        "Как только ученики начнут, здесь появятся их слова, очки и дата последнего захода — сразу видно, кто пропал.", "")}
+        "Как только ученики начнут, здесь появятся их слова, очки и дата последнего захода — сразу видно, кто пропал и кто забросил повторения.", "")}
+      <div class="ob-step ob-more">
+        <span class="ob-num ob-num-soft">+</span>
+        <div>
+          <p class="ob-title">Дальше — по желанию</p>
+          <p class="ob-text">Ссылка на свою видеокомнату — у учеников появится кнопка «На урок».
+            Проверка тетрадей по фото. Письма о новых работах и о тех, кто пропал, — включены,
+            отключаются в один щелчок.</p>
+          <div class="ob-links">
+            <button class="link-btn" data-goto="lesson">Видеоурок</button>
+            <button class="link-btn" data-goto="checks">Проверка домашек</button>
+            <button class="link-btn" data-goto="plan">Письма на почту</button>
+          </div>
+        </div>
+      </div>
     </div>`;
 
   slot.querySelectorAll("[data-goto]").forEach(b => b.addEventListener("click", () => {
     const t = document.querySelector(`.nav-btn[data-tab="${b.dataset.goto}"]`);
     if (t) t.click();
   }));
+  const hide = document.getElementById("ob-hide");
+  if (hide) hide.addEventListener("click", () => {
+    try { localStorage.setItem(onboardHiddenKey(), "1"); } catch (e) { /* приватный режим */ }
+    slot.innerHTML = "";
+  });
 }

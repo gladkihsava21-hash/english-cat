@@ -35,7 +35,7 @@ import mailer
 # Теперь это видно одним curl /health: цифра совпала с ?v= на странице —
 # приложение перезапущено; не совпала или её нет вовсе — в памяти старый
 # код, надо нажать «Перезапустить приложение» в панели хостинга.
-ASSET_VERSION = 153
+ASSET_VERSION = 154
 
 PORT = int(os.environ.get("SAVELY_PORT", "4210"))
 # За nginx сервер слушает только localhost — снаружи он не должен быть виден
@@ -625,10 +625,37 @@ ALT_PROVIDERS = {
 }
 
 
+def ai_available():
+    """Есть ли чем отвечать «по-умному»: ключ Claude, альтернативный
+    провайдер или локальный CLI (только для разработки). Клиенту это
+    нужно, чтобы не обещать нейросеть там, где её нет: ученик получает
+    честную рамку чата, репетитор — честную вкладку проверки.
+
+    SAVELY_NO_AI=1 — посмотреть локально, как сайт выглядит без нейросети:
+    на машине разработчика CLI есть всегда, а на боевом сейчас нет ничего."""
+    if os.environ.get("SAVELY_NO_AI"):
+        return False
+    if ANTHROPIC_KEY:
+        return True
+    alt = ALT_PROVIDERS.get(CHAT_PROVIDER)
+    if alt and alt[1]():
+        return True
+    return os.path.exists(CLAUDE)
+
+
+# Пока нейросети нет, проверка домашек не работает — и счёт за неё не
+# начисляется. Иначе репетитор платил бы за пакет, который ничего не
+# проверяет. Флаг живёт в db, потому что счёт считает db.checks_bill,
+# а про ключ знает только этот модуль.
+db.CHECKS_SUSPENDED = not ai_available()
+
+
 def ask_claude(payload):
     """Дешёвый провайдер, если он настроен, иначе Claude. Любая осечка
     альтернативы — молча уходим на Haiku: ученик не должен видеть, что
     у нас там что-то не сложилось."""
+    if os.environ.get("SAVELY_NO_AI"):
+        raise RuntimeError("no_api_key")   # режим «как на боевом без ключа», см. ai_available
     alt = ALT_PROVIDERS.get(CHAT_PROVIDER)
     if alt and alt[1]():
         try:
@@ -925,7 +952,11 @@ class Api:
         tutor = db.get_tutor_by_id(row["tutor_id"])
         return {"ok": True, "found": True, "token": row["token"],
                 "state": db.student_state(row),
-                "tutorName": tutor["name"] if tutor else ""}
+                "tutorName": tutor["name"] if tutor else "",
+                # Чат открывают сразу после входа, до первой синхронизации —
+                # флаг нужен уже здесь, иначе первая реплика кота обещает
+                # «поболтать», а вторая берёт слова назад.
+                "ai": ai_available()}
 
     @staticmethod
     def student_pull(h, p):
@@ -985,6 +1016,10 @@ class Api:
             # отдельный запрос раз в три секунды ради одной строки —
             # лишняя нагрузка на хостинг, где и так всё на одном процессе.
             "lesson": db.lesson_state(db.get_tutor_by_id(row["tutor_id"])),
+            # Есть ли нейросеть. Чат ученика по этому флагу решает, идти
+            # ли за ответом на сервер или сразу отвечать по правилам, и
+            # честно говорит об этом с первой реплики, а не после сбоя.
+            "ai": ai_available(),
         }
 
     # --- личный кабинет ученика ---
@@ -1406,6 +1441,10 @@ class Api:
             "extraPrice": db.EXTRA_CHECK_PRICE,
             "maxPhotos": db.PHOTOS_PER_CHECK,
             "freeForAll": bool(tutor["checks_free"]) if "checks_free" in tutor.keys() else False,
+            # Честная вкладка: пока нейросети нет, репетитор должен видеть,
+            # что разбора не будет и счёт не начисляется, — а не гадать,
+            # почему у всех работ «посмотрите сами».
+            "aiOn": ai_available(),
         }
 
     @staticmethod

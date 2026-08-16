@@ -318,6 +318,15 @@
   padding: 20px 22px; margin-bottom: 26px;
 }
 .ob-head { font-weight: 900; font-size: var(--text-body-sm); margin-bottom: 14px; }
+/* Приветствие первого входа: заголовок + одна строка «как это работает» */
+.ob-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.ob-top .ob-head { margin-bottom: 6px; }
+.ob-lead { color: var(--muted); font-weight: 600; font-size: var(--text-caption); line-height: 1.5; margin-bottom: 12px; }
+.ob-hide { flex-shrink: 0; font-size: var(--text-caption); color: var(--muted); }
+/* «Дальше — по желанию»: не шаг, а хвост; кружок без заливки, ссылки в ряд */
+.ob-num-soft { background: transparent; color: var(--accent); border: 2px solid var(--accent-line); }
+.ob-links { display: flex; flex-wrap: wrap; gap: 4px 16px; }
+.ob-links .link-btn { font-size: var(--text-caption); }
 .ob-step { display: flex; gap: 14px; align-items: flex-start; padding: 10px 0; }
 .ob-step + .ob-step { border-top: 1px solid var(--line-soft); }
 .ob-num {
@@ -331,6 +340,11 @@
 .ob-text { color: var(--muted); font-weight: 600; font-size: var(--text-caption); line-height: 1.5; margin-bottom: 8px; }
 
 /* ===== Проверка домашек ===== */
+/* Плашка «разбор выключен» — та же карточка, но с акцентной кромкой слева:
+   должна читаться первой, а не теряться среди прайса */
+.check-suspended { border-left: 4px solid var(--accent); margin-bottom: 14px; }
+.check-suspended p { margin: 0 0 8px; line-height: 1.5; }
+.check-suspended p:last-child { margin-bottom: 0; }
 .pack-row { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
 .pack-card {
   border: 2px solid var(--line-control); border-radius: 14px;

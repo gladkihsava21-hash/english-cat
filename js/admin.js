@@ -47,8 +47,13 @@ function renderOverview() {
     ["Репетиторов", o.tutors, `подтвердили почту: ${o.verified}`],
     ["Учеников", o.students, `занимались за неделю: ${o.activeWeek}`],
     ["Домашек", o.homework, `фото тетрадей: ${o.photos}`],
+    // Пока нейросети нет, проверка домашек не начисляется никому
+    // (db.CHECKS_SUSPENDED) — и здесь это должно быть сказано словами,
+    // а не выглядеть как пропавшая выручка.
     ["Выручка в месяц", money(o.revenue),
-      `тарифы ${money(o.baseRevenue)} + проверка ${money(o.checksRevenue)}`],
+      data.aiOn
+        ? `тарифы ${money(o.baseRevenue)} + проверка ${money(o.checksRevenue)}`
+        : `тарифы ${money(o.baseRevenue)} · проверка выключена, не начисляется`],
     // Не оценка, а факт: сообщения и проверки считаются в базе
     ["Расходы на ИИ", money(o.aiCost),
       `${o.chatMessages} сообщений, ${o.checksUsed} проверок`],
