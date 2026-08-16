@@ -238,7 +238,7 @@ housekeeping в wsgi запускается ПОСЛЕ отдачи тела, т
 
 ---
 
-### Батч C — сделан, v154
+### Батч C — сделан и выложен (d21f05d, 16.08 22:07, /health = 154)
 
 **3. Честная рамка ИИ** (а не заглушка). Сервер отдаёт `ai: true/false`
 в `/api/student/sync` и `/api/student/restore` (`server.ai_available()`),
