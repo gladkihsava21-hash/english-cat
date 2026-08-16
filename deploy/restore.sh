@@ -23,7 +23,17 @@ SRC="$DEST/savely-$DATE.db.gz"
 # Текущую базу не затираем, а откладываем: если копия окажется не той,
 # вернуться будет некуда
 SAFE="$DATA/savely.before-restore-$(date +%Y%m%d-%H%M%S).db"
-[[ -f "$DATA/savely.db" ]] && cp "$DATA/savely.db" "$SAFE" && echo "Текущая база сохранена: $SAFE"
+# Страховка перед восстановлением. Не cp: база в режиме WAL, и копия
+# одного файла может не содержать последних записей — а это ровно та
+# копия, к которой вернутся, если восстановление окажется неудачным.
+if [[ -f "$DATA/savely.db" ]]; then
+  python3 -c "
+import sqlite3, sys
+a = sqlite3.connect(sys.argv[1]); b = sqlite3.connect(sys.argv[2])
+with b: a.backup(b)
+a.close(); b.close()
+" "$DATA/savely.db" "$SAFE" && echo "Текущая база сохранена: $SAFE"
+fi
 
 gunzip -c "$SRC" > "$DATA/savely.db"
 chmod 600 "$DATA/savely.db"

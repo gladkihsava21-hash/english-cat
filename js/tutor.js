@@ -24,7 +24,7 @@ async function api(path, body) {
 function token() { return localStorage.getItem(TOKEN_KEY) || ""; }
 
 /** Постоянный идентификатор устройства.
- *  Нужен ровно для одного: бесплатные три дня выдаются один раз на
+ *  Нужен ровно для одного: бесплатный период выдаётся один раз на
  *  устройство. Раньше триал заканчивался — заводилась новая почта, и он
  *  начинался заново; почта бесплатна и бесконечна, устройство — нет.
  *
@@ -104,7 +104,7 @@ $("auth-form").addEventListener("submit", async e => {
   }
   // Бесплатные дни с этого устройства уже брали. Сказать об этом надо
   // сразу и прямо: молча открыть кабинет без триала — это когда человек
-  // через три дня упирается в оплату и не понимает, за что.
+  // по истечении бесплатных дней упирается в оплату и не понимает, за что.
   if (res.trialSkipped) {
     $("auth-error").textContent =
       "Кабинет создан, но бесплатные дни с этого устройства уже использованы — "
@@ -1101,42 +1101,89 @@ document.addEventListener("DOMContentLoaded", () => {
  * «блиц» — про скорость, а не про конкретные слова. Двадцать шесть
  * пунктов в выпадающем списке — это не выбор, а прокрутка.
  */
+// Значки те же, что у ученика в разделе тренировок: репетитор и ученик
+// должны узнавать одну и ту же игру по одной и той же картинке.
 const HOMEWORK_GAMES = [
-  { id: "flashcards", name: "Карточки" },
-  { id: "mcq",        name: "Выбор варианта" },
-  { id: "spelling",   name: "Ввод слова" },
-  { id: "matching",   name: "Сопоставление" },
-  { id: "scramble",   name: "Собери слово" },
-  { id: "listening",  name: "Аудирование", note: "нужен звук на устройстве ученика" },
-  { id: "fillblank",  name: "Пропуск в фразе", note: "только для слов с примером" },
-  { id: "wordsearch", name: "Поиск слов" },
-  { id: "crossword",  name: "Кроссворд" },
-  { id: "memory",     name: "Найди пару" },
-  { id: "wheel",      name: "Колесо" },
+  { id: "flashcards", name: "Карточки",        icon: "flashcards", note: "узнавание: слово и перевод" },
+  { id: "mcq",        name: "Выбор варианта",  icon: "mcq",        note: "четыре варианта, один верный" },
+  { id: "spelling",   name: "Ввод слова",      icon: "spelling",   note: "пишет слово сам — самое строгое" },
+  { id: "matching",   name: "Сопоставление",   icon: "matching",   note: "соединить слово с переводом" },
+  { id: "scramble",   name: "Собери слово",    icon: "scramble",   note: "буквы перемешаны" },
+  { id: "listening",  name: "Аудирование",     icon: "listening",  note: "нужен звук на устройстве ученика" },
+  { id: "fillblank",  name: "Пропуск в фразе", icon: "fillblank",  note: "только для слов с примером" },
+  { id: "wordsearch", name: "Поиск слов",      icon: "wordsearch", note: "найти слова в поле букв" },
+  { id: "crossword",  name: "Кроссворд",       icon: "crossword",  note: "отгадать по переводам" },
+  { id: "memory",     name: "Найди пару",      icon: "defmatch",   note: "открывать карточки парами" },
+  { id: "wheel",      name: "Колесо",          icon: "target",    note: "вслух и по-честному, без проверки" },
   // Эти два — не по словам ученика, а по своим заданиям: слова из
   // домашки на них не влияют. Так и написано в подсказке, чтобы
   // репетитор не удивился, почему его слова «не подставились».
-  { id: "wordform",   name: "Словообразование (ОГЭ)",
-    note: "свои задания, слова домашки не используются" },
-  { id: "grammar",    name: "Грамматика по темам",
-    note: "свои задания, ученик выбирает тему" },
+  { id: "wordform",   name: "Словообразование", icon: "translate",
+    note: "формат ОГЭ. Свои задания — слова домашки не используются" },
+  { id: "grammar",    name: "Грамматика",       icon: "book",
+    note: "10 тем на выбор. Свои задания — слова домашки не используются" },
 ];
 
 function fillGameSelect() {
   const sel = $("hw-game");
+  const grid = $("hw-game-grid");
   if (!sel || sel.dataset.filled) return;
   sel.dataset.filled = "1";
+
+  // Скрытый select остаётся источником значения: форма и сервер читают
+  // его, и переписывать эту часть ради вида не нужно.
   HOMEWORK_GAMES.forEach(g => {
     const o = document.createElement("option");
     o.value = g.id;
     o.textContent = g.name;
     sel.appendChild(o);
   });
+
+  if (!grid) return;
   const hint = $("hw-game-hint");
-  sel.addEventListener("change", () => {
-    const g = HOMEWORK_GAMES.find(x => x.id === sel.value);
-    hint.textContent = g && g.note ? g.note : "";
+  const ALL = [{ id: "", name: "Ученик выберет сам", icon: "paw",
+                 note: "как было раньше: игру выбирает ученик" }].concat(HOMEWORK_GAMES);
+
+  const pick = id => {
+    sel.value = id;
+    grid.querySelectorAll(".game-tile").forEach(t => {
+      const on = t.dataset.game === id;
+      t.classList.toggle("picked", on);
+      t.setAttribute("aria-checked", String(on));
+      // Роль radio: в группе табом останавливается один элемент,
+      // остальные обходятся стрелками — так работает любой набор
+      // взаимоисключающих вариантов.
+      t.tabIndex = on ? 0 : -1;
+    });
+    const g = ALL.find(x => x.id === id);
+    if (hint) hint.textContent = g && g.note ? g.note : "";
+  };
+
+  ALL.forEach(g => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "game-tile";
+    b.dataset.game = g.id;
+    b.setAttribute("role", "radio");
+    b.setAttribute("aria-checked", "false");
+    b.innerHTML = `<span class="game-tile-ico">${icon(g.icon || "paw", 22)}</span>`
+                + `<span class="game-tile-name">${esc(g.name)}</span>`;
+    b.title = g.note || g.name;
+    b.addEventListener("click", () => pick(g.id));
+    b.addEventListener("keydown", e => {
+      const tiles = [...grid.querySelectorAll(".game-tile")];
+      const i = tiles.indexOf(b);
+      let j = null;
+      if (e.key === "ArrowRight" || e.key === "ArrowDown") j = (i + 1) % tiles.length;
+      if (e.key === "ArrowLeft" || e.key === "ArrowUp") j = (i - 1 + tiles.length) % tiles.length;
+      if (j === null) return;
+      e.preventDefault();
+      tiles[j].focus();
+      tiles[j].click();
+    });
+    grid.appendChild(b);
   });
+  pick("");
 }
 
 // ===== Какая вкладка открыта при заходе =====

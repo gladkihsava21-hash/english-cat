@@ -356,3 +356,67 @@
    ни отступов, ни своего кегля, всё рисует .brand внутри. */
 .brand-h1 { display: flex; align-items: center; margin: 0;
   font-size: inherit; font-weight: inherit; line-height: inherit; }
+
+/* ==========================================================================
+   ВЫБОР ИГРЫ ДЛЯ ДОМАШКИ
+   --------------------------------------------------------------------------
+   Был обычный select — и его никто не находил. Выпадающий список посреди
+   формы не читается как «выбери, чем ученик будет тренировать»: это
+   выглядит настройкой, а не действием.
+
+   Сетка плиток — то, ради чего ходят в Wordwall: игры видно, а не
+   написано списком. Значки те же, что у ученика в разделе тренировок,
+   чтобы репетитор и ученик узнавали одну игру по одной картинке.
+   ========================================================================== */
+.game-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+  gap: var(--space-8);
+  margin-top: var(--space-8);
+}
+.game-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 76px;
+  padding: var(--space-12) var(--space-8);
+  text-align: center;
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: var(--radius-input, 12px);
+  color: var(--ink-soft);
+  font-family: var(--font-ui);
+  font-size: var(--text-caption);
+  font-weight: 600;
+  line-height: 1.25;
+  cursor: pointer;
+  transition: border-color var(--dur) var(--ease), transform var(--dur) var(--ease),
+              background var(--dur) var(--ease);
+}
+.game-tile:hover { border-color: var(--accent-line); transform: translateY(-1px); }
+.game-tile:active { transform: translateY(0); }
+/* Выбранная плитка отличается НЕ ТОЛЬКО цветом: рамка толще и фон другой.
+   Одного цвета мало — при дальтонизме шалфейный и серый сливаются. */
+.game-tile.picked {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--ink);
+}
+.game-tile-ico { display: block; color: var(--accent); }
+.game-tile.picked .game-tile-ico { color: var(--accent-deep, var(--accent)); }
+/* Длинные названия («Словообразование») в 132-пиксельную плитку не
+   влезают и вылезали за рамку. hyphens: auto переносит по слогам —
+   страница на русском, lang="ru" стоит на html, браузер умеет.
+   overflow-wrap — запасной вариант там, где переносов нет. */
+.game-tile-name {
+  display: block;
+  hyphens: auto;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 480px) {
+  .game-grid { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); }
+  .game-tile { min-height: 68px; font-size: 13px; }
+}

@@ -5,3 +5,4 @@ savely.db-wal
 savely.db-shm
 .claude/
 *.bak-*
+demo.db*

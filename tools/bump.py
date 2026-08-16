@@ -14,6 +14,7 @@ sw.js отставал — на момент написания скрипта �
 """
 
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -50,7 +51,26 @@ def assets_from_pages():
     return seen
 
 
+def validate_state():
+    """Не даём поднять версию, если новое поле состояния забыли добавить
+    в миграцию. Такая ошибка не видна разработчику: у него в браузере
+    свежее сохранение. Ломается она у вернувшегося ученика — белым
+    экраном, и узнаёшь об этом от него."""
+    script = ROOT / "tools" / "validate-state.py"
+    if not script.exists():
+        return True
+    r = subprocess.run([sys.executable, str(script)], capture_output=True, text=True)
+    sys.stdout.write(r.stdout)
+    sys.stderr.write(r.stderr)
+    return r.returncode == 0
+
+
 def main():
+    if not validate_state():
+        print()
+        print("Версия НЕ поднята: сначала почините миграцию состояния.")
+        return 1
+
     ver = int(sys.argv[1]) if len(sys.argv) > 1 else current() + 1
 
     for page in PAGES:
@@ -84,7 +104,8 @@ def main():
     print(f"страниц: {len(PAGES)}, файлов в офлайн-кэше: {len(assets)}")
     for a in assets:
         print("   ", a)
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

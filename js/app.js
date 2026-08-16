@@ -27,6 +27,10 @@ function loadState() {
   // прогресс приезжает ещё и с сервера, и оттуда может прийти что угодно.
   st.dictionary = st.dictionary || [];
   st.recommendSeen = st.recommendSeen || [];
+  // Оценка словарного запаса. Без неё кот в чате говорил «запас
+  // ~undefined слов», а в личном кабинете и на сервере оказывался
+  // undefined вместо числа. Найдено tools/validate-state.py.
+  st.vocabEstimate = st.vocabEstimate || 0;
   st.xp = st.xp || 0;
   st.activity = st.activity || {};   // "2026-08-05" -> очки за день
   st.blitzBest = st.blitzBest || 0;
@@ -1801,8 +1805,52 @@ if (state.user && state.level) {
   document.getElementById("test-hello").textContent =
     `${state.user.name}, посчитаем, сколько слов ты уже знаешь`;
   show("test");
+  warmWords();
 } else {
   show("welcome");
+  warmWords();
+}
+
+/** Тихо подтянуть словарь, когда браузеру нечего делать.
+ *
+ *  Ни на экране приветствия, ни на экране теста словарь не нужен для
+ *  ОТРИСОВКИ — поэтому тегом на странице его нет: 326 КБ сжатыми на
+ *  первом экране стоили 3,7 секунды до первой буквы.
+ *
+ *  Но он понадобится через несколько секунд: как только человек нажмёт
+ *  «Поехали, 36 слов». Ждать его в этот момент — значит показывать
+ *  «Достаю слова…» там, где ученик уже настроился отвечать.
+ *
+ *  requestIdleCallback, а НЕ <link rel="preload">. Preload ставит файл
+ *  в очередь СРАЗУ и с высоким приоритетом — то есть возвращает те же
+ *  326 КБ на критический путь, ровно то, от чего уходили. Простой
+ *  браузера — это уже после первой отрисовки, и мешать нечему.
+ *
+ *  Экономный режим и мобильный интернет уважаем: там лишние 326 КБ
+ *  впрок — это чужие деньги. Дождёмся настоящей необходимости. */
+function warmWords() {
+  if (typeof WORDS !== "undefined") return;
+  const net = navigator.connection;
+  if (net && (net.saveData || /(^|-)2g$/.test(net.effectiveType || ""))) return;
+
+  const go = () => { if (typeof ensureWords === "function") ensureWords().catch(() => {}); };
+
+  // Сначала ждём load, и только потом простоя. Одного
+  // requestIdleCallback МАЛО: он говорит, что свободен ПРОЦЕССОР, а не
+  // сеть. Замерено: без ожидания load словарь уходил в запрос на 75-й
+  // миллисекунде — то есть вперемешку с css и скриптами первого экрана,
+  // ровно с теми, чью загрузку мы и разгружали.
+  const idle = () => {
+    if (typeof requestIdleCallback === "function") {
+      // timeout: если простоя так и не случилось (ученик активно тыкает),
+      // всё равно начинаем — но уже после load, мешать нечему.
+      requestIdleCallback(go, { timeout: 2000 });
+    } else {
+      setTimeout(go, 600);   // Safari до 17 requestIdleCallback не умеет
+    }
+  };
+  if (document.readyState === "complete") idle();
+  else window.addEventListener("load", idle, { once: true });
 }
 
 /* ===== Выражения в словарь =====

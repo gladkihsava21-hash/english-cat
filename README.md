@@ -52,7 +52,7 @@ bash /opt/savely/deploy/update.sh
 | --- | --- |
 | Логи | `journalctl -u savely -f` |
 | Перезапуск | `systemctl restart savely` |
-| Резервная копия базы | `cp /var/lib/savely/savely.db ~/savely-backup.db` |
+| Резервная копия базы | `bash tools/daily-backup.sh` — через `cp` НЕЛЬЗЯ, база в режиме WAL |
 
 База лежит в `/var/lib/savely/` — вне папки с кодом, чтобы обновление
 не могло задеть прогресс учеников.

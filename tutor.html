@@ -32,7 +32,7 @@
   <meta name="twitter:card" content="summary_large_image">
   <link rel="preload" href="css/fonts/nunito-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="css/fonts/inter-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="css/fonts.css?v=147">
+  <link rel="stylesheet" href="css/fonts.css?v=151">
   <!-- Тему ставим ДО первой отрисовки, отдельным крошечным скриптом.
        Всё остальное грузится с defer, а defer выполняется после разбора
        страницы — то есть уже после того, как браузер её покажет. Если
@@ -48,13 +48,13 @@
       document.documentElement.dataset.theme = t;
     } catch (e) { /* приватный режим — просто останется дневная */ }
   </script>
-  <link rel="stylesheet" href="css/tokens.css?v=147">
-  <link rel="stylesheet" href="css/style.css?v=147">
-  <link rel="stylesheet" href="css/savely.css?v=147">
-  <link rel="stylesheet" href="css/tutor.css?v=147">
-<link rel="stylesheet" href="css/motion.css?v=147">
-<link rel="stylesheet" href="css/a11y.css?v=147">
-<link rel="stylesheet" href="css/cat.css?v=147">
+  <link rel="stylesheet" href="css/tokens.css?v=151">
+  <link rel="stylesheet" href="css/style.css?v=151">
+  <link rel="stylesheet" href="css/savely.css?v=151">
+  <link rel="stylesheet" href="css/tutor.css?v=151">
+<link rel="stylesheet" href="css/motion.css?v=151">
+<link rel="stylesheet" href="css/a11y.css?v=151">
+<link rel="stylesheet" href="css/cat.css?v=151">
 </head>
 <body>
 
@@ -257,10 +257,18 @@
         <!-- Чем ученик отрабатывает эти слова. По умолчанию выбирает он сам:
              так было раньше, и для большинства домашек это верно. Но когда
              репетитор ставит конкретную цель («на этой неделе — на слух»),
-             выбор нужен ему, а не ученику. -->
+             выбор нужен ему, а не ученику.
+
+             Был обычный select, и его никто не находил: выпадающий список
+             посреди формы не читается как «выбери игру». Стало полем
+             плиток — то, ради чего в Wordwall и ходят: игры ВИДНО.
+             Настоящее значение по-прежнему лежит в скрытом select, чтобы
+             не переписывать отправку формы и её обработку на сервере. -->
         <div class="vs-row">
-          <label for="hw-game">Чем тренировать</label>
-          <select id="hw-game">
+          <label id="hw-game-label">Чем тренировать</label>
+          <div class="game-grid" id="hw-game-grid" role="radiogroup"
+               aria-labelledby="hw-game-label"></div>
+          <select id="hw-game" class="hidden" tabindex="-1" aria-hidden="true">
             <option value="">Ученик выберет сам</option>
           </select>
           <span class="plan-hint" id="hw-game-hint"></span>
@@ -519,20 +527,20 @@
     <a href="https://t.me/KOTSAVELII" target="_blank" rel="noopener">@KOTSAVELII</a></p>
 </footer>
 
-<script defer src="js/theme.js?v=147"></script>
-<script defer src="js/icons.js?v=147"></script>
-<script defer src="js/cat.js?v=147"></script>
-<script defer src="js/motion.js?v=147"></script>
-<script defer src="js/util.js?v=147"></script>
-<script defer src="js/levels.js?v=147"></script>
+<script defer src="js/theme.js?v=151"></script>
+<script defer src="js/icons.js?v=151"></script>
+<script defer src="js/cat.js?v=151"></script>
+<script defer src="js/motion.js?v=151"></script>
+<script defer src="js/util.js?v=151"></script>
+<script defer src="js/levels.js?v=151"></script>
 <!-- js/words.js здесь НЕТ намеренно. Это 326 КБ сжатыми, а на экране
      входа словарь не нужен вообще: он нужен только внутри панели, чтобы
      собрать домашку. Подгружается в openPanel через ensureWords(). -->
-<script defer src="js/images.js?v=147"></script>
-<script defer src="js/word-photos.js?v=147"></script>
-<script defer src="js/tutor.js?v=147"></script>
-<script defer src="js/tutor-photos.js?v=147"></script>
-<script defer src="js/tutor-auth.js?v=147"></script>
-<script defer src="js/tutor-verify.js?v=147"></script>
+<script defer src="js/images.js?v=151"></script>
+<script defer src="js/word-photos.js?v=151"></script>
+<script defer src="js/tutor.js?v=151"></script>
+<script defer src="js/tutor-photos.js?v=151"></script>
+<script defer src="js/tutor-auth.js?v=151"></script>
+<script defer src="js/tutor-verify.js?v=151"></script>
 </body>
 </html>
