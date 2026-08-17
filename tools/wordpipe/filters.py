@@ -23,6 +23,22 @@ vodka whiskey booze brothel casino
 nazi jihad
 """.split())
 
+# Дополнено 17.08.2026 после жалобы тестировщицы: в базе оказалось 82 таких
+# слова — они пришли не через этот фильтр (импорт FreeDict/merge шёл мимо).
+# Список здесь, чтобы при пересборке они не вернулись. Отдельно перечислены
+# оскорбления и «взрослая» лексика: не мат, но детскому сайту ни к чему.
+HEADWORD_BLOCK |= set("""
+ho fucked bullshit horny pissed damned cunt goddamn blowjob tit titty dildo dickhead
+fucker motherfucker prick pimp pimping shithead shits shitty shitting shithole shitload
+wanker wank crappy arsehole poo turd skank twat bugger bitchy douche douchebag slutty
+bollocks dipshit badass hussy fricking cocksucker dumbass balls semen sperm stoned booby
+crabs poop
+nigga nigger negro fag faggot retard retarded spaz cretin imbecile git twerp bozo
+pervert molest
+anal anus vaginal vibrator stripper topless erection intercourse sexuality homosexual
+homosexuality bisexual heterosexual transsexual transgender queer
+""".split())
+
 # --- отбраковка ПРИМЕРОВ -------------------------------------------------
 # Аудитория — школьники, часть младше 12. Список широкий намеренно: слово может
 # быть нужным (war, free, drug), а вот предложение про него Tatoeba выдаст
