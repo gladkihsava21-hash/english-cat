@@ -1634,8 +1634,9 @@ async function sendToSavely(text) {
         // sync.js подключается ниже app.js, но сообщение уходит по клику —
         // к этому моменту функция уже определена
         token: typeof studentToken === "function" ? studentToken() : null,
+        // Имени здесь нет намеренно: сервер пересылает профиль провайдеру
+        // ИИ, а политика обещает, что имя ученика туда не уходит.
         profile: {
-          name: state.user.name,
           level: state.level,
           levelName: LEVEL_NAMES[state.level],
           vocab: state.vocabEstimate,
