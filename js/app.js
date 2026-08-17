@@ -79,6 +79,19 @@ function dayKey(dt = new Date()) {
   return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
 }
 
+/** Снять очки за прокликанный подход (см. exFinish в exercises.js).
+ *  Снимаем ровно столько, сколько подход дал: в минус ни день, ни счёт
+ *  не уходят. */
+function revokeXP(n) {
+  n = Math.max(0, Math.round(n));
+  if (!n) return;
+  state.xp = Math.max(0, (state.xp || 0) - n);
+  const key = dayKey();
+  state.activity[key] = Math.max(0, (state.activity[key] || 0) - n);
+  saveState();
+  updateChrome();
+}
+
 function addXP(n) {
   n = Math.max(0, Math.round(n));
   if (!n) return;

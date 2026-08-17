@@ -102,7 +102,8 @@ function mergeTaskResults(theirs) {
     if (!r || !r.total) return;
     const cur = mine[id];
     const take = !cur
-      || (r.total === cur.total && (r.correct || 0) > (cur.correct || 0))
+      || (r.total === cur.total && ((r.correct || 0) > (cur.correct || 0)
+          || ((r.correct || 0) === (cur.correct || 0) && cur.rushed && !r.rushed)))
       || (r.total !== cur.total && String(r.at || "") > String(cur.at || ""));
     if (take) { mine[id] = r; changed = true; }
   });
@@ -362,7 +363,10 @@ function homeworkIsDone(task) {
     const p = homeworkProgress(task);
     return p.total > 0 && p.done >= p.total;
   }
-  if (kind === "task") return !!homeworkResult(task);
+  if (kind === "task") {
+    const r = homeworkResult(task);
+    return !!r && !r.rushed;   // прокликанный подход домашку не закрывает
+  }
   return false;
 }
 
@@ -411,12 +415,14 @@ function renderHomework() {
       btn = "Сделать домашку";
     } else if (kind === "task") {
       pct = result && result.total ? Math.round((result.correct / result.total) * 100) : 0;
-      finished = !!result;
-      sub = result
-        ? `Сделано: ${result.correct} из ${result.total}${result.tries > 1 ? ` · попыток: ${result.tries}` : ""}${
-            result.correct === result.total ? " — всё верно, мяу! 🎉" : " — можно улучшить"}`
-        : "Ещё не сделано";   // без рода: ученица читает это так же часто, как ученик
-      btn = result ? "Пройти ещё раз" : "Открыть задание";
+      finished = !!result && !result.rushed;
+      sub = !result
+        ? "Ещё не сделано"   // без рода: ученица читает это так же часто, как ученик
+        : result.rushed
+          ? `Прокликано (${result.correct} из ${result.total}) — не засчитано. Пройди спокойно, читая вопросы: репетитор видит и время, и попытки.`
+          : `Сделано: ${result.correct} из ${result.total}${result.tries > 1 ? ` · попыток: ${result.tries}` : ""}${
+              result.correct === result.total ? " — всё верно, мяу! 🎉" : " — можно улучшить"}`;
+      btn = !result ? "Открыть задание" : result.rushed ? "Пройти по-честному" : "Пройти ещё раз";
     } else {
       sub = task.readingText && !task.taskText
         ? "Прочитай текст вслух — результат уйдёт репетитору."

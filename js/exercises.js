@@ -32,6 +32,50 @@ function award(n) {
   addXP(n);
 }
 
+/* ===== Защита от прокликивания =====
+ *
+ * Домашку и очки нельзя «набить», не читая: репетитор платит за цифру
+ * в панели, и она должна означать работу, а не скорость пальца.
+ *
+ * Две вещи. Первая — ПАУЗА НА ЧТЕНИЕ: варианты ответа появляются не
+ * сразу, а через время, которого хватает прочитать вопрос (длиннее
+ * вопрос — дольше, от 0,6 до 2,2 с; на слух — 1,5 с). Пока пауза идёт,
+ * варианты бледные и не нажимаются. Это не наказание, а как в Kahoot:
+ * сначала читаешь, потом выбираешь. Вторая — УЧЁТ ВРЕМЕНИ: если весь
+ * подход отвечали в среднем меньше чем через 0,4 с после того, как
+ * варианты открылись, подход считается прокликанным (rushed): очки за
+ * него снимаются, награды не идут, а результат по домашке уходит
+ * репетитору с пометкой ⚡ — и не считается сданным.
+ *
+ * Скорость чтения у детей разная, поэтому порог низкий: 0,4 с сверх
+ * паузы — это «нажал, как только стало можно», а не «быстро прочитал». */
+const RUSH_EXTRA_MS = 400;
+const RUSH_MIN_ANSWERS = 4;
+let exRound = { answered: 0, thinkMs: 0, gateMs: 0, startedAt: 0 };
+
+function exRoundReset() {
+  exRound = { answered: 0, thinkMs: 0, gateMs: 0, startedAt: Date.now() };
+}
+
+/** Сколько ждать перед тем, как открыть варианты, по длине текста. */
+function readGateMs(text, audio) {
+  if (audio) return 1500;
+  const chars = String(text || "").replace(/\s+/g, " ").trim().length;
+  return Math.max(600, Math.min(2200, 500 + chars * 25));
+}
+
+/** Ответ засчитан в статистику подхода: сколько думали сверх паузы. */
+function exRoundAnswer(thinkMs, gateMs) {
+  exRound.answered++;
+  exRound.thinkMs += Math.max(0, thinkMs);
+  exRound.gateMs += gateMs || 0;
+}
+
+function exRoundRushed() {
+  return exRound.answered >= RUSH_MIN_ANSWERS
+      && exRound.thinkMs / exRound.answered < RUSH_EXTRA_MS;
+}
+
 document.getElementById("flash-audio").addEventListener("click", e => {
   e.stopPropagation();
   speak(document.getElementById("flash-word").textContent);
@@ -173,7 +217,10 @@ function distractors(word, n, field) {
  *  терялись именно они. */
 let exMissed = [];
 
-function statUpdate(w, ok) {
+/** verified=false — ответ верный, но не доказывает знания (пару нашли
+ *  перебором после промахов): в knew идёт, в checked — нет, то есть
+ *  домашку такое слово не закрывает. */
+function statUpdate(w, ok, verified = true) {
   const d = state.dictionary.find(x => x.w.toLowerCase() === String(w).toLowerCase());
   if (!d) {
     // Слова нет в словаре. Ошибку запоминаем — предложим добавить.
@@ -184,7 +231,7 @@ function statUpdate(w, ok) {
     }
     return;
   }
-  srsReview(d, ok);       // интервал следующего показа считает SRS
+  srsReview(d, ok, !verified);   // интервал следующего показа считает SRS
   saveState();
   updateChrome();
 }
@@ -274,18 +321,29 @@ let homeworkContext = null;
 /** Набор из конструктора, который сейчас проходится (task.taskset). */
 let customTaskset = null;
 
-function recordTaskResult(correct, total) {
+function recordTaskResult(correct, total, meta = {}) {
   if (!homeworkContext || !total) return;
   const id = String(homeworkContext.id);
   state.taskResults = state.taskResults || {};
   const prev = state.taskResults[id];
+  const same = prev && prev.total === total;
   // Лучший результат не понижаем — как очки и рекорд блица: второй
   // подход хуже первого не должен стирать «8 из 10» у репетитора.
   // Сменился размер набора — считаем заново: сравнивать 8/10 с 5/6 нечестно.
-  const best = prev && prev.total === total ? Math.max(prev.correct || 0, correct) : correct;
+  // Прокликанный подход лучший не улучшает: пометка ⚡ и время идут
+  // с той попыткой, которая дала лучший результат по-честному.
+  const beats = !same || correct > (prev.correct || 0)
+             || (correct === (prev.correct || 0) && prev.rushed && !meta.rushed);
+  const rec = beats
+    ? { correct, rushed: !!meta.rushed, secs: Math.round(meta.secs || 0) }
+    : { correct: prev.correct, rushed: !!prev.rushed, secs: prev.secs || 0 };
   state.taskResults[id] = {
-    correct: best, total, at: new Date().toISOString(),
-    tries: (prev && prev.tries ? prev.tries : 0) + 1,
+    correct: rec.correct, total, rushed: rec.rushed, secs: rec.secs,
+    at: new Date().toISOString(),
+    // Первая попытка — как есть, навсегда: репетитор видит и «с первого
+    // раза», и «лучший», и сколько было попыток.
+    first: same && prev.first !== undefined ? prev.first : correct,
+    tries: (same && prev.tries ? prev.tries : 0) + 1,
   };
   saveState();   // уедет на сервер с ближайшей синхронизацией
   if (typeof renderHomework === "function") renderHomework();
@@ -498,6 +556,7 @@ function openExercise(id) {
   }
 
   exMissed = [];   // копилка ошибок — своя на каждый подход
+  exRoundReset();  // время и ответы — тоже на подход
   EX_RUNNERS[id]();
 }
 
@@ -505,9 +564,16 @@ function stage() { return document.getElementById("ex-stage"); }
 
 function exFinish(correct, total, note = "") {
   const pct = total ? correct / total : 0;
+  // Прокликанный подход (см. «Защита от прокликивания»): очки снимаем,
+  // наград не даём, результат по домашке уходит с пометкой.
+  const rushed = total > 0 && exRoundRushed();
+  const secs = (Date.now() - (exRound.startedAt || Date.now())) / 1000;
+  if (rushed && exSessionXP && typeof revokeXP === "function") {
+    revokeXP(exSessionXP);
+  }
   // подход без единого вопроса не тренировка: иначе счётчик наград
   // накручивался бы простым переоткрытием упражнения
-  if (total > 0 && typeof bump === "function") {
+  if (total > 0 && !rushed && typeof bump === "function") {
     bump("exercises");
     if (correct === total) bump("perfect");
   }
@@ -521,14 +587,21 @@ function exFinish(correct, total, note = "") {
   // Подход из домашки — результат уходит репетитору. Говорим это прямо:
   // ученик должен знать, что его увидят, — и что можно перепройти.
   const fromHomework = !!(homeworkContext && total > 0);
-  if (fromHomework) recordTaskResult(correct, total);
+  if (fromHomework) recordTaskResult(correct, total, { rushed, secs });
+  const perAnswer = exRound.answered ? (exRound.thinkMs / exRound.answered / 1000) : 0;
   stage().innerHTML = `
     <div class="empty-state">
-      <div class="cat-avatar cat-mid" data-cat="${pose}"></div>
-      <h2>Готово!</h2>
-      <p>Верно ${correct} из ${total}. ${mood}</p>
-      ${exSessionXP ? `<p class="xp-earned">+${exSessionXP} ${iconInline("star", 16)}</p>` : ""}
-      ${fromHomework ? `<p class="muted-small">${iconInline("personal", 15)} Результат по домашке «${
+      <div class="cat-avatar cat-mid" data-cat="${rushed ? "oops" : pose}"></div>
+      <h2>${rushed ? "Слишком быстро" : "Готово!"}</h2>
+      <p>Верно ${correct} из ${total}. ${rushed ? "" : mood}</p>
+      ${rushed ? `<p class="rushed-note">${iconInline("blitz", 16)} Ответы шли ${
+          perAnswer < 0.5 ? "почти сразу" : `в среднем через ${perAnswer.toFixed(1)} с`
+        } после того, как варианты открылись, — так не читают.
+          Очки за этот подход не начисляются${fromHomework
+            ? ", а репетитор увидит его как прокликанный. Пройди ещё раз спокойно — засчитается честный результат."
+            : ". Пройди ещё раз, читая вопросы."}</p>`
+        : exSessionXP ? `<p class="xp-earned">+${exSessionXP} ${iconInline("star", 16)}</p>` : ""}
+      ${fromHomework && !rushed ? `<p class="muted-small">${iconInline("personal", 15)} Результат по домашке «${
         esc(homeworkContext.title || "")}» записан — репетитор его увидит. Можно пройти ещё раз, засчитается лучший.</p>` : ""}
       ${note ? `<p class="muted-small">${note}</p>` : ""}
       ${exMissed.length ? `
@@ -597,13 +670,28 @@ function runMCQ(rounds, opts = {}) {
     }
     const box = document.getElementById("mcq-options");
     let answered = false;
+    // Пауза на чтение (см. «Защита от прокликивания» вверху файла).
+    // Момент открытия берём ФАКТИЧЕСКИЙ — когда таймер снял блокировку,
+    // а не расчётный: на медленном телефоне или в фоновой вкладке таймер
+    // опаздывает, и считать «время на раздумье» от расчётного момента
+    // значило бы прощать прокликивание там, где нажать раньше было нельзя.
+    const gateMs = readGateMs((r.prompt || r.promptHTML || "") + " " + (r.sub || ""), !!r.audioText);
+    let openedAt = null;
+    box.classList.add("mcq-wait");
+    setTimeout(() => {
+      if (!box.isConnected) return;
+      box.classList.remove("mcq-wait");
+      openedAt = performance.now();
+    }, gateMs);
     r.options.forEach((opt, oi) => {
       const b = document.createElement("button");
       b.className = "mcq-option";
       b.textContent = opt;
       b.addEventListener("click", () => {
         if (answered) return;
+        if (openedAt === null) return;   // варианты ещё не открылись
         answered = true;
+        exRoundAnswer(performance.now() - openedAt, gateMs);
         const ok = oi === r.correct;
         if (ok) { score++; award(10); }
         if (r.statWord) statUpdate(r.statWord, ok);
@@ -673,6 +761,10 @@ function runPairs(pairs, opts = {}) {
     </div>`;
   const colL = document.getElementById("pairs-l");
   const colR = document.getElementById("pairs-r");
+  // Промахи по каждому элементу слева: пара, найденная после промахов,
+  // засчитывается как «вспомнил», но не как проверенный ответ — иначе
+  // домашку из шести пар можно было бы «сдать» перебором за полминуты.
+  const misses = new Map();
   left.forEach(item => {
     const b = document.createElement("button");
     b.className = "pair-item";
@@ -693,7 +785,8 @@ function runPairs(pairs, opts = {}) {
       if (!selL || b.classList.contains("done")) return;
       const ok = item.i === selL.item.i;
       const word = pairs[selL.item.i].statWord;
-      if (word) statUpdate(word, ok);
+      if (!ok) misses.set(selL.item.i, (misses.get(selL.item.i) || 0) + 1);
+      if (word) statUpdate(word, ok, !misses.get(selL.item.i));
       if (ok) {
         matched++;
         award(8);
@@ -754,11 +847,13 @@ function runType(rounds, opts = {}) {
       });
     }
     let done = false;
+    const shownAt = performance.now();
     const check = () => {
       if (done) return;
       const val = input.value.trim();
       if (!val) return;
       done = true;
+      exRoundAnswer(performance.now() - shownAt, 0);
       const ok = r.check ? r.check(val) : normEn(val) === normEn(r.answer);
       if (ok) { score++; award(15); }
       if (r.statWord) statUpdate(r.statWord, ok);

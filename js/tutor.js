@@ -371,8 +371,8 @@ function lastSeenText(iso) {
 function hwChip(h) {
   if (h.kind === "task") {
     const r = h.result;
-    return `<span class="hw-chip ${r ? "hw-chip-done" : ""}">
-      ${iconInline("personal", 15)} ${esc(h.title)}: ${r ? `${r.correct}/${r.total}` : "—"}
+    return `<span class="hw-chip ${r && !r.rushed ? "hw-chip-done" : ""}" ${r && r.rushed ? 'title="прокликано — не засчитано"' : ""}>
+      ${iconInline("personal", 15)} ${esc(h.title)}: ${r ? `${r.correct}/${r.total}${r.rushed ? " ⚡" : ""}` : "—"}
     </span>`;
   }
   return `<span class="hw-chip ${h.done >= h.total ? "hw-chip-done" : ""}">
@@ -588,7 +588,7 @@ function printReport(s, grp) {
   const hw = s.homework || [];
   // Сдано: словарная — все слова; задание — есть результат; фото — не считаем
   const hwCounted = hw.filter(h => h.total || h.kind === "task");
-  const hwDone = hwCounted.filter(h => h.kind === "task" ? !!h.result : h.done >= h.total).length;
+  const hwDone = hwCounted.filter(h => h.kind === "task" ? !!(h.result && !h.result.rushed) : h.done >= h.total).length;
   const win = window.open("", "_blank", "width=760,height=900");
   if (!win) return;
   win.document.write(`<!DOCTYPE html><html lang="ru"><head><meta charset="utf-8">
@@ -721,8 +721,14 @@ function renderTasks() {
       const h = (s.homework || []).find(x => x.id === t.id);
       if (kind === "task") {
         const r = h && h.result;
-        return { name: s.name, ok: !!r,
-                 label: r ? `${r.correct}/${r.total}` : "—" };
+        // Прокликанный подход (⚡) сданным не считается: результат есть,
+        // но получен без чтения — см. «Защита от прокликивания» у ученика.
+        const detail = r && (r.tries > 1 || r.rushed)
+          ? ` · ${r.tries} ${plural(r.tries, "попытка", "попытки", "попыток")}${
+              r.first !== undefined && r.first !== null && r.tries > 1 ? `, первая ${r.first}/${r.total}` : ""}`
+          : "";
+        return { name: s.name, ok: !!r && !r.rushed, rushed: !!(r && r.rushed),
+                 label: r ? `${r.correct}/${r.total}${r.rushed ? " ⚡" : ""}${detail}` : "—" };
       }
       if (kind === "photo") return { name: s.name, ok: false, label: "фото" };
       const done = h ? h.done : 0, total = h ? h.total : t.words.length;
@@ -752,7 +758,8 @@ function renderTasks() {
             </span>`).join("")}
         </div>
         ${kind === "photo" ? `<p class="muted-small">Сдаётся ${t.hasReading && !t.hasText ? "записью чтения" : "фото тетради"} — смотрите на вкладке «Фото тетрадей».</p>` : ""}
-        ${kind === "task" && t.game === "custom" && t.tasksetId ? `<p class="muted-small">Набор из «Своих заданий». Ученик может проходить сколько угодно раз — засчитывается лучший результат.</p>` : ""}
+        ${kind === "task" && t.game === "custom" && t.tasksetId ? `<p class="muted-small">Набор из «Своих заданий». Ученик может проходить сколько угодно раз — засчитывается лучший честный результат.</p>` : ""}
+        ${rows.some(r => r.rushed) ? `<p class="muted-small">⚡ — прокликано: ответы шли быстрее, чем можно прочитать вопрос. Очки за такой подход не начислены, сданным он не считается.</p>` : ""}
         ${t.words.length ? `<div class="task-words">${t.words.slice(0, 12).map(w =>
           `<span class="task-word">${esc(w.w)}</span>`).join("")}${t.words.length > 12 ? " …" : ""}</div>` : ""}
         <button class="link-btn" data-arch="${t.id}">убрать из списка</button>

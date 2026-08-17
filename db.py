@@ -1096,17 +1096,27 @@ def clean_task_results(raw, prev):
             continue
         old = out.get(str(k)) or {}
         at = _txt(v.get("at"), 32) or now()
+        rushed = bool(v.get("rushed"))
+        secs = _as_int(v.get("secs"), 0, 0, 100000)
+        first = _as_int(v.get("first"), correct, 0, total)
         if old.get("total") == total:
-            best = max(correct, _as_int(old.get("correct"), 0, 0, 1000))
+            # Тот же набор: лучший результат, причём честный побеждает
+            # прокликанный при равном счёте; «с первого раза» — самое старое.
+            oc = _as_int(old.get("correct"), 0, 0, 1000)
+            if correct > oc or (correct == oc and old.get("rushed") and not rushed):
+                best, b_rushed, b_secs = correct, rushed, secs
+            else:
+                best, b_rushed, b_secs = oc, bool(old.get("rushed")), _as_int(old.get("secs"), 0, 0, 100000)
+            first = _as_int(old.get("first"), first, 0, total) if "first" in old else first
         elif old and str(old.get("at") or "") > at:
             # Размер набора другой И у сервера запись свежее — это устаревший
             # снимок с другого устройства (набор переделали, там ещё старый).
             # Иначе второе устройство ученика затирало бы новый результат старым.
             continue
         else:
-            best = correct
+            best, b_rushed, b_secs = correct, rushed, secs
         out[str(k)] = {
-            "correct": best, "total": total,
+            "correct": best, "total": total, "rushed": b_rushed, "secs": b_secs, "first": first,
             "at": max(at, str(old.get("at") or "")),
             "tries": max(_as_int(v.get("tries"), 1, 1, 100000), _as_int(old.get("tries"), 0, 0, 100000)),
         }
@@ -1295,7 +1305,9 @@ def student_public(row, homework=None, detail=False):
                 "total": len(words),
                 "done": done,
                 "result": ({"correct": res.get("correct", 0), "total": res.get("total", 0),
-                            "at": res.get("at"), "tries": res.get("tries", 1)} if res else None),
+                            "at": res.get("at"), "tries": res.get("tries", 1),
+                            "first": res.get("first"), "secs": res.get("secs", 0),
+                            "rushed": bool(res.get("rushed"))} if res else None),
                 "dueDate": hw["due_date"],
                 "createdAt": hw["created_at"],
             })

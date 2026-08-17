@@ -586,3 +586,12 @@ body {
   background: var(--accent-soft); color: var(--ink-soft); font-weight: 700; font-size: var(--text-caption);
   line-height: 1.5; border-radius: 12px; padding: 11px 14px; margin-bottom: 12px;
 }
+
+/* Защита от прокликивания: варианты открываются после паузы на чтение —
+   пока она идёт, они бледные и не нажимаются (см. runMCQ). Появление
+   плавное, чтобы читалось как «варианты появляются», а не «сломалось». */
+.mcq-option { transition: all .12s, opacity .35s ease; }
+.mcq-options.mcq-wait .mcq-option { opacity: .38; pointer-events: none; }
+.rushed-note {
+  color: var(--red); font-weight: 700; line-height: 1.5; max-width: 34em; margin: 4px auto 10px;
+}
