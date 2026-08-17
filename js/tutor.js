@@ -1230,8 +1230,10 @@ function fillGameSelect() {
 
   if (!grid) return;
   const hint = $("hw-game-hint");
+  // Подсказка — про ученика, а не «как было раньше»: репетитор не знает
+  // и не должен знать, как было раньше.
   const ALL = [{ id: "", name: "Ученик выберет сам", icon: "paw",
-                 note: "как было раньше: игру выбирает ученик" }].concat(HOMEWORK_GAMES);
+                 note: "слова попадут в словарь ученика, а игру он выберет сам в тренировках" }].concat(HOMEWORK_GAMES);
 
   const pick = id => {
     sel.value = id;
