@@ -32,7 +32,7 @@
   <meta name="twitter:card" content="summary_large_image">
   <link rel="preload" href="css/fonts/nunito-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="css/fonts/inter-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="css/fonts.css?v=156">
+  <link rel="stylesheet" href="css/fonts.css?v=157">
   <!-- Тему ставим ДО первой отрисовки, отдельным крошечным скриптом.
        Всё остальное грузится с defer, а defer выполняется после разбора
        страницы — то есть уже после того, как браузер её покажет. Если
@@ -48,13 +48,13 @@
       document.documentElement.dataset.theme = t;
     } catch (e) { /* приватный режим — просто останется дневная */ }
   </script>
-  <link rel="stylesheet" href="css/tokens.css?v=156">
-  <link rel="stylesheet" href="css/style.css?v=156">
-  <link rel="stylesheet" href="css/savely.css?v=156">
-  <link rel="stylesheet" href="css/tutor.css?v=156">
-<link rel="stylesheet" href="css/motion.css?v=156">
-<link rel="stylesheet" href="css/a11y.css?v=156">
-<link rel="stylesheet" href="css/cat.css?v=156">
+  <link rel="stylesheet" href="css/tokens.css?v=157">
+  <link rel="stylesheet" href="css/style.css?v=157">
+  <link rel="stylesheet" href="css/savely.css?v=157">
+  <link rel="stylesheet" href="css/tutor.css?v=157">
+<link rel="stylesheet" href="css/motion.css?v=157">
+<link rel="stylesheet" href="css/a11y.css?v=157">
+<link rel="stylesheet" href="css/cat.css?v=157">
 </head>
 <body>
 
@@ -175,6 +175,7 @@
         <button class="nav-btn active" aria-current="page" data-tab="students">Ученики <span id="stu-count" class="badge">0</span></button>
         <button class="nav-btn" data-tab="homework">Выдать домашку</button>
         <button class="nav-btn" data-tab="tasks">Домашки</button>
+        <button class="nav-btn" data-tab="tasksets">Свои задания</button>
         <button class="nav-btn" data-tab="photos">Фото тетрадей <span id="photo-count" class="badge">0</span></button>
         <button class="nav-btn" data-tab="checks">Проверка домашек</button>
         <button class="nav-btn" data-tab="lesson">Видеоурок</button>
@@ -279,6 +280,13 @@
               <option value="">Ученик выберет сам</option>
             </select>
             <span class="plan-hint" id="hw-game-hint"></span>
+            <!-- Появляется у плитки «Своё задание»: какой набор из
+                 конструктора выдать. Списка нет — ведём на вкладку. -->
+            <div class="hw-taskset-row hidden" id="hw-taskset-row">
+              <label for="hw-taskset" class="muted-small">Какой набор</label>
+              <select id="hw-taskset"></select>
+              <button type="button" class="link-btn" data-goto="tasksets">создать или изменить →</button>
+            </div>
           </div>
         </div>
 
@@ -302,6 +310,31 @@
         <div class="hw-selected" id="hw-selected"></div>
         <button class="btn btn-primary btn-wide" id="hw-send">Выдать домашку</button>
         <p class="type-feedback" id="hw-msg"></p>
+      </div>
+    </section>
+
+    <!-- СВОИ ЗАДАНИЯ — конструктор.
+         Три вида (викторина, «впиши слово», «соедини пары»), потому что
+         репетитору английского для своих упражнений нужны ровно они, а
+         ученик проходит их теми же блоками, что и встроенные упражнения.
+         Набор живёт отдельно от домашки и выдаётся ей сколько угодно раз. -->
+    <section id="tab-tasksets" class="hidden">
+      <div class="section-head">
+        <h2>Свои задания</h2>
+        <button class="btn btn-primary btn-small" id="ts-new">+ Новый набор</button>
+      </div>
+      <p class="section-note">Викторина с вариантами, «впиши слово» с пропуском, «соедини пары» —
+        свои вопросы, свои ответы, свои разборы ошибок. Набор выдаётся как домашка:
+        «Выдать домашку» → плитка «Своё задание». Ученик проходит его на сайте,
+        а вы видите результат — на вкладке «Домашки» и в карточке ученика.</p>
+      <div id="ts-editor" class="card ts-editor hidden"></div>
+      <div id="ts-list"></div>
+      <div id="ts-empty" class="empty-state hidden">
+        <div class="cat-avatar cat-mid" data-cat="hello"></div>
+        <h3>Наборов пока нет</h3>
+        <p>Соберите первый: пять вопросов на Present Perfect или пары «слово — определение»
+          к теме урока. Пять минут — и это можно выдавать любому ученику сколько угодно раз.</p>
+        <button class="btn btn-primary" id="ts-new-empty">Собрать первый набор</button>
       </div>
     </section>
 
@@ -558,20 +591,21 @@
     <a href="https://t.me/KOTSAVELII" target="_blank" rel="noopener">@KOTSAVELII</a></p>
 </footer>
 
-<script defer src="js/theme.js?v=156"></script>
-<script defer src="js/icons.js?v=156"></script>
-<script defer src="js/cat.js?v=156"></script>
-<script defer src="js/motion.js?v=156"></script>
-<script defer src="js/util.js?v=156"></script>
-<script defer src="js/levels.js?v=156"></script>
+<script defer src="js/theme.js?v=157"></script>
+<script defer src="js/icons.js?v=157"></script>
+<script defer src="js/cat.js?v=157"></script>
+<script defer src="js/motion.js?v=157"></script>
+<script defer src="js/util.js?v=157"></script>
+<script defer src="js/levels.js?v=157"></script>
 <!-- js/words.js здесь НЕТ намеренно. Это 326 КБ сжатыми, а на экране
      входа словарь не нужен вообще: он нужен только внутри панели, чтобы
      собрать домашку. Подгружается в openPanel через ensureWords(). -->
-<script defer src="js/images.js?v=156"></script>
-<script defer src="js/word-photos.js?v=156"></script>
-<script defer src="js/tutor.js?v=156"></script>
-<script defer src="js/tutor-photos.js?v=156"></script>
-<script defer src="js/tutor-auth.js?v=156"></script>
-<script defer src="js/tutor-verify.js?v=156"></script>
+<script defer src="js/images.js?v=157"></script>
+<script defer src="js/word-photos.js?v=157"></script>
+<script defer src="js/tutor.js?v=157"></script>
+<script defer src="js/tutor-tasks.js?v=157"></script>
+<script defer src="js/tutor-photos.js?v=157"></script>
+<script defer src="js/tutor-auth.js?v=157"></script>
+<script defer src="js/tutor-verify.js?v=157"></script>
 </body>
 </html>

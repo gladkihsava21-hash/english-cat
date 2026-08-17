@@ -44,6 +44,11 @@ function loadState() {
   // Лежит в состоянии, а не в переменной модуля: выбор должен пережить
   // перезагрузку страницы и переезд на другое устройство.
   st.trainFolders = st.trainFolders || [];
+  // Результаты заданий-упражнений по домашкам: { "<homeworkId>":
+  // { correct, total, at, tries } }. Для домашек без слов (викторина
+  // репетитора, грамматика, словообразование) это единственный способ
+  // показать репетитору «сдал 8/10» — по словарю там считать нечего.
+  st.taskResults = st.taskResults || {};
   // словам из старых версий добавляем поля интервального повторения
   if (typeof srsInit === "function") st.dictionary.forEach(srsInit);
   return st;
@@ -145,6 +150,9 @@ function show(screen) {
   if (screen !== "exercise" && screen !== "trainer" && typeof homeworkScope !== "undefined") {
     homeworkScope = null;
   }
+  // И контекст домашки-упражнения: результат следующего подхода не должен
+  // записаться в задание, из которого ученик уже вышел.
+  if (screen !== "exercise" && typeof homeworkContext !== "undefined") homeworkContext = null;
   if ("speechSynthesis" in window) speechSynthesis.cancel();
   if (screen !== "chat" && typeof deactivateVoice === "function") deactivateVoice();
   if (screen === "test") resetTestScreen();
@@ -662,12 +670,29 @@ function todayPlan() {
   const got = todayXP();
 
   // 1. Домашка. У неё есть срок и её ждёт живой человек — она важнее всего.
+  // Словарная — пока не выучены все слова; задание-упражнение (свой набор
+  // репетитора, грамматика, словообразование) — пока нет ни одного подхода.
   const hw = (state.homework || []).find(t => {
-    if (typeof homeworkProgress !== "function" || !t.words) return false;
-    const p = homeworkProgress(t);
-    return p.total && p.done < p.total;
+    if (typeof homeworkKind !== "function") return false;
+    const kind = homeworkKind(t);
+    if (kind === "words") {
+      const p = homeworkProgress(t);
+      return p.total && p.done < p.total;
+    }
+    return kind === "task" && !homeworkIsDone(t);
   });
   if (hw) {
+    const kind = homeworkKind(hw);
+    if (kind === "task") {
+      return {
+        state: "homework", cat: "hello", kicker: `${iconInline("personal", 16)} Задание от репетитора`,
+        title: hw.title,
+        sub: `${typeof taskKindLabel === "function" ? taskKindLabel(hw) : "Задание"}. Результат увидит репетитор.`,
+        btn: "Открыть задание",
+        act: () => startHomeworkLesson(hw),
+        alt: { label: "другое занятие", nav: "practice" },
+      };
+    }
     const p = homeworkProgress(hw);
     const left = p.total - p.done;
     return {
@@ -793,6 +818,21 @@ document.addEventListener("click", e => {
 /** То же самое для домашки: слова задания уезжают в словарь, и ученик
  *  сразу оказывается в карточках, а не в списке из двадцати тренировок. */
 function startHomeworkLesson(task) {
+  const kind = typeof homeworkKind === "function" ? homeworkKind(task) : "words";
+  // Задание-упражнение без слов: свой набор репетитора или встроенные
+  // грамматика/словообразование. Словарь тут ни при чём — только контекст
+  // домашки, чтобы результат подхода записался и уехал репетитору.
+  if (kind === "task") {
+    if (task.taskset && typeof openCustomTask === "function") { openCustomTask(task); return; }
+    homeworkContext = { id: task.id, title: task.title };
+    homeworkScope = null;
+    if (typeof openExercise === "function") {
+      openExercise(task.game === "wordform" ? "wordform" : "grammar");
+    }
+    return;
+  }
+  if (kind === "photo") { show("dashboard"); return; }   // сдаётся фото или чтением, открывать нечего
+
   (task.words || []).forEach(w => addToDictionary({
     w: w.w, t: w.t, ex: w.ex || "", level: w.level || state.level,
   }));

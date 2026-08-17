@@ -82,7 +82,32 @@ async function restoreByCode(code) {
   localStorage.removeItem(PENDING_JOIN_KEY);
   state.user = state.user || { name: res.state.name || "Ученик", email: "" };
   adoptServerState(res.state);
+  // Сразу синхронизируемся: домашка, сообщения и урок приходят только
+  // ответом на sync, а следующий sync случился бы лишь после первого
+  // изменения состояния. Ученик на новом устройстве иначе видел бы
+  // главную без домашки, пока что-нибудь не нажмёт.
+  pushProgress();
   return res;
+}
+
+/** Слить результаты заданий с сервера в местные. Правило одно и то же
+ *  здесь и в db.clean_task_results: при том же размере набора — лучший;
+ *  при другом — тот, что свежее по времени (набор переделали, и старый
+ *  результат от другого устройства не должен побеждать). */
+function mergeTaskResults(theirs) {
+  if (!theirs || typeof theirs !== "object") return;
+  const mine = state.taskResults || {};
+  let changed = false;
+  Object.entries(theirs).forEach(([id, r]) => {
+    if (!r || !r.total) return;
+    const cur = mine[id];
+    const take = !cur
+      || (r.total === cur.total && (r.correct || 0) > (cur.correct || 0))
+      || (r.total !== cur.total && String(r.at || "") > String(cur.at || ""));
+    if (take) { mine[id] = r; changed = true; }
+  });
+  state.taskResults = mine;
+  if (changed) { saveStateQuiet(); if (typeof renderHomework === "function") renderHomework(); }
 }
 
 /** Переносит прогресс с сервера в текущий браузер. */
@@ -107,6 +132,8 @@ function adoptServerState(srv) {
   if (!(state.trainFolders || []).length && (srv.trainFolders || []).length) {
     state.trainFolders = srv.trainFolders;
   }
+  // Результаты заданий по домашкам — тем же правилом, что при синхронизации
+  mergeTaskResults(srv.taskResults);
   // слова с сервера дополняем локальными, не теряя ни те, ни другие
   const byWord = new Map((srv.dictionary || []).map(d => [d.w.toLowerCase(), d]));
   (state.dictionary || []).forEach(d => byWord.set(d.w.toLowerCase(), d));
@@ -187,6 +214,9 @@ function snapshot() {
     folders: state.folders || [],
     trainFolders: state.trainFolders || [],
     homeworkDone: state.homeworkDone || [],
+    // Результаты заданий-упражнений по домашкам — репетитор видит их
+    // в панели; без этой строки они жили бы только в браузере ученика.
+    taskResults: state.taskResults || {},
     activity: state.activity,
   };
 }
@@ -204,6 +234,12 @@ async function pushProgress() {
     // говорит, что умеет, и не ходит на сервер за отказом (см. aiKnownOff
     // в app.js). Не булево — значит сервер старый, чат решит сам.
     if (res.ok && typeof res.ai === "boolean") window.SAVELY_AI = res.ai;
+    // Результаты заданий, слитые сервером: если на другом устройстве
+    // результат лучше (или набор уже переделан) — забираем его. Свой
+    // худший при том же размере набора не откатываем.
+    if (res.ok && res.taskResults && typeof res.taskResults === "object") {
+      mergeTaskResults(res.taskResults);
+    }
     if (res.ok && Array.isArray(res.homework)) applyHomework(res.homework);
     if (res.ok && res.lesson) applyLesson(res.lesson);
     if (res.ok && Array.isArray(res.messages)) {
@@ -260,11 +296,11 @@ function applyHomework(tasks) {
   state.homework = homeworkTasks;
 
   // домашка считается сданной один раз — когда все её слова выучены
+  // (словарная) или есть результат подхода (задание-упражнение)
   let newlyDone = 0;
   homeworkTasks.forEach(task => {
-    const { done, total } = homeworkProgress(task);
     const key = String(task.id);
-    if (total && done >= total && !wasDone.has(key)) {
+    if (homeworkIsDone(task) && !wasDone.has(key)) {
       wasDone.add(key);
       newlyDone++;
     }
@@ -300,10 +336,56 @@ function wordDoneForHomework(d) {
 function homeworkProgress(task) {
   const known = new Map(state.dictionary.map(d => [d.w.toLowerCase(), d]));
   let done = 0;
-  task.words.forEach(w => {
+  (task.words || []).forEach(w => {
     if (wordDoneForHomework(known.get(String(w.w).toLowerCase()))) done++;
   });
-  return { done, total: task.words.length };
+  return { done, total: (task.words || []).length };
+}
+
+/** Чем домашка сдаётся — то же деление, что у сервера (db.homework_kind):
+ *  words — по словарю; task — упражнением (свой набор репетитора,
+ *  грамматика, словообразование), результат в state.taskResults;
+ *  photo — фото тетради или чтением вслух. */
+function homeworkKind(task) {
+  if ((task.words || []).length) return "words";
+  if (task.taskset || ["grammar", "wordform", "custom"].includes(task.game)) return "task";
+  return "photo";
+}
+
+function homeworkResult(task) {
+  return (state.taskResults || {})[String(task.id)] || null;
+}
+
+function homeworkIsDone(task) {
+  const kind = homeworkKind(task);
+  if (kind === "words") {
+    const p = homeworkProgress(task);
+    return p.total > 0 && p.done >= p.total;
+  }
+  if (kind === "task") return !!homeworkResult(task);
+  return false;
+}
+
+/** Русские окончания: 1 вопрос, 2 вопроса, 5 вопросов. У ученика своей
+ *  такой функции не было (только wordsWord для слов) — заводим общую. */
+function pluralRu(n, one, few, many) {
+  const a = Math.abs(n) % 100, b = a % 10;
+  if (a > 10 && a < 20) return many;
+  if (b > 1 && b < 5) return few;
+  if (b === 1) return one;
+  return many;
+}
+
+/** Подпись к заданию-упражнению: что это и сколько. */
+function taskKindLabel(task) {
+  if (task.taskset) {
+    const n = task.taskset.count || (task.taskset.items || []).length;
+    const unit = task.taskset.kind === "pairs" ? ["пара", "пары", "пар"] : ["вопрос", "вопроса", "вопросов"];
+    return `${task.taskset.kindName || "Задание"} · ${n} ${pluralRu(n, unit[0], unit[1], unit[2])}`;
+  }
+  if (task.game === "wordform") return "Словообразование · 8 заданий формата ОГЭ";
+  if (task.game === "grammar") return "Грамматика · выбери тему, 8 вопросов с разбором";
+  return "Задание";
 }
 
 function renderHomework() {
@@ -316,9 +398,30 @@ function renderHomework() {
   }
   box.classList.remove("hidden");
   box.innerHTML = homeworkTasks.map(task => {
+    const kind = homeworkKind(task);
     const { done, total } = homeworkProgress(task);
-    const pct = total ? Math.round((done / total) * 100) : 0;
-    const finished = done >= total;
+    const result = kind === "task" ? homeworkResult(task) : null;
+    // Полоса и подпись под ней — по виду домашки. Раньше «0 из 0 слов
+    // выучено» стояло под любой домашкой, даже без слов.
+    let pct = 0, finished = false, sub = "", btn = "";
+    if (kind === "words") {
+      pct = total ? Math.round((done / total) * 100) : 0;
+      finished = total > 0 && done >= total;
+      sub = `${done} из ${total} слов выучено${finished ? " — готово, мяу! 🎉" : ""}`;
+      btn = "Сделать домашку";
+    } else if (kind === "task") {
+      pct = result && result.total ? Math.round((result.correct / result.total) * 100) : 0;
+      finished = !!result;
+      sub = result
+        ? `Сделано: ${result.correct} из ${result.total}${result.tries > 1 ? ` · попыток: ${result.tries}` : ""}${
+            result.correct === result.total ? " — всё верно, мяу! 🎉" : " — можно улучшить"}`
+        : "Ещё не сделано";   // без рода: ученица читает это так же часто, как ученик
+      btn = result ? "Пройти ещё раз" : "Открыть задание";
+    } else {
+      sub = task.readingText && !task.taskText
+        ? "Прочитай текст вслух — результат уйдёт репетитору."
+        : "Сделай задание в тетради и пришли фото — кнопка «Сфоткать домашку» ниже.";
+    }
     return `
       <div class="card hw-card${finished ? " hw-done" : ""}">
         <div class="hw-head">
@@ -326,6 +429,7 @@ function renderHomework() {
           ${task.dueDate ? `<span class="hw-due">до ${esc(task.dueDate)}</span>` : ""}
         </div>
         <p class="hw-title">${esc(task.title)}</p>
+        ${kind === "task" ? `<p class="hw-kind">${esc(taskKindLabel(task))}</p>` : ""}
         ${task.taskText ? `<p class="hw-task">${esc(task.taskText)}</p>` : ""}
         ${task.readingText ? `
           <div class="hw-reading">
@@ -334,9 +438,9 @@ function renderHomework() {
             <button class="btn btn-ghost btn-small" data-read="${task.id}">Начать чтение</button>
             <div class="rd-result" id="rd-res-${task.id}"></div>
           </div>` : ""}
-        <div class="xp-bar"><div class="xp-bar-fill" style="width:${pct}%"></div></div>
-        <p class="stat-note">${done} из ${total} слов выучено${finished ? " — готово, мяу! 🎉" : ""}</p>
-        <button class="btn btn-primary btn-small" data-hw="${task.id}">Сделать домашку</button>
+        ${kind !== "photo" ? `<div class="xp-bar"><div class="xp-bar-fill" style="width:${pct}%"></div></div>` : ""}
+        <p class="stat-note">${esc(sub)}</p>
+        ${btn ? `<button class="btn btn-primary btn-small" data-hw="${task.id}">${esc(btn)}</button>` : ""}
       </div>`;
   }).join("");
   box.querySelectorAll("[data-read]").forEach(btn => {
@@ -375,15 +479,12 @@ function renderHomework() {
     btn.addEventListener("click", () => {
       const task = homeworkTasks.find(t => String(t.id) === btn.dataset.hw);
       if (!task) return;
-      task.words.forEach(w => addToDictionary({
-        w: w.w, t: w.t, ex: w.ex || "", level: w.level || state.level,
-      }));
-      renderHomework();
-      // Сразу в упражнение с проверкой, а не в список из двадцати:
-      // домашку закрывают только проверенные ответы, и выбирать
-      // подходящий режим — не работа ученика.
-      if (typeof openExercise === "function") openExercise("spelling");
-      else show("practice");
+      // Одна точка входа для всех домашек — startHomeworkLesson в app.js:
+      // она уважает игру, которую выбрал репетитор, и вид задания. Раньше
+      // здесь стоял свой обработчик, открывавший «Ввод слова» всегда,
+      // и плитка «Кроссворд» в панели репетитора отсюда не работала.
+      if (typeof startHomeworkLesson === "function") startHomeworkLesson(task);
+      else if (typeof openExercise === "function") openExercise("spelling");
     });
   });
 }

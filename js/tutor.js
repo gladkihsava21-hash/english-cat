@@ -366,6 +366,20 @@ function lastSeenText(iso) {
   return { text: `${d} ${plural(d, "день", "дня", "дней")} назад`, cls: "bad" };
 }
 
+/** Чип домашки в карточке ученика: слова — «сдано n/m», задание —
+ *  результат подхода или «—», если ещё не открывал. */
+function hwChip(h) {
+  if (h.kind === "task") {
+    const r = h.result;
+    return `<span class="hw-chip ${r ? "hw-chip-done" : ""}">
+      ${iconInline("personal", 15)} ${esc(h.title)}: ${r ? `${r.correct}/${r.total}` : "—"}
+    </span>`;
+  }
+  return `<span class="hw-chip ${h.done >= h.total ? "hw-chip-done" : ""}">
+    ${iconInline("book", 15)} ${esc(h.title)}: ${h.done}/${h.total}
+  </span>`;
+}
+
 function renderStudents() {
   const list = $("students-list");
   $("students-empty").classList.toggle("hidden", students.length > 0);
@@ -373,7 +387,10 @@ function renderStudents() {
     const seen = lastSeenText(s.lastSeen);
     const w = s.words || {};
     const pct = w.total ? Math.round((w.learned / w.total) * 100) : 0;
-    const hw = (s.homework || []).filter(h => h.total);
+    // Словарные домашки — с прогрессом по словам; задания-упражнения —
+    // с результатом подхода. Фото-домашки в чипах не показываем: у них
+    // нет цифры, они смотрятся на вкладке «Фото тетрадей».
+    const hw = (s.homework || []).filter(h => h.total || h.kind === "task");
     return `
       <div class="card stu-card">
         <div class="stu-main">
@@ -408,10 +425,7 @@ function renderStudents() {
           </div>
         </div>
 
-        ${hw.length ? `<div class="stu-hw">${hw.map(h => `
-          <span class="hw-chip ${h.done >= h.total ? "hw-chip-done" : ""}">
-            ${iconInline("book", 15)} ${esc(h.title)}: ${h.done}/${h.total}
-          </span>`).join("")}</div>` : ""}
+        ${hw.length ? `<div class="stu-hw">${hw.map(h => hwChip(h)).join("")}</div>` : ""}
 
         ${s.weak && s.weak.length ? `
           <details class="stu-weak">
@@ -525,12 +539,9 @@ async function openStudent(id) {
     <p class="stat-label" style="margin-top:18px">Занятия за 4 недели</p>
     ${activityStrip(s.activity || {})}
 
-    ${s.homework && s.homework.length ? `
+    ${s.homework && s.homework.filter(h => h.total || h.kind === "task").length ? `
       <p class="stat-label" style="margin-top:18px">Домашки</p>
-      <div class="stu-hw">${s.homework.map(h => `
-        <span class="hw-chip ${h.done >= h.total ? "hw-chip-done" : ""}">
-          ${esc(h.title)}: ${h.done}/${h.total}${h.dueDate ? " · до " + esc(h.dueDate) : ""}
-        </span>`).join("")}</div>` : ""}
+      <div class="stu-hw">${s.homework.filter(h => h.total || h.kind === "task").map(h => hwChip(h)).join("")}</div>` : ""}
 
     ${s.weak && s.weak.length ? `
       <p class="stat-label" style="margin-top:18px">Проблемные слова</p>
@@ -575,7 +586,9 @@ function printReport(s, grp) {
   const w = s.words || {};
   const days = Object.keys(s.activity || {}).length;
   const hw = s.homework || [];
-  const hwDone = hw.filter(h => h.done >= h.total).length;
+  // Сдано: словарная — все слова; задание — есть результат; фото — не считаем
+  const hwCounted = hw.filter(h => h.total || h.kind === "task");
+  const hwDone = hwCounted.filter(h => h.kind === "task" ? !!h.result : h.done >= h.total).length;
   const win = window.open("", "_blank", "width=760,height=900");
   if (!win) return;
   win.document.write(`<!DOCTYPE html><html lang="ru"><head><meta charset="utf-8">
@@ -605,7 +618,7 @@ function printReport(s, grp) {
     <tr><td>Ждут повторения</td><td>${w.overdue || 0}</td></tr>
     <tr><td>Занятий за месяц</td><td>${days} ${plural(days, "день", "дня", "дней")}</td></tr>
     <tr><td>Занимается подряд</td><td>${s.streak || 0} ${plural(s.streak || 0, "день", "дня", "дней")}</td></tr>
-    <tr><td>Домашних заданий выполнено</td><td>${hwDone} из ${hw.length}</td></tr>
+    <tr><td>Домашних заданий выполнено</td><td>${hwDone} из ${hwCounted.length}</td></tr>
   </table>
 
   ${s.weak && s.weak.length ? `<div class="box">
@@ -701,33 +714,47 @@ function renderTasks() {
       const g = groupById(t.groupId);
       who = g ? g.name : "группе";
     }
+    // Чем сдаётся: словами (по словарю), упражнением (результат подхода)
+    // или фото/чтением (смотреть на вкладке «Фото тетрадей»).
+    const kind = t.kind || (t.words.length ? "words" : "photo");
     const rows = targets.map(s => {
       const h = (s.homework || []).find(x => x.id === t.id);
+      if (kind === "task") {
+        const r = h && h.result;
+        return { name: s.name, ok: !!r,
+                 label: r ? `${r.correct}/${r.total}` : "—" };
+      }
+      if (kind === "photo") return { name: s.name, ok: false, label: "фото" };
       const done = h ? h.done : 0, total = h ? h.total : t.words.length;
-      return { name: s.name, done, total, ok: total && done >= total };
+      return { name: s.name, done, total, ok: total && done >= total, label: `${done}/${total}` };
     });
     const ready = rows.filter(r => r.ok).length;
     const overdue = t.dueDate && new Date(t.dueDate) < new Date() && ready < rows.length;
+    const what = kind === "words" ? `${t.words.length} слов`
+      : kind === "task" ? (t.game === "custom" ? "своё задание" : t.game === "grammar" ? "грамматика" : "словообразование")
+      : (t.hasReading && !t.hasText ? "чтение вслух" : "по фото тетради");
     return `
       <div class="card task-card${overdue ? " task-overdue" : ""}">
         <div class="task-head">
           <div>
             <b class="task-title">${esc(t.title)}</b>
-            <p class="muted-small">${esc(who)} · ${t.words.length} слов${t.dueDate ? " · до " + esc(t.dueDate) : ""}</p>
+            <p class="muted-small">${esc(who)} · ${esc(what)}${t.dueDate ? " · до " + esc(t.dueDate) : ""}</p>
           </div>
-          <div class="task-stat">
+          ${kind === "photo" ? "" : `<div class="task-stat">
             <b>${ready} / ${rows.length}</b>
             <span class="muted-small">сдали</span>
-          </div>
+          </div>`}
         </div>
         <div class="task-rows">
           ${rows.map(r => `
             <span class="task-pupil ${r.ok ? "ok" : "no"}">
-              ${r.ok ? iconInline("check", 15) : iconInline("clock", 15)} ${esc(r.name)} <b>${r.done}/${r.total}</b>
+              ${r.ok ? iconInline("check", 15) : iconInline("clock", 15)} ${esc(r.name)} <b>${esc(r.label)}</b>
             </span>`).join("")}
         </div>
-        <div class="task-words">${t.words.slice(0, 12).map(w =>
-          `<span class="task-word">${esc(w.w)}</span>`).join("")}${t.words.length > 12 ? " …" : ""}</div>
+        ${kind === "photo" ? `<p class="muted-small">Сдаётся ${t.hasReading && !t.hasText ? "записью чтения" : "фото тетради"} — смотрите на вкладке «Фото тетрадей».</p>` : ""}
+        ${kind === "task" && t.game === "custom" && t.tasksetId ? `<p class="muted-small">Набор из «Своих заданий». Ученик может проходить сколько угодно раз — засчитывается лучший результат.</p>` : ""}
+        ${t.words.length ? `<div class="task-words">${t.words.slice(0, 12).map(w =>
+          `<span class="task-word">${esc(w.w)}</span>`).join("")}${t.words.length > 12 ? " …" : ""}</div>` : ""}
         <button class="link-btn" data-arch="${t.id}">убрать из списка</button>
       </div>`;
   }).join("");
@@ -885,21 +912,35 @@ $("hw-custom").addEventListener("submit", e => {
 
 $("hw-send").addEventListener("click", async () => {
   const msg = $("hw-msg");
-  if (!picked.length) {
+  const game = $("hw-game") ? $("hw-game").value : "";
+  const taskText = $("hw-task") ? $("hw-task").value.trim() : "";
+  const readingText = $("hw-reading") ? $("hw-reading").value.trim() : "";
+  const tasksetId = game === "custom" && $("hw-taskset") ? Number($("hw-taskset").value) || null : null;
+  // Домашка без слов имеет смысл, если есть чем её сдать: текст задания,
+  // чтение вслух, свой набор или встроенные упражнения со своими заданиями.
+  // Раньше слова требовались всегда — даже к грамматике, которая их не использует.
+  const exerciseOnly = game === "grammar" || game === "wordform" || game === "custom";
+  if (game === "custom" && !tasksetId) {
     msg.className = "type-feedback err";
-    msg.textContent = "Сначала выберите слова.";
+    msg.textContent = "Выберите набор — или соберите его на вкладке «Свои задания».";
+    return;
+  }
+  if (!picked.length && !taskText && !readingText && !exerciseOnly) {
+    msg.className = "type-feedback err";
+    msg.textContent = "Выберите слова, напишите задание текстом или выберите упражнение со своими заданиями.";
     return;
   }
   const target = $("hw-student").value;              // "" | "g<id>" | "<id>"
   const res = await api("/api/tutor/homework", {
     token: token(),
-    title: $("hw-title").value.trim() || "Слова на дом",
+    title: $("hw-title").value.trim() || (picked.length ? "Слова на дом" : ""),
     studentId: target && !target.startsWith("g") ? target : null,
     groupId: target.startsWith("g") ? target.slice(1) : null,
     dueDate: $("hw-due").value || null,
-    taskText: ($("hw-task") ? $("hw-task").value.trim() : ""),
-    readingText: ($("hw-reading") ? $("hw-reading").value.trim() : ""),
-    game: ($("hw-game") ? $("hw-game").value : ""),
+    taskText,
+    readingText,
+    game,
+    tasksetId,
     words: picked,
   });
   if (!res.ok) {
@@ -909,7 +950,13 @@ $("hw-send").addEventListener("click", async () => {
   }
   msg.className = "type-feedback ok";
   const who = $("hw-student").selectedOptions[0].textContent;
-  msg.textContent = `Готово! Домашка из ${picked.length} слов отправлена: ${who}.`;
+  const what = picked.length
+    ? `Домашка из ${picked.length} слов`
+    : game === "custom" ? "Своё задание"
+    : game === "grammar" ? "Грамматика"
+    : game === "wordform" ? "Словообразование"
+    : readingText && !taskText ? "Чтение вслух" : "Задание";
+  msg.textContent = `Готово! ${what} — отправлено: ${who}. Результат появится на вкладке «Домашки».`;
   picked = [];
   $("hw-title").value = "";
   renderWordPicker();
@@ -1211,6 +1258,10 @@ const HOMEWORK_GAMES = [
     note: "формат ОГЭ. Свои задания — слова домашки не используются" },
   { id: "grammar",    name: "Грамматика",       icon: "book",
     note: "10 тем на выбор. Свои задания — слова домашки не используются" },
+  // Набор из конструктора: свои вопросы, свои ответы. Слова домашки не
+  // используются — содержимое берётся из набора.
+  { id: "custom",     name: "Своё задание",     icon: "personal",
+    note: "викторина, «впиши слово» или пары из ваших вопросов — набор с вкладки «Свои задания»" },
 ];
 
 function fillGameSelect() {
@@ -1248,6 +1299,16 @@ function fillGameSelect() {
     });
     const g = ALL.find(x => x.id === id);
     if (hint) hint.textContent = g && g.note ? g.note : "";
+    // У плитки «Своё задание» появляется выбор набора; наборы подгружаем,
+    // если ещё не приезжали.
+    const row = $("hw-taskset-row");
+    if (row) {
+      row.classList.toggle("hidden", id !== "custom");
+      if (id === "custom" && typeof loadTasksets === "function") {
+        if (typeof tsLoaded !== "undefined" && tsLoaded) fillTasksetSelect();
+        else loadTasksets();
+      }
+    }
   };
 
   ALL.forEach(g => {

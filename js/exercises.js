@@ -256,9 +256,49 @@ const EXERCISES = [
     desc: "Поставь слово в нужную форму — как в ОГЭ" },
   { id: "grammar", group: "exam", icon: "book", name: "Грамматика",
     desc: "Времена, артикли, предлоги — с разбором" },
+  // Задание из конструктора репетитора. В общем списке не показывается
+  // (hidden): у него нет содержимого без конкретной домашки — вопросы
+  // приезжают вместе с ней (task.taskset) и открываются с её карточки.
+  { id: "custom", group: "exam", icon: "personal", name: "Задание репетитора",
+    desc: "Вопросы, которые составил ваш репетитор", hidden: true },
 ];
 
 let currentExId = null;
+
+/** Домашка, из которой открыто упражнение: { id, title }. Пока стоит,
+ *  результат подхода (exFinish) записывается в state.taskResults[id]
+ *  и уезжает репетитору. Снимается при уходе с экрана упражнения
+ *  (см. show() в app.js) — иначе следующий свободный подход записался
+ *  бы в чужую домашку. */
+let homeworkContext = null;
+/** Набор из конструктора, который сейчас проходится (task.taskset). */
+let customTaskset = null;
+
+function recordTaskResult(correct, total) {
+  if (!homeworkContext || !total) return;
+  const id = String(homeworkContext.id);
+  state.taskResults = state.taskResults || {};
+  const prev = state.taskResults[id];
+  // Лучший результат не понижаем — как очки и рекорд блица: второй
+  // подход хуже первого не должен стирать «8 из 10» у репетитора.
+  // Сменился размер набора — считаем заново: сравнивать 8/10 с 5/6 нечестно.
+  const best = prev && prev.total === total ? Math.max(prev.correct || 0, correct) : correct;
+  state.taskResults[id] = {
+    correct: best, total, at: new Date().toISOString(),
+    tries: (prev && prev.tries ? prev.tries : 0) + 1,
+  };
+  saveState();   // уедет на сервер с ближайшей синхронизацией
+  if (typeof renderHomework === "function") renderHomework();
+}
+
+/** Открыть задание из конструктора с карточки домашки. */
+function openCustomTask(task) {
+  if (!task || !task.taskset) return;
+  customTaskset = task.taskset;
+  homeworkContext = { id: task.id, title: task.title };
+  homeworkScope = null;
+  openExercise("custom");
+}
 
 /** Ряд «что тренируем»: весь словарь или выбранные папки.
  *  Стоит над списком упражнений, потому что отвечает на вопрос, который
@@ -314,7 +354,7 @@ function renderPracticeHub() {
         : `Словарь пуст — тренируем слова уровня ${state.level}`;
   host.innerHTML = "";
   EX_GROUPS.forEach(g => {
-    const list = EXERCISES.filter(ex => ex.group === g.id && !(ex.audio && !TTS_OK));
+    const list = EXERCISES.filter(ex => ex.group === g.id && !ex.hidden && !(ex.audio && !TTS_OK));
     // Без синтеза речи «на слух» исчезает целиком — заголовок над пустотой
     // хуже, чем отсутствие раздела.
     if (!list.length) return;
@@ -346,10 +386,15 @@ function openExercise(id) {
   show("exercise");
   const body = document.getElementById("exercise-body");
   const ex = EXERCISES.find(e => e.id === id);
+  // Своё задание репетитора: в заголовке — название набора, назад ведёт
+  // на главную (к карточке домашки), а не в список тренировок.
+  const isCustom = id === "custom" && customTaskset;
+  const title = isCustom ? customTaskset.title : ex.name;
   body.innerHTML = `
     <div class="ex-head">
-      <button class="btn btn-ghost btn-small" data-nav="practice">← Тренировки</button>
-      <h2><span class="ex-title-icon">${icon(ex.icon, 22)}</span> ${ex.name}</h2>
+      <button class="btn btn-ghost btn-small" data-nav="${isCustom ? "dashboard" : "practice"}">${
+        isCustom ? "← На главную" : "← Тренировки"}</button>
+      <h2><span class="ex-title-icon">${icon(ex.icon, 22)}</span> ${esc(title)}</h2>
     </div>
     <div id="ex-stage"></div>`;
 
@@ -359,7 +404,8 @@ function openExercise(id) {
   // а остальные девятнадцать рисовали пустой экран без объяснения.
   // Чинить это внутри каждого — двадцать одинаковых заплаток и двадцать
   // шансов забыть про новое упражнение.
-  if (!isTrainingWholeDict() && !trainingDictionary().length) {
+  // Заданию репетитора словарь не нужен вовсе: ни папки, ни слова.
+  if (!isCustom && !isTrainingWholeDict() && !trainingDictionary().length) {
     const names = trainingFolders();
     stage().innerHTML = `
       <div class="empty-state">
@@ -383,7 +429,7 @@ function openExercise(id) {
 
   // То же и со словарём: упражнению без него делать нечего, а на экране
   // приветствия он не грузится вовсе. Ждём и показываем, что ждём.
-  if (typeof WORDS === "undefined") {
+  if (typeof WORDS === "undefined" && !isCustom) {
     stage().innerHTML = `
       <div class="empty-state">
         <div class="cat-avatar cat-mid" data-cat="hello"></div>
@@ -472,12 +518,18 @@ function exFinish(correct, total, note = "") {
   // Поза кота под результат: без data-cat сюда падал системный эмодзи —
   // единственная во всём интерфейсе кошка чужого рисунка.
   const pose = pct === 1 ? "love" : pct >= 0.7 ? "happy" : pct >= 0.4 ? "hello" : "wink";
+  // Подход из домашки — результат уходит репетитору. Говорим это прямо:
+  // ученик должен знать, что его увидят, — и что можно перепройти.
+  const fromHomework = !!(homeworkContext && total > 0);
+  if (fromHomework) recordTaskResult(correct, total);
   stage().innerHTML = `
     <div class="empty-state">
       <div class="cat-avatar cat-mid" data-cat="${pose}"></div>
       <h2>Готово!</h2>
       <p>Верно ${correct} из ${total}. ${mood}</p>
       ${exSessionXP ? `<p class="xp-earned">+${exSessionXP} ${iconInline("star", 16)}</p>` : ""}
+      ${fromHomework ? `<p class="muted-small">${iconInline("personal", 15)} Результат по домашке «${
+        esc(homeworkContext.title || "")}» записан — репетитор его увидит. Можно пройти ещё раз, засчитается лучший.</p>` : ""}
       ${note ? `<p class="muted-small">${note}</p>` : ""}
       ${exMissed.length ? `
         <div class="card missed-card">
@@ -488,7 +540,9 @@ function exFinish(correct, total, note = "") {
           <p class="type-feedback" id="ex-take-msg" role="status" aria-live="polite"></p>
         </div>` : ""}
       <div class="quiz-buttons">
-        <button class="btn btn-ghost" data-nav="practice">К тренировкам</button>
+        ${fromHomework
+          ? `<button class="btn btn-ghost" data-nav="dashboard">На главную</button>`
+          : `<button class="btn btn-ghost" data-nav="practice">К тренировкам</button>`}
         <button class="btn btn-primary" id="ex-again">Ещё раз</button>
       </div>
     </div>`;
@@ -1524,6 +1578,77 @@ const EX_RUNNERS = {
       b.addEventListener("click", () => start(t.id));
       box.appendChild(b);
     });
+  },
+
+  /* =========================================================
+   * ЗАДАНИЕ РЕПЕТИТОРА — набор из конструктора (customTaskset).
+   *
+   * Три вида, и все они — общие блоки, которыми уже ходят
+   * встроенные упражнения: quiz → runMCQ, gap → runType, pairs →
+   * runPairs. Набор ничего не добавляет к механике, только кормит
+   * блоки своими данными.
+   *
+   * ВСЁ, что пришло из набора, — текст репетитора, и в разметку оно
+   * попадает только через esc() или textContent. Здесь уже был
+   * хранимый XSS через перевод слова, и репетитор точно так же может
+   * набрать <img onerror> в вопросе — по незнанию или нет.
+   * ========================================================= */
+  custom() {
+    const set = customTaskset;
+    if (!set || !Array.isArray(set.items) || !set.items.length) {
+      exFinish(0, 0, "В этом задании пока нет вопросов.");
+      return;
+    }
+    // Пропуск ___ показываем той же «ямкой», что в словообразовании
+    const gapHTML = q => `<span class="wf-sentence">${esc(q).replace(/_{3,}/,
+      '<span class="wf-gap">…</span>')}</span>`;
+
+    if (set.kind === "quiz") {
+      runMCQ(set.items.map(it => {
+        // Варианты перемешиваем при каждом показе: иначе ответ выучивается
+        // по месту, а не по смыслу. Правильный ищем по тексту.
+        const options = shuffled(it.options.slice());
+        return {
+          sub: set.title,
+          promptHTML: /_{3,}/.test(it.q) ? gapHTML(it.q) : `<span class="wf-sentence">${esc(it.q)}</span>`,
+          options,
+          correct: options.indexOf(it.options[it.correct]),
+          why: it.why || "",
+        };
+      }), { smallPrompt: true,
+            note: "Задание от репетитора. Ошибся — прочитай разбор, если он есть." });
+      return;
+    }
+
+    if (set.kind === "gap") {
+      runType(set.items.map(it => ({
+        sub: it.hint || set.title,
+        promptHTML: gapHTML(it.q),
+        answer: it.answer,
+        check: v => {
+          const got = String(v || "").trim().toLowerCase();
+          return got === it.answer.toLowerCase()
+              || (it.alt || []).some(x => x.toLowerCase() === got);
+        },
+        why: it.why || "",
+        placeholder: "ответ",
+      })), { note: "Задание от репетитора: впиши, что пропущено." });
+      return;
+    }
+
+    if (set.kind === "pairs") {
+      // Больше восьми пар на одном экране не разложить — берём восемь
+      // случайных, при повторе выпадут другие.
+      const items = shuffled(set.items.slice()).slice(0, 8);
+      runPairs(items.map(it => ({ l: it.l, r: it.r })), {
+        hint: "Нажми элемент слева, потом его пару справа",
+        note: set.items.length > 8
+          ? `В наборе ${set.items.length} пар — за подход показывается восемь, при повторе будут другие.`
+          : "",
+      });
+      return;
+    }
+    exFinish(0, 0, "Неизвестный вид задания.");
   },
 
   crossword() {

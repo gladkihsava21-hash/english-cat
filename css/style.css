@@ -257,6 +257,8 @@ body {
 .hw-label { font-weight: 800; font-size: var(--text-caption); color: var(--accent-dark); text-transform: uppercase; letter-spacing: .4px; }
 .hw-due { font-weight: 700; font-size: var(--text-caption); color: var(--muted); }
 .hw-title { font-weight: 900; font-size: var(--text-body-sm); margin: 6px 0 10px; }
+/* Вид задания под названием: «Викторина · 10 вопросов» */
+.hw-kind { color: var(--muted); font-weight: 700; font-size: var(--text-caption); margin: -6px 0 10px; }
 .hw-card .btn { margin-top: 12px; }
 /* ---------- образы слов ---------- */
 .word-art {

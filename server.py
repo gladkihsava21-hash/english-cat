@@ -35,7 +35,7 @@ import mailer
 # Теперь это видно одним curl /health: цифра совпала с ?v= на странице —
 # приложение перезапущено; не совпала или её нет вовсе — в памяти старый
 # код, надо нажать «Перезапустить приложение» в панели хостинга.
-ASSET_VERSION = 156
+ASSET_VERSION = 157
 
 PORT = int(os.environ.get("SAVELY_PORT", "4210"))
 # За nginx сервер слушает только localhost — снаружи он не должен быть виден
@@ -319,6 +319,7 @@ _HIT_LIMITS = {
     # «забыли пароль» становится способом завалить чужой ящик письмами;
     # второй заслон — RESET_RESEND, не чаще раза в минуту на кабинет.
     "/api/tutor/lesson/open": (30, 300),
+    "/api/tutor/taskset/save": (60, 600),
     "/api/tutor/reset/send": (5, 900),
     # Проверка кода: перебрать шесть цифр — миллион вариантов, но пробовать
     # их надо где-то, и здесь. Счётчик попыток на сам код тоже есть.
@@ -797,6 +798,11 @@ class Api:
                 "studentId": x["student_id"], "groupId": x["group_id"],
                 "words": json.loads(x["words"] or "[]"),
                 "dueDate": x["due_date"], "createdAt": x["created_at"],
+                "kind": db.homework_kind(x),
+                "game": (x["game"] if "game" in x.keys() else "") or "",
+                "tasksetId": x["taskset_id"] if "taskset_id" in x.keys() else None,
+                "hasText": bool((x["task_text"] if "task_text" in x.keys() else "") or ""),
+                "hasReading": bool((x["reading_text"] if "reading_text" in x.keys() else "") or ""),
             } for x in hw],
         }
 
@@ -890,9 +896,24 @@ class Api:
         has_reading = bool(str(p.get("readingText") or "").strip())
         if not isinstance(words, list):
             words = []
-        if not words and not has_task and not has_reading:
+        game = str(p.get("game") or "")[:32]
+        # Свой набор из конструктора. Принадлежность проверяем: id приходит
+        # из формы, и подставить чужой — дело одной правки в консоли.
+        taskset_id = None
+        taskset = None
+        if p.get("tasksetId"):
+            taskset = db.get_taskset(int(p.get("tasksetId")))
+            if not taskset or taskset["tutor_id"] != tutor["id"]:
+                return {"ok": False, "error": "Набор заданий не найден."}
+            taskset_id = taskset["id"]
+            game = "custom"
+        # Домашка без слов имеет смысл, если есть чем её сдать: текст задания
+        # (фото), чтение вслух, свой набор или встроенные упражнения со своими
+        # заданиями — грамматика и словообразование.
+        exercise_only = game in ("grammar", "wordform", "custom")
+        if not words and not has_task and not has_reading and not exercise_only:
             return {"ok": False,
-                    "error": "Добавьте слова, задание текстом или текст для чтения."}
+                    "error": "Добавьте слова, задание текстом, текст для чтения или выберите задание."}
         clean = []
         for w in words:
             if isinstance(w, dict) and w.get("w"):
@@ -902,11 +923,18 @@ class Api:
                     "ex": str(w.get("ex", ""))[:200],
                     "level": str(w.get("level", ""))[:4],
                 })
-        if not clean and not has_task and not has_reading:
+        if not clean and words and not has_task and not has_reading and not exercise_only:
             return {"ok": False, "error": "Слова не распознаны."}
         sid, gid = p.get("studentId"), p.get("groupId")
+        # Заголовок по умолчанию — по виду задания: пустое название на
+        # карточке ученика хуже любого общего слова.
+        title = str(p.get("title", "")).strip()
+        if not title:
+            title = (taskset["title"] if taskset
+                     else {"grammar": "Грамматика", "wordform": "Словообразование"}.get(game)
+                     or ("Чтение вслух" if has_reading and not has_task else "Домашка"))
         row = db.create_homework(
-            tutor["id"], str(p.get("title", "")), clean,
+            tutor["id"], title, clean,
             student_id=int(sid) if sid else None,
             group_id=int(gid) if gid else None,
             due_date=str(p.get("dueDate") or "") or None,
@@ -914,9 +942,38 @@ class Api:
             reading_text=p.get("readingText", ""),
             # Игра, которой ученик отрабатывает эти слова. Пустая строка —
             # прежнее поведение: ученик выбирает упражнение сам.
-            game=str(p.get("game") or "")[:32],
+            game=game,
+            taskset_id=taskset_id,
         )
         return {"ok": True, "id": row["id"]}
+
+    # --- свои задания (конструктор) ---
+
+    @staticmethod
+    def tutor_tasksets(h, p):
+        tutor, err = verified_tutor(p)
+        if err:
+            return err
+        return {"ok": True, "sets": [db.taskset_public(x) for x in db.list_tasksets(tutor["id"])]}
+
+    @staticmethod
+    def tutor_taskset_save(h, p):
+        tutor, err = verified_tutor(p)
+        if err:
+            return err
+        row, why = db.save_taskset(tutor["id"], p.get("id"), p.get("title"),
+                                   str(p.get("kind") or ""), p.get("items"))
+        if not row:
+            return {"ok": False, "error": why}
+        return {"ok": True, "set": db.taskset_public(row)}
+
+    @staticmethod
+    def tutor_taskset_delete(h, p):
+        tutor, err = verified_tutor(p)
+        if err:
+            return err
+        db.archive_taskset(tutor["id"], int(p.get("id") or 0))
+        return {"ok": True}
 
     @staticmethod
     def tutor_homework_archive(h, p):
@@ -1001,7 +1058,7 @@ class Api:
         tasks = []
         for x in hw:
             k = x.keys()
-            tasks.append({
+            task = {
                 "id": x["id"],
                 "title": x["title"],
                 "words": json.loads(x["words"] or "[]"),
@@ -1009,7 +1066,16 @@ class Api:
                 "taskText": x["task_text"] if "task_text" in k else "",
                 "readingText": x["reading_text"] if "reading_text" in k else "",
                 "game": (x["game"] if "game" in k else "") or "",
-            })
+            }
+            # Свой набор — целиком, вместе с домашкой: отдельная ручка ради
+            # пары килобайт это лишний запрос на каждое открытие задания.
+            # Архивный набор тоже отдаём: домашка выдана, ученик её доделывает.
+            ts_id = x["taskset_id"] if "taskset_id" in k else None
+            if ts_id:
+                ts = db.get_taskset(ts_id)
+                if ts:
+                    task["taskset"] = db.taskset_public(ts)
+            tasks.append(task)
         msgs = db.messages_for_student(db.list_messages(row["tutor_id"]), row)
         return {
             "ok": True,
@@ -1025,6 +1091,10 @@ class Api:
             # ли за ответом на сервер или сразу отвечать по правилам, и
             # честно говорит об этом с первой реплики, а не после сбоя.
             "ai": ai_available(),
+            # Результаты заданий после слияния с тем, что уже лежало: второе
+            # устройство ученика подтягивает лучший результат, а не живёт
+            # со своим устаревшим (см. db.clean_task_results).
+            "taskResults": json.loads((row["task_results"] if "task_results" in row.keys() else "{}") or "{}"),
         }
 
     # --- личный кабинет ученика ---
@@ -1680,6 +1750,9 @@ ROUTES = {
     "/api/tutor/student/delete": Api.tutor_student_delete,
     "/api/tutor/homework": Api.tutor_homework_create,
     "/api/tutor/homework/archive": Api.tutor_homework_archive,
+    "/api/tutor/tasksets": Api.tutor_tasksets,
+    "/api/tutor/taskset/save": Api.tutor_taskset_save,
+    "/api/tutor/taskset/delete": Api.tutor_taskset_delete,
     "/api/tutor/message": Api.tutor_message,
     "/api/tutor/message/archive": Api.tutor_message_archive,
     "/api/tutor/group/create": Api.group_create,

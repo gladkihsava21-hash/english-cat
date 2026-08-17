@@ -451,3 +451,73 @@
   .game-grid { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); }
   .game-tile { min-height: 68px; font-size: 13px; }
 }
+
+/* ===== Свои задания — конструктор ===== */
+.ts-card { padding: 16px 20px; margin-bottom: 10px; transition: box-shadow var(--dur) var(--ease); }
+.ts-card.ts-just-saved { box-shadow: 0 0 0 3px var(--accent-line); }
+.ts-card-main { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; flex-wrap: wrap; }
+.ts-title { font-weight: 900; font-size: var(--text-body-sm); }
+.ts-card-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.ts-del { font-size: var(--text-caption); }
+.ts-preview { color: var(--muted); font-weight: 600; font-size: var(--text-caption); margin-top: 8px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ts-saved-note { margin: 0 0 14px; }
+
+.ts-editor { padding: 22px 24px; margin-bottom: 18px; }
+.ts-ed-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 12px; }
+.ts-ed-head h3 { margin: 0; }
+.ts-field { display: block; margin-bottom: 14px; }
+.ts-field > span { display: block; font-weight: 800; font-size: var(--text-caption); color: var(--muted); margin-bottom: 6px; }
+.ts-editor input[type="text"], .ts-editor textarea {
+  width: 100%; font-family: inherit; font-size: var(--text-caption); font-weight: 600;
+  padding: 9px 12px; border: 2px solid var(--border); border-radius: 11px;
+  background: var(--surface); outline: none; color: var(--ink);
+}
+.ts-editor input[type="text"]:focus, .ts-editor textarea:focus { border-color: var(--accent); }
+.ts-editor textarea { resize: vertical; line-height: 1.45; }
+/* Вид задания — три плитки с описанием, как плитки игр в форме домашки */
+.ts-kinds { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 8px; }
+.ts-kind {
+  display: flex; flex-direction: column; gap: 4px; text-align: left;
+  font-family: inherit; padding: 12px 14px; cursor: pointer;
+  background: var(--surface); border: 2px solid var(--border); border-radius: 12px; color: var(--ink-soft);
+}
+.ts-kind b { color: var(--ink); font-weight: 900; }
+.ts-kind span { font-size: var(--text-caption); font-weight: 600; color: var(--muted); line-height: 1.4; }
+.ts-kind.picked { border-color: var(--accent); background: var(--accent-soft); }
+.ts-kind:disabled { opacity: .5; cursor: not-allowed; }
+/* Вопросы: карточка на каждый, номер слева, «убрать» справа */
+.ts-items { display: flex; flex-direction: column; gap: 10px; margin: 6px 0 12px; }
+.ts-item { background: var(--bg); border-radius: 14px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
+.ts-item-head { display: flex; justify-content: space-between; align-items: center; }
+.ts-num {
+  display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%;
+  background: var(--accent); color: var(--surface); font-weight: 900; font-size: var(--text-caption); flex-shrink: 0;
+}
+.ts-item-del { font-size: var(--text-caption); color: var(--muted); }
+.ts-options { display: flex; flex-direction: column; gap: 6px; }
+.ts-option { display: flex; align-items: center; gap: 8px; margin: 0; padding: 0; cursor: default; }
+.ts-option input[type="radio"] { width: 18px; height: 18px; flex: none; accent-color: var(--accent); cursor: pointer; }
+.ts-option input[type="text"] { flex: 1; width: auto; min-width: 0; }
+.ts-option.right input[type="text"] { border-color: var(--accent-line); background: var(--accent-soft); }
+.ts-opt-del { background: none; border: none; color: var(--muted); font-size: var(--text-body); cursor: pointer; padding: 0 6px; line-height: 1; }
+.ts-opt-del:hover { color: var(--red); }
+.ts-opt-add { font-size: var(--text-caption); align-self: flex-start; margin-left: 26px; }
+.ts-gap-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+.ts-item-pair { flex-direction: row; align-items: center; }
+.ts-item-pair input { flex: 1; width: auto; min-width: 0; }
+.ts-pair-dash { color: var(--muted); font-weight: 800; }
+.ts-add-row { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
+.ts-paste summary { cursor: pointer; font-weight: 800; font-size: var(--text-caption); color: var(--accent-dark); }
+.ts-paste p { margin: 8px 0; }
+.ts-paste code { background: var(--surface-alt); padding: 1px 5px; border-radius: 6px; font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+.ts-paste textarea { margin-bottom: 8px; }
+.ts-ed-foot { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.ts-ed-foot .type-feedback { margin: 0; flex-basis: 100%; }
+/* Строка выбора набора под плитками игр */
+.hw-taskset-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+.hw-taskset-row select { flex: 1; min-width: 220px; }
+@media (max-width: 720px) {
+  .ts-gap-row { grid-template-columns: 1fr; }
+  .ts-item-pair { flex-wrap: wrap; }
+}

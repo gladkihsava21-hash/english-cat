@@ -105,6 +105,24 @@ CREATE TABLE IF NOT EXISTS admin_sessions (
     created_at   TEXT NOT NULL
 );
 
+-- Свои задания репетитора: конструктор «как Wordwall». Набор — это список
+-- вопросов одного вида (kind): викторина с вариантами, «впиши слово»
+-- с пропуском, пары для соединения. Набор живёт отдельно от домашки и
+-- выдаётся ей сколько угодно раз (homework.taskset_id). Содержимое —
+-- JSON: вопросы маленькие, их не больше шестидесяти, отдельная таблица
+-- строк дала бы только лишние запросы.
+CREATE TABLE IF NOT EXISTS tasksets (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    tutor_id     INTEGER NOT NULL REFERENCES tutors(id),
+    title        TEXT NOT NULL,
+    kind         TEXT NOT NULL,
+    items        TEXT NOT NULL DEFAULT '[]',
+    created_at   TEXT NOT NULL,
+    updated_at   TEXT NOT NULL,
+    archived     INTEGER DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_tasksets_tutor ON tasksets(tutor_id);
+
 -- Ограничение частоты запросов. Раньше счётчик был обычным словарём
 -- в памяти процесса — и на боевом хостинге не работал ВООБЩЕ.
 -- Запросы там обслуживает не один процесс, а сколько поднимет Apache,
@@ -237,6 +255,15 @@ MIGRATIONS = [
     ("tutors", "remind_sent_at", "TEXT"),
     # Письмо «пробный период кончается завтра» — один раз за триал.
     ("tutors", "trial_warned_at", "TEXT"),
+    # ---- свои задания ----
+    # Домашка может нести набор из конструктора (game = "custom").
+    ("homework", "taskset_id", "INTEGER REFERENCES tasksets(id)"),
+    # Результаты заданий-упражнений по домашкам: {"<homework_id>":
+    # {"correct": 8, "total": 10, "at": "...", "tries": 2}}. Едет из
+    # браузера ученика с синхронизацией — так же, как словарь. Нужно
+    # для домашек БЕЗ слов (викторина, грамматика, словообразование):
+    # у них нечего считать по словарю, а репетитор должен видеть «сдал 8/10».
+    ("students", "task_results", "TEXT DEFAULT '{}'"),
 ]
 
 
@@ -718,6 +745,11 @@ def sync_student(token, state):
         if k not in clean_activity:
             clean_activity[k] = v
 
+    # Результаты заданий-упражнений по домашкам (викторина, грамматика,
+    # словообразование). Объединяем с прежними, лучший не понижаем.
+    prev_results = json.loads((row["task_results"] if "task_results" in row.keys() else "{}") or "{}")
+    task_results = clean_task_results(state.get("taskResults"), prev_results)
+
     # Очки и рекорды не должны уменьшаться: устаревший снимок с другого
     # устройства иначе откатывал бы ученика назад
     new_xp = max(_as_int(state.get("xp"), 0, 0, 10_000_000), row["xp"] or 0)
@@ -735,7 +767,7 @@ def sync_student(token, state):
     conn().execute(
         "UPDATE students SET level=?, level_set_at=?, vocab=?, xp=?, streak=?, blitz_best=?,"
         " dictionary=?, activity=?, achievements=?, goal=?, folders=?,"
-        " train_folders=?, last_seen=? WHERE id=?",
+        " train_folders=?, task_results=?, last_seen=? WHERE id=?",
         (
             new_level,
             level_at,
@@ -749,6 +781,7 @@ def sync_student(token, state):
             _as_int(state.get("goal"), 50, 10, 500),
             json.dumps(clean_folders, ensure_ascii=False),
             json.dumps(clean_train, ensure_ascii=False),
+            json.dumps(task_results, ensure_ascii=False),
             now(),
             row["id"],
         ),
@@ -773,6 +806,7 @@ def student_state(row):
         "achievements": json.loads((row["achievements"] if "achievements" in row.keys() else "[]") or "[]"),
         "folders": json.loads((row["folders"] if "folders" in keys else "[]") or "[]"),
         "trainFolders": json.loads((row["train_folders"] if "train_folders" in keys else "[]") or "[]"),
+        "taskResults": json.loads((row["task_results"] if "task_results" in keys else "{}") or "{}"),
     }
 
 
@@ -841,10 +875,12 @@ def delete_student_account(student_id):
 # ---------- домашка ----------
 
 def create_homework(tutor_id, title, words, student_id=None, group_id=None,
-                    due_date=None, task_text="", reading_text="", game=""):
+                    due_date=None, task_text="", reading_text="", game="",
+                    taskset_id=None):
     cur = conn().execute(
         "INSERT INTO homework (tutor_id, student_id, group_id, title, words, due_date,"
-        " created_at, task_text, reading_text, game) VALUES (?,?,?,?,?,?,?,?,?,?)",
+        " created_at, task_text, reading_text, game, taskset_id)"
+        " VALUES (?,?,?,?,?,?,?,?,?,?,?)",
         (
             tutor_id,
             student_id,
@@ -856,10 +892,229 @@ def create_homework(tutor_id, title, words, student_id=None, group_id=None,
             str(task_text or "")[:4000],
             str(reading_text or "")[:2000],
             str(game or "")[:32],
+            taskset_id,
         ),
     )
     conn().commit()
     return conn().execute("SELECT * FROM homework WHERE id=?", (cur.lastrowid,)).fetchone()
+
+
+def homework_kind(hw):
+    """Чем домашка сдаётся — от этого зависит, как считать «сдал».
+
+    words   — есть слова: считаем по словарю (проверенные ответы);
+    task    — упражнение без слов (свой набор, грамматика,
+              словообразование): считаем по task_results ученика;
+    photo   — только текст задания или чтение вслух: сдаётся фото или
+              записью чтения, смотреть на вкладке «Фото тетрадей».
+    Слова главнее всего: если они есть, домашка словарная, что бы ещё
+    к ней ни было приложено."""
+    keys = hw.keys()
+    if json.loads(hw["words"] or "[]"):
+        return "words"
+    game = (hw["game"] if "game" in keys else "") or ""
+    taskset_id = hw["taskset_id"] if "taskset_id" in keys else None
+    if taskset_id or game in ("grammar", "wordform", "custom"):
+        return "task"
+    return "photo"
+
+
+# ---------- свои задания (конструктор) ----------
+#
+# Три вида, и это сознательно мало. Wordwall берёт десятками шаблонов, но
+# репетитору английского для своих упражнений нужны три вещи: вопрос
+# с вариантами (грамматика, лексика), «впиши слово» с пропуском
+# (словообразование, формы глагола) и «соедини пары» (термин — значение,
+# начало — конец фразы). Всё это уже умеют общие блоки runMCQ / runType /
+# runPairs на стороне ученика — набор просто кормит их своими данными.
+#
+# Санитизация здесь, а не в JS: содержимое набора уезжает в браузер
+# ученика, и оно приходит из формы репетитора. Здесь уже был хранимый XSS
+# через перевод слова — второй такой же нельзя. Длины режем тоже здесь.
+
+TASKSET_KINDS = ("quiz", "gap", "pairs")
+TASKSET_MAX_ITEMS = 60
+TASKSETS_PER_TUTOR = 200
+
+
+def _txt(v, n):
+    return " ".join(str(v if v is not None else "").split())[:n]
+
+
+def clean_taskset_items(kind, items):
+    """(чистые записи, ошибки). Кривые записи не выбрасываем молча —
+    возвращаем понятную причину с номером, чтобы репетитор её поправил,
+    а не гадал, куда делся вопрос."""
+    out, errors = [], []
+    if not isinstance(items, list):
+        return [], ["Список заданий не распознан."]
+    if len(items) > TASKSET_MAX_ITEMS:
+        # Молча оставить первые шестьдесят — значит потерять хвост, о котором
+        # репетитор не узнает. Пусть разобьёт на два набора сам.
+        errors.append("В наборе %d заданий, а больше %d в одном не бывает — разбейте на два."
+                      % (len(items), TASKSET_MAX_ITEMS))
+        return [], errors
+    for n, it in enumerate(items, 1):
+        if not isinstance(it, dict):
+            continue
+        if kind == "quiz":
+            q = _txt(it.get("q"), 300)
+            raw = [_txt(o, 80) for o in (it.get("options") or [])]
+            # Правильный — по ТЕКСТУ, а не по индексу: ниже дубликаты и пустые
+            # выкидываются, и индекс из формы съезжает. Первая версия брала
+            # индекс как есть — и при дубликате молча назначала правильным
+            # соседний вариант, а ученика оценивала бы против него.
+            try:
+                ci = int(it.get("correct"))
+            except (TypeError, ValueError):
+                ci = -1
+            correct_text = raw[ci] if 0 <= ci < len(raw) else ""
+            seen, opts = set(), []
+            for o in raw:
+                if o and o.lower() not in seen:
+                    seen.add(o.lower()); opts.append(o)
+            opts = opts[:6]
+            correct = next((i for i, o in enumerate(opts)
+                            if correct_text and o.lower() == correct_text.lower()), -1)
+            if not q:
+                errors.append("Вопрос %d: пустой текст." % n); continue
+            if len(opts) < 2:
+                errors.append("Вопрос %d: нужно хотя бы два разных варианта." % n); continue
+            if correct < 0:
+                errors.append("Вопрос %d: не отмечен правильный вариант." % n); continue
+            out.append({"q": q, "options": opts, "correct": correct,
+                        "why": _txt(it.get("why"), 300)})
+        elif kind == "gap":
+            q = _txt(it.get("q"), 300)
+            answer = _txt(it.get("answer"), 60)
+            alt = [_txt(a, 60) for a in (it.get("alt") or []) if _txt(a, 60)][:5]
+            if not q:
+                errors.append("Задание %d: пустое предложение." % n); continue
+            if "___" not in q:
+                errors.append("Задание %d: в предложении нет пропуска ___ (три подчёркивания)." % n); continue
+            if not answer:
+                errors.append("Задание %d: не указан ответ." % n); continue
+            out.append({"q": q, "hint": _txt(it.get("hint"), 60), "answer": answer,
+                        "alt": alt, "why": _txt(it.get("why"), 300)})
+        elif kind == "pairs":
+            l, r = _txt(it.get("l"), 80), _txt(it.get("r"), 80)
+            if not l or not r:
+                errors.append("Пара %d: нужны обе половины." % n); continue
+            out.append({"l": l, "r": r})
+    if kind == "pairs" and 0 < len(out) < 3:
+        errors.append("Для «соедини пары» нужно хотя бы три пары.")
+        out = []
+    return out, errors
+
+
+def save_taskset(tutor_id, set_id, title, kind, items):
+    """(набор, ошибка). Создание или правка — по наличию set_id."""
+    if kind not in TASKSET_KINDS:
+        return None, "Неизвестный вид задания."
+    title = _txt(title, 100)
+    if not title:
+        return None, "Дайте набору название — по нему вы будете его выдавать."
+    clean, errors = clean_taskset_items(kind, items)
+    if errors:
+        return None, " ".join(errors[:3])
+    if not clean:
+        return None, "Добавьте хотя бы одно задание."
+    c = conn()
+    if set_id:
+        row = c.execute("SELECT id FROM tasksets WHERE id=? AND tutor_id=?",
+                        (int(set_id), tutor_id)).fetchone()
+        if not row:
+            return None, "Набор не найден."
+        c.execute("UPDATE tasksets SET title=?, kind=?, items=?, updated_at=?, archived=0"
+                  " WHERE id=?", (title, kind, json.dumps(clean, ensure_ascii=False),
+                                  now(), int(set_id)))
+        c.commit()
+        return get_taskset(int(set_id)), None
+    n = c.execute("SELECT COUNT(*) FROM tasksets WHERE tutor_id=? AND archived=0",
+                  (tutor_id,)).fetchone()[0]
+    if n >= TASKSETS_PER_TUTOR:
+        return None, "Больше %d наборов не завести — удалите ненужные." % TASKSETS_PER_TUTOR
+    cur = c.execute(
+        "INSERT INTO tasksets (tutor_id, title, kind, items, created_at, updated_at)"
+        " VALUES (?,?,?,?,?,?)",
+        (tutor_id, title, kind, json.dumps(clean, ensure_ascii=False), now(), now()))
+    c.commit()
+    return get_taskset(cur.lastrowid), None
+
+
+def get_taskset(set_id):
+    return conn().execute("SELECT * FROM tasksets WHERE id=?", (set_id,)).fetchone()
+
+
+def list_tasksets(tutor_id):
+    return conn().execute(
+        "SELECT * FROM tasksets WHERE tutor_id=? AND archived=0 ORDER BY updated_at DESC",
+        (tutor_id,)).fetchall()
+
+
+def archive_taskset(tutor_id, set_id):
+    """Прячем, не удаляем: выданные домашки продолжают ссылаться на набор,
+    и ученик, у которого он на главной, должен его доделать."""
+    conn().execute("UPDATE tasksets SET archived=1, updated_at=? WHERE id=? AND tutor_id=?",
+                   (now(), set_id, tutor_id))
+    conn().commit()
+
+
+TASKSET_KIND_NAMES = {"quiz": "Викторина", "gap": "Впиши слово", "pairs": "Соедини пары"}
+
+
+def taskset_public(row, with_items=True):
+    items = json.loads(row["items"] or "[]")
+    data = {
+        "id": row["id"], "title": row["title"], "kind": row["kind"],
+        "kindName": TASKSET_KIND_NAMES.get(row["kind"], row["kind"]),
+        "count": len(items), "updatedAt": row["updated_at"], "createdAt": row["created_at"],
+    }
+    if with_items:
+        data["items"] = items
+    return data
+
+
+# ---------- результаты заданий ----------
+
+TASK_RESULTS_KEEP = 300
+
+
+def clean_task_results(raw, prev):
+    """Результаты из браузера ученика — чистим и объединяем с прежними.
+    Лучший результат не понижаем: снимок с другого устройства не должен
+    откатывать «8 из 10» до «3 из 10» — та же логика, что у очков."""
+    out = dict(prev or {})
+    if not isinstance(raw, dict):
+        return out
+    for k, v in list(raw.items())[:TASK_RESULTS_KEEP]:
+        if not str(k).isdigit() or not isinstance(v, dict):
+            continue
+        total = _as_int(v.get("total"), 0, 0, 1000)
+        correct = _as_int(v.get("correct"), 0, 0, total or 0)
+        if not total:
+            continue
+        old = out.get(str(k)) or {}
+        at = _txt(v.get("at"), 32) or now()
+        if old.get("total") == total:
+            best = max(correct, _as_int(old.get("correct"), 0, 0, 1000))
+        elif old and str(old.get("at") or "") > at:
+            # Размер набора другой И у сервера запись свежее — это устаревший
+            # снимок с другого устройства (набор переделали, там ещё старый).
+            # Иначе второе устройство ученика затирало бы новый результат старым.
+            continue
+        else:
+            best = correct
+        out[str(k)] = {
+            "correct": best, "total": total,
+            "at": max(at, str(old.get("at") or "")),
+            "tries": max(_as_int(v.get("tries"), 1, 1, 100000), _as_int(old.get("tries"), 0, 0, 100000)),
+        }
+    if len(out) > TASK_RESULTS_KEEP:
+        # старые ключи меньше — домашки нумеруются по возрастанию
+        for k in sorted(out, key=lambda x: int(x))[:len(out) - TASK_RESULTS_KEEP]:
+            out.pop(k, None)
+    return out
 
 
 def list_homework(tutor_id, include_archived=False):
@@ -1007,9 +1262,11 @@ def student_public(row, homework=None, detail=False):
         data["dictionary"] = dictionary
     if homework is not None:
         known = {str(d.get("w", "")).lower(): d for d in dictionary}
+        results = json.loads((row["task_results"] if "task_results" in keys else "{}") or "{}")
         tasks = []
         for hw in homework:
             words = json.loads(hw["words"] or "[]")
+            kind = homework_kind(hw)
             done = 0
             for w in words:
                 d = known.get(str(w.get("w", "")).lower())
@@ -1027,11 +1284,18 @@ def student_public(row, homework=None, detail=False):
                 # его нажатиями нельзя.
                 if d and ((d.get("checked") or 0) >= 1 or d.get("status") == "learned"):
                     done += 1
+            # Для заданий-упражнений (свой набор, грамматика, словообразование)
+            # «сдал» — это результат из task_results, а не слова: слов у них нет.
+            res = results.get(str(hw["id"])) if kind == "task" else None
             tasks.append({
                 "id": hw["id"],
                 "title": hw["title"],
+                "kind": kind,
+                "game": (hw["game"] if "game" in hw.keys() else "") or "",
                 "total": len(words),
                 "done": done,
+                "result": ({"correct": res.get("correct", 0), "total": res.get("total", 0),
+                            "at": res.get("at"), "tries": res.get("tries", 1)} if res else None),
                 "dueDate": hw["due_date"],
                 "createdAt": hw["created_at"],
             })
@@ -2077,7 +2341,9 @@ def admin_delete_tutor(tutor_id):
                 os.remove(full)
             except OSError:
                 pass
-    for table in ("photo_homework", "homework", "notes_to_students", "students", "groups"):
+    # tasksets — после homework: домашка ссылается на набор (foreign_keys=ON)
+    for table in ("photo_homework", "homework", "notes_to_students", "students", "groups",
+                  "tasksets"):
         c.execute("DELETE FROM %s WHERE tutor_id=?" % table, (tutor_id,))
     c.execute("DELETE FROM tutors WHERE id=?", (tutor_id,))
     c.commit()
