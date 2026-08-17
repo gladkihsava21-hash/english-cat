@@ -719,13 +719,13 @@ input:focus, textarea:focus, select:focus {
    ========================================================================== */
 
 .mcq-option.right, .pair-item.done, .ws-cell.found, .hw-word.picked,
-.cw-cell input.ok, .cat-chip, .d-status.learned, .learned-word, .hw-chip-done,
+.cw-cell.ok, .cat-chip, .d-status.learned, .learned-word, .hw-chip-done,
 .task-pupil.ok {
   background: var(--accent-soft);
   border-color: var(--accent-line);
   color: var(--accent-deep);        /* 7,2:1 днём, 6,6:1 ночью */
 }
-.mcq-option.wrong, .pair-item.bad, .cat-box.bad, .cw-cell input.err,
+.mcq-option.wrong, .pair-item.bad, .cat-box.bad, .cw-cell.err,
 .weak-word, .conn-error, .task-pupil.no, .mic-btn.listening {
   background: var(--err-soft);
   border-color: var(--err);

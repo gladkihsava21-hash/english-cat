@@ -472,14 +472,23 @@ body {
   content: attr(data-num); position: absolute; top: 1px; left: 3px;
   font-size: var(--text-caption); font-weight: 800; color: var(--accent-dark); z-index: 1;
 }
-.cw-cell input {
-  width: 100%; height: 100%; text-align: center; font-family: inherit;
-  font-size: var(--text-caption); font-weight: 800; text-transform: uppercase;
-  border: 2px solid var(--border); border-radius: 6px; outline: none; background: var(--surface);
+/* Клетка — div с буквой; печатает скрытый «пульт» .cw-ctl (см. crossword
+   в exercises.js). Подсветка: .in-word — клетки текущего слова, .active —
+   куда встанет следующая буква. */
+.cw-cell {
+  display: flex; align-items: center; justify-content: center; cursor: text; user-select: none;
+  font-family: inherit; font-size: var(--text-caption); font-weight: 800; text-transform: uppercase;
+  border: 2px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--ink);
 }
-.cw-cell input:focus { border-color: var(--accent); }
-.cw-cell input.ok { background: var(--accent-soft); border-color: var(--green); }
-.cw-cell input.err { background: var(--surface-alt); border-color: var(--red); }
+.cw-cell.in-word { background: var(--accent-soft); }
+.cw-cell.active { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.cw-cell.ok { background: var(--accent-soft); border-color: var(--green); }
+.cw-cell.err { background: var(--surface-alt); border-color: var(--red); }
+.cw-scroll { position: relative; }
+.cw-ctl {
+  position: absolute; left: 0; top: 0; width: 1px; height: 1px; opacity: 0;
+  border: 0; padding: 0; margin: 0; font-size: 16px;   /* 16px — iOS не зумит поле */
+}
 .cw-empty { aspect-ratio: 1; }
 .cw-clues { max-width: 460px; margin: 0 auto 14px; font-weight: 700; font-size: var(--text-caption); }
 .cw-clues p { margin: 3px 0; }
@@ -520,7 +529,7 @@ body {
   .ach-grid { grid-template-columns: repeat(2, 1fr); }
   .pair-item { font-size: var(--text-caption); padding: 10px 6px; }
   .ws-cell { font-size: var(--text-caption); border-radius: 6px; }
-  .cw-cell input { font-size: var(--text-caption); }
+  .cw-cell { font-size: var(--text-caption); }
   .cat-boxes { flex-direction: column; }
 }
 /* сообщение от репетитора у ученика */
@@ -595,3 +604,33 @@ body {
 .rushed-note {
   color: var(--red); font-weight: 700; line-height: 1.5; max-width: 34em; margin: 4px auto 10px;
 }
+
+/* Разбор ответов после подхода — как в Wordwall: все вопросы, что ответил
+   ученик и как надо. Раскрыт сразу, если были ошибки. */
+.ex-review { max-width: 34rem; margin: 14px auto 6px; text-align: left; }
+.ex-review summary { cursor: pointer; font-weight: 800; font-size: var(--text-caption); color: var(--accent-dark); }
+.ex-review-list { list-style: none; padding: 0; margin: 10px 0 0; display: flex; flex-direction: column; gap: 8px; }
+.ex-review-list li { display: flex; gap: 10px; align-items: flex-start; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; }
+.ex-review-list li.bad { border-color: var(--red); }
+.ex-review-mark { flex: none; display: inline-flex; margin-top: 3px; color: var(--green); }
+.ex-review-list li.bad .ex-review-mark { color: var(--red); }
+.ex-review-q { font-weight: 700; font-size: var(--text-caption); line-height: 1.4; }
+.ex-review-a { font-size: var(--text-caption); font-weight: 600; margin-top: 2px; }
+.ex-review-a s { color: var(--red); }
+.ex-review-a b { color: var(--green); }
+.ex-review-why { font-size: var(--text-caption); color: var(--muted); font-weight: 600; margin-top: 2px; line-height: 1.4; }
+/* Выражения из подхода — чипы «+ give up · сдаваться» */
+.phrase-take-list { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin: 8px 0; }
+.phrase-take-chip i { color: var(--muted); font-style: normal; font-weight: 600; margin-left: 4px; }
+.phrase-take-chip.added { background: var(--accent-soft); border-color: var(--green); color: var(--green); }
+/* Отбор слов на тренировку в словаре */
+.dict-pick-row { margin-top: 8px; }
+.dict-pick-bar {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  margin-top: 8px; padding: 10px 14px; background: var(--accent-soft); border-radius: 12px;
+  font-weight: 700; font-size: var(--text-caption);
+  position: sticky; top: 8px; z-index: 5;
+}
+.dict-pick-bar.hidden { display: none; }
+.dict-row.picking { padding-left: 8px; }
+.d-pick { width: 20px; height: 20px; flex: none; accent-color: var(--accent); cursor: pointer; }

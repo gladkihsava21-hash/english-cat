@@ -83,7 +83,7 @@
   75%      { transform: translateX(5px) }
 }
 .mcq-option.right, .pair-item.done { animation: m-nod .3s var(--ease) }
-.mcq-option.wrong, .cw-cell input.err { animation: m-shake .28s var(--ease) }
+.mcq-option.wrong, .cw-cell.err { animation: m-shake .28s var(--ease) }
 
 /* ---------- Сообщения чата ---------- */
 @keyframes m-msg-in {

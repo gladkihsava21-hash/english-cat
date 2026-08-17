@@ -52,9 +52,56 @@ function award(n) {
 const RUSH_EXTRA_MS = 400;
 const RUSH_MIN_ANSWERS = 4;
 let exRound = { answered: 0, thinkMs: 0, gateMs: 0, startedAt: 0 };
+/** Журнал ответов подхода — для разбора в конце: { q, yours, right, ok, why }.
+ *  Репетитор просила «вернуться и посмотреть ошибки» — как в Wordwall:
+ *  после подхода показываем все вопросы, что ответил ученик и как надо. */
+let exLog = [];
+/** Выражения, встреченные в подходе (упражнения на фразы), — чтобы в конце
+ *  их можно было забрать в словарь одним нажатием. */
+let exSeenPhrases = [];
 
 function exRoundReset() {
   exRound = { answered: 0, thinkMs: 0, gateMs: 0, startedAt: Date.now() };
+  exLog = [];
+  exSeenPhrases = [];
+}
+
+/** Добавить выражение в словарь — тем же способом, что список выражений
+ *  в словаре (app.js renderPhrasePicker): в свою папку по типу. */
+function addPhraseToDictionary(rec) {
+  const folderByKind = { phrasal: "Фразовые глаголы", idiom: "Идиомы", colloc: "Сочетания" };
+  const folder = folderByKind[rec.kind] || "Выражения";
+  if (state.dictionary.some(d => d.w.toLowerCase() === rec.w.toLowerCase())) return false;
+  if (typeof createFolder === "function") createFolder(folder);
+  const entry = { w: rec.w, t: rec.t, ex: rec.ex, exr: rec.exr, def: rec.def,
+                  cat: rec.cat, level: rec.level, kind: rec.kind,
+                  literal: rec.literal, parts: rec.parts,
+                  status: "new", knew: 0, forgot: 0, folders: [folder] };
+  if (typeof srsInit === "function") srsInit(entry);
+  state.dictionary.push(entry);
+  saveState();
+  if (typeof updateChrome === "function") updateChrome();
+  return true;
+}
+
+function pluralRuEx(n, one, few, many) {
+  const a = Math.abs(n) % 100, b = a % 10;
+  if (a > 10 && a < 20) return many;
+  if (b > 1 && b < 5) return few;
+  if (b === 1) return one;
+  return many;
+}
+
+/** Текст вопроса для журнала: из prompt или из разметки промпта без тегов. */
+function exQuestionText(r) {
+  if (r.prompt) return String(r.prompt);
+  if (r.promptHTML) {
+    const div = document.createElement("div");
+    div.innerHTML = r.promptHTML;
+    const t = div.textContent.replace(/\s+/g, " ").trim();
+    if (t) return t;
+  }
+  return "";
 }
 
 /** Сколько ждать перед тем, как открыть варианты, по длине текста. */
@@ -109,8 +156,16 @@ function trainingFolders() {
   return (state.trainFolders || []).filter(f => all.includes(f));
 }
 
+/** Слова, отмеченные галочками в словаре (state.trainWords) и реально
+ *  лежащие в нём — снятые из словаря слова отбор не удерживает. */
+function trainingPicked() {
+  const set = new Set((state.trainWords || []).map(w => w.toLowerCase()));
+  if (!set.size) return [];
+  return state.dictionary.filter(d => set.has(d.w.toLowerCase()));
+}
+
 function isTrainingWholeDict() {
-  return trainingFolders().length === 0;
+  return trainingFolders().length === 0 && trainingPicked().length === 0;
 }
 
 /** Слова, из которых собирается тренировка: либо весь словарь, либо
@@ -128,6 +183,10 @@ function trainingDictionary() {
     if (only.length) return only;
     homeworkScope = null;   // слова не доехали в словарь — не запираем ученика
   }
+  // Отобранные галочками слова главнее папок: это самое точное указание,
+  // что тренировать, и оно ставится прямо перед подходом.
+  const chosen = trainingPicked();
+  if (chosen.length) return chosen;
   const picked = trainingFolders();
   if (!picked.length) return state.dictionary;
   return state.dictionary.filter(d => (d.folders || []).some(f => picked.includes(f)));
@@ -153,7 +212,7 @@ function trainPool(n, need = []) {
   // столько же слов». Пусть лучше тренировка будет короче.
   if (picked.length < n && isTrainingWholeDict() && !homeworkScope) {
     const inPool = new Set(picked.map(p => p.w.toLowerCase()));
-    const lvl = state.level || "A1";
+    const lvl = studyLevel();
     const nextLvl = LEVELS[Math.min(LEVELS.indexOf(lvl) + 1, LEVELS.length - 1)];
     const extra = shuffled([...WORDS[lvl], ...WORDS[nextLvl]].filter(
       x => has(x) && !inPool.has(x.w.toLowerCase())));
@@ -177,7 +236,7 @@ function trainPool(n, need = []) {
  * Случайные — только на добор, если своей категории не хватило.
  */
 function distractors(word, n, field) {
-  const lvl = word.level || state.level || "A1";
+  const lvl = word.level || studyLevel();
   const idx = LEVELS.indexOf(lvl);
   const near = [...new Set([LEVELS[Math.max(0, idx - 1)], lvl,
                             LEVELS[Math.min(LEVELS.length - 1, idx + 1)]])];
@@ -365,26 +424,37 @@ function renderTrainScope() {
   const box = document.getElementById("train-scope");
   if (!box) return;
   const names = typeof allFolders === "function" ? allFolders() : [];
+  const chosen = trainingPicked();
   // Ряд нужен, только когда есть из чего выбирать
-  box.classList.toggle("hidden", !names.length);
-  if (!names.length) return;
+  box.classList.toggle("hidden", !names.length && !chosen.length);
+  if (!names.length && !chosen.length) return;
 
   const picked = trainingFolders();
   const count = n => state.dictionary.filter(d => (d.folders || []).includes(n)).length;
   box.innerHTML =
     `<span class="scope-label">Тренируем:</span>`
-    + `<button class="chip scope-chip${picked.length ? "" : " active"}" type="button"
+    + (chosen.length
+        ? `<button class="chip scope-chip active" type="button" data-scope-picked="1" aria-pressed="true">
+             отмеченные слова <b>${chosen.length}</b></button>
+           <button class="link-btn" type="button" data-scope-clear="1">снять отбор</button>`
+        : "")
+    + `<button class="chip scope-chip${picked.length || chosen.length ? "" : " active"}" type="button"
                data-scope="">весь словарь <b>${state.dictionary.length}</b></button>`
     + names.map(n => `
         <button class="chip scope-chip${picked.includes(n) ? " active" : ""}" type="button"
                 data-scope="${esc(n)}" aria-pressed="${picked.includes(n)}">
           ${esc(n)} <b>${count(n)}</b></button>`).join("");
 
+  const clear = box.querySelector("[data-scope-clear]");
+  if (clear) clear.addEventListener("click", () => { state.trainWords = []; saveState(); renderPracticeHub(); });
+  const pickedChip = box.querySelector("[data-scope-picked]");
+  if (pickedChip) pickedChip.addEventListener("click", () => show("dictionary"));
   box.querySelectorAll("[data-scope]").forEach(b => {
     b.addEventListener("click", () => {
       const name = b.dataset.scope;
       if (!name) {
         state.trainFolders = [];            // «весь словарь» снимает всё
+        state.trainWords = [];
       } else {
         // Папки складываются: можно тренировать две сразу.
         const cur = new Set(trainingFolders());
@@ -397,19 +467,47 @@ function renderTrainScope() {
   });
 }
 
+/** Выбор уровня слов для тренировок (state.trainLevel). Пусто — по тесту. */
+function renderTrainLevel() {
+  const sel = document.getElementById("train-level-select");
+  const note = document.getElementById("train-level-note");
+  if (!sel) return;
+  const tested = state.level || "A1";
+  sel.innerHTML = [`<option value="">как по тесту — ${tested}</option>`]
+    .concat(LEVELS.map(l => `<option value="${l}">${l} — ${esc(LEVEL_NAMES[l] || "")}</option>`)).join("");
+  sel.value = state.trainLevel || "";
+  note.textContent = state.trainLevel && state.trainLevel !== tested
+    ? `По тесту у тебя ${tested}. Это влияет только на новые слова: словарь и повторения остаются твои.`
+    : "Влияет на рекомендации, слова в упражнениях и подсказки кота.";
+  if (!sel.dataset.bound) {
+    sel.dataset.bound = "1";
+    sel.addEventListener("change", () => {
+      state.trainLevel = LEVELS.includes(sel.value) ? sel.value : null;
+      // Рекомендации на главной подобраны под прежний уровень — пересобрать
+      if (typeof currentRecs !== "undefined") currentRecs = [];
+      saveState();
+      renderPracticeHub();
+    });
+  }
+}
+
 function renderPracticeHub() {
   const host = document.getElementById("practice-grid");
+  renderTrainLevel();
   renderTrainScope();
   const picked = trainingFolders();
   const inScope = trainingDictionary().length;
+  const chosenN = trainingPicked().length;
   document.getElementById("practice-pool-note").textContent =
-    picked.length
+    chosenN
+      ? `Только отмеченные в словаре слова — ${chosenN} ${wordsWord(chosenN)}`
+      : picked.length
       ? (inScope
           ? `Только из ${picked.length === 1 ? "папки" : "папок"} «${picked.join("», «")}» — ${inScope} ${wordsWord(inScope)}`
           : `В ${picked.length === 1 ? "выбранной папке" : "выбранных папках"} пока нет слов — добавь их в словаре`)
       : state.dictionary.length
-        ? `Тренируем твой словарь (${state.dictionary.length} слов) + слова уровня ${state.level}`
-        : `Словарь пуст — тренируем слова уровня ${state.level}`;
+        ? `Тренируем твой словарь (${state.dictionary.length} слов) + слова уровня ${studyLevel()}`
+        : `Словарь пуст — тренируем слова уровня ${studyLevel()}`;
   host.innerHTML = "";
   EX_GROUPS.forEach(g => {
     const list = EXERCISES.filter(ex => ex.group === g.id && !ex.hidden && !(ex.audio && !TTS_OK));
@@ -603,6 +701,36 @@ function exFinish(correct, total, note = "") {
         : exSessionXP ? `<p class="xp-earned">+${exSessionXP} ${iconInline("star", 16)}</p>` : ""}
       ${fromHomework && !rushed ? `<p class="muted-small">${iconInline("personal", 15)} Результат по домашке «${
         esc(homeworkContext.title || "")}» записан — репетитор его увидит. Можно пройти ещё раз, засчитается лучший.</p>` : ""}
+      ${exSeenPhrases.length ? `
+        <div class="card missed-card phrase-take">
+          <p class="missed-head">${iconInline("book", 16)} Выражения из этого подхода — в словарь?</p>
+          <div class="phrase-take-list">
+            ${exSeenPhrases.map(ph => {
+              const have = state.dictionary.some(d => d.w.toLowerCase() === ph.w.toLowerCase());
+              return `<button type="button" class="chip phrase-take-chip${have ? " added" : ""}" data-phrase="${esc(ph.w)}"
+                        ${have ? 'aria-pressed="true"' : ""}>${have ? icon("check", 14) : "+"} ${esc(ph.w)} <i>${esc(ph.t)}</i></button>`;
+            }).join("")}
+          </div>
+          <p class="muted-small">Лягут в свою папку — «Фразовые глаголы», «Идиомы» или «Сочетания». Полный список — в словаре, кнопка «+ Фразовые глаголы, идиомы, сочетания».</p>
+        </div>` : ""}
+      ${exLog.length ? `
+        <details class="ex-review"${exLog.some(x => !x.ok) ? " open" : ""}>
+          <summary>${iconInline("book", 15)} Разбор ответов (${exLog.filter(x => !x.ok).length} ${
+            pluralRuEx(exLog.filter(x => !x.ok).length, "ошибка", "ошибки", "ошибок")} из ${exLog.length})</summary>
+          <ol class="ex-review-list">
+            ${exLog.map(x => `
+              <li class="${x.ok ? "ok" : "bad"}">
+                <span class="ex-review-mark">${icon(x.ok ? "check" : "cross", 15)}</span>
+                <div>
+                  <p class="ex-review-q">${x.sub ? `<span class="muted-small">${esc(x.sub)} · </span>` : ""}${esc(x.q)}</p>
+                  ${x.ok
+                    ? `<p class="ex-review-a">${esc(x.yours)}</p>`
+                    : `<p class="ex-review-a"><s>${esc(x.yours || "—")}</s> → <b>${esc(x.right)}</b></p>`}
+                  ${!x.ok && x.why ? `<p class="ex-review-why">${esc(x.why)}</p>` : ""}
+                </div>
+              </li>`).join("")}
+          </ol>
+        </details>` : ""}
       ${note ? `<p class="muted-small">${note}</p>` : ""}
       ${exMissed.length ? `
         <div class="card missed-card">
@@ -637,6 +765,15 @@ function exFinish(correct, total, note = "") {
     }
     if (typeof updateChrome === "function") updateChrome();
   });
+  stage().querySelectorAll("[data-phrase]").forEach(b => b.addEventListener("click", () => {
+    const rec = exSeenPhrases.find(x => x.w === b.dataset.phrase);
+    if (!rec || b.classList.contains("added")) return;
+    if (addPhraseToDictionary(rec)) {
+      b.classList.add("added");
+      b.setAttribute("aria-pressed", "true");
+      b.innerHTML = `${icon("check", 14)} ${esc(rec.w)} <i>${esc(rec.t)}</i>`;
+    }
+  }));
   // Экран нарисован после загрузки страницы — cat.js сам сюда не придёт.
   if (typeof paintCats === "function") paintCats(stage());
   document.getElementById("ex-again").addEventListener("click", () => openExercise(currentExId));
@@ -693,6 +830,10 @@ function runMCQ(rounds, opts = {}) {
         answered = true;
         exRoundAnswer(performance.now() - openedAt, gateMs);
         const ok = oi === r.correct;
+        exLog.push({
+          q: exQuestionText(r) || `Лишнее среди: ${r.options.join(", ")}`,
+          sub: r.sub || "", yours: opt, right: r.options[r.correct], ok, why: r.why || "",
+        });
         if (ok) { score++; award(10); }
         if (r.statWord) statUpdate(r.statWord, ok);
         // Знак, а не только цвет. Зелёный «верно» и шалфейный акцент —
@@ -855,6 +996,8 @@ function runType(rounds, opts = {}) {
       done = true;
       exRoundAnswer(performance.now() - shownAt, 0);
       const ok = r.check ? r.check(val) : normEn(val) === normEn(r.answer);
+      exLog.push({ q: exQuestionText(r), sub: r.sub || "", yours: val,
+                   right: r.sample || r.answer, ok, why: r.why || "" });
       if (ok) { score++; award(15); }
       if (r.statWord) statUpdate(r.statWord, ok);
       const fb = document.getElementById("type-feedback");
@@ -916,7 +1059,7 @@ const EX_RUNNERS = {
    *  своего уровня не учится, а разбивается о непонимание. */
   _phrasePool(kind, n, need) {
     if (typeof PHRASES === "undefined") return [];
-    const lvl = state.level || "A1";
+    const lvl = studyLevel();
     const idx = LEVELS.indexOf(lvl);
     const near = new Set([LEVELS[Math.max(0, idx - 1)], lvl,
                           LEVELS[Math.min(LEVELS.length - 1, idx + 1)]]);
@@ -926,7 +1069,12 @@ const EX_RUNNERS = {
     const fit = all.filter(x => near.has(x.level) && (need || []).every(f => x[f]));
     // Если на своём уровне не набралось — расширяем, но не молча падаем
     const pool = fit.length >= n ? fit : all.filter(x => (need || []).every(f => x[f]));
-    return shuffled(pool).slice(0, n);
+    const picked = shuffled(pool).slice(0, n);
+    // Запоминаем: в конце подхода предложим забрать эти выражения в словарь.
+    // Раньше их было никак не сохранить из упражнения — только через
+    // список в словаре, о котором ученик мог и не знать.
+    picked.forEach(x => { if (!exSeenPhrases.some(y => y.w === x.w)) exSeenPhrases.push(x); });
+    return picked;
   },
 
   /** «Не буквально»: показываем фразу и её БУКВАЛЬНЫЙ перевод, спрашиваем
@@ -1140,33 +1288,55 @@ const EX_RUNNERS = {
   },
 
   oddone() {
-    // 3 слова одной категории + 1 из другой
+    // 3 слова одной темы + 1 из другой.
+    //
+    // Раньше темы брались любые, а слова — со всех уровней. Получалось
+    // «senate, senator, guest — дом, а thing — вещи»: категории вроде
+    // «вещи», «качества», «люди» слишком размыты, чтобы по ним искать
+    // лишнее, а часть категорий у импортированных слов вообще насчитана
+    // по ключевым словам определений («upper house» → дом). Репетитор
+    // так и написала: «объяснению не хватает логики».
+    //
+    // Теперь: только конкретные темы (еда, животные, одежда, тело…),
+    // темы из разных «миров» (еда против животных — да, дом против
+    // города — нет), и слова не выше уровня ученика плюс один.
+    const CONCRETE = ["food", "animals", "clothes", "body", "family", "home", "school",
+                      "city", "travel", "weather", "nature", "sports", "work", "health",
+                      "tech", "art", "time", "money"];
+    const WORLD = { food: "food", animals: "life", nature: "life", weather: "life",
+                    clothes: "clothes", body: "person", health: "person", family: "family",
+                    home: "place", city: "place", travel: "place", school: "study",
+                    work: "study", sports: "sports", tech: "tech", art: "art",
+                    time: "time", money: "money" };
+    const maxLvl = Math.min(LEVELS.length - 1, LEVELS.indexOf(studyLevel()) + 1);
     const byCat = {};
-    LEVELS.forEach(l => WORDS[l].forEach(x => {
-      (byCat[x.cat] = byCat[x.cat] || []).push(x);
+    LEVELS.slice(0, maxLvl + 1).forEach(l => WORDS[l].forEach(x => {
+      if (CONCRETE.includes(x.cat) && !x.w.includes(" ")) {
+        (byCat[x.cat] = byCat[x.cat] || []).push(x);
+      }
     }));
     const cats = Object.keys(byCat).filter(c => byCat[c].length >= 3);
     const rounds = [];
-    for (let i = 0; i < 6; i++) {
+    let guard = 0;
+    while (rounds.length < 6 && guard++ < 40 && cats.length >= 2) {
       const [catA, catB] = shuffled(cats).slice(0, 2);
-      if (!catB) break;
+      if (WORLD[catA] === WORLD[catB]) continue;   // соседние темы — не игра, а спор
       const three = shuffled(byCat[catA]).slice(0, 3);
       const odd = shuffled(byCat[catB])[0];
       const options = shuffled([...three.map(x => x.w), odd.w]);
-      // Названия тем человеческие: «еда», «животные». Если у категории
-      // имени нет — берём саму категорию, это лучше, чем молчать.
-      const nameA = (typeof CATEGORY_NAMES === "object" && CATEGORY_NAMES[catA]) || catA;
-      const nameB = (typeof CATEGORY_NAMES === "object" && CATEGORY_NAMES[catB]) || catB;
+      const nameA = (CATEGORY_NAMES[catA] || catA).toLowerCase();
+      const nameB = (CATEGORY_NAMES[catB] || catB).toLowerCase();
       rounds.push({
         sub: "Какое слово лишнее?",
         promptHTML: icon("paw", 44),
         options,
         correct: options.indexOf(odd.w),
-        // «banana — это еда, а home, room, kitchen — про дом.»
-        why: `${odd.w} (${odd.t}) — это ${nameB.toLowerCase()}, `
-           + `а ${three.map(x => x.w).join(", ")} — ${nameA.toLowerCase()}.`,
+        // «banana (банан) — это еда, а bed, sofa, lamp — дом.»
+        why: `${odd.w} (${odd.t}) — это ${nameB}, `
+           + `а ${three.map(x => `${x.w} (${x.t})`).join(", ")} — ${nameA}.`,
       });
     }
+    if (!rounds.length) { exFinish(0, 0, "Для этого уровня пока мало слов по темам."); return; }
     runMCQ(rounds, { note: "Лишнее — слово из другой темы." });
   },
 
@@ -1600,7 +1770,7 @@ const EX_RUNNERS = {
    * своего решается угадыванием, а не пониманием.
    * ========================================================= */
   wordform() {
-    const lvl = state.level || "A1";
+    const lvl = studyLevel();
     const idx = LEVELS.indexOf(lvl);
     const near = new Set([LEVELS[Math.max(0, idx - 1)], lvl, LEVELS[Math.min(LEVELS.length - 1, idx + 1)]]);
     const fit = WORD_FORMS.filter(x => near.has(x.lvl));
@@ -1635,7 +1805,7 @@ const EX_RUNNERS = {
    * тренировка, а проверка, и от неё ничего не запоминается.
    * ========================================================= */
   grammar() {
-    const lvl = state.level || "A1";
+    const lvl = studyLevel();
     const idx = LEVELS.indexOf(lvl);
     const near = new Set([LEVELS[Math.max(0, idx - 1)], lvl, LEVELS[Math.min(LEVELS.length - 1, idx + 1)]]);
 
@@ -1821,19 +1991,27 @@ const EX_RUNNERS = {
       <div class="quiz-buttons"><button class="btn btn-primary" id="cw-check">Проверить</button></div>
       <p class="type-feedback" id="cw-result" role="status" aria-live="polite"></p>`;
     const gridEl = document.getElementById("cw-grid");
-    const inputs = {};
-    const order = [];   // клетки слева направо, сверху вниз — для перехода
-    // Какие слова проходят через клетку и какая это буква по счёту —
-    // нужно для подписей: без них программа чтения объявляет тридцать
-    // два поля подряд как «поле ввода, пусто», и понять, где ты сейчас
-    // находишься и что сюда писать, невозможно в принципе.
-    const through = {};
+    // Клетки — обычные div, а печатает всё ОДНО скрытое поле («пульт»).
+    //
+    // Раньше в каждой клетке было своё <input maxlength=1>, и переход
+    // фокуса из клетки в клетку внутри события ввода ломал набор на
+    // Android: экранная клавиатура набирает слово с автозаменой,
+    // фокус уезжает посреди композиции — и буквы «не появляются».
+    // Репетитор написала об этом дважды. Так устроены все мобильные
+    // кроссворды: тап по клетке выбирает её и поднимает клавиатуру у
+    // скрытого поля, а буква ставится в выбранную клетку. Фокус никуда
+    // не прыгает — прыгает только подсветка.
+    const cells = {};        // "r,c" -> { el, ch, r, c }
+    const through = {};      // какие слова проходят через клетку
     placed.forEach(p => {
       for (let k = 0; k < p.w.length; k++) {
         const kk = key(p.horiz ? p.r : p.r + k, p.horiz ? p.c + k : p.c);
         (through[kk] = through[kk] || []).push({ p, idx: k });
       }
     });
+    const labelFor = kk => (through[kk] || []).map(({ p, idx }) =>
+      `Слово ${p.num} ${p.horiz ? "по горизонтали" : "по вертикали"}, `
+      + `«${p.t}», буква ${idx + 1} из ${p.w.length}`).join("; ") || "Клетка кроссворда";
     for (let r = 0; r <= maxR; r++) {
       for (let c = 0; c <= maxC; c++) {
         const cell = owns[key(r, c)];
@@ -1842,88 +2020,141 @@ const EX_RUNNERS = {
           sp.className = "cw-empty";
           sp.setAttribute("aria-hidden", "true");
           gridEl.appendChild(sp);
-        } else {
-          const wrap = document.createElement("div");
-          wrap.className = "cw-cell";
-          if (cell.starts.length) wrap.dataset.num = cell.starts[0];
-          const inp = document.createElement("input");
-          inp.maxLength = 1;
-          // Набор с телефона. Репетитор написал: «не получается вбивать
-          // буквы» — и это ровно так и было.
-          //
-          // maxlength=1 на телефоне работает плохо: экранная клавиатура
-          // собирает слово целиком (подсказки, автозамена, T9) и отдаёт
-          // его одним куском, а поле на один символ такой ввод просто
-          // отбрасывает. Со стороны — «нажимаю, ничего не появляется».
-          // Поэтому ниже мы не полагаемся на maxlength, а сами берём
-          // ПОСЛЕДНИЙ введённый символ.
-          inp.autocomplete = "off";
-          inp.setAttribute("autocorrect", "off");
-          inp.setAttribute("autocapitalize", "characters");
-          inp.setAttribute("spellcheck", "false");
-          inp.setAttribute("enterkeyhint", "next");
-          // inputmode не ставим: нужна обычная буквенная клавиатура,
-          // а любое сужение (numeric, latin) на части прошивок открывает
-          // не тот раскладочный набор.
-          // «Слово 2 вниз, «собака», буква 3 из 6» — по такой подписи
-          // клетку можно найти на слух и не глядя на сетку.
-          inp.setAttribute("aria-label",
-            (through[key(r, c)] || []).map(({ p, idx }) =>
-              `Слово ${p.num} ${p.horiz ? "по горизонтали" : "по вертикали"}, `
-              + `«${p.t}», буква ${idx + 1} из ${p.w.length}`).join("; ")
-            || "Клетка кроссворда");
-          wrap.appendChild(inp);
-          gridEl.appendChild(wrap);
-          inputs[key(r, c)] = { inp, ch: cell.ch, r, c };
-          order.push(inp);
+          continue;
         }
+        const el = document.createElement("div");
+        el.className = "cw-cell";
+        el.setAttribute("role", "button");
+        el.tabIndex = -1;
+        if (cell.starts.length) el.dataset.num = cell.starts[0];
+        el.setAttribute("aria-label", labelFor(key(r, c)));
+        const letter = document.createElement("span");
+        letter.className = "cw-letter";
+        el.appendChild(letter);
+        gridEl.appendChild(el);
+        cells[key(r, c)] = { el, letter, ch: cell.ch, r, c, val: "" };
       }
     }
-    // Ввод и переход между клетками.
-    //
-    // Берём последний символ, а не полагаемся на maxlength: телефонная
-    // клавиатура умеет прислать сразу несколько (автозамена, вставка).
-    // И сразу прыгаем в следующую клетку — иначе на телефоне после каждой
-    // буквы надо целиться пальцем в соседний квадратик, а это и есть то,
-    // что читается как «не набирается».
-    order.forEach((inp, idx) => {
-      inp.addEventListener("input", () => {
-        const v = inp.value.replace(/\s/g, "");
-        if (!v) return;
-        inp.value = v.slice(-1).toLowerCase();
-        inp.classList.remove("ok", "err");
-        inp.removeAttribute("aria-invalid");
-        const nxt = order[idx + 1];
-        if (nxt) { nxt.focus(); nxt.select(); }
+    // Пульт: одно поле, невидимое, но живое (не display:none — иначе
+    // клавиатура не откроется). Значение держим " " (пробел): тогда
+    // Backspace на телефоне даёт событие deleteContentBackward, а на
+    // пустом поле он бы молчал.
+    const ctl = document.createElement("input");
+    ctl.type = "text";
+    ctl.className = "cw-ctl";
+    ctl.autocomplete = "off";
+    ctl.setAttribute("autocorrect", "off");
+    ctl.setAttribute("autocapitalize", "off");
+    ctl.setAttribute("spellcheck", "false");
+    ctl.setAttribute("enterkeyhint", "done");
+    ctl.setAttribute("aria-label", "Ввод буквы в выбранную клетку");
+    ctl.value = " ";
+    gridEl.parentElement.appendChild(ctl);
+
+    let active = null;      // ключ клетки
+    let dir = "h";          // направление хода: h — по строке, v — по столбцу
+    const wordCells = (kk, horiz) => {
+        const hit = (through[kk] || []).find(x => x.p.horiz === horiz);
+        if (!hit) return null;
+        const p = hit.p;
+        return { p, keys: Array.from({ length: p.w.length }, (_, k) =>
+          key(p.horiz ? p.r : p.r + k, p.horiz ? p.c + k : p.c)) };
+    };
+    const select = (kk, keepDir) => {
+      if (!cells[kk]) return;
+      if (active === kk && !keepDir) {
+        // повторный тап по той же клетке переключает направление —
+        // как в любом кроссворде: слово идёт и вправо, и вниз
+        if (wordCells(kk, dir !== "h")) dir = dir === "h" ? "v" : "h";
+      } else if (!keepDir) {
+        // выбираем направление по слову, которое тут есть
+        if (!wordCells(kk, dir === "h")) dir = dir === "h" ? "v" : "h";
+      }
+      active = kk;
+      const word = wordCells(kk, dir === "h") || wordCells(kk, dir !== "h");
+      Object.values(cells).forEach(x => {
+        x.el.classList.toggle("active", false);
+        x.el.classList.toggle("in-word", !!(word && word.keys.includes(key(x.r, x.c))));
       });
-      inp.addEventListener("keydown", e => {
-        // Backspace в пустой клетке возвращает в предыдущую — иначе
-        // исправить опечатку можно только мышью.
-        if (e.key === "Backspace" && !inp.value && order[idx - 1]) {
-          e.preventDefault();
-          const prev = order[idx - 1];
-          prev.value = "";
-          prev.focus();
-        }
-        if (e.key === "ArrowRight" && order[idx + 1]) order[idx + 1].focus();
-        if (e.key === "ArrowLeft" && order[idx - 1]) order[idx - 1].focus();
-      });
-      // Тап по клетке ставит курсор, а не дописывает в конец
-      inp.addEventListener("focus", () => inp.select());
+      cells[kk].el.classList.add("active");
+      ctl.setAttribute("aria-label", labelFor(kk));
+      ctl.focus({ preventScroll: true });
+    };
+    const put = (kk, ch) => {
+      const x = cells[kk];
+      x.val = ch;
+      x.letter.textContent = ch.toUpperCase();
+      x.el.classList.remove("ok", "err");
+      x.el.removeAttribute("aria-invalid");
+    };
+    const step = (kk, delta) => {
+      // следующая/предыдущая клетка ТЕКУЩЕГО слова
+      const word = wordCells(kk, dir === "h");
+      if (!word) return null;
+      const i = word.keys.indexOf(kk);
+      return word.keys[i + delta] || null;
+    };
+    Object.entries(cells).forEach(([kk, x]) => {
+      // pointerdown, а не click: успеваем поднять клавиатуру в том же
+      // жесте — иначе iOS не откроет её для скрытого поля
+      x.el.addEventListener("pointerdown", e => { e.preventDefault(); select(kk); });
+      x.el.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); select(kk); } });
     });
+    ctl.addEventListener("input", e => {
+      if (!active) return;
+      const type = e.inputType || "";
+      if (type.startsWith("deleteContent")) {
+        // стираем: сначала текущую, если пустая — предыдущую
+        if (cells[active].val) put(active, "");
+        else { const prev = step(active, -1); if (prev) { put(prev, ""); select(prev, true); } }
+      } else {
+        // берём последний введённый символ: телефон умеет прислать сразу
+        // несколько (автозамена, вставка), а нам нужна одна буква
+        const raw = (e.data != null ? String(e.data) : ctl.value).replace(/\s/g, "");
+        const ch = raw.slice(-1).toLowerCase();
+        if (ch) {
+          put(active, ch);
+          const nxt = step(active, 1);
+          if (nxt) select(nxt, true);
+        }
+      }
+      ctl.value = " ";
+      ctl.setSelectionRange(1, 1);
+    });
+    ctl.addEventListener("keydown", e => {
+      if (!active) return;
+      const map = { ArrowRight: ["h", 1], ArrowLeft: ["h", -1], ArrowDown: ["v", 1], ArrowUp: ["v", -1] };
+      if (map[e.key]) {
+        e.preventDefault();
+        const [d, delta] = map[e.key];
+        const x = cells[active];
+        const nk = key(d === "h" ? x.r : x.r + delta, d === "h" ? x.c + delta : x.c);
+        if (cells[nk]) { dir = wordCells(nk, d === "h") ? d : dir; select(nk, true); }
+      }
+      if (e.key === "Tab") {
+        // Tab — к следующему слову
+        e.preventDefault();
+        const cur = wordCells(active, dir === "h");
+        const i = cur ? placed.indexOf(cur.p) : -1;
+        const nextP = placed[(i + 1 + (e.shiftKey ? placed.length - 2 : 0)) % placed.length];
+        dir = nextP.horiz ? "h" : "v";
+        select(key(nextP.r, nextP.c), true);
+      }
+    });
+    // Стартуем с первой клетки первого слова: сразу видно, куда печатать
+    select(key(placed[0].r, placed[0].c), true);
 
     document.getElementById("cw-check").addEventListener("click", () => {
       let allOk = true, wrong = 0, empty = 0;
-      Object.values(inputs).forEach(({ inp, ch }) => {
-        const val = inp.value.trim().toLowerCase();
-        const ok = val === ch;
-        inp.classList.toggle("ok", ok);
-        inp.classList.toggle("err", !ok);
+      Object.values(cells).forEach(x => {
+        const ok = x.val === x.ch;
+        x.el.classList.toggle("ok", ok);
+        x.el.classList.toggle("err", !ok);
         // Цвет — не единственный носитель смысла: дальтоник и незрячий
         // не различат зелёную клетку и красную. aria-invalid слышно,
         // а надпись ниже сообщает итог словами всем сразу.
-        inp.setAttribute("aria-invalid", ok ? "false" : "true");
-        if (!ok) { allOk = false; val ? wrong++ : empty++; }
+        x.el.setAttribute("aria-invalid", ok ? "false" : "true");
+        if (!ok) { allOk = false; x.val ? wrong++ : empty++; }
       });
       const say = document.getElementById("cw-result");
       if (say) {

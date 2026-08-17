@@ -37,6 +37,7 @@ nigga nigger negro fag faggot retard retarded spaz cretin imbecile git twerp boz
 pervert molest
 anal anus vaginal vibrator stripper topless erection intercourse sexuality homosexual
 homosexuality bisexual heterosexual transsexual transgender queer
+adultery bestiality bimbo binge bondage busty cleavage clitoris concubine contraception cuckold cum dyke ejaculation garter hammered hangover hardcore homo impotence jizz ladyboy lingerie lust lustful lynch menstrual meth nudist orgy poof pubic redneck sadist screwed seduce seduction seductive shemale sissy stoner tranny voyeur willy
 """.split())
 
 # --- отбраковка ПРИМЕРОВ -------------------------------------------------

@@ -15,6 +15,8 @@ function loadState() {
     vocabEstimate: 0,
     dictionary: [],      // { w, t, ex, level, status: new|learning|learned, knew: 0, forgot: 0 }
     recommendSeen: [],   // слова, уже показанные в рекомендациях
+    trainLevel: null,    // уровень слов для тренировок, если ученик выбрал сам; null — как по тесту
+    trainWords: [],      // слова, отмеченные на тренировку вручную (в нижнем регистре); пусто — не отбирал
   };
   // Миграция старых сохранений.
   //
@@ -49,9 +51,24 @@ function loadState() {
   // репетитора, грамматика, словообразование) это единственный способ
   // показать репетитору «сдал 8/10» — по словарю там считать нечего.
   st.taskResults = st.taskResults || {};
+  // Уровень слов для тренировок, выбранный самим учеником. Пусто — по
+  // тесту. Репетитор просила: тест ставит уровень один раз, а ученик
+  // должен мочь сказать «давай мне слова попроще / посложнее».
+  st.trainLevel = st.trainLevel || null;
+  // Отобранные на тренировку слова. Репетитор спрашивала, как назначить
+  // на тренировку конкретные слова, — папки для этого есть, но нужнее
+  // прямой способ: отметить галочками и тренировать только их.
+  st.trainWords = st.trainWords || [];
   // словам из старых версий добавляем поля интервального повторения
   if (typeof srsInit === "function") st.dictionary.forEach(srsInit);
   return st;
+}
+
+/** Уровень, ПО КОТОРОМУ подбираем слова: выбранный учеником в тренировках
+ *  или, если не выбирал, — по тесту. state.level (по тесту) остаётся для
+ *  показа в профиле и репетитору; подбор везде идёт через эту функцию. */
+function studyLevel() {
+  return state.trainLevel || state.level || "A1";
 }
 
 // ===== Очки и звания =====
@@ -556,7 +573,7 @@ function pickRecommendations() {
   // едет, главная рисуется без карточек, а не падает; когда приедет —
   // renderDashboard зовут ещё раз.
   if (typeof WORDS === "undefined") return [];
-  const lvl = state.level || "A1";
+  const lvl = studyLevel();
   const nextLvl = LEVELS[Math.min(LEVELS.indexOf(lvl) + 1, LEVELS.length - 1)];
   const inDict = new Set(state.dictionary.map(d => d.w));
   const seen = new Set(state.recommendSeen);
@@ -632,7 +649,7 @@ function renderWordOfDay() {
   // главную раньше, чем догрузился словарь.
   box.classList.toggle("hidden", typeof WORDS === "undefined");
   if (typeof WORDS === "undefined") return;
-  const pool = WORDS[state.level] || WORDS.A1;
+  const pool = WORDS[studyLevel()] || WORDS.A1;
   const days = Math.floor(Date.now() / 86400000);
   const wd = pool[days % pool.length];
   const inDict = state.dictionary.some(d => d.w.toLowerCase() === wd.w.toLowerCase());
@@ -724,7 +741,7 @@ function todayPlan() {
     return {
       state: "first", cat: "hello", kicker: `${iconInline("paw", 16)} Начинаем`,
       title: "Первое занятие — 5 минут",
-      sub: `${RECOMMEND_COUNT} слов уровня ${state.level} — карточки с картинкой и звуком. Завтра они сами ждут тебя на главной.`,
+      sub: `${RECOMMEND_COUNT} слов уровня ${studyLevel()} — карточки с картинкой и звуком. Завтра они сами ждут тебя на главной.`,
       btn: "Поехали →",
       act: startFirstLesson,
       alt: { label: "сначала посмотреть слова", scrollTo: "words-head" },
@@ -761,7 +778,7 @@ function todayPlan() {
   return {
     state: "free", cat: "wink", kicker: `${iconInline("paw", 16)} Прямо сейчас`,
     title: "Позаниматься 5 минут",
-    sub: `Повторять пока нечего — возьмём слова уровня ${state.level}. До цели дня ещё ${goal - got} очков.`,
+    sub: `Повторять пока нечего — возьмём слова уровня ${studyLevel()}. До цели дня ещё ${goal - got} очков.`,
     btn: "Позаниматься 5 минут",
     act: () => show("practice"),
     alt: { label: "добавить новых слов", scrollTo: "words-head" },
@@ -915,7 +932,7 @@ function renderDashWidgets() {
       <p class="stat-value">${state.dictionary.length} <span class="stat-unit">в словаре</span></p>
       <p class="stat-note">выучено ${learned} · повторяю ${learning}</p>` : `
       <p class="stat-value">${RECOMMEND_COUNT} <span class="stat-unit">ждут тебя</span></p>
-      <p class="stat-note">подобраны под уровень ${state.level} — с них и начнём</p>`}
+      <p class="stat-note">подобраны под уровень ${studyLevel()} — с них и начнём</p>`}
     </div>
     <div class="card stat-card">
       <p class="stat-label">Звание</p>
@@ -1306,6 +1323,40 @@ document.addEventListener("DOMContentLoaded", () => {
 
 document.getElementById("dict-search").addEventListener("input", renderDictionary);
 
+/** Отбор слов на тренировку: галочки в словаре → тренируем только их
+ *  (см. trainingDictionary в exercises.js). Отдельно от папок: папка — это
+ *  надолго и по теме, отбор — «вот эти двенадцать к четвергу». */
+let dictPickMode = false;
+
+function renderPickBar() {
+  const bar = document.getElementById("dict-pick-bar");
+  const btn = document.getElementById("dict-pick-toggle");
+  if (!bar || !btn) return;
+  const n = (state.trainWords || []).length;
+  btn.classList.toggle("active", dictPickMode);
+  btn.setAttribute("aria-pressed", String(dictPickMode));
+  btn.textContent = dictPickMode ? "Готово" : (n ? `Отобрано на тренировку: ${n}` : "Отобрать слова на тренировку");
+  bar.classList.toggle("hidden", !dictPickMode && !n);
+  bar.innerHTML = n
+    ? `<span>Отмечено: <b>${n}</b></span>
+       <button type="button" class="btn btn-primary btn-small" id="dict-pick-go">Тренировать отмеченные</button>
+       <button type="button" class="link-btn" id="dict-pick-clear">снять отметки</button>`
+    : `<span class="muted-small">Отметь галочками слова, которые хочешь отработать, — потом «Тренировать отмеченные».</span>`;
+  const go = document.getElementById("dict-pick-go");
+  if (go) go.addEventListener("click", () => { dictPickMode = false; show("practice"); });
+  const clear = document.getElementById("dict-pick-clear");
+  if (clear) clear.addEventListener("click", () => {
+    state.trainWords = [];
+    saveState();
+    renderDictionary();
+  });
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  const btn = document.getElementById("dict-pick-toggle");
+  if (btn) btn.addEventListener("click", () => { dictPickMode = !dictPickMode; renderDictionary(); });
+});
+
 function renderDictionary() {
   updateChrome();
   const list = document.getElementById("dict-list");
@@ -1333,10 +1384,12 @@ function renderDictionary() {
   }
 
   const statusText = { new: "новое", learning: "учу", learned: "выучено" };
+  const pickSet = new Set((state.trainWords || []).map(w => w.toLowerCase()));
+  renderPickBar();
   items.forEach(d => {
     const info0 = (typeof wordInfo === "function" && wordInfo(d.w)) || {};
     const row = document.createElement("div");
-    row.className = "dict-row";
+    row.className = "dict-row" + (dictPickMode ? " picking" : "");
     // Строка раскрывает определение и пример — то есть основную ценность
     // словаря. Была обычным <div> с обработчиком клика: без мыши подробности
     // достать было нельзя. Тот же приём, что уже применён к карточке слова.
@@ -1350,11 +1403,29 @@ function renderDictionary() {
       row.click();
     });
     row.innerHTML = `
+      ${dictPickMode ? `<input type="checkbox" class="d-pick" ${pickSet.has(d.w.toLowerCase()) ? "checked" : ""}
+          aria-label="Отметить ${esc(d.w)} на тренировку">` : ""}
       <span class="word-art word-art-tiny" aria-hidden="true" style="background:${wordTint(info0.cat)}">${wordArtHTML(d.w, info0.cat)}</span>
       <span class="d-en" lang="en">${esc(d.w)} <button class="say-btn" aria-label="Произношение: ${esc(d.w)}">${icon('sound', 18)}</button></span>
       <span class="d-ru">${esc(d.t)}</span>
       <span class="d-status ${d.status}">${statusText[d.status]}</span>
     `;
+    const pick = row.querySelector(".d-pick");
+    if (pick) {
+      const toggle = e => {
+        e.stopPropagation();
+        const key = d.w.toLowerCase();
+        const set = new Set((state.trainWords || []).map(w => w.toLowerCase()));
+        set.has(key) ? set.delete(key) : set.add(key);
+        state.trainWords = [...set];
+        pick.checked = set.has(key);
+        saveState();
+        renderPickBar();
+      };
+      pick.addEventListener("click", toggle);
+      // В режиме отбора клик по строке тоже отмечает — целиться в галочку на телефоне не надо
+      row.addEventListener("click", e => { if (dictPickMode && e.target === row) { pick.checked = !pick.checked; toggle(e); } }, true);
+    }
     row.querySelector(".say-btn").addEventListener("click", e => {
       e.stopPropagation();
       speak(d.w);
@@ -1805,7 +1876,7 @@ function catReply(raw) {
       return;
     }
     const inDict = new Set(state.dictionary.map(d => d.w));
-    const lvl = state.level || "A1";
+    const lvl = studyLevel();
     const pool = WORDS[lvl].filter(w => !inDict.has(w.w));
     const word = pool.length ? pool[Math.floor(Math.random() * pool.length)] : null;
     if (!word) {
@@ -1952,8 +2023,8 @@ function phraseListFor(kind) {
   const all = PHRASES[kind] || [];
   // Показываем уровень ученика и соседний снизу: выражение сложнее своего
   // уровня не учится, а разбивается о непонимание частей.
-  const idx = LEVELS.indexOf(state.level || "A1");
-  const near = new Set([LEVELS[Math.max(0, idx - 1)], state.level || "A1",
+  const idx = LEVELS.indexOf(studyLevel());
+  const near = new Set([LEVELS[Math.max(0, idx - 1)], studyLevel(),
                         LEVELS[Math.min(LEVELS.length - 1, idx + 1)]]);
   const fit = all.filter(x => near.has(x.level));
   return (fit.length >= 10 ? fit : all).slice(0, 120);

@@ -1751,13 +1751,7 @@ h2[tabindex="-1"]:focus-visible { outline: none; box-shadow: none; }
     margin-inline: 0;
   }
   .cw-cell, .cw-empty { width: 40px; }
-  .cw-cell input { font-size: var(--text-body-sm, 17px); }
-}
-/* Клетка, в которой стоит курсор, видна отчётливее соседних: на мелкой
-   сетке без этого не понять, куда сейчас попадёт буква. */
-.cw-cell input:focus {
-  border-color: var(--accent);
-  background: var(--accent-soft);
+  .cw-cell { font-size: var(--text-body-sm, 17px); }
 }
 
 /* Объяснение под разобранным вопросом. Отступ сверху больше, чем снизу:
@@ -1847,3 +1841,16 @@ h2[tabindex="-1"]:focus-visible { outline: none; box-shadow: none; }
   font-weight: 500;
   font-size: var(--text-caption);
 }
+
+/* Уровень слов для тренировок — над рядом папок, тем же тоном */
+.train-level {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-8) var(--space-12);
+  margin-bottom: var(--space-16);
+}
+.train-level .scope-label { display: inline; }
+.train-level-select {
+  font-family: inherit; font-size: var(--text-caption); font-weight: 700; color: var(--ink);
+  padding: 8px 12px; border: 2px solid var(--border); border-radius: 10px; background: var(--surface); outline: none;
+}
+.train-level-select:focus { border-color: var(--accent); }
+.train-level .muted-small { flex-basis: 100%; }
