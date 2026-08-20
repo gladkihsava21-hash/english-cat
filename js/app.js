@@ -277,9 +277,17 @@ document.getElementById("auth-form").addEventListener("submit", e => {
     consent.focus();
     return;
   }
-  state.user = { name, email: document.getElementById("reg-email").value.trim() };
+  const email = document.getElementById("reg-email").value.trim();
+  state.user = { name, email };
   saveState();
-  if (typeof joinTutor === "function") joinTutor(name);
+  if (window.pendingInvite) {
+    // пришёл по ссылке репетитора — прежний путь
+    if (typeof joinTutor === "function") joinTutor(name);
+  } else if (typeof registerStandalone === "function") {
+    // одиночка: настоящий аккаунт с кодом и синхронизацией. Не ждём
+    // ответа — тест можно начинать, токен доедет фоном.
+    registerStandalone(name, email);
+  }
   updateChrome();
   if (state.level) {
     show("dashboard");

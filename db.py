@@ -255,6 +255,11 @@ MIGRATIONS = [
     ("tutors", "remind_sent_at", "TEXT"),
     # Письмо «пробный период кончается завтра» — один раз за триал.
     ("tutors", "trial_warned_at", "TEXT"),
+    # Почта ученика-одиночки (без репетитора) — необязательная, только
+    # чтобы вернуть доступ при потерянном коде: владелец находит аккаунт
+    # по почте в админке и называет код. У пришедших по ссылке репетитора
+    # почты не спрашиваем — код им назовёт репетитор.
+    ("students", "email", "TEXT"),
     # ---- свои задания ----
     # Домашка может нести набор из конструктора (game = "custom").
     ("homework", "taskset_id", "INTEGER REFERENCES tasksets(id)"),
@@ -312,7 +317,62 @@ def init():
                 # тариф, оставляет её бесплатно навсегда. Отбирать оплаченную
                 # фичу задним числом нельзя, а первые клиенты — самые ценные.
                 c.execute("UPDATE tutors SET checks_free=1")
+    _allow_standalone_students(c)
     c.commit()
+
+
+def _allow_standalone_students(c):
+    """Снять NOT NULL с students.tutor_id: появились ученики БЕЗ репетитора.
+
+    Раньше ученик без ссылки репетитора жил только в localStorage браузера:
+    на сервере его не существовало, личного кода не было, и на другом
+    устройстве сайт встречал его как нового — именем и тестом заново
+    (владелец на это и наткнулся). Теперь одиночка — обычная строка
+    students с tutor_id NULL.
+
+    SQLite не умеет ALTER COLUMN, поэтому таблица пересобирается один раз:
+    создаём копию без NOT NULL, переливаем строки, меняем местами. Запуск
+    повторный безопасен — по PRAGMA видно, что ограничения уже нет.
+    Выполняется ПОСЛЕ колонок-миграций: копия строится по фактическому
+    списку колонок."""
+    info = list(c.execute("PRAGMA table_info(students)"))
+    tid = next((r for r in info if r["name"] == "tutor_id"), None)
+    if not tid or not tid["notnull"]:
+        return
+    cols = [r["name"] for r in info]
+    defs = []
+    for r in info:
+        d = r["name"] + " " + (r["type"] or "TEXT")
+        if r["pk"]:
+            d += " PRIMARY KEY AUTOINCREMENT"
+        elif r["notnull"] and r["name"] != "tutor_id":
+            d += " NOT NULL"
+        if r["dflt_value"] is not None:
+            d += " DEFAULT " + str(r["dflt_value"])
+        if r["name"] == "tutor_id":
+            d += " REFERENCES tutors(id)"
+        if r["name"] == "group_id":
+            d += " REFERENCES groups(id)"
+        defs.append(d)
+    col_list = ", ".join(cols)
+    # foreign_keys выключаем на время перестановки — иначе DROP старой
+    # таблицы под ссылками падает; в конце возвращаем как было
+    c.execute("PRAGMA foreign_keys=OFF")
+    try:
+        c.execute("DROP TABLE IF EXISTS students_rebuild")
+        c.execute("CREATE TABLE students_rebuild (%s)" % ", ".join(defs))
+        c.execute("INSERT INTO students_rebuild (%s) SELECT %s FROM students"
+                  % (col_list, col_list))
+        old_n = c.execute("SELECT COUNT(*) FROM students").fetchone()[0]
+        new_n = c.execute("SELECT COUNT(*) FROM students_rebuild").fetchone()[0]
+        if old_n != new_n:   # не потеряли ли кого — иначе откат
+            raise RuntimeError("students rebuild mismatch: %d != %d" % (old_n, new_n))
+        c.execute("DROP TABLE students")
+        c.execute("ALTER TABLE students_rebuild RENAME TO students")
+        c.execute("CREATE INDEX IF NOT EXISTS idx_students_tutor ON students(tutor_id)")
+        c.commit()
+    finally:
+        c.execute("PRAGMA foreign_keys=ON")
 
 
 # ---------- пароли ----------
@@ -554,6 +614,43 @@ def create_student(tutor_id, name):
     )
     conn().commit()
     return get_student_by_id(cur.lastrowid)
+
+
+def create_student_standalone(name, email=None):
+    """Ученик без репетитора: сам зашёл на сайт и зарегистрировался.
+    Аккаунт настоящий — с токеном, личным кодом и синхронизацией, просто
+    tutor_id пуст: рейтинга, домашек и фото у него нет, пока репетитор
+    не появится (student_adopt)."""
+    token = new_token()
+    code = new_restore_code()
+    cur = conn().execute(
+        "INSERT INTO students (tutor_id, name, token, restore_code, email, created_at)"
+        " VALUES (NULL, ?, ?, ?, ?, ?)",
+        (name.strip()[:60], token, code, (email or "").strip().lower()[:254] or None, now()),
+    )
+    conn().commit()
+    return get_student_by_id(cur.lastrowid)
+
+
+def adopt_student(student_id, tutor_id):
+    """Привязать одиночку к репетитору — когда он позже открыл ссылку.
+    Только из NULL: перепривязка между репетиторами — это спор двух
+    взрослых, а не кнопка."""
+    conn().execute(
+        "UPDATE students SET tutor_id=? WHERE id=? AND tutor_id IS NULL",
+        (tutor_id, student_id))
+    conn().commit()
+    return get_student_by_id(student_id)
+
+
+def tutor_has_student_named(tutor_id, name):
+    """Есть ли у репетитора ученик с таким именем — защита от дублей:
+    ребёнок с нового устройства открывает ссылку и вводит имя заново,
+    получая ПУСТОЙ второй аккаунт вместо своего прогресса."""
+    row = conn().execute(
+        "SELECT 1 FROM students WHERE tutor_id=? AND LOWER(name)=LOWER(?) LIMIT 1",
+        (tutor_id, name.strip())).fetchone()
+    return bool(row)
 
 
 def student_name_problem(name):
@@ -1351,6 +1448,8 @@ def group_public(row):
 def leaderboard(student_row, limit=12):
     """Рейтинг одноклассников за неделю — виден самому ученику.
     Показываем только имя и очки: чужой прогресс по словам не раскрываем."""
+    if not student_row["tutor_id"]:
+        return []   # одиночка: чужих детей ему показывать нельзя и незачем
     peers = conn().execute(
         "SELECT id, name, xp, activity, group_id FROM students WHERE tutor_id=?",
         (student_row["tutor_id"],),
@@ -2333,6 +2432,41 @@ def admin_tutors():
             "paidDaysLeft": paid_left(t),
         })
     return out
+
+
+def admin_standalone_students():
+    """Ученики без репетитора — для админки. Личный код здесь виден
+    сознательно: это единственный способ поддержки («потерял код,
+    вот моя почта») для тех, у кого нет репетитора с панелью."""
+    out = []
+    for s in conn().execute(
+            "SELECT * FROM students WHERE tutor_id IS NULL ORDER BY id DESC"):
+        try:
+            days = len(json.loads(s["activity"] or "{}"))
+        except (ValueError, TypeError):
+            days = 0
+        keys = s.keys()
+        out.append({
+            "id": s["id"], "name": s["name"],
+            "email": (s["email"] if "email" in keys else "") or "",
+            "level": s["level"], "xp": s["xp"], "days": days,
+            "words": len(json.loads(s["dictionary"] or "[]")),
+            "createdAt": s["created_at"], "lastSeen": s["last_seen"],
+            "restoreCode": s["restore_code"] or "",
+        })
+    return out
+
+
+def admin_delete_student(student_id):
+    """Удалить одиночку из админки (брошенные аккаунты). Только без
+    репетитора: учеников репетитора удаляет он сам в панели."""
+    row = get_student_by_id(student_id)
+    if not row or row["tutor_id"]:
+        return False
+    _purge_student_rows(student_id)
+    conn().execute("DELETE FROM students WHERE id=?", (student_id,))
+    conn().commit()
+    return True
 
 
 def admin_set_plan(tutor_id, plan_id, limit):

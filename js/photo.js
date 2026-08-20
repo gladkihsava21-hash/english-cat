@@ -123,9 +123,9 @@ function initPhotoHomework() {
   const btn = document.getElementById("photo-btn");
   const cta = document.getElementById("photo-cta");
   if (!input || !btn) return;
-  // кнопка нужна только тем, кто зашёл по ссылке репетитора:
-  // остальным отправлять фото некому
-  if (!studentToken()) return;
+  // кнопка нужна только тем, у кого есть репетитор: одиночке
+  // отправлять фото некому (savelyTutorName пуст у одиночек)
+  if (!studentToken() || !localStorage.getItem("savelyTutorName")) return;
   if (cta) cta.classList.remove("hidden");
   btn.addEventListener("click", () => input.click());
   input.addEventListener("change", () => {

@@ -31,7 +31,9 @@ function accessTag(t) {
 
 function ago(iso) {
   if (!iso) return "ни разу";
-  const days = Math.floor((Date.now() - new Date(iso + "T00:00:00")) / 864e5);
+  // Репетиторские даты — «2026-08-20», у учеников-одиночек полный
+  // ISO-штамп с временем; второму суффикс времени ломает разбор.
+  const days = Math.floor((Date.now() - new Date(iso.includes("T") ? iso : iso + "T00:00:00")) / 864e5);
   if (days <= 0) return "сегодня";
   if (days === 1) return "вчера";
   if (days < 7) return days + " дн. назад";
@@ -166,6 +168,42 @@ function renderTutors() {
   }));
 }
 
+// ===== Ученики без репетитора =====
+
+function renderStandalone() {
+  const box = $("standalone"), lead = $("standalone-lead");
+  if (!box) return;
+  const list = data.standalone || [];
+  lead.textContent = list.length
+    ? `Всего: ${list.length}. Личный код здесь — для поддержки: по нему человек возвращает аккаунт на новом устройстве.`
+    : "Пока никого — все ученики пришли по ссылкам репетиторов.";
+  box.innerHTML = list.map(s => `
+    <div class="card check-row" data-sid="${s.id}">
+      <div class="check-who">
+        <b>${esc(s.name)}</b>
+        <span class="muted-small">${s.email ? esc(s.email) + " · " : ""}уровень ${esc(s.level || "—")}
+          · слов ${s.words} · ⭐ ${s.xp} · дней ${s.days} · был: ${esc(ago(s.lastSeen))}</span>
+      </div>
+      <span class="at-tag trial" style="user-select:all" title="Личный код для входа">${esc(s.restoreCode)}</span>
+      <button class="link-btn danger" data-sdel="${s.id}">удалить</button>
+    </div>`).join("");
+  box.querySelectorAll("[data-sdel]").forEach(b => {
+    let armed = false, timer = null;
+    b.addEventListener("click", async () => {
+      if (!armed) {
+        armed = true;
+        b.textContent = "точно удалить? нажмите ещё раз";
+        timer = setTimeout(() => { armed = false; b.textContent = "удалить"; }, 4000);
+        return;
+      }
+      clearTimeout(timer);
+      const res = await api("/api/admin/student/delete",
+        { token: atoken(), studentId: Number(b.dataset.sdel), confirm: "УДАЛИТЬ" });
+      if (res.ok) { data.standalone = res.standalone; data.overview = res.overview; renderStandalone(); renderOverview(); }
+    });
+  });
+}
+
 // ===== Лог ошибок =====
 
 /** Время из базы (UTC, ISO) — в местное, коротко: «16.08 14:03». */
@@ -262,6 +300,7 @@ async function load() {
   $("app").classList.remove("hidden");
   renderOverview();
   renderTutors();
+  renderStandalone();
   loadErrors();
 }
 

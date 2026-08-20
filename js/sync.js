@@ -32,7 +32,32 @@ function inviteCodeFromUrl() {
 
 async function initInvite() {
   const code = inviteCodeFromUrl();
-  if (!code || studentToken()) return;
+  if (!code) return;
+  // Ссылку открыл ученик, у которого УЖЕ есть аккаунт (одиночка):
+  // привязываем его, а не создаём второго. Прогресс и код остаются.
+  if (studentToken()) {
+    let info;
+    try { info = await api("/api/join", { code }); } catch (e) { return; }
+    if (!info.ok) return;
+    const box = document.getElementById("invite-note") || document.getElementById("tutor-msg-box");
+    if (!box) return;
+    box.classList.remove("hidden");
+    box.innerHTML = `<div class="card hw-card"><p class="hw-title">Тебя пригласил репетитор: ${esc(info.tutorName)}</p>
+      <p class="muted-small">Привязать твой аккаунт? Словарь, очки и код останутся твоими,
+        а репетитор увидит прогресс и сможет давать домашку.</p>
+      <div class="quiz-buttons" style="justify-content:flex-start">
+        <button class="btn btn-primary btn-small" id="adopt-yes">Да, привязать</button>
+        <button class="btn btn-ghost btn-small" id="adopt-no">Не сейчас</button>
+      </div></div>`;
+    document.getElementById("adopt-yes").addEventListener("click", async () => {
+      const res = await api("/api/student/adopt", { token: studentToken(), code });
+      if (!res.ok) { box.innerHTML = `<p class="muted-small">${esc(res.error || "Не получилось.")}</p>`; return; }
+      localStorage.setItem(TUTOR_NAME_KEY, res.tutorName || "");
+      location.href = location.pathname;   // убираем ?join= и перерисовываемся
+    });
+    document.getElementById("adopt-no").addEventListener("click", () => { box.innerHTML = ""; box.classList.add("hidden"); });
+    return;
+  }
   let info;
   try {
     info = await api("/api/join", { code });
@@ -57,6 +82,26 @@ async function initInvite() {
   if (mail) mail.classList.add("hidden");
   const emailInput = document.getElementById("reg-email");
   if (emailInput) emailInput.value = "";
+}
+
+/** Регистрация БЕЗ ссылки репетитора — теперь тоже настоящий аккаунт.
+ *  Раньше такой ученик жил только в localStorage: на сервере его не было,
+ *  личного кода не было, и на другом устройстве сайт встречал его именем
+ *  и тестом заново. Возвращает true, если аккаунт создан на сервере. */
+async function registerStandalone(name, email) {
+  if (studentToken()) return true;   // уже есть аккаунт — не плодим
+  try {
+    const res = await api("/api/student/register", { name, email: email || "" });
+    if (!res.ok) return false;       // имя не прошло проверку и т.п. — живём локально
+    localStorage.setItem(STUDENT_TOKEN_KEY, res.token);
+    localStorage.setItem(TUTOR_NAME_KEY, "");
+    if (res.restoreCode) state.restoreCode = res.restoreCode;
+    saveStateQuiet();
+    pushProgress();
+    return true;
+  } catch (e) {
+    return false;                    // офлайн — прогресс пока локальный
+  }
 }
 
 // вызывается после регистрации ученика в app.js
@@ -161,10 +206,45 @@ async function tryPendingJoin() {
       localStorage.removeItem(PENDING_JOIN_KEY);
       window.pendingInvite = null;
       pushProgress();
+    } else if (res.sameName) {
+      // У репетитора уже есть ученик с этим именем — почти всегда это тот
+      // же ребёнок с нового устройства. Даём выбор вместо тихого дубля.
+      showSameNamePrompt(pending);
     } else if (res.error && res.error.includes("не существует")) {
       localStorage.removeItem(PENDING_JOIN_KEY);   // ссылка мертва, повторять нечего
     }
   } catch (e) { /* офлайн — попробуем при следующем запуске */ }
+}
+
+/** «Такое имя уже есть»: вернись по коду или подтверди, что ты другой. */
+function showSameNamePrompt(pending) {
+  const box = document.getElementById("invite-note");
+  if (!box) return;
+  box.classList.remove("hidden");
+  box.innerHTML = `<p>У этого репетитора уже есть ученик по имени <b>${esc(pending.name)}</b>.</p>
+    <p class="muted-small">Если это ты с нового устройства — войди по личному коду,
+      и весь прогресс вернётся. Код показан в профиле на старом устройстве,
+      и его знает репетитор.</p>
+    <div class="quiz-buttons" style="justify-content:flex-start">
+      <button class="btn btn-primary btn-small" id="samename-restore">Это я — ввести код</button>
+      <button class="btn btn-ghost btn-small" id="samename-force">Это другой человек — создать</button>
+    </div>`;
+  document.getElementById("samename-restore").addEventListener("click", () => {
+    const show = document.getElementById("show-restore");
+    if (show) show.click();
+  });
+  document.getElementById("samename-force").addEventListener("click", async () => {
+    const res = await api("/api/student/join", { ...pending, force: true });
+    if (res.ok) {
+      localStorage.setItem(STUDENT_TOKEN_KEY, res.token);
+      localStorage.setItem(TUTOR_NAME_KEY, res.tutorName || "");
+      if (res.restoreCode) state.restoreCode = res.restoreCode;
+      saveStateQuiet();
+      localStorage.removeItem(PENDING_JOIN_KEY);
+      box.innerHTML = ""; box.classList.add("hidden");
+      pushProgress();
+    }
+  });
 }
 
 /** Забираем прогресс с сервера.

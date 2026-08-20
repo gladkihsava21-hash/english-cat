@@ -347,6 +347,8 @@ _HIT_LIMITS = {
     "/api/student/photo": (10, 300),
     "/api/student/reading": (30, 300),
     "/api/student/join": (30, 600),
+    "/api/student/register": (10, 600),
+    "/api/student/adopt": (10, 600),
     # Личный кабинет ученика. Профиль открывают часто (каждый заход на
     # экран), остальное — редкие и необратимые действия, и частить ими
     # незачем: перевыпуск кода отнимает доступ у старого устройства,
@@ -1097,6 +1099,42 @@ class Api:
         return {"ok": True, "tutorName": tutor["name"]}
 
     @staticmethod
+    def student_register(h, p):
+        """Ученик без репетитора. Раньше такой аккаунт жил только в
+        localStorage: на сервере его не было, кода не было, и на другом
+        устройстве сайт встречал человека тестом заново. Теперь это
+        обычный аккаунт — токен, личный код, синхронизация; почта
+        необязательна и нужна только чтобы вернуть код через поддержку."""
+        name = str(p.get("name", "")).strip()
+        problem = db.student_name_problem(name)
+        if problem:
+            return {"ok": False, "error": problem}
+        email = str(p.get("email", "")).strip()
+        if email and not valid_email(email):
+            return {"ok": False, "error": "Проверь адрес почты — или оставь поле пустым."}
+        row = db.create_student_standalone(name, email)
+        return {"ok": True, "token": row["token"], "restoreCode": row["restore_code"]}
+
+    @staticmethod
+    def student_adopt(h, p):
+        """Одиночка открыл ссылку репетитора: привязываем СУЩЕСТВУЮЩИЙ
+        аккаунт вместо создания нового — прогресс и код остаются."""
+        row, err = student_owner(p)
+        if err:
+            return err
+        if row["tutor_id"]:
+            return {"ok": False, "error": "Ты уже занимаешься с репетитором."}
+        tutor = db.get_tutor_by_code(p.get("code"))
+        if not tutor:
+            return {"ok": False, "error": "Такой ссылки не существует."}
+        allowed, limit = db.can_add_student(tutor)
+        if not allowed:
+            return {"ok": False, "error":
+                    "У репетитора заняты все %d мест. Напиши ему — он добавит место." % limit}
+        db.adopt_student(row["id"], tutor["id"])
+        return {"ok": True, "tutorName": tutor["name"]}
+
+    @staticmethod
     def student_restore(h, p):
         """Вход с другого устройства по ЛИЧНОМУ коду ученика.
 
@@ -1140,6 +1178,14 @@ class Api:
             return {"ok": False, "error":
                     "У репетитора заняты все %d мест. Напиши ему — он добавит место, "
                     "и ты подключишься." % limit}
+        # У репетитора уже есть ученик с этим именем? Почти всегда это ТОТ ЖЕ
+        # ребёнок с нового устройства: без проверки он получал пустой второй
+        # аккаунт, а репетитор — дубль в списке. Вернуться правильно по
+        # личному коду; «это правда другой человек» — клиент повторит с force.
+        if not p.get("force") and db.tutor_has_student_named(tutor["id"], name):
+            return {"ok": False, "sameName": True, "error":
+                    "У этого репетитора уже есть ученик по имени %s. Если это ты — "
+                    "войди по личному коду, и прогресс вернётся." % name}
         row = db.create_student(tutor["id"], name)
         return {"ok": True, "token": row["token"], "tutorName": tutor["name"],
                 "restoreCode": row["restore_code"]}
@@ -1149,6 +1195,13 @@ class Api:
         row = db.sync_student(p.get("token"), p.get("state") or {})
         if not row:
             return {"ok": False, "error": "unknown_student"}
+        # Одиночка: домашек, сообщений, урока и рейтинга нет — прогресс
+        # синхронизируется, остальное пустое.
+        if not row["tutor_id"]:
+            return {"ok": True, "homework": [], "leaderboard": [], "messages": [],
+                    "lesson": {"live": False, "url": ""}, "hasTutor": False,
+                    "ai": ai_available(),
+                    "taskResults": json.loads((row["task_results"] if "task_results" in row.keys() else "{}") or "{}")}
         hw = db.homework_for_student(db.list_homework(row["tutor_id"]), row)
         keys_cache = None
         tasks = []
@@ -1183,6 +1236,7 @@ class Api:
             # отдельный запрос раз в три секунды ради одной строки —
             # лишняя нагрузка на хостинг, где и так всё на одном процессе.
             "lesson": db.lesson_state(db.get_tutor_by_id(row["tutor_id"])),
+            "hasTutor": True,
             # Есть ли нейросеть. Чат ученика по этому флагу решает, идти
             # ли за ответом на сервер или сразу отвечать по правилам, и
             # честно говорит об этом с первой реплики, а не после сбоя.
@@ -1351,6 +1405,7 @@ class Api:
         photo_label = "Claude" if ANTHROPIC_KEY else ("Алиса" if alice_ready() else "")
         return {"ok": True, "overview": db.admin_overview(),
                 "tutors": db.admin_tutors(), "plans": db.PLANS,
+                "standalone": db.admin_standalone_students(),
                 "extraPrice": db.EXTRA_STUDENT_PRICE,
                 "aiOn": ai_available() or ai_photo_available(),
                 "aiChat": chat_label, "aiPhoto": photo_label}
@@ -1387,6 +1442,18 @@ class Api:
             return {"ok": False, "error": "unauthorized"}
         db.set_paid_until(int(p.get("tutorId") or 0), int(p.get("days") or 30))
         return {"ok": True, "tutors": db.admin_tutors(), "overview": db.admin_overview()}
+
+    @staticmethod
+    def admin_student_delete(h, p):
+        """Удалить ученика-одиночку (брошенный аккаунт). Учеников
+        репетитора здесь не трогаем — их удаляет он сам в панели."""
+        if not db.admin_check(p.get("token")):
+            return {"ok": False, "error": "unauthorized"}
+        if str(p.get("confirm", "")).strip().upper() != "УДАЛИТЬ":
+            return {"ok": False, "error": "Не подтверждено."}
+        ok = db.admin_delete_student(int(p.get("studentId") or 0))
+        return {"ok": ok, "standalone": db.admin_standalone_students(),
+                "overview": db.admin_overview()}
 
     @staticmethod
     def admin_errors(h, p):
@@ -1521,6 +1588,11 @@ class Api:
         row = db.get_student_by_token(p.get("token"))
         if not row:
             return {"ok": False, "error": "unknown_student"}
+
+        if not row["tutor_id"]:
+            return {"ok": False, "error":
+                    "Фото тетради смотрит репетитор, а у тебя его пока нет. "
+                    "Попроси у своего репетитора ссылку-приглашение."}
 
         raw = str(p.get("image") or "")
         if "," in raw and raw.startswith("data:"):
@@ -1696,6 +1768,8 @@ class Api:
         row = db.get_student_by_token(p.get("token"))
         if not row:
             return {"ok": False, "error": "unknown_student"}
+        if not row["tutor_id"]:
+            return {"ok": False, "error": "Результат чтения смотрит репетитор — у тебя его пока нет."}
         try:
             score = max(0, min(100, int(p.get("score") or 0)))
         except (ValueError, TypeError):
@@ -1977,6 +2051,8 @@ ROUTES = {
     "/api/tutor/group/assign": Api.group_assign,
     "/api/join": Api.join_info,
     "/api/student/join": Api.student_join,
+    "/api/student/register": Api.student_register,
+    "/api/student/adopt": Api.student_adopt,
     "/api/student/restore": Api.student_restore,
     "/api/student/pull": Api.student_pull,
     "/api/student/sync": Api.student_sync,
@@ -1991,6 +2067,7 @@ ROUTES = {
     "/api/admin/verify": Api.admin_verify,
     "/api/admin/pay": Api.admin_pay,
     "/api/admin/delete": Api.admin_delete,
+    "/api/admin/student/delete": Api.admin_student_delete,
     "/api/admin/errors": Api.admin_errors,
     "/api/admin/errors/clear": Api.admin_errors_clear,
     "/api/tutor/notify/set": Api.tutor_notify_set,
