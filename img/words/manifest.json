@@ -1,8 +1,8 @@
 {
- "generated": "2026-08-21 01:07",
+ "generated": "2026-08-21 01:44",
  "note": "Файлы скачаны с Wikimedia Commons и приведены к квадратному WebP. Лицензии: public domain / CC0 / CC BY / CC BY-SA. Атрибуция — credits.html",
  "size": 336,
- "count": 386,
+ "count": 389,
  "words": {
   "aircraft": {
    "file": "aircraft.webp",
@@ -1286,6 +1286,18 @@
    "article_url": "https://en.wikipedia.org/wiki/Dam",
    "commons_file": "Takato_Dam.jpg",
    "bytes": 23582,
+   "quality": 78
+  },
+  "damage": {
+   "file": "damage.webp",
+   "author": "Ranch9613",
+   "license": "CC0",
+   "license_url": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+   "source": "https://commons.wikimedia.org/wiki/File:AT%26T_large_cylinder_copper_wire_damage_-_August_2026.jpg",
+   "article": "AT&T large cylinder copper wire damage - August 2026.jpg",
+   "article_url": "https://commons.wikimedia.org/wiki/File:AT%26T_large_cylinder_copper_wire_damage_-_August_2026.jpg",
+   "commons_file": "AT&T large cylinder copper wire damage - August 2026.jpg",
+   "bytes": 32064,
    "quality": 78
   },
   "dance": {
@@ -3820,6 +3832,18 @@
    "bytes": 22290,
    "quality": 78
   },
+  "speed": {
+   "file": "speed.webp",
+   "author": "Roy Egloff",
+   "license": "CC BY-SA 4.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+   "source": "https://commons.wikimedia.org/wiki/File:CH.ZH.Affoltern-am-Albis_2024-03-30_road-bike-racing_2727.jpg",
+   "article": "CH.ZH.Affoltern-am-Albis 2024-03-30 road-bike-racing 2727.jpg",
+   "article_url": "https://commons.wikimedia.org/wiki/File:CH.ZH.Affoltern-am-Albis_2024-03-30_road-bike-racing_2727.jpg",
+   "commons_file": "CH.ZH.Affoltern-am-Albis 2024-03-30 road-bike-racing 2727.jpg",
+   "bytes": 15280,
+   "quality": 78
+  },
   "spoon": {
    "file": "spoon.webp",
    "author": "Donovan Govan.",
@@ -3878,6 +3902,18 @@
    "article_url": "https://en.wikipedia.org/wiki/Train_station",
    "commons_file": "Milan_CentralStation_016_4294.jpg",
    "bytes": 20376,
+   "quality": 78
+  },
+  "storage": {
+   "file": "storage.webp",
+   "author": "JMORGANSELFSTOR",
+   "license": "CC BY-SA 4.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+   "source": "https://commons.wikimedia.org/wiki/File:Bermondsey_Climate_Controlled_unit.jpg",
+   "article": "Bermondsey Climate Controlled unit.jpg",
+   "article_url": "https://commons.wikimedia.org/wiki/File:Bermondsey_Climate_Controlled_unit.jpg",
+   "commons_file": "Bermondsey Climate Controlled unit.jpg",
+   "bytes": 14848,
    "quality": 78
   },
   "storm": {

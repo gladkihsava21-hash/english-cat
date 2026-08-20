@@ -573,6 +573,66 @@ NO_PHOTO = {
     "wall":      "и Brickwork — фигурная кирпичная колонна, не стена",
     "warning":   "табличка с французским текстом",
     "winner":    "ч/б фехтовальщик со спины",
+
+    # ---- брак глазами 21.08, четвёртый заход (категории Commons): для
+    # оставшихся — в основном абстрактных — слов категория даёт случайные
+    # кадры. Из 59 плиток выжили 3 (damage, speed, storage).
+    "attention": "ч/б станок",
+    "base": "бетонный колодец",
+    "class": "дети рисуют на улице",
+    "component": "металлические детали — конфликт detail",
+    "connection": "мост",
+    "consultant": "девушка с микрофоном",
+    "counter": "схема с французским текстом",
+    "custom": "мужчина у мангала",
+    "dean": "рукопожатие",
+    "device": "военная рация — милитари",
+    "diagnosis": "микроскопия",
+    "documentary": "мужчина с веслом",
+    "efficiency": "плакат с текстом",
+    "elder": "ч/б портрет",
+    "encounter": "караван верблюдов",
+    "evaluation": "солдаты в лесу",
+    "exit": "старинная открытка",
+    "explanation": "макет в темноте",
+    "form": "наборная касса",
+    "guest": "человек на конференции",
+    "habit": "ч/б у двери",
+    "handle": "рука со стаканчиком",
+    "improvisation": "хористы",
+    "license": "диплом с текстом",
+    "loser": "каменный рельеф",
+    "mandarin": "статуи чиновников-мандаринов — не фрукт",
+    "material": "руки с картами",
+    "member": "двое на скамейке",
+    "ministry": "группа в форме",
+    "monopoly": "китайская вывеска",
+    "mutation": "палец крупно",
+    "opinion": "стикеры с текстом",
+    "outcome": "ягода на пальце",
+    "paradigm": "схема",
+    "principle": "диаграмма",
+    "problem": "слайд с текстом",
+    "project": "очередь в поле",
+    "promise": "пропагандистские комиксы",
+    "public": "люди у канала",
+    "quality": "mind-map",
+    "regulation": "лабораторный прибор",
+    "rule": "комната с камином",
+    "service": "взвод солдат",
+    "shape": "тень на стене",
+    "size": "гаечные ключи — «ключи»",
+    "skill": "вышитая коробочка",
+    "strategy": "плакат с текстом",
+    "suspect": "тёмная сцена",
+    "symptom": "отёкшие ноги — медицина",
+    "theme": "ноты",
+    "torpor": "летучая мышь — конфликт bat",
+    "trailer": "ч/б постер",
+    "transmission": "коллаж истребителей",
+    "vice": "микрофоны в витрине",
+    "weekend": "купание у свалки",
+    "witness": "ч/б за столом",
 }
 
 
@@ -626,7 +686,12 @@ def picturable_words(all_words):
         from .picks_auto2 import AUTO_PICKS2   # Викиданные P18
     except ImportError:
         AUTO_PICKS2 = {}
-    merged = dict(AUTO_PICKS2)
+    try:
+        from .picks_auto3 import AUTO_PICKS3   # категории Commons (P373)
+    except ImportError:
+        AUTO_PICKS3 = {}
+    merged = dict(AUTO_PICKS3)
+    merged.update(AUTO_PICKS2)
     merged.update(AUTO_PICKS)
     merged.update(PICKS)
     for w in set(NO_PHOTO) | set(REVIEW):
