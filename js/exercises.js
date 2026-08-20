@@ -1142,24 +1142,25 @@ function runType(rounds, opts = {}) {
       i++;
       if (ok) { setTimeout(next, 900); return; }
 
-      // Ошибка с разбором: экран НЕ угоняем по таймеру. Разбор нужно
-      // дочитать, а сколько на это надо, таймер знать не может — ровно
-      // та же логика, что в вопросах с вариантами.
+      // ЛЮБАЯ ошибка: экран НЕ угоняем по таймеру. Сравнить свой ответ
+      // с правильным — тоже разбор, и в диктанте, где предложение целиком,
+      // на это не хватало никаких 2,2 секунды (жалоба методиста). Свой
+      // текст остаётся в поле выше — сверяй сколько нужно, потом «Дальше».
+      let anchor = fb;
       if (r.why) {
         const ex = document.createElement("p");
         ex.className = "muted-small quiz-why";
         ex.textContent = r.why;
         fb.insertAdjacentElement("afterend", ex);
-        const row = document.createElement("div");
-        row.className = "quiz-buttons";
-        row.innerHTML = '<button type="button" class="btn btn-primary" id="type-next">Дальше →</button>';
-        ex.insertAdjacentElement("afterend", row);
-        const nb = row.querySelector("#type-next");
-        nb.addEventListener("click", next);
-        nb.focus();
-        return;
+        anchor = ex;
       }
-      setTimeout(next, 2200);
+      const row = document.createElement("div");
+      row.className = "quiz-buttons";
+      row.innerHTML = '<button type="button" class="btn btn-primary" id="type-next">Дальше →</button>';
+      anchor.insertAdjacentElement("afterend", row);
+      const nb = row.querySelector("#type-next");
+      nb.addEventListener("click", next);
+      nb.focus();
     };
     document.getElementById("type-check").addEventListener("click", check);
     input.addEventListener("keydown", e => {
@@ -1608,11 +1609,17 @@ const EX_RUNNERS = {
   },
 
   synonyms() {
-    const rounds = shuffled(SYNONYMS).slice(0, 6).map(s => {
+    // Через pickFresh: банк из 60 пар, но раньше шесть случайных из
+    // двадцати повторялись каждый второй подход — «одни и те же слова».
+    const rounds = pickFresh("syn", SYNONYMS, 6, s => s.w).map(s => {
       const askSyn = Math.random() < 0.6;
       const right = askSyn ? s.syn : s.ant;
       const trap = askSyn ? s.ant : s.syn;
-      const others = shuffled(SYNONYMS.filter(x => x.w !== s.w)).slice(0, 2).map(x => x.syn);
+      // В большом банке одно слово бывает и ответом здесь, и чужим
+      // синонимом (noisy: антоним quiet и синоним loud). Дубль варианта —
+      // это кнопка, за которую не засчитают, поэтому отсеиваем.
+      const others = shuffled([...new Set(SYNONYMS.filter(x => x.w !== s.w).map(x => x.syn))]
+        .filter(o => o !== right && o !== trap && o !== s.w)).slice(0, 2);
       const options = shuffled([right, trap, ...others]);
       return {
         sub: askSyn ? "Выбери СИНОНИМ" : "Выбери АНТОНИМ",
@@ -1664,21 +1671,46 @@ const EX_RUNNERS = {
         <p class="type-feedback" id="pers-feedback" role="status" aria-live="polite"></p>
       </div>`;
     document.getElementById("pers-check").addEventListener("click", () => {
-      const val = normEn(document.getElementById("pers-input").value);
+      const raw = document.getElementById("pers-input").value.trim();
+      const val = normEn(raw);
       if (!val) return;
       const used = pool.filter(p => val.includes(p.w.slice(0, Math.max(3, p.w.length - 2)).toLowerCase()));
       used.forEach(p => statUpdate(p.w, true));
       const missing = pool.filter(p => !used.includes(p));
       const fb = document.getElementById("pers-feedback");
-      if (!missing.length) {
-        award(30);
-        fb.className = "type-feedback ok";
-        fb.textContent = "Все три слова на месте — мур-р! Покажи текст Савелию в чате, он оценит стиль.";
-        setTimeout(() => exFinish(used.length, pool.length), 1600);
-      } else {
+      if (missing.length) {
         fb.className = "type-feedback err";
         fb.textContent = "Не хватает: " + missing.map(p => p.w).join(", ");
+        return;
       }
+      award(30);
+      fb.className = "type-feedback ok";
+      // Честно о границе проверки: сами мы видим только, что слова
+      // на месте. Грамматику и естественность разберёт Савелий-ИИ —
+      // кнопкой, а не автоматически: разбор тратит дневной лимит чата,
+      // и решать должен ученик. Без нейросети кнопку не обещаем.
+      const aiOn = typeof aiKnownOff === "function" && !aiKnownOff()
+                && typeof sendToSavely === "function";
+      fb.textContent = "Все три слова на месте — мур-р!"
+        + (aiOn ? "" : " Я проверил только слова; грамматику покажи репетитору.");
+      const row = document.createElement("div");
+      row.className = "quiz-buttons";
+      row.innerHTML = (aiOn
+        ? '<button type="button" class="btn btn-ghost" id="pers-ai">Разбор от Савелия</button>' : "")
+        + '<button type="button" class="btn btn-primary" id="pers-next">Дальше →</button>';
+      fb.insertAdjacentElement("afterend", row);
+      document.getElementById("pers-check").disabled = true;
+      const finish = () => exFinish(used.length, pool.length);
+      row.querySelector("#pers-next").addEventListener("click", finish);
+      const aiBtn = row.querySelector("#pers-ai");
+      if (aiBtn) aiBtn.addEventListener("click", () => {
+        // Уходим в чат с готовым вопросом: там свои лимиты и своя честная
+        // рамка «нейросеть отдыхает», ничего дублировать не нужно.
+        show("chat");
+        if (typeof initChat === "function") initChat();
+        sendToSavely("Проверь мои предложения: есть ли ошибки и звучат ли они естественно? Вот они:\n" + raw);
+        finish();
+      });
     });
   },
 
