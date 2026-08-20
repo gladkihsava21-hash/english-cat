@@ -41,7 +41,13 @@ function ago(iso) {
 
 function renderOverview() {
   const o = data.overview;
-  $("ai-chip").textContent = data.aiOn ? "ИИ включён" : "ИИ выключен";
+  // Не просто «включён», а кто работает: чат и проверка могут идти
+  // через разных провайдеров (Алиса — Яндекс, данные в РФ; Claude — США).
+  $("ai-chip").textContent = data.aiOn
+    ? "ИИ: " + (data.aiChat && data.aiPhoto && data.aiChat !== data.aiPhoto
+        ? `чат — ${data.aiChat}, фото — ${data.aiPhoto}`
+        : (data.aiChat || data.aiPhoto))
+    : "ИИ выключен";
   $("ai-chip").classList.toggle("plan-full", !data.aiOn);
   $("overview").innerHTML = [
     ["Репетиторов", o.tutors, `подтвердили почту: ${o.verified}`],

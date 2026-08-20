@@ -35,7 +35,7 @@ import mailer
 # Теперь это видно одним curl /health: цифра совпала с ?v= на странице —
 # приложение перезапущено; не совпала или её нет вовсе — в памяти старый
 # код, надо нажать «Перезапустить приложение» в панели хостинга.
-ASSET_VERSION = 162
+ASSET_VERSION = 163
 
 PORT = int(os.environ.get("SAVELY_PORT", "4210"))
 # За nginx сервер слушает только localhost — снаружи он не должен быть виден
@@ -170,6 +170,51 @@ CHAT_PROVIDER = CHAT_PROVIDER or "anthropic"
 
 DEEPSEEK_KEY = _read_side_key("deepseek_key.txt")
 GEMINI_KEY = _read_side_key("gemini_key.txt")
+
+
+# ---------- Алиса (Яндекс) ----------
+# Российский провайдер: данные не покидают РФ, уведомление о трансграничной
+# передаче не нужно (см. deploy/RKN.md), карты РФ принимаются. Чат идёт
+# через YandexGPT, проверка фото — Яндекс OCR (модель handwritten читает
+# рукописный русский и английский) + YandexGPT по распознанному тексту.
+#
+# Настройка — файл savely-data/yandex.conf (переменные окружения на
+# виртуальном хостинге задать негде):
+#     api_key = AQVN...          # API-ключ сервисного аккаунта
+#     folder = b1g...            # идентификатор каталога Yandex Cloud
+#     # chat_model = yandexgpt-lite/latest   # чат: дешёвая по умолчанию
+#     # check_model = yandexgpt/latest       # разбор домашек: умная
+# Сервисному аккаунту нужны роли ai.languageModels.user и ai.vision.user.
+
+def _read_conf(filename):
+    path = os.path.join(os.path.dirname(os.path.abspath(db.DB_PATH)), filename)
+    out = {}
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                k, v = line.split("=", 1)
+                out[k.strip().lower()] = v.strip()
+    except OSError:
+        pass
+    return out
+
+
+_YA = _read_conf("yandex.conf")
+ALICE_KEY = _clean_key(os.environ.get("SAVELY_YC_KEY") or _YA.get("api_key", ""))
+ALICE_FOLDER = (os.environ.get("SAVELY_YC_FOLDER") or _YA.get("folder", "")).strip()
+ALICE_CHAT_MODEL = (_YA.get("chat_model") or "yandexgpt-lite/latest").strip()
+ALICE_CHECK_MODEL = (_YA.get("check_model") or "yandexgpt/latest").strip()
+
+
+def alice_ready():
+    return bool(ALICE_KEY and ALICE_FOLDER)
+
+
+if alice_ready():
+    print("Алиса (Яндекс) настроена — чат и проверка фото пойдут через неё")
 
 # Столько ждём альтернативного провайдера. Ученик сидит и смотрит на «...» —
 # восемь секунд это уже предел, дальше уходим на Haiku, который отвечает быстро.
@@ -625,23 +670,54 @@ def ask_gemini(payload):
     return _shape(json.loads(parts[0].get("text") or "{}"))
 
 
+def _alice_complete(model, text, max_tokens=900, timeout=None):
+    """Один запрос к YandexGPT, возвращает текст ответа.
+    Модель — короткое имя («yandexgpt-lite/latest»), URI собираем сами."""
+    data = _post_json(
+        "https://llm.api.cloud.yandex.net/foundationModels/v1/completion",
+        {
+            "modelUri": "gpt://%s/%s" % (ALICE_FOLDER, model),
+            # maxTokens строкой — так в спецификации API
+            "completionOptions": {"stream": False, "temperature": 0.3,
+                                  "maxTokens": str(max_tokens)},
+            "messages": [{"role": "user", "text": text}],
+        },
+        {"authorization": "Api-Key " + ALICE_KEY,
+         "x-folder-id": ALICE_FOLDER},
+        timeout or ALT_TIMEOUT)
+    alts = ((data.get("result") or {}).get("alternatives") or [{}])
+    return ((alts[0].get("message") or {}).get("text") or "").strip()
+
+
+def ask_alice(payload):
+    """Чат через YandexGPT. Строгих JSON-схем у API нет — просим JSON
+    в промпте (FORMAT это уже делает) и вырезаем объект из ответа;
+    кривой ответ уронит исключение, и выше сработает обычный фолбэк."""
+    text = _alice_complete(ALICE_CHAT_MODEL, build_prompt(payload))
+    m = re.search(r"\{.*\}", text, re.S)
+    return _shape(json.loads(m.group(0) if m else text))
+
+
 ALT_PROVIDERS = {
     "deepseek": (ask_deepseek, lambda: DEEPSEEK_KEY),
     "gemini":   (ask_gemini,   lambda: GEMINI_KEY),
+    # Синонимы одного и того же: в chat.conf пишут кто как
+    "alice":     (ask_alice, alice_ready),
+    "yandex":    (ask_alice, alice_ready),
+    "yandexgpt": (ask_alice, alice_ready),
 }
 
 
 def ai_available():
-    """Есть ли чем отвечать «по-умному»: ключ Claude, альтернативный
-    провайдер или локальный CLI (только для разработки). Клиенту это
-    нужно, чтобы не обещать нейросеть там, где её нет: ученик получает
-    честную рамку чата, репетитор — честную вкладку проверки.
+    """Есть ли чем отвечать в ЧАТЕ «по-умному»: ключ Claude, Алиса,
+    альтернативный провайдер или локальный CLI (только для разработки).
+    Клиенту это нужно, чтобы не обещать нейросеть там, где её нет.
 
     SAVELY_NO_AI=1 — посмотреть локально, как сайт выглядит без нейросети:
     на машине разработчика CLI есть всегда, а на боевом сейчас нет ничего."""
     if os.environ.get("SAVELY_NO_AI"):
         return False
-    if ANTHROPIC_KEY:
+    if ANTHROPIC_KEY or alice_ready():
         return True
     alt = ALT_PROVIDERS.get(CHAT_PROVIDER)
     if alt and alt[1]():
@@ -649,11 +725,26 @@ def ai_available():
     return os.path.exists(CLAUDE)
 
 
+def ai_photo_available():
+    """Есть ли чем РАЗБИРАТЬ ФОТО: Claude (видит картинку сам) или Алиса
+    (Яндекс OCR + YandexGPT). Отдельно от чата: chat-провайдеры без
+    зрения (deepseek, gemini-текст) фото не разберут."""
+    if os.environ.get("SAVELY_NO_AI"):
+        return False
+    return bool(ANTHROPIC_KEY) or alice_ready()
+
+
 # Пока нейросети нет, проверка домашек не работает — и счёт за неё не
 # начисляется. Иначе репетитор платил бы за пакет, который ничего не
 # проверяет. Флаг живёт в db, потому что счёт считает db.checks_bill,
 # а про ключ знает только этот модуль.
-db.CHECKS_SUSPENDED = not ai_available()
+db.CHECKS_SUSPENDED = not ai_photo_available()
+# Оценка себестоимости для админки — по фактическому провайдеру.
+# Алиса: OCR ~0,12 ₽ страница + YandexGPT ~1,2 ₽/1000 токенов на разборе,
+# лёгкая модель в чате ~0,2 ₽ за сообщение. Это оценка, не счёт.
+if not ANTHROPIC_KEY and alice_ready():
+    db.AI_COST_CHECK = 1.5
+    db.AI_COST_MSG = 0.25
 
 
 def ask_claude(payload):
@@ -667,10 +758,15 @@ def ask_claude(payload):
         try:
             return alt[0](payload)
         except Exception as e:
-            print("!! %s не ответил (%s) — беру Haiku" % (CHAT_PROVIDER, type(e).__name__))
+            print("!! %s не ответил (%s) — пробую основной" % (CHAT_PROVIDER, type(e).__name__))
 
     if ANTHROPIC_KEY:
         return ask_claude_api(payload)
+    # Ключа Claude нет, а Алиса настроена — берём её и без chat.conf:
+    # владелец попросил «поставить Алису на общение», и заставлять его
+    # писать ещё один конфиг, чтобы это включилось, — лишний шаг.
+    if alice_ready() and CHAT_PROVIDER not in ALT_PROVIDERS:
+        return ask_alice(payload)
     if not os.path.exists(CLAUDE):
         # ни ключа, ни CLI — это штатная ситуация на хостинге до оплаты API
         raise RuntimeError("no_api_key")
@@ -1249,10 +1345,15 @@ class Api:
     def admin_data(h, p):
         if not db.admin_check(p.get("token")):
             return {"ok": False, "error": "unauthorized"}
+        chat_label = ("Claude" if ANTHROPIC_KEY
+                      else "Алиса" if alice_ready()
+                      else CHAT_PROVIDER if (ALT_PROVIDERS.get(CHAT_PROVIDER) or (None, lambda: 0))[1]() else "")
+        photo_label = "Claude" if ANTHROPIC_KEY else ("Алиса" if alice_ready() else "")
         return {"ok": True, "overview": db.admin_overview(),
                 "tutors": db.admin_tutors(), "plans": db.PLANS,
                 "extraPrice": db.EXTRA_STUDENT_PRICE,
-                "aiOn": bool(ANTHROPIC_KEY)}
+                "aiOn": ai_available() or ai_photo_available(),
+                "aiChat": chat_label, "aiPhoto": photo_label}
 
     @staticmethod
     def admin_set_plan(h, p):
@@ -1519,7 +1620,7 @@ class Api:
             # Честная вкладка: пока нейросети нет, репетитор должен видеть,
             # что разбора не будет и счёт не начисляется, — а не гадать,
             # почему у всех работ «посмотрите сами».
-            "aiOn": ai_available(),
+            "aiOn": ai_photo_available(),
         }
 
     @staticmethod
@@ -1712,10 +1813,109 @@ CHECK_PROMPT = """Ты — Савелий, кот-репетитор англи�
 {task}"""
 
 
+# ---------- проверка фото через Алису (Яндекс) ----------
+# Claude видит картинку сам; у Алисы два шага: Яндекс OCR (модель
+# handwritten читает рукописный русский и английский) распознаёт текст,
+# YandexGPT разбирает распознанное. Слабое место — почерк: OCR ошибается
+# чаще, чем Sonnet по картинке, поэтому промпт прямо просит не считать
+# ошибками то, что похоже на огрехи распознавания.
+
+ALICE_CHECK_PROMPT = """Ты — Савелий, кот-репетитор английского. Ниже — ТЕКСТ
+работы ученика (русскоязычный школьник, уровень {level}), распознанный с фото
+тетради программой. В распознавании возможны огрехи: регистр, пунктуация,
+раз0рванные слова.
+{task}
+Разбери работу и ответь СТРОГО одним JSON-объектом без пояснений:
+{{"readable": true/false, "summary": "что в работе написано и что ученик делал",
+"mistakes": [{{"wrong": "как написано", "right": "как надо", "why": "короткое правило по-русски"}}],
+"praise": "что получилось хорошо", "verdict": "одна фраза для репетитора"}}
+
+Правила: пиши по-русски, тепло и без сюсюканья; английские слова как в
+оригинале; в mistakes — только настоящие ошибки языка, а не похожие на
+огрехи распознавания; если текст пуст или бессвязен — readable: false и
+посоветуй в summary переснять (свет, фокус, угол).
+
+Текст работы:
+{text}"""
+
+
+def alice_ocr(image_bytes, media_type):
+    """Распознать текст с фото через Яндекс OCR. Возвращает строку."""
+    mime = {"image/jpeg": "JPEG", "image/png": "PNG"}.get(media_type)
+    if not mime:
+        # webp OCR не принимает; клиент шлёт jpeg, сюда попадает экзотика
+        raise RuntimeError("ocr_unsupported_format")
+    req = urllib.request.Request(
+        "https://ocr.api.cloud.yandex.net/ocr/v1/recognizeText",
+        data=json.dumps({
+            "mimeType": mime,
+            "languageCodes": ["ru", "en"],
+            "model": "handwritten",
+            "content": base64.b64encode(image_bytes).decode("ascii"),
+        }).encode("utf-8"),
+        headers={
+            "content-type": "application/json",
+            "authorization": "Api-Key " + ALICE_KEY,
+            "x-folder-id": ALICE_FOLDER,
+        },
+    )
+    with urllib.request.urlopen(req, timeout=60) as resp:
+        data = json.loads(resp.read())
+    # Ответ: {"result": {"textAnnotation": {"fullText": ...}}}; на всякий
+    # случай ищем textAnnotation на любом уровне — API менял обёртки
+    def find(obj):
+        if isinstance(obj, dict):
+            if "fullText" in obj:
+                return obj["fullText"]
+            for v in obj.values():
+                r = find(v)
+                if r:
+                    return r
+        if isinstance(obj, list):
+            for v in obj:
+                r = find(v)
+                if r:
+                    return r
+        return ""
+    return (find(data) or "").strip()
+
+
+def check_photo_alice(image_bytes, media_type, level, task_title):
+    text = alice_ocr(image_bytes, media_type)
+    if len(text) < 3:
+        return {"readable": False,
+                "summary": "Текст на фото не распознался. Попробуй переснять: "
+                           "больше света, тетрадь целиком в кадре, без наклона.",
+                "mistakes": [], "praise": "",
+                "verdict": "Фото не читается — попросите переснять."}
+    task = ("Задание, к которому эта работа: «%s».\n" % task_title) if task_title else ""
+    raw = _alice_complete(ALICE_CHECK_MODEL,
+                          ALICE_CHECK_PROMPT.format(level=level, task=task, text=text[:4000]),
+                          max_tokens=2000, timeout=120)
+    m = re.search(r"\{.*\}", raw, re.S)
+    parsed = json.loads(m.group(0) if m else raw)
+    if not isinstance(parsed, dict) or "summary" not in parsed:
+        raise RuntimeError("empty_response")
+    # приводим к форме Claude-ответа: клиенты читают ровно эти поля
+    return {
+        "readable": bool(parsed.get("readable", True)),
+        "summary": str(parsed.get("summary", ""))[:2000],
+        "mistakes": [
+            {"wrong": str(x.get("wrong", ""))[:200], "right": str(x.get("right", ""))[:200],
+             "why": str(x.get("why", ""))[:400]}
+            for x in (parsed.get("mistakes") or []) if isinstance(x, dict)
+        ][:30],
+        "praise": str(parsed.get("praise", ""))[:1000],
+        "verdict": str(parsed.get("verdict", ""))[:500],
+    }
+
+
 def check_homework_photo(image_bytes, media_type="image/jpeg", level="A1", task_title=""):
-    """Отдаём фото Claude и получаем разбор. Бросает исключение при проблеме —
-    вызывающий решает, что показать ученику."""
+    """Разбор фото: Claude, если есть ключ, иначе Алиса (OCR + YandexGPT).
+    Бросает исключение при проблеме — вызывающий решает, что показать."""
     if not ANTHROPIC_KEY:
+        if alice_ready():
+            return check_photo_alice(image_bytes, media_type, level, task_title)
         raise RuntimeError("no_api_key")
 
     task = ("Задание, к которому эта работа: «%s».\n" % task_title) if task_title else ""

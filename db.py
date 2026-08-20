@@ -2030,6 +2030,11 @@ def set_check_pack(student_id, tutor_id, pack_id):
 # проверяет, нельзя. Пакеты при этом можно выбирать заранее — они
 # начнут действовать и стоить денег, когда проверка заработает.
 CHECKS_SUSPENDED = False
+# Оценка себестоимости одной проверки и одного сообщения, ₽. По умолчанию —
+# цены Claude (Sonnet на фото, Haiku в чате); server.py переопределяет,
+# если работает другой провайдер.
+AI_COST_CHECK = 1.04
+AI_COST_MSG = 0.16
 
 
 def checks_bill(tutor_id):
@@ -2276,13 +2281,13 @@ def admin_overview():
     revenue = base_revenue + checks_revenue
 
     # Себестоимость больше не гадаем: сообщения чата и проверки фото теперь
-    # считаются в базе. Цены на август 2026 — Haiku 4.5 по 1/5 $ за миллион
-    # токенов (~700 входных на сообщение) и Sonnet 5 на картинке 1100 пикселей.
+    # считаются в базе. Цена за единицу зависит от провайдера — её ставит
+    # server.py при старте (Claude: 1,04/0,16 ₽; Алиса: 1,5/0,25 ₽, оценка).
     msgs = c.execute("SELECT COALESCE(SUM(chat_used),0) FROM students "
                      "WHERE chat_period=?", (_period(),)).fetchone()[0]
     checks = c.execute("SELECT COALESCE(SUM(checks_used),0) FROM students "
                        "WHERE checks_period=?", (_period(),)).fetchone()[0]
-    ai_cost = round(checks * 1.04 + msgs * 0.16, 1)
+    ai_cost = round(checks * AI_COST_CHECK + msgs * AI_COST_MSG, 1)
 
     return {
         "tutors": tutors, "verified": verified, "students": students,
