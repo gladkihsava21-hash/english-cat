@@ -1744,14 +1744,18 @@ h2[tabindex="-1"]:focus-visible { outline: none; box-shadow: none; }
 @media (max-width: 560px) {
   .cw-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 4px; }
   .cw-grid {
-    grid-auto-columns: 40px;
+    grid-auto-columns: 44px;   /* палец ребёнка: 40 было впритык, с видео видно промахи */
     grid-auto-flow: row;
     width: max-content;
     max-width: none;
     margin-inline: 0;
   }
-  .cw-cell, .cw-empty { width: 40px; }
-  .cw-cell { font-size: var(--text-body-sm, 17px); }
+  .cw-cell, .cw-empty { width: 44px; }
+  .cw-cell { font-size: var(--text-body, 19px); }
+  /* Строка текущего слова прилипает сверху: пока печатаешь в клетку,
+     видно, ЧТО ты вообще отгадываешь, — на телефоне список подсказок
+     в этот момент за экраном. */
+  .cw-current { position: sticky; top: 0; background: var(--paper); z-index: 3; padding: 6px 0; }
 }
 
 /* Объяснение под разобранным вопросом. Отступ сверху больше, чем снизу:

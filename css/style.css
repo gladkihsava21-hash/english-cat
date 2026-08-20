@@ -490,8 +490,18 @@ body {
   border: 0; padding: 0; margin: 0; font-size: 16px;   /* 16px — iOS не зумит поле */
 }
 .cw-empty { aspect-ratio: 1; }
-.cw-clues { max-width: 460px; margin: 0 auto 14px; font-weight: 700; font-size: var(--text-caption); }
-.cw-clues p { margin: 3px 0; }
+.cw-clues { max-width: 460px; margin: 0 auto 14px; display: flex; flex-direction: column; gap: 2px; }
+.cw-clue {
+  font-family: inherit; font-weight: 700; font-size: var(--text-caption); text-align: left;
+  background: none; border: none; color: var(--ink); cursor: pointer;
+  padding: 6px 10px; border-radius: 10px;
+}
+.cw-clue:hover { background: var(--surface-alt); }
+.cw-clue.active { background: var(--accent-soft); }
+.cw-current {
+  max-width: 460px; margin: 0 auto 10px; min-height: 1.5em; text-align: center;
+  font-weight: 800; font-size: var(--text-body-sm); line-height: 1.4;
+}
 /* ---------- адаптив ---------- */
 @media (max-width: 720px) {
   .topbar-inner { flex-wrap: wrap; gap: 8px; padding: 8px 12px; }
@@ -634,3 +644,23 @@ body {
 .dict-pick-bar.hidden { display: none; }
 .dict-row.picking { padding-left: 8px; }
 .d-pick { width: 20px; height: 20px; flex: none; accent-color: var(--accent); cursor: pointer; }
+/* Подпись под заголовком группы упражнений («Выражения», «На слух» без озвучки) */
+.ex-group-note { margin: -8px 0 12px; max-width: 44em; line-height: 1.45; }
+.ex-card-off { opacity: .55; cursor: not-allowed; }
+/* Подсказка в поиске слов: первая буква ненайденного слова */
+.ws-cell.hinted { background: var(--accent-soft); border-color: var(--accent); animation: ws-hint-pulse 1s ease 3; }
+@keyframes ws-hint-pulse { 50% { transform: scale(1.12); } }
+/* Подсказка сменить уровень (адаптация): заметная, но не назойливая */
+.level-nudge {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  background: var(--accent-soft); border-radius: 14px; padding: 12px 16px; margin-bottom: 16px;
+  font-weight: 700; font-size: var(--text-caption); line-height: 1.45;
+}
+.level-nudge-btns { display: flex; align-items: center; gap: 10px; }
+/* Кнопка языка — рядом с темой, тем же весом */
+.lang-btn {
+  font-family: inherit; font-size: var(--text-caption); font-weight: 900; letter-spacing: .04em;
+  background: none; border: 2px solid var(--border); border-radius: 10px; color: var(--ink-soft);
+  padding: 5px 9px; cursor: pointer;
+}
+.lang-btn:hover { border-color: var(--accent); color: var(--ink); }

@@ -17,12 +17,42 @@ if (TTS_OK) {
 
 function speak(text) {
   if (!TTS_OK) return;
-  speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(text);
-  u.lang = "en-US";
-  if (TTS_VOICE) u.voice = TTS_VOICE;
-  u.rate = 0.92;
-  speechSynthesis.speak(u);
+  // Android Chrome (и WebView) молча глотает utterance в двух случаях:
+  // сразу после cancel() и когда синтез завис в paused. Репетитор прислала
+  // видео: кнопка звука на карточке слова «не работает» — это ровно оно.
+  // Поэтому: cancel только если правда что-то звучит, потом маленькая
+  // пауза; resume() перед стартом; и одна повторная попытка, если через
+  // секунду звук так и не начался.
+  const make = () => {
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = "en-US";
+    // Голос ставим только если он есть: с u.voice = null часть прошивок
+    // не говорит вовсе, а без поля берётся системный английский.
+    if (TTS_VOICE) u.voice = TTS_VOICE;
+    u.rate = 0.92;
+    return u;
+  };
+  const go = () => {
+    try { speechSynthesis.resume(); } catch (e) { /* старые браузеры */ }
+    const u = make();
+    let started = false;
+    u.onstart = () => { started = true; };
+    speechSynthesis.speak(u);
+    setTimeout(() => {
+      if (started || speechSynthesis.speaking || speechSynthesis.pending) return;
+      try {
+        speechSynthesis.cancel();
+        speechSynthesis.resume();
+        speechSynthesis.speak(make());
+      } catch (e) { /* совсем нет движка — молчим, кнопка не ломает страницу */ }
+    }, 900);
+  };
+  if (speechSynthesis.speaking || speechSynthesis.pending) {
+    speechSynthesis.cancel();
+    setTimeout(go, 80);
+  } else {
+    go();
+  }
 }
 
 // очки за подход (для экрана результата); общий счёт ведёт addXP из app.js
@@ -279,8 +309,24 @@ let exMissed = [];
 /** verified=false — ответ верный, но не доказывает знания (пару нашли
  *  перебором после промахов): в knew идёт, в checked — нет, то есть
  *  домашку такое слово не закрывает. */
+/** Копилка точности по уровням: сколько проверенных ответов верных и
+ *  неверных на словах каждого уровня. По ней сайт предлагает сменить
+ *  уровень тренировок (см. renderLevelNudge) — это и есть «система
+ *  адаптируется под ученика», без магии: много верных подряд на своём
+ *  уровне — пора выше, много ошибок — предлагаем проще. */
+function noteLevelAnswer(w, d, ok) {
+  const lvl = (d && d.level) || ((typeof wordInfo === "function" && (wordInfo(w) || {}).level)) || null;
+  if (!lvl || !LEVELS.includes(lvl)) return;
+  state.levelStats = state.levelStats || {};
+  const st = state.levelStats[lvl] = state.levelStats[lvl] || { r: 0, w: 0 };
+  ok ? st.r++ : st.w++;
+  // скользящее окно: старые ответы весят вдвое меньше, свежий прогресс виден
+  if (st.r + st.w > 200) { st.r = Math.round(st.r / 2); st.w = Math.round(st.w / 2); }
+}
+
 function statUpdate(w, ok, verified = true) {
   const d = state.dictionary.find(x => x.w.toLowerCase() === String(w).toLowerCase());
+  if (verified) noteLevelAnswer(w, d, ok);
   if (!d) {
     // Слова нет в словаре. Ошибку запоминаем — предложим добавить.
     if (!ok) {
@@ -316,10 +362,11 @@ function normEn(s) {
 // пишет фразы или играет. Механическое «по 5 штук в ряд» ничего бы не дало.
 const EX_GROUPS = [
   { id: "words",   title: "По словам" },
-  { id: "phrases", title: "Выражения" },
+  { id: "phrases", title: "Выражения",
+    note: "Фразовые глаголы (phrasal verbs), идиомы (idioms) и устойчивые сочетания (collocations) — то, что не переводится по словам." },
   { id: "audio",   title: "На слух" },
   { id: "writing", title: "Письмо и речь" },
-  { id: "exam",    title: "Грамматика и экзамен" },
+  { id: "exam",    title: "Подготовка к ОГЭ" },
   { id: "games",   title: "Игры" },
 ];
 
@@ -491,9 +538,56 @@ function renderTrainLevel() {
   }
 }
 
+/** Подсказка сменить уровень — когда точность на текущем уровне говорит
+ *  сама за себя. Пороги консервативные: от 25 проверенных ответов,
+ *  ≥85 % верных — предложить на ступень выше, ≤45 % — на ступень ниже.
+ *  «Не сейчас» запоминается на устройстве до следующих 25 ответов. */
+function renderLevelNudge() {
+  const box = document.getElementById("train-level-nudge");
+  if (!box) return;
+  box.innerHTML = "";
+  const lvl = studyLevel();
+  const st = (state.levelStats || {})[lvl];
+  const total = st ? st.r + st.w : 0;
+  if (!st || total < 25) return;
+  const acc = st.r / total;
+  const idx = LEVELS.indexOf(lvl);
+  let target = null, text = "";
+  if (acc >= 0.85 && idx < LEVELS.length - 1) {
+    target = LEVELS[idx + 1];
+    text = `Ты отвечаешь верно в ${Math.round(acc * 100)}% случаев на ${lvl} — похоже, стало легко. Попробуем ${target}?`;
+  } else if (acc <= 0.45 && idx > 0) {
+    target = LEVELS[idx - 1];
+    text = `На ${lvl} пока получается ${Math.round(acc * 100)}% — это нормально, но проще закрепиться на ${target} и вернуться.`;
+  }
+  if (!target) return;
+  let snoozed = null;
+  try { snoozed = JSON.parse(localStorage.getItem("savelyLevelNudge") || "null"); } catch (e) {}
+  if (snoozed && snoozed.lvl === lvl && snoozed.target === target && total - snoozed.at < 25) return;
+  box.innerHTML = `
+    <div class="level-nudge" role="status">
+      <span>${esc(text)}</span>
+      <span class="level-nudge-btns">
+        <button type="button" class="btn btn-primary btn-small" id="nudge-yes">Давай ${esc(target)}</button>
+        <button type="button" class="link-btn" id="nudge-no">не сейчас</button>
+      </span>
+    </div>`;
+  document.getElementById("nudge-yes").addEventListener("click", () => {
+    state.trainLevel = target;
+    if (typeof currentRecs !== "undefined") currentRecs = [];
+    saveState();
+    renderPracticeHub();
+  });
+  document.getElementById("nudge-no").addEventListener("click", () => {
+    try { localStorage.setItem("savelyLevelNudge", JSON.stringify({ lvl, target, at: total })); } catch (e) {}
+    box.innerHTML = "";
+  });
+}
+
 function renderPracticeHub() {
   const host = document.getElementById("practice-grid");
   renderTrainLevel();
+  renderLevelNudge();
   renderTrainScope();
   const picked = trainingFolders();
   const inScope = trainingDictionary().length;
@@ -510,22 +604,30 @@ function renderPracticeHub() {
         : `Словарь пуст — тренируем слова уровня ${studyLevel()}`;
   host.innerHTML = "";
   EX_GROUPS.forEach(g => {
-    const list = EXERCISES.filter(ex => ex.group === g.id && !ex.hidden && !(ex.audio && !TTS_OK));
-    // Без синтеза речи «на слух» исчезает целиком — заголовок над пустотой
-    // хуже, чем отсутствие раздела.
+    const list = EXERCISES.filter(ex => ex.group === g.id && !ex.hidden);
     if (!list.length) return;
+    // Без синтеза речи раздел «На слух» раньше ИСЧЕЗАЛ целиком — и с
+    // телефона, где браузер без озвучки, казалось, что раздела нет
+    // вообще (репетитор так и написала). Теперь раздел виден всегда,
+    // а без озвучки под заголовком написано почему и что делать.
+    const noAudio = g.id === "audio" && !TTS_OK;
     const sec = document.createElement("section");
     sec.className = "ex-group";
     sec.innerHTML = `
       <div class="section-head ex-group-head"><h3>${g.title}</h3></div>
+      ${g.note ? `<p class="muted-small ex-group-note">${g.note}</p>` : ""}
+      ${noAudio ? `<p class="muted-small ex-group-note">В этом браузере нет английской озвучки —
+        открой сайт в Chrome или Safari, и раздел заработает.</p>` : ""}
       <div class="ex-grid"></div>`;
     const grid = sec.querySelector(".ex-grid");
     list.forEach(ex => {
       const card = document.createElement("button");
       card.className = "card ex-card";
+      const off = noAudio && ex.audio;
+      if (off) { card.classList.add("ex-card-off"); card.disabled = true; }
       card.innerHTML = `<span class="ex-icon">${icon(ex.icon, 32)}</span>
         <span class="ex-name">${ex.name}</span>
-        <span class="ex-desc">${ex.desc}</span>`;
+        <span class="ex-desc">${off ? "нужна озвучка — см. подсказку выше" : ex.desc}</span>`;
       card.addEventListener("click", () => openExercise(ex.id));
       grid.appendChild(card);
     });
@@ -1211,7 +1313,18 @@ const EX_RUNNERS = {
   // Берём только слова с собственным образом, иначе картинка ничего не подсказывает.
   picture() {
     const named = PICTURABLE;
-    const pool = trainPool(30).filter(p => named.has(p.w.toLowerCase())).slice(0, 8);
+    let pool = trainPool(30).filter(p => named.has(p.w.toLowerCase())).slice(0, 8);
+    // Слова с картинками в основном A1–B1: у старших уровней пул пустел,
+    // и упражнение МОЛЧА подменялось «Выбором варианта» — репетитор
+    // спросила, работает ли оно вообще выше B1. Теперь добираем
+    // картинчатые слова с любых уровней: узнавание по картинке полезно
+    // и как быстрый повтор простого слова.
+    if (pool.length < 8) {
+      const have = new Set(pool.map(p => p.w.toLowerCase()));
+      const extra = shuffled(LEVELS.flatMap(l => WORDS[l])
+        .filter(x => named.has(x.w.toLowerCase()) && !have.has(x.w.toLowerCase())));
+      pool = [...pool, ...extra.slice(0, 8 - pool.length)];
+    }
     if (pool.length < 4) { EX_RUNNERS.mcq(); return; }
     runMCQ(pool.map(p => {
       const wrong = shuffled(LEVELS.flatMap(l => WORDS[l])
@@ -1674,88 +1787,147 @@ const EX_RUNNERS = {
   },
 
   wordsearch() {
-    const SIZE = 9;
-    const pool = trainPool(10).filter(p => p.w.length <= SIZE && !p.w.includes(" ")).slice(0, 5);
-    // размещение слов H/V
-    const grid = Array.from({ length: SIZE }, () => Array(SIZE).fill(null));
-    const placedWords = [];
-    pool.forEach(p => {
-      const w = p.w.toLowerCase();
-      for (let attempt = 0; attempt < 60; attempt++) {
-        const horiz = Math.random() < 0.5;
-        const r = Math.floor(Math.random() * (horiz ? SIZE : SIZE - w.length + 1));
-        const c = Math.floor(Math.random() * (horiz ? SIZE - w.length + 1 : SIZE));
-        let fits = true;
-        for (let k = 0; k < w.length; k++) {
-          const cell = horiz ? grid[r][c + k] : grid[r + k][c];
-          if (cell && cell !== w[k]) { fits = false; break; }
-        }
-        if (!fits) continue;
-        for (let k = 0; k < w.length; k++) {
-          if (horiz) grid[r][c + k] = w[k];
-          else grid[r + k][c] = w[k];
-        }
-        placedWords.push({ ...p, w });
-        break;
-      }
-    });
-    const abc = "abcdefghijklmnopqrstuvwxyz";
-    for (let r = 0; r < SIZE; r++)
-      for (let c = 0; c < SIZE; c++)
-        if (!grid[r][c]) grid[r][c] = abc[Math.floor(Math.random() * 26)];
-    const found = new Set();
-    let selStart = null;
-    stage().innerHTML = `
-      <p class="muted-small ex-hint">Нажми первую и последнюю букву слова. Найди:
-        <span id="ws-targets">${placedWords.map(p => `<b class="ws-target" id="ws-t-${encodeURIComponent(p.w)}">${esc(p.w)}</b>`).join(", ")}</span></p>
-      <div class="ws-grid" style="grid-template-columns: repeat(${SIZE}, 1fr)" id="ws-grid"></div>`;
-    const gridEl = document.getElementById("ws-grid");
-    const cells = [];
-    for (let r = 0; r < SIZE; r++) {
-      for (let c = 0; c < SIZE; c++) {
-        const b = document.createElement("button");
-        b.className = "ws-cell";
-        b.textContent = grid[r][c];
-        b.dataset.r = r;
-        b.dataset.c = c;
-        b.addEventListener("click", () => {
-          if (!selStart) {
-            selStart = b;
-            b.classList.add("sel");
-            return;
-          }
-          const r1 = +selStart.dataset.r, c1 = +selStart.dataset.c;
-          const r2 = r, c2 = c;
-          selStart.classList.remove("sel");
-          selStart = null;
-          if (r1 !== r2 && c1 !== c2) return;
-          const line = [];
-          if (r1 === r2) {
-            for (let k = Math.min(c1, c2); k <= Math.max(c1, c2); k++) line.push(cells[r1 * SIZE + k]);
-          } else {
-            for (let k = Math.min(r1, r2); k <= Math.max(r1, r2); k++) line.push(cells[k * SIZE + c2]);
-          }
-          const str = line.map(x => x.textContent).join("");
-          const rev = [...str].reverse().join("");
-          const hit = placedWords.find(p => !found.has(p.w) && (p.w === str || p.w === rev));
-          if (hit) {
-            found.add(hit.w);
-            statUpdate(hit.w, true);
-            award(12);
-            line.forEach(x => x.classList.add("found"));
-            // id собирается через encodeURIComponent при отрисовке — ищем так же,
-            // иначе слово с пробелом или кавычкой просто не найдётся
-            const tgt = document.getElementById("ws-t-" + encodeURIComponent(hit.w));
-            if (tgt) tgt.classList.add("ws-done");
-            if (found.size === placedWords.length) {
-              setTimeout(() => exFinish(placedWords.length, placedWords.length), 600);
-            }
-          }
-        });
-        gridEl.appendChild(b);
-        cells.push(b);
-      }
+    // Шесть сеток подряд, в каждой несколько слов, «Дальше» и подсказка.
+    //
+    // Что было не так (репетитор прислала видео): пул брался из
+    // SRS-очереди БЕЗ перемешивания, а очередь детерминированная — каждая
+    // игра прятала одни и те же слова. Плюс сетка была одна: нашёл всё
+    // (или застрял) — и упражнение кончилось, «дальше» не было.
+    const SIZE = 9, ROUNDS = 6, PER_ROUND = 4;
+    const eligible = shuffled(trainPool(80)
+      .filter(p => p.w.length >= 3 && p.w.length <= SIZE && !p.w.includes(" ")));
+    if (eligible.length < 2) {
+      stage().innerHTML = `<div class="empty-state">
+        <div class="cat-avatar cat-mid" data-cat="sleep"></div>
+        <p>Для поиска слов нужно хотя бы два коротких слова без пробелов.
+           Добавь слов в словарь — и возвращайся, мяу.</p></div>`;
+      if (typeof paintCats === "function") paintCats(stage());
+      return;
     }
+    let queue = [...eligible];
+    let round = 0, totalPlaced = 0, totalFound = 0;
+
+    const nextRound = () => {
+      if (round >= ROUNDS) { exFinish(totalFound, totalPlaced); return; }
+      round++;
+      // Слова раунда — из очереди без повторов; кончилась — тасуем заново
+      if (queue.length < 2) queue = shuffled([...eligible]);
+      const roundWords = queue.splice(0, Math.min(PER_ROUND, queue.length));
+
+      const grid = Array.from({ length: SIZE }, () => Array(SIZE).fill(null));
+      const placedWords = [];
+      roundWords.forEach(p => {
+        const w = p.w.toLowerCase();
+        for (let attempt = 0; attempt < 60; attempt++) {
+          const horiz = Math.random() < 0.5;
+          const r = Math.floor(Math.random() * (horiz ? SIZE : SIZE - w.length + 1));
+          const c = Math.floor(Math.random() * (horiz ? SIZE - w.length + 1 : SIZE));
+          let fits = true;
+          for (let k = 0; k < w.length; k++) {
+            const cell = horiz ? grid[r][c + k] : grid[r + k][c];
+            if (cell && cell !== w[k]) { fits = false; break; }
+          }
+          if (!fits) continue;
+          for (let k = 0; k < w.length; k++) {
+            if (horiz) grid[r][c + k] = w[k];
+            else grid[r + k][c] = w[k];
+          }
+          placedWords.push({ ...p, w, r, c, horiz });
+          break;
+        }
+      });
+      if (!placedWords.length) { nextRound(); return; }
+      totalPlaced += placedWords.length;
+      const abc = "abcdefghijklmnopqrstuvwxyz";
+      for (let r = 0; r < SIZE; r++)
+        for (let c = 0; c < SIZE; c++)
+          if (!grid[r][c]) grid[r][c] = abc[Math.floor(Math.random() * 26)];
+
+      const found = new Set();
+      let selStart = null;
+      let hintIdx = 0;
+      stage().innerHTML = `
+        ${exProgress(round - 1, ROUNDS)}
+        <p class="muted-small ex-hint">Нажми первую и последнюю букву слова. Найди:
+          <span id="ws-targets">${placedWords.map(p => `<b class="ws-target" id="ws-t-${encodeURIComponent(p.w)}">${esc(p.w)}</b>`).join(", ")}</span></p>
+        <div class="ws-grid" style="grid-template-columns: repeat(${SIZE}, 1fr)" id="ws-grid"></div>
+        <div class="quiz-buttons">
+          <button class="btn btn-ghost hidden" id="ws-hint">${iconInline("sparkle", 16)} Подсказка</button>
+          <button class="btn btn-primary" id="ws-next">${round < ROUNDS ? "Дальше →" : "Закончить"}</button>
+        </div>`;
+      const gridEl = document.getElementById("ws-grid");
+      const cells = [];
+      for (let r = 0; r < SIZE; r++) {
+        for (let c = 0; c < SIZE; c++) {
+          const b = document.createElement("button");
+          b.className = "ws-cell";
+          b.textContent = grid[r][c];
+          b.dataset.r = r;
+          b.dataset.c = c;
+          b.addEventListener("click", () => {
+            if (!selStart) {
+              selStart = b;
+              b.classList.add("sel");
+              return;
+            }
+            const r1 = +selStart.dataset.r, c1 = +selStart.dataset.c;
+            const r2 = r, c2 = c;
+            selStart.classList.remove("sel");
+            selStart = null;
+            if (r1 !== r2 && c1 !== c2) return;
+            const line = [];
+            if (r1 === r2) {
+              for (let k = Math.min(c1, c2); k <= Math.max(c1, c2); k++) line.push(cells[r1 * SIZE + k]);
+            } else {
+              for (let k = Math.min(r1, r2); k <= Math.max(r1, r2); k++) line.push(cells[k * SIZE + c2]);
+            }
+            const str = line.map(x => x.textContent).join("");
+            const rev = [...str].reverse().join("");
+            const hit = placedWords.find(p => !found.has(p.w) && (p.w === str || p.w === rev));
+            if (hit) {
+              found.add(hit.w);
+              totalFound++;
+              statUpdate(hit.w, true);
+              award(12);
+              line.forEach(x => { x.classList.add("found"); x.classList.remove("hinted"); });
+              // id собирается через encodeURIComponent при отрисовке — ищем так же,
+              // иначе слово с кавычкой просто не найдётся
+              const tgt = document.getElementById("ws-t-" + encodeURIComponent(hit.w));
+              if (tgt) tgt.classList.add("ws-done");
+              if (found.size === placedWords.length) {
+                setTimeout(() => { if (gridEl.isConnected) finishRound(); }, 600);
+              }
+            }
+          });
+          gridEl.appendChild(b);
+          cells.push(b);
+        }
+      }
+
+      const finishRound = () => {
+        // Ненайденное — как «не вспомнил»: слово было перед глазами
+        placedWords.forEach(p => { if (!found.has(p.w)) statUpdate(p.w, false); });
+        nextRound();
+      };
+      document.getElementById("ws-next").addEventListener("click", finishRound);
+
+      // Подсказка появляется через полминуты — не сразу, чтобы сначала
+      // поискать честно. Клик подсвечивает первую букву ненайденного слова.
+      const hintBtn = document.getElementById("ws-hint");
+      setTimeout(() => {
+        if (gridEl.isConnected && found.size < placedWords.length) hintBtn.classList.remove("hidden");
+      }, 30000);
+      hintBtn.addEventListener("click", () => {
+        const left = placedWords.filter(p => !found.has(p.w));
+        if (!left.length) return;
+        const p = left[hintIdx % left.length];
+        hintIdx++;
+        const cell = cells[p.r * SIZE + p.c];
+        cell.classList.add("hinted");
+        cell.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" });
+      });
+    };
+    nextRound();
   },
 
   /* =========================================================
@@ -1838,8 +2010,10 @@ const EX_RUNNERS = {
       const b = document.createElement("button");
       b.type = "button";
       b.className = "gr-topic";
+      // Голая цифра «12» читалась как что угодно (репетитор спросила,
+      // что это) — подписываем: это сколько заданий в теме.
       b.innerHTML = `<span class="gr-topic-name">${esc(t.name)}</span>`
-                  + `<span class="gr-topic-count">${all.length}</span>`;
+                  + `<span class="gr-topic-count">${all.length} ${pluralRuEx(all.length, "задание", "задания", "заданий")}</span>`;
       b.addEventListener("click", () => start(t.id));
       box.appendChild(b);
     });
@@ -1983,10 +2157,16 @@ const EX_RUNNERS = {
       }
     });
     stage().innerHTML = `
+      <!-- Строка текущего слова. На телефоне список подсказок под сеткой
+           не виден одновременно с клеткой, в которую печатаешь, — с видео
+           репетитора это главное «плохо отображается». Теперь подсказка
+           выбранного слова всегда над сеткой. -->
+      <div class="cw-current" id="cw-current" role="status" aria-live="polite"></div>
       <div class="cw-scroll"><div class="cw-grid"
            style="grid-template-columns: repeat(${maxC + 1}, 1fr)" id="cw-grid"></div></div>
       <div class="cw-clues">
-        ${placed.map(p => `<p><b>${p.num}${p.horiz ? "→" : "↓"}</b> ${esc(p.t)}</p>`).join("")}
+        ${placed.map(p => `<button type="button" class="cw-clue" data-clue="${p.num}">
+           <b>${p.num}${p.horiz ? "→" : "↓"}</b> ${esc(p.t)}</button>`).join("")}
       </div>
       <div class="quiz-buttons"><button class="btn btn-primary" id="cw-check">Проверить</button></div>
       <p class="type-feedback" id="cw-result" role="status" aria-live="polite"></p>`;
@@ -2077,6 +2257,17 @@ const EX_RUNNERS = {
         x.el.classList.toggle("in-word", !!(word && word.keys.includes(key(x.r, x.c))));
       });
       cells[kk].el.classList.add("active");
+      // Подсказка текущего слова — над сеткой, и та же строка подсвечена в списке
+      const cur = document.getElementById("cw-current");
+      if (cur && word) {
+        const p = word.p;
+        cur.innerHTML = `<b>${p.num}${p.horiz ? "→" : "↓"}</b> ${esc(p.t)}
+          <span class="muted-small">· ${p.w.length} ${pluralRuEx(p.w.length, "буква", "буквы", "букв")}</span>`;
+        document.querySelectorAll(".cw-clue").forEach(cl =>
+          cl.classList.toggle("active", word && cl.dataset.clue === String(p.num)));
+      }
+      // Клетка должна быть видна: на телефоне сетка шире экрана и едет вбок
+      cells[kk].el.scrollIntoView({ block: "nearest", inline: "nearest" });
       ctl.setAttribute("aria-label", labelFor(kk));
       ctl.focus({ preventScroll: true });
     };
@@ -2141,6 +2332,13 @@ const EX_RUNNERS = {
         select(key(nextP.r, nextP.c), true);
       }
     });
+    // Тап по подсказке выбирает её слово — искать клетку по номеру не нужно
+    document.querySelectorAll(".cw-clue").forEach(cl => cl.addEventListener("click", () => {
+      const p = placed.find(x => String(x.num) === cl.dataset.clue);
+      if (!p) return;
+      dir = p.horiz ? "h" : "v";
+      select(key(p.r, p.c), true);
+    }));
     // Стартуем с первой клетки первого слова: сразу видно, куда печатать
     select(key(placed[0].r, placed[0].c), true);
 
