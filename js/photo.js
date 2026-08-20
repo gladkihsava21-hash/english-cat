@@ -28,7 +28,7 @@ function shrinkPhoto(file, maxSide = 1100) {
 
 function photoStatusText(p) {
   if (p.status === "done") return "";
-  if (p.status === "no_ai") return "Савелий пока не умеет проверять сам — репетитор посмотрит лично.";
+  if (p.status === "no_ai") return "Умная проверка ещё в разработке — репетитор посмотрит лично.";
   if (p.status === "no_quota") return "Проверок на этот месяц не осталось — репетитор посмотрит лично.";
   if (p.status === "failed") return "Разобрать не получилось, но репетитор фото увидит.";
   return "Савелий смотрит…";

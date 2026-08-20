@@ -123,7 +123,7 @@ const I18N_EN = {
   "Пройдено слов": "Words covered",
   "Рейтинг за неделю": "This week's leaderboard",
   "Сфоткать домашку": "Snap your homework",
-  "Домашка в тетради? Сфоткай — Савелий проверит и отправит результат репетитору.": "Homework in your notebook? Snap a photo — Savely will check it and send the result to your tutor.",
+  "Домашка в тетради? Сфоткай — фото сразу попадёт к твоему репетитору на проверку.": "Homework in your notebook? Snap a photo — it goes straight to your tutor for checking.",
   "Домашка от репетитора": "Homework from your tutor",
   "Сделать домашку": "Do the homework",
   "Ещё не сделано": "Not done yet",

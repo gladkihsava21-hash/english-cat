@@ -338,6 +338,8 @@ def _allow_standalone_students(c):
     info = list(c.execute("PRAGMA table_info(students)"))
     tid = next((r for r in info if r["name"] == "tutor_id"), None)
     if not tid or not tid["notnull"]:
+        if tid:
+            _students_token_unique(c)   # долечиваем базы, пересобранные без него
         return
     cols = [r["name"] for r in info]
     defs = []
@@ -370,9 +372,24 @@ def _allow_standalone_students(c):
         c.execute("DROP TABLE students")
         c.execute("ALTER TABLE students_rebuild RENAME TO students")
         c.execute("CREATE INDEX IF NOT EXISTS idx_students_tutor ON students(tutor_id)")
+        _students_token_unique(c)
         c.commit()
     finally:
         c.execute("PRAGMA foreign_keys=ON")
+
+
+def _students_token_unique(c):
+    """UNIQUE(token) из исходной схемы. PRAGMA table_info не показывает
+    уникальность, поэтому пересборка выше молча её теряла — вместе с
+    индексом, по которому ученика ищут на каждом запросе. Возвращаем
+    отдельным индексом, если ни одного уникального по token не осталось."""
+    for idx in c.execute("PRAGMA index_list(students)"):
+        if not idx["unique"]:
+            continue
+        cols = [r["name"] for r in c.execute('PRAGMA index_info("%s")' % idx["name"])]
+        if cols == ["token"]:
+            return
+    c.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_students_token ON students(token)")
 
 
 # ---------- пароли ----------
@@ -2123,7 +2140,8 @@ def set_check_pack(student_id, tutor_id, pack_id):
     return True, None
 
 
-# Проверка домашек приостановлена: нейросети нет (ключа Claude нет).
+# Проверка домашек приостановлена: нейросети нет (AI_PAUSED в server.py —
+# владелец запускает сайт с ИИ «в разработке», — или просто нет ключей).
 # Ставит server.py при старте. Пока True — счёт за пакеты не начисляется
 # ни репетитору, ни в выручку админки: платить за проверку, которая не
 # проверяет, нельзя. Пакеты при этом можно выбирать заранее — они

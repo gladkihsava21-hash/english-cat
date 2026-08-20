@@ -49,7 +49,7 @@ function renderOverview() {
     ? "ИИ: " + (data.aiChat && data.aiPhoto && data.aiChat !== data.aiPhoto
         ? `чат — ${data.aiChat}, фото — ${data.aiPhoto}`
         : (data.aiChat || data.aiPhoto))
-    : "ИИ выключен";
+    : "ИИ: в разработке (выключен)";
   $("ai-chip").classList.toggle("plan-full", !data.aiOn);
   $("overview").innerHTML = [
     ["Репетиторов", o.tutors, `подтвердили почту: ${o.verified}`],
