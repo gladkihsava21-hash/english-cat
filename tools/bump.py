@@ -65,10 +65,27 @@ def validate_state():
     return r.returncode == 0
 
 
+def check_banks():
+    """Банки заданий (грамматика, словообразование) — рукописные данные,
+    и одна опечатка вида «ответа нет среди вариантов» превращает задание
+    в нерешаемое. Ученик винит себя, а не нас."""
+    script = ROOT / "tools" / "check-banks.py"
+    if not script.exists():
+        return True
+    r = subprocess.run([sys.executable, str(script)], capture_output=True, text=True)
+    sys.stdout.write(r.stdout)
+    sys.stderr.write(r.stderr)
+    return r.returncode == 0
+
+
 def main():
     if not validate_state():
         print()
         print("Версия НЕ поднята: сначала почините миграцию состояния.")
+        return 1
+    if not check_banks():
+        print()
+        print("Версия НЕ поднята: сначала почините банки заданий.")
         return 1
 
     ver = int(sys.argv[1]) if len(sys.argv) > 1 else current() + 1

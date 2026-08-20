@@ -172,6 +172,37 @@ function shuffled(arr) {
   return [...arr].sort(() => Math.random() - 0.5);
 }
 
+/* Выборка «сначала невиданное». Грамматика и словообразование берут
+ * из банка по 8 заданий случайно — и при банке в дюжину на тему одни
+ * и те же предложения выпадали каждый второй подход («задания не
+ * меняются»). Помним показанное и выбираем из остатка; когда остаток
+ * меньше подхода, добираем из начала круга и начинаем счёт заново.
+ *
+ * Ключ задания — само предложение: индексы поплывут при любом
+ * пополнении банка, а предложения в банке уникальны (это проверяет
+ * tools/check-banks.py). Список живёт в localStorage, НЕ в state:
+ * это не прогресс, а девайсная память «что уже мелькало», и терять
+ * её при смене устройства не жалко. */
+const EX_SEEN_KEY = "savelyExSeen";
+
+function pickFresh(bucket, all, n, keyFn) {
+  let seen = {};
+  try { seen = JSON.parse(localStorage.getItem(EX_SEEN_KEY)) || {}; } catch (e) { /* мусор в хранилище */ }
+  const done = new Set(seen[bucket] || []);
+  const freshOnes = all.filter(x => !done.has(keyFn(x)));
+  let picked = shuffled(freshOnes).slice(0, n);
+  if (picked.length < n) {
+    // круг пройден: показываем последние невиданные + добор, счёт заново
+    const used = new Set(picked.map(keyFn));
+    picked = picked.concat(shuffled(all.filter(x => !used.has(keyFn(x)))).slice(0, n - picked.length));
+    done.clear();
+  }
+  picked.forEach(x => done.add(keyFn(x)));
+  seen[bucket] = [...done];
+  try { localStorage.setItem(EX_SEEN_KEY, JSON.stringify(seen)); } catch (e) { /* переполнено — переживём */ }
+  return picked;
+}
+
 // пул для тренировки: словарь (приоритет — слова с ошибками) + добор до n из уровня.
 // need — обязательные поля (def/cat/exr): слова без них отфильтровываются.
 /* Какие папки идут в тренировку. Пустой набор — весь словарь.
@@ -1946,7 +1977,7 @@ const EX_RUNNERS = {
     const idx = LEVELS.indexOf(lvl);
     const near = new Set([LEVELS[Math.max(0, idx - 1)], lvl, LEVELS[Math.min(LEVELS.length - 1, idx + 1)]]);
     const fit = WORD_FORMS.filter(x => near.has(x.lvl));
-    const pool = shuffled(fit.length >= 8 ? fit : WORD_FORMS).slice(0, 8);
+    const pool = pickFresh("wf:" + lvl, fit.length >= 8 ? fit : WORD_FORMS, 8, r => r.s);
     if (!pool.length) { exFinish(0, 0, "Заданий пока нет."); return; }
 
     runType(pool.map(r => ({
@@ -1984,7 +2015,10 @@ const EX_RUNNERS = {
     const start = topicId => {
       const all = GRAMMAR[topicId] || [];
       const fit = all.filter(x => near.has(x.lvl));
-      const pool = shuffled(fit.length >= 6 ? fit : all).slice(0, 8);
+      // 15 за подход — просьба методиста: 8 не хватало на отработку темы.
+      // Порог "fit достаточно велик" держим в полтора подхода, иначе
+      // на краях (A1) фильтр по уровню оставит одни и те же задания.
+      const pool = pickFresh("gr:" + topicId + ":" + lvl, fit.length >= 20 ? fit : all, 15, r => r.s);
       const topic = GRAMMAR_TOPICS.find(t => t.id === topicId);
       runMCQ(pool.map(r => {
         const options = shuffled(r.o.slice());

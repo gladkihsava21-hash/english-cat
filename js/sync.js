@@ -39,7 +39,7 @@ async function initInvite() {
     let info;
     try { info = await api("/api/join", { code }); } catch (e) { return; }
     if (!info.ok) return;
-    const box = document.getElementById("invite-note") || document.getElementById("tutor-msg-box");
+    const box = document.getElementById("adopt-note");
     if (!box) return;
     box.classList.remove("hidden");
     box.innerHTML = `<div class="card hw-card"><p class="hw-title">Тебя пригласил репетитор: ${esc(info.tutorName)}</p>
