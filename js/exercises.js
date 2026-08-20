@@ -1342,9 +1342,15 @@ const EX_RUNNERS = {
   },
 
   // Показываем картинку — ученик выбирает слово.
-  // Берём только слова с собственным образом, иначе картинка ничего не подсказывает.
+  // Берём только слова с НАСТОЯЩЕЙ фотографией. Раньше пул шёл по
+  // эмодзи-списку PICTURABLE, и в «какое слово на картинке?» попадал
+  // endorse с карандашом вместо фото — совладелец прислал скрин, по
+  // которому слово не угадать. Эмодзи остаются подсказкой в карточках,
+  // но загадкой работает только фотография.
   picture() {
-    const named = PICTURABLE;
+    const named = (typeof WORD_PHOTOS !== "undefined" && Object.keys(WORD_PHOTOS).length)
+      ? new Set(Object.keys(WORD_PHOTOS))
+      : PICTURABLE;   // список фото не загрузился — старое поведение
     let pool = trainPool(30).filter(p => named.has(p.w.toLowerCase())).slice(0, 8);
     // Слова с картинками в основном A1–B1: у старших уровней пул пустел,
     // и упражнение МОЛЧА подменялось «Выбором варианта» — репетитор
@@ -1359,8 +1365,11 @@ const EX_RUNNERS = {
     }
     if (pool.length < 4) { EX_RUNNERS.mcq(); return; }
     runMCQ(pool.map(p => {
+      // Ловушки — тоже слова с фото, но с другим переводом: пара
+      // «shoe/boots» с одинаковым переводом путала бы без вины ученика.
       const wrong = shuffled(LEVELS.flatMap(l => WORDS[l])
         .filter(x => x.w !== p.w && named.has(x.w.toLowerCase())
+          && x.t !== p.t
           && wordArt(x.w, x.cat) !== wordArt(p.w, p.cat)))
         .slice(0, 3)
         .map(x => x.w);

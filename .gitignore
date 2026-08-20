@@ -6,3 +6,4 @@ savely.db-shm
 .claude/
 *.bak-*
 demo.db*
+tools/out/contact-sheet-*.jpg

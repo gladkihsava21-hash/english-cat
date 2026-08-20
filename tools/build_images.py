@@ -165,6 +165,26 @@ def write_manifest(path, manifest, tile=None):
         fh.write("\n")
 
 
+def write_word_photos_js(path, manifest):
+    """js/word-photos.js — список слов с фотографией для фронтенда.
+
+    Раньше файл синхронизировали руками, и манифест с ним разъезжался
+    (110 против 111). Теперь пишется из того же манифеста, что и всё
+    остальное."""
+    words = sorted(manifest)
+    lines = []
+    for i in range(0, len(words), 6):
+        lines.append("  " + ", ".join('"%s": 1' % w for w in words[i:i + 6]))
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write("// Сгенерировано tools/build_images.py — руками не править.\n"
+                 "// Только список слов, у которых есть фотография: имя файла всегда\n"
+                 "// img/words/<слово>.webp. Значение не несёт смысла, важен сам ключ.\n"
+                 "// Лицензии и авторы — img/words/manifest.json и credits.html.\n"
+                 "const WORD_PHOTOS = {\n")
+        fh.write(",\n".join(lines))
+        fh.write("\n};\n")
+
+
 def esc(text):
     return (str(text or "").replace("&", "&amp;").replace("<", "&lt;")
             .replace(">", "&gt;").replace('"', "&quot;"))
@@ -237,8 +257,8 @@ def write_credits(path, manifest, words_meta):
   <p>Все фотографии на карточках слов взяты с
     <a href="https://commons.wikimedia.org/" rel="noopener" target="_blank">Wikimedia Commons</a>
     и используются на условиях свободных лицензий: public domain, CC0, CC BY и CC BY-SA.
-    Файлы скачаны и уменьшены до 480×480 (кадрирование по центру) — оригиналы доступны
-    по ссылкам в таблице.</p>
+    Файлы скачаны и уменьшены до квадратной плитки (кадрирование по центру) —
+    оригиналы доступны по ссылкам в таблице.</p>
   <p>Лицензии CC BY и CC BY-SA требуют указания автора — эта страница и есть такое указание.
     Если вы автор снимка и хотите изменить или убрать атрибуцию, напишите нам.</p>
   <p><b>Всего изображений: %d.</b> Обновлено: %s.</p>
@@ -577,6 +597,7 @@ def main(argv=None):
         # поэтому берём тот, что записан в манифесте, а не текущий args
         write_manifest(manifest_path, old, prev_tile)
         write_credits(CREDITS, old, words_meta)
+        write_word_photos_js(os.path.join(PROJECT_DIR, "js", "word-photos.js"), old)
         print("Манифест и credits.html пересобраны: %d картинок." % len(old))
         return 0
 
@@ -594,6 +615,7 @@ def main(argv=None):
 
     write_manifest(manifest_path, manifest, args.size)
     write_credits(CREDITS, manifest, words_meta)
+    write_word_photos_js(os.path.join(PROJECT_DIR, "js", "word-photos.js"), manifest)
     elapsed = time.time() - started
     info = write_report(os.path.join(OUT_DIR, "images-report.md"),
                         manifest, rejected, words_meta, stats, elapsed)
