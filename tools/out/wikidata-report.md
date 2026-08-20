@@ -1,0 +1,310 @@
+# Викиданные P18
+
+Принято: 306 из 1887
+
+- acquaintance → Q28008277 «знакомый» → Reunion of 3 Secret Service agents.jpg
+- addition → Q32043 «сложение» → AdditionShapes.svg
+- anachronism → Q189203 «анахронизм» → 2016-07-23 15-54-17 reconstit-belfort.jpg
+- analysis → Q217602 «анализ» → Adriaen Van Ostade - L'Analyse - PDUT921 - Musée des Beaux-Arts de la ville de Paris.jpg
+- anonymous → Q4233718 «аноним» → Image of none.svg
+- antigen → Q103537 «антиген» → Antibody.svg
+- antiquarian → Q5697103 «антиквар» → Johann Bauer Antiquitätenhändler.jpg
+- archipelago → Q33837 «архипелаг» → Galapagos archipelago 250m.jpg
+- article → Q191067 «статья» → New York Times 1918-08-19.jpg
+- astrology → Q34362 «астрология» → Astro signs.svg
+- athlete → Q2066131 «спортсмен» → 1500finalM1.JPG
+- auction → Q177923 «аукцион» → Crosby Garrett Helmet on auction at Christies.jpg
+- authority → Q174834 «власть» → AuthorityOfLaw.JPG
+- baseball → Q5369 «бейсбол» → Zack Greinke on July 29, 2009.jpg
+- bathroom → Q190771 «ванная комната» → Restaurant bathroom with two-way mirror.jpg
+- beam → Q3705329 «балка» → Balken.jpg
+- bear → Q1019010 «Медведь» → Coat of Arms of Yaroslavl (1995, mono).png
+- bedroom → Q193837 «спальня» → Berlin Villa Borsig Tegel asv2019-08 img09.jpg
+- bell → Q101401 «колокол» → Church bell cutaway.png
+- biology → Q420 «биология» → Biology-0001.jpg
+- black → Q23445 «чёрный» → Color icon black.svg
+- blackmail → Q34284 «шантаж» → Capon-Minerbo Blackmail Note.jpg
+- blade → Q330946 «лезвие» → Whale knife hg.jpg
+- blanket → Q5852 «одеяло» → Filmmaking of "Black Thursday" on ulica Świętojańska in Gdynia - 24.jpg
+- blindfold → Q2262288 «повязка на глаза» → Blind Justice (2830780815).jpg
+- blog → Q30849 «блог» → BlogActive.com Screenshot 2004.jpg
+- blue → Q1088 «синий» → Color icon blue.svg
+- body → Q170494 «тело» → The human body and health - an elementary text-book of essential anatomy, applied physiology and practical hygiene for schools (1908) (14586547287).jpg
+- border → Q133346 «граница географическая» → Finnish border sign Kilpisjarvi.JPG
+- bowl → Q153988 «миска» → Ancient Roman clay bowl.jpg
+- box → Q188075 «коробка» → Elaborate wood box Tom Tanaka.JPG
+- boy → Q3010 «мальчик» → Giulio del Torre Zwei Kartenspieler.jpg
+- brother → Q10861465 «брат» → Brothers.jpg
+- brown → Q47071 «коричневый» → Color icon brown.svg
+- bubble → Q75794 «пузырь» → Soda bubbles macro.jpg
+- budget → Q41263 «бюджет» → Brooklyn Museum - Comme Sisyphe - Honoré Daumier.jpg
+- burn → Q170518 «ожог» → Brandwond-graad2.JPG
+- cabbage → Q14328596 «капуста» → Aesthetic Cabage.jpg
+- cabinet → Q2741056 «шкаф» → Schrank2.jpg
+- campus → Q209465 «кампус» → Aerial View BITS Pilani, 2014.png
+- canoe → Q171529 «каноэ» → Boat on Euphrates.jpg
+- challenge → Q16511806 «вызов» → Balancing on great white balls.jpg
+- championship → Q1079023 «чемпионат» → Secondo scudetto schio.jpg
+- channel → Q733553 «канал связи» → Comm Channel.svg
+- chemistry → Q2329 «химия» → Chemicals in flasks.jpg
+- chimney → Q170477 «дымовая труба» → Bytom EC Szombierki chimney E 2023.jpg
+- circus → Q47928 «цирк» → Circus Ronaldo door Dirk Annemans.jpg
+- clan → Q30897454 «клан» → Clan Chattan lands affected by Earldoms circa 17th century.jpg
+- coach → Q41583 «тренер» → Dogos Waterpolo equipo Hot Dogos en el mundial IGLA+ 2024.jpg
+- collector → Q3243461 «коллекционер» → Largest collection of Converse All-Stars.JPG
+- color → Q1075 «цвет» → Colouring pencils.jpg
+- comedy → Q40831 «комедия» → Comedyicon PL.png
+- community → Q177634 «сообщество» → Bigdayout crowd2.jpg
+- company → Q783794 «компания» → Carlos Luis Michel Fumero - Equipo de Aducarga.jpg
+- computer → Q68 «компьютер» → Apple II Plus, Museum of the Moving Image.jpg
+- consent → Q231043 «согласие» → Oberlin Consent Initiative.jpg
+- consumer → Q22855 «потребитель» → People are buying fruits.jpg
+- contempt → Q5338825 «презрение» → Pavel Fedotov - The fresh cavalier - Google Art Project.jpg
+- controversy → Q1255828 «спор» → Meggendorfer Wenn Gelehrte streiten.jpg
+- conversation → Q52943 «разговор» → PManeg 0720-10 B Oudenaarde.jpg
+- corporation → Q167037 «корпорация» → Ralph Allen making a speech to the Corporation of Bath. Wellcome V0011283.jpg
+- costume → Q1410477 «сценический костюм» → Audrey Hepburn My Fair Lady Dress.jpg
+- country → Q6256 «страна» → CIA WorldFactBook-Political world.png
+- courage → Q208160 «мужество» → Raevsky saltanovka.jpg
+- courthouse → Q1137809 «здание суда» → Vue du palais de justice de Bruxelles.jpg
+- cowboy → Q178521 «ковбой» → Music of the Plains (mural study, Kilgore, Texas Post Office) SAAM-1974.28.333 1.jpg
+- cup → Q81727 «чашка» → Kaffeetasse halbhoch Golddekor 05, KPM.jpg
+- cushion → Q10971235 «диванная подушка» → Cushions.jpg
+- cut → Q4372969 «порез» → Schnittwunden.JPG
+- danger → Q15221217 «опасно» → Ravak Turbo cleaner GHS labelling.jpg
+- data → Q42848 «данные» → Sonar tracking of tungsten ball underneath research vessel for calibration (16824332958).jpg
+- debt → Q3196867 «долг» → 1979 $10,000 Treasury Bond .jpg
+- desire → Q775842 «желание» → Jacob Jordaens - Susanna and the Elders - Google Art Project.jpg
+- dialogue → Q131395 «диалог» → Plato and Aristotle dialectics by Luca della Robbia-Museo dell'Opera del Duomo-Florence.jpg
+- dictation → Q1087138 «диктант» → Il dettato.jpg
+- diet → Q474191 «диета» → FoodSourcesOfMagnesium.jpg
+- differential → Q193137 «дифференциал» → NonSynchronousGearBoxSF.jpg
+- disk → Q12346540 «диск» → Disko.png
+- doubt → Q34302 «сомнение» → Rae, Henrietta - Doubts - 1886.jpg
+- earth → Q2488752 «Земля» → Alchemical earth symbol (fixed width).svg
+- economy → Q159810 «экономика» → Grand-Bazaar Shop.jpg
+- education → Q8434 «образование» → 1887 Bettannier Der Schwarze Fleck anagoria.jpg
+- elephant → Q7378 «слон» → 178 Male African bush elephant in Etosha National Park Photo by Giles Laurent.jpg
+- elite → Q192797 «Элита» → The Royal Feast of Belshazzar Blaine and the Money Kings (1884).jpg
+- empire → Q48349 «империя» → Roman Empire Trajan 117AD.png
+- engagement → Q157512 «обручение» → Love Zambia.jpg
+- ensemble → Q29353484 «ансамбль» → John Galliano ensemble. Dress of the Year, 1987.jpg
+- enterprise → Q6881511 «предприятие» → Wolfsburg VW-Werk.jpg
+- envelope → Q170124 «конверт» → Briefumschlag (fcm).jpg
+- equipment → Q10273457 «снаряжение» → Electronics workbench.jpg
+- essay → Q35760 «эссе» → An Essay on the Principle of Population.jpg
+- ethics → Q9465 «этика» → Rage-and-anger-fresco.jpg
+- etiquette → Q188907 «этикет» → Cinema etiquette title card.jpg
+- euthanasia → Q100159 «эвтаназия» → Intracardial-injection-rat.JPG
+- evacuation → Q606332 «эвакуация» → Rita evacuees from Houston Texas September 21 2005.jpg
+- evolution → Q1063 «эволюция» → L'origine de l'évolution.jpg
+- explorer → Q11900058 «путешественник-исследователь» → Landing of Columbus (2).jpg
+- eye → Q7364 «глаз» → 201405 eye.png
+- fact → Q188572 «факт» → FACTS ubt 2.JPG
+- factory → Q83405 «фабрика» → Workers in the fuse factory Woolwich Arsenal Flickr 4615367952 d40a18ec24 o.jpg
+- fairy → Q8028 «фея» → Falero Luis Ricardo Lily Fairy 1888.jpg
+- farmer → Q131512 «фермер» → Ueberladewagen.jpg
+- fashion → Q12684 «мода» → E1266601 (5398889640).jpg
+- female → Q6581072 «женский пол» → Venus symbol.svg
+- fiction → Q8253 «художественный вымысел» → Alice par John Tenniel 30.png
+- field → Q185674 «поле» → VFPt charges plus minus thumb.svg
+- filter → Q736556 «фильтр» → FilterDiagram.svg
+- fingerprint → Q178022 «отпечатки пальцев» → Fingerprintforcriminologystubs.jpg
+- fist → Q16743864 «кулак» → Human fist from three sides.jpg
+- float → Q12728448 «плавучий объект» → Mechanical float switch waterpool.jpg
+- friend → Q17297777 «друг» → H. Magnus Olsson, Jens O. Z. Ehrs & Emil Eikner 2005.jpg
+- fuel → Q42501 «топливо» → Fire, Fireplace, Rostov-on-Don, Russia.jpg
+- function → Q11348 «математическая функция» → Exp re.png
+- fundamental → Q2879974 «основной тон» → Root of a major chord on C.png
+- game → Q11410 «игра» → Les joueurs de cartes de P. Cézanne (Fondation Vuitton, Paris) (33568651718).jpg
+- gene → Q7187 «ген» → Gene structure eukaryote 2 annotated.svg
+- genius → Q654361 «гений» → Vindobona Hoher Markt-92.JPG
+- giant → Q13581004 «гиганты» → DnD Giant.png
+- girl → Q3031 «девочка» → Anita Rée - Kopf eines Mädchens.jpg
+- glass → Q11469 «стекло» → Drinkware.jpg
+- goal → Q4503831 «цель» → Millennium Development Goals, UN Headquarters, New York City, New York - 20080501.jpg
+- gossip → Q854648 «сплетни» → Eugene de Blaas The Friendly Gossips.jpg
+- government → Q7188 «правительство» → De ministers die deel uitmaken van het derde kabinet Van Agt op de trappen van Paleis Huis ten Bosch in 's-Gravenhage. D - SFA001009248.jpg
+- graffiti → Q3567529 «граффити» → Kartu Chufu01.JPG
+- gray → Q17245659 «серый» → Grey eye G5wCD.jpg
+- green → Q3133 «зелёный» → Color icon green.svg
+- group → Q83478 «группа» → Rubiks revenge tilt.jpg
+- hair → Q28472 «волосы» → Borsten ausgewachsenes Mangalitza-Schwein.JPG
+- health → Q12147 «здоровье» → Star of life2.svg
+- heavy → Q85896580 «тяжёлый» → Martian Moon Orbiting the Red Planet.jpg
+- helmet → Q910873 «Геральдический шлем» → 1581heaumeLambrequinsBARA.PNG
+- history → Q309 «история» → Nikolaos Gyzis - Historia.jpg
+- hockey → Q1622659 «хоккей» → Floorball game.jpg
+- holiday → Q1445650 «праздник» → Carnaval 2014 - Rio de Janeiro (12973844805).jpg
+- hood → Q27206 «Капот» → Bonnet raised Saab 9-5.JPG
+- horoscope → Q188518 «Гороскоп» → Astro3.png
+- hour → Q25235 «час» → AnalogClockAnimation1 2hands 1h in 6sec.gif
+- household → Q259059 «домашнее хозяйство» → Aime Pez Familienidylle 1839.jpg
+- housewife → Q38126150 «домохозяйка» → HOUSEWIFE IN THE KITCHEN OF HER MOBILE HOME IN ONE OF THE TRAILER PARKS. THE TWO PARKS WERE CREATED IN RESPONSE TO... - NARA - 558298.jpg
+- husband → Q212878 «муж» → Prince Manga Bell and favorite wives.jpg
+- idea → Q131841 «идея» → Pictofigo - Idea.png
+- immigration → Q131288 «иммиграция» → Inmigrantes europeos llegando a Argentina.jpg
+- inequality → Q28113351 «неравенство» → Linear Programming Feasible Region.svg
+- information → Q11028 «информация» → Structure of the Universe.jpg
+- institution → Q3917196 «учреждение» → RISW Building.jpg
+- intellectual → Q58968 «интеллектуал» → Goethe (Stieler 1828).jpg
+- interior → Q2998430 «внутренняя часть» → Haringrokerij - 335312 - onroerenderfgoed.jpg
+- interpreter → Q11085831 «устный переводчик» → Interpreters (01113765) (9840848393).jpg
+- inventor → Q205375 «изобретатель» → Dave Warren with BlackBox Prototype.jpg
+- investment → Q4290 «инвестиция» → Norblin Factory Redevelopment under construction, 8.jpg
+- jazz → Q8341 «джаз» → Louis Armstrong restored.jpg
+- jury → Q837675 «суд присяжных» → The Jury (1861).jpg
+- kilt → Q151948 «Килт» → Plaid Kilt Nontraditional.jpg
+- kiss → Q7307 «поцелуй» → El Beso (Pinacoteca de Brera, Milán, 1859).jpg
+- lamp → Q1138737 «лампа» → Oil and electric lamp.jpg
+- large → Q12935276 «большой» → Brach humerus.jpg
+- lavender → Q2468392 «лавандовый» → Solid lavender.svg
+- lead → Q708 «свинец» → Lead electrolytic and 1cm3 cube.jpg
+- legislation → Q49371 «законодательство» → Constitution of the United States - DPLA - 9ca804144bd5965e992ae3528bc3c6a3 (page 1).jpg
+- legislature → Q11204 «орган законодательной власти» → Palace of Westminster, London - Feb 2007.jpg
+- lesson → Q379833 «урок» → Estamos en el salón.jpg
+- lever → Q40164 «рычаг» → Hefboom.jpg
+- libertarian → Q61055839 «либертарий» → Anarchist placard, 2011.jpg
+- liver → Q9368 «печень» → Leber Schaf.jpg
+- logic → Q8078 «логика» → Discourse-into-the-night.jpg
+- loneliness → Q223270 «одиночество» → Asylbewerber03.jpg
+- luck → Q1970348 «удача» → A postcard illustrating a soldier sending good luck and wish Wellcome V0016596.jpg
+- lung → Q7886 «лёгкие» → Thorax Lung 3d from ct scans.jpg
+- lyrics → Q602446 «слова песни» → Song lyrics about Namazu, the giant catfish who causes earthquakes (13470133804).jpg
+- map → Q4006 «географическая карта» → Btv1b530849639 plan du port et de la ville de Brest 1855 restored.jpg
+- mathematics → Q395 «математика» → Mathematics.png
+- mayor → Q30185 «мэр» → Femme Maire 2.jpg
+- medication → Q12140 «лекарственное средство» → VariousPills.jpg
+- memory → Q492 «память» → Ripa - Iconologie - 1643 - p. 107- memoire.jpg
+- merchant → Q215536 «торговец» → A merchant making up the account.jpg
+- mermaid → Q1031296 «Русалка» → Mermaid (Heraldry).svg
+- message → Q628523 «сообщение» → Mere, The Walnut Tree Inn, Sign of the times - geograph.org.uk - 6638836.jpg
+- messiah → Q51626 «мессия» → Cristo Aurea Solar.jpg
+- metaphor → Q18534 «метафора» → Puck magazine cover 2 May 1894 - In the cyclone cellar, waiting for fair weather.jpg
+- monster → Q276453 «монстр» → A fantastic monster; a cyclops with multiple heads and arms Wellcome V0007455.jpg
+- motion → Q79782 «движение» → Simple harmonic oscillator.gif
+- music → Q638 «музыка» → Op27 1 seg mov.png
+- noon → Q168182 «полдень» → Big Ben um 12 Uhr.jpg
+- normal → Q273176 «нормаль» → Normal vectors2.svg
+- north → Q659 «север» → CompassRose (mul) 16 blue N.svg
+- ocean → Q9430 «океан» → Ocean beach at low tide against the sun.jpg
+- opposition → Q105562 «противостояние планеты» → Positional astronomy.svg
+- organism → Q7239 «организм» → E. coli Bacteria (7316101966).jpg
+- paddle → Q599797 «Весло безуключное» → Double bentshaft paddle wood.jpg
+- panel → Q106857709 «панель» → Pannåer från Beckers - SKANM.0139639A-I.jpg
+- papaya → Q12330939 «папайя» → Owoce Papaja.jpg
+- paper → Q11472 «бумага» → Scattered white paper (Unsplash).jpg
+- paradise → Q3363340 «рай» → Jan Brueghel de Oude en Peter Paul Rubens - Het aards paradijs met de zondeval van Adam en Eva.jpg
+- parliament → Q35749 «парламент» → Swiss Federal Assembly session, with spectators gallery.jpg
+- patience → Q12846123 «терпение» → Pacientia or Patience.jpg
+- peace → Q454 «мир» → Peace dove.svg
+- pension → Q156223 «пенсия» → DNB visitor centre - ritirement pension.jpg
+- perry → Q2047030 «грушевый сидр» → Perry bottled in Normandy.jpg
+- pharmacy → Q13107184 «аптека» → Inneres einer historischen Apotheke.jpg
+- philosophy → Q5891 «философия» → Hortus Deliciarum, Philosophy and the seven liberal arts (cropped).jpg
+- phoenix → Q3521824 «феникс» → The Making of Harry Potter 29-05-2012 (Fawkes).jpg
+- physician → Q39631 «врач» → Auscultation of a women.jpg
+- plan → Q611203 «план» → Aftakking KW linie 07.jpg
+- player → Q4197743 «игрок» → Ernest Cadine pratiquant un exercice d'haltérophilie, Agence Rol, btv1b53098358j.jpg
+- pleasure → Q208195 «удовольствие» → EdisonDelights1905.jpg
+- poet → Q49757 «поэт» → Portrait of John Ceiriog Hughes (4674472).jpg
+- police → Q35535 «полиция» → HH Polizeihauptmeister MZ.jpg
+- politics → Q7163 «политика» → 24.09.2024 - Abertura do Debate Geral da 79ª Sessão da Assembleia Geral das Nações Unidas (54018866744).jpg
+- poncho → Q468794 «пончо» → Chilean Man Chile Chamanto Poncho.JPG
+- portrait → Q134307 «портрет» → Dama z gronostajem.jpg
+- power → Q25107 «власть» → Politischer Aschermittwoch 06.jpg
+- president → Q30461 «президент» → President George W. Bush Meets with Former Presidents George H. W. Bush, Bill Clinton and Jimmy Carter and President-Elect Barack Obama in the Oval Office of the White House - DPLA - 8f2f33d64f72a6eb1b0471ba20da87f6.jpg
+- price → Q160151 «цена» → Wireless in-store price display at a clothing retailer in NJ.jpg
+- princess → Q863048 «принцесса» → Schloss Glücksburg - Prinzessin Kris vor dem Wasserschloss - panoramio.jpg
+- prisoner → Q1862087 «заключённый» → Prison scrubs 1.jpg
+- professor → Q121594 «профессор» → Laurentius de Voltolina 001.jpg
+- province → Q34876 «провинция» → Map of country subdivisions (provinces).svg
+- psychology → Q9418 «психология» → Greek uc psi icon.svg
+- pulse → Q191733 «пульс» → Pulse evaluation.JPG
+- question → Q189756 «вопрос» → Question mark.svg
+- race → Q22938576 «гонка» → Silly - Grand Prix Criquielion, 15 mai 2016, départ (C07).JPG
+- rally → Q68157611 «митинг» → Demonstration during the 2011-2012 Russian protests in Nizhny Novgorod (10 December 2011).jpg
+- ranch → Q509028 «ранчо» → Grant-Kohrs Ranch.jpg
+- reception → Q66317493 «прием» → Délégation vénitienne à Damas (musée du Louvre) (6358418295).jpg
+- red → Q3142 «красный» → Color icon red.svg
+- reed → Q2734060 «камыш» → Albufera 2010 Roseaux.jpg
+- region → Q82794 «географический регион» → Mediterranian Sea Carthago location.JPG
+- regret → Q4729246 «сожаление» → Hans Thoma - Der verlorene Sohn.jpg
+- religion → Q9174 «религия» → 16 religionist symbols.png
+- republic → Q7270 «республика» → Forms of government.svg
+- rescue → Q1341429 «спасение» → Gebirgstrage02 Patient Seilsicherung.jpg
+- research → Q42240 «исследование» → Mitarbeiterin der EMPA in St-Gallen.jpg
+- rhythm → Q170406 «ритм» → 8beat example 01.jpg
+- roommate → Q14754454 «сосед по комнате» → Roommates (3218131407).jpg
+- rooster → Q688973 «Петух в геральдике» → Complete Guide to Heraldry Fig468.png
+- root → Q41500 «корень» → Mangroves.jpg
+- sail → Q25999 «парус» → Рисунки к статье «Паруса». Военная энциклопедия Сытина (Санкт-Петербург, 1911-1915).jpg
+- salad → Q9266 «салат» → Salad platter.jpg
+- salt → Q12370 «соль» → Ammonium-cerium(IV)-sulfate-sample.jpg
+- science → Q336 «наука» → Stylised atom with three Bohr model orbits and stylised nucleus (encircled).svg
+- score → Q522344 «счёт» → Bowling (19548528996).jpg
+- screw → Q764323 «винт» → Cast-iron bookbinding screw press.jpg
+- secretary → Q80687 «секретарь-референт» → Office and Administrative Support Workers - DPLA - 244c999905681bac485868640d9a6270.jpg
+- serve → Q12182133 «подача (волейбол)» → Serve during volleyball match 4.jpg
+- server → Q44127 «сервер» → Floridaserversfront1.jpg
+- shame → Q152282 «стыд» → Monasterio viejo de San Juan de la Peña (RPS 19-04-2019) capitel representando la vergüenza.png
+- shamrock → Q1247368 «Трилистник» → Irish clover.jpg
+- shelf → Q45242859 «полка» → Shelve.jpg
+- shelter → Q989946 «укрытие» → Réunion Maïdo kiosque pique-nique.JPG
+- shoulder → Q16363 «плечо» → Photo of male right shoulder, combined with an anatomical drawing from Leonardo da Vinci.jpg
+- shuttle → Q519840 «челнок» → Boat shuttle Tapiola 14AUG2026 01.jpg
+- signature → Q188675 «подпись» → Autograph of Benjamin Franklin.svg
+- skirt → Q2160801 «юбка» → Peasant skirt 1435043608.jpg
+- skull → Q13147 «череп» → A2613-Museum Geologi-Fosil Tengkorak.jpg
+- sky → Q527 «небо» → Sky over Munich 02.jpg
+- small → Q16042592 «маленький» → Smallcrane.jpg
+- smile → Q487 «улыбка» → HD@DH.nrw Strichfigur 22.svg
+- smiley → Q11241 «смайлик» → Smiley.svg
+- snapshot → Q252683 «Снимок файловой системы» → Snapper root list screenshot.png
+- solidarity → Q815726 «солидарность» → Abramowski-braterstwo-solidarnosc-wspoldzialanie-okladka.png
+- space → Q107 «пространство» → 3D coordinate system.svg
+- sport → Q349 «спорт» → Youth-soccer-indiana.jpg
+- stomach → Q1029907 «желудок человека» → Sobo 1906 370.png
+- studio → Q746628 «арт-студия» → 619 Western 06.jpg
+- suit → Q614806 «классический костюм» → Suit.jpg
+- superhero → Q188784 «супергерой» → Gotham City Saviour (2430422247).jpg
+- surprise → Q333173 «удивление» → Grandville Cent Proverbes page129.png
+- symbol → Q80071 «символ» → ReligijneSymbole.svg
+- syntax → Q37437 «синтаксис» → Syntax tree - Affirmation (1a).png
+- system → Q58778 «система» → Primäres System.png
+- table → Q14748 «стол» → Parsons Table.jpg
+- tape → Q55238861 «лента» → Masking-tape.png
+- taste → Q124794 «вкус» → Tongue-bitter.jpg
+- teacher → Q37226 «учитель» → Classroom at a seconday school in Pendembu Sierra Leone.jpg
+- technical → Q569612 «техничка» → Niger, Mélèk (N'Gourti)(10) (cropped).jpg
+- thirst → Q474187 «жажда» → William-Adolphe Bouguereau (1825-1905) - Thirst (1886).jpg
+- throw → Q172560 «бросок» → Sambo at the 2015 European Games.jpg
+- toolbar → Q371434 «Панель инструментов» → Application toolbar.png
+- toy → Q11422 «игрушка» → Child playing with a toy cart and horse. -front- (9726037522).jpg
+- trade → Q601401 «торговля» → Fredmeyer edit 1.jpg
+- troll → Q11281 «интернет-тролль» → Internet Troll velu ill artlibre jnl.jpg
+- trust → Q659974 «доверие» → Faith (3).jpg
+- twin → Q159979 «близнец» → A cross-section of a pregnant uterus containing twins. Engra Wellcome V0014950.jpg
+- unusual → Q24238907 «необычный» → Geisteswissenschaften.png
+- vampire → Q46721 «вампир» → Les vampires.jpg
+- void → Q845371 «космическая пустота» → Galaxy superclusters and galaxy voids.png
+- vomiting → Q127076 «рвота» → Vomiting.jpg
+- vulnerable → Q278113 «находятся в уязвимом положении» → Status iucn3.1 VU-ca.svg
+- wall → Q42948 «стена» → 2015 Zakład Karny w Kłodzku 02.JPG
+- warning → Q1759104 «предупреждение» → Avertissement marches piscine - Cité Miroir.jpg
+- warrior → Q1250916 «воин» → Cagayan Warrior.png
+- wealth → Q200535 «богатство» → Massysm Quentin — The Moneylender and his Wife — 1514.jpg
+- wedge → Q2755127 «Клин» → Geometric wedge.png
+- week → Q23387 «неделя» → First Day of Week World Map.svg
+- wheel → Q446 «колесо» → Hub (PSF).png
+- white → Q23444 «белый» → Color icon white.svg
+- wife → Q188830 «жена» → William-Adolphe Bouguereau (1825-1905) - The Proposal (1872).jpg
+- wind → Q8094 «ветер» → Bundesarchiv Bild 183-1990-0206-324, Berlin, Passanten im Wind.jpg
+- wing → Q161358 «крыло» → Duerer wing of a blue roller.jpg
+- winner → Q18560095 «победитель» → Boxkampf 11.jpg
+- witch → Q1616828 «ведьма» → Albert Joseph Pénot - Départ pour le Sabbat.png
+- worker → Q327055 «работник» → WomanFactory1940s.jpg
+- writer → Q36180 «писатель» → Leonid Pasternak - The Passion of creation (1).jpg
+- yellow → Q943 «жёлтый» → Color icon yellow.svg
+- zebra → Q32789 «зебра» → Plains Zebra Equus quagga.jpg
+- zoology → Q431 «зоология» → Animal diversity.jpg

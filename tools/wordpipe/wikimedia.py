@@ -244,14 +244,20 @@ def find(fetcher, word, titles, summary_delay=0.3, commons_delay=0.4):
     """
     reasons = []
     for spec in titles:
-        lang, title, data = summary(fetcher, spec, delay=summary_delay)
-        if data is None:
-            reasons.append("%s: статья не найдена" % spec)
-            continue
-        filename, why = lead_file(data)
-        if not filename:
-            reasons.append("%s: %s" % (spec, why))
-            continue
+        if spec.startswith("file:"):
+            # Прямое имя файла на Commons — так отдаёт картинки движок
+            # Викиданных (P18): статьи нет, «лид» и есть сам файл.
+            lang, title = "commons", spec[5:]
+            filename = spec[5:]
+        else:
+            lang, title, data = summary(fetcher, spec, delay=summary_delay)
+            if data is None:
+                reasons.append("%s: статья не найдена" % spec)
+                continue
+            filename, why = lead_file(data)
+            if not filename:
+                reasons.append("%s: %s" % (spec, why))
+                continue
         info = file_info(fetcher, filename, delay=commons_delay)
         if not info:
             reasons.append("%s: нет данных о файле %s" % (spec, filename))
@@ -269,8 +275,9 @@ def find(fetcher, word, titles, summary_delay=0.3, commons_delay=0.4):
             word=word,
             lang=lang,
             article=title,
-            article_url="https://%s.wikipedia.org/wiki/%s"
-                        % (lang, urllib.parse.quote(title.replace(" ", "_"))),
+            article_url=(info.get("descriptionurl") if lang == "commons" else
+                         "https://%s.wikipedia.org/wiki/%s"
+                         % (lang, urllib.parse.quote(title.replace(" ", "_")))),
             filename=filename,
             license=_strip_html((meta.get("License") or {}).get("value")),
             license_short=_strip_html((meta.get("LicenseShortName") or {}).get("value")),
