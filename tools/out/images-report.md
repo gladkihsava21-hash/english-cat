@@ -1,6 +1,6 @@
 # Фотографии к словам — отчёт
 
-Собрано 20.08.2026 18:33. Скрипт: `tools/build_images.py`.
+Собрано 20.08.2026 23:17. Скрипт: `tools/build_images.py`.
 
 ## Цифры
 
@@ -8,16 +8,16 @@
 |---|---|
 | Слов в базе `js/words.js` | 2492 |
 | Из них отобрано под фотографию | 173 |
-| Картинок получено | **300** |
-| Отброшено на сборке | 156 |
+| Картинок получено | **355** |
+| Отброшено на сборке | 253 |
 | Вынесено вам на решение | 15 |
-| Общий вес `img/words/` | 5499 КБ (5.4 МБ) |
-| Средняя плитка | 17.9 КБ |
+| Общий вес `img/words/` | 6553 КБ (6.4 МБ) |
+| Средняя плитка | 18.0 КБ |
 | Самая тяжёлая | 39.8 КБ |
-| Запросов: сеть / кэш / ошибки | 0 / 1223 / 0 |
+| Запросов: сеть / кэш / ошибки | 0 / 1581 / 0 |
 | Время прогона | 8 с |
 
-Самые тяжёлые плитки: branch 39.8 КБ, jungle 39.3 КБ, volunteer 39.0 КБ, tiger 39.0 КБ, autumn 38.9 КБ.
+Самые тяжёлые плитки: branch 39.8 КБ, jungle 39.3 КБ, volunteer 39.0 КБ, tiger 39.0 КБ, bush 39.0 КБ.
 
 ## Лицензии
 
@@ -27,16 +27,17 @@
 
 | Лицензия | Картинок |
 |---|---|
-| CC BY-SA 3.0 | 83 |
-| CC BY-SA 4.0 | 75 |
-| Public domain | 35 |
-| CC BY 2.0 | 34 |
-| CC BY-SA 2.0 | 25 |
-| CC0 | 15 |
-| CC BY 4.0 | 11 |
-| CC BY 3.0 | 9 |
-| CC BY-SA 2.5 | 6 |
+| CC BY-SA 3.0 | 103 |
+| CC BY-SA 4.0 | 86 |
+| Public domain | 43 |
+| CC BY 2.0 | 38 |
+| CC BY-SA 2.0 | 27 |
+| CC0 | 17 |
+| CC BY 4.0 | 13 |
+| CC BY-SA 2.5 | 10 |
+| CC BY 3.0 | 10 |
 | CC BY 2.5 | 4 |
+| CC BY 1.0 | 1 |
 | CC BY-SA 3.0 de | 1 |
 | CC BY-SA 2.0 de | 1 |
 | CC BY 3.0 no | 1 |
@@ -44,21 +45,28 @@
 Автор, лицензия и ссылка на файл лежат в `img/words/manifest.json` для
 каждого слова и продублированы человекочитаемо в `credits.html`.
 
-## Что не получилось (156)
+## Что не получилось (253)
 
 Машинная причина отказа по каждому слову, оставшемуся в выборке.
 Эти же слова разобраны по-человечески в следующем разделе.
 
 | Слово | Этап | Причина |
 |---|---|---|
+| addition | поиск | Addition: SVG — это рисунок или схема, не фотография (Addition01.svg) |
 | adolescent | поиск | Adolescence: ограничения на использование (personality) (Teens_sharing_a_song.jpg) |
 | affluent | поиск | Wealth: по имени файла это схема/карта/логотип (World_map_of_median_wealth_per_adult_by_country._Credit_Suisse._2021_publication.png) |
+| afternoon | поиск | ru:После полудня: не современное фото: категория Commons «PD-old» (Georges_Seurat_-_Un_dimanche_après-midi_à_l'Île_de_la_Grande_Jatte.jpg) |
 | anachronism | поиск | Anachronism: не современное фото: категория Commons «PD-old» (Cesare_Gennari_Orfeo.jpg) |
 | antigen | поиск | Antigen: не современное фото: категория Commons «diagrams» (Antibody.svg) |
+| apathy | поиск | Apathy: не современное фото: категория Commons «diagrams» (Challenge_vs_skill.svg) |
 | archipelago | поиск | Archipelago: не современное фото: категория Commons «Satellite pictures» (Aegeansea.jpg) |
+| ashamed | поиск | Shame: не современное фото: категория Commons «PD-old» (75_-_Musée_Rodin_-_Ève_au_rocher,_grand_modèle_–_Auguste_Rodin.jpg) |
+| astrology | поиск | ru:Астрология: по имени файла это схема/карта/логотип (Anatomical_Man.jpg) |
 | astronaut | поиск | Astronaut: ограничения на использование (personality) (Bruce_McCandless_II_during_EVA_in_1984.jpg) |
 | athlete | поиск | Athlete: не современное фото: категория Commons «PD Old» (Jim_Thorpe,_1912_Summer_Olympics.jpg) |
+| attorney | поиск | ru:Юрист: не современное фото: категория Commons «PD-Art» (Illustration_at_page_11_of_The_Perverse_Widow_and_The_Widow,_1909.png) |
 | baboon | поиск | Baboon: лицензия вне белого списка (GFDL 1.2) (Olive_baboon_Ngorongoro.jpg) |
+| badge | поиск | ru:Значок: не современное фото: категория Commons «PD-old» (04_496_Book_illustrations_of_Historical_description_of_the_clothes_and_weapons_of_Russian_troops.jpg) |
 | bandit | поиск | Banditry: слишком мелкий оригинал (300x400) (Briganti_1862_from_Bisaccia.jpg) |
 | bathroom | поиск | Bathroom: несвободная лицензия (No restrictions) (Modern_bath_rooms_and_appliances_-_a_few_suggestions_about_plumbing_valuable_to_home_builders_or_those_about_to_remodel_their_pres |
 | bear | поиск | Bear: лицензия вне белого списка (FAL) (Ours_brun_parcanimalierpyrenees_1.jpg) |
@@ -66,149 +74,239 @@
 | bell | поиск | Bell: не современное фото: категория Commons «diagrams» (Parts_of_a_Bell.svg) |
 | biology | поиск | Biology: не современное фото: категория Commons «diagrams» (DNA_simple_horizontal.svg) |
 | blanket | поиск | Blanket: не современное фото: категория Commons «PD-old» (Lautrec_in_bed_1893.jpg) |
+| blog | поиск | Blog: по имени файла это схема/карта/логотип (Internet_map_1024_-_transparent,_inverted.png) |
 | bowl | поиск | Bowl: формат tif (China,_Jiangxi_province,_Jingdezhen,_Ming_dynasty_(1368-1644),_Xuande_mark_-_Bowl_with_Decoration_of_the_"Three_Friends"_-_1953.631_-_Cleveland_Museum_of_Art.tif) |
 | box | поиск | Box: формат tif (Låda_-_Livrustkammaren_-_107142.tif) |
 | boy | поиск | Boy: ограничения на использование (personality) (Smiling_little_boy_of_Laos.jpg) |
+| bra | поиск | ru:Бюстгальтер: лицензия вне белого списка (GFDL) (Buestenhalter-2.jpg) |
 | brother | поиск | Brother: не современное фото: категория Commons «1969 photographs» (Jackson_5_1969.jpg) |
 | bucolic | поиск | Pastoral: не современное фото: категория Commons «paintings» (Boucher_-_Daphnis_and_Chloe,_1743.jpg) |
 | budget | поиск | Budget: не современное фото: категория Commons «PD-old» (Brooklyn_Museum_-_Comme_Sisyphe_-_Honoré_Daumier.jpg) |
 | cabbage | поиск | Cabbage: по имени файла это схема/карта/логотип (Cabbage_and_cross_section_on_white.jpg) |
+| cabinet | поиск | ru:Шкаф: не современное фото: категория Commons «1825 works» (Schrank(1825).JPG) |
 | cafeteria | поиск | Cafeteria: ограничения на использование (personality) (Infosys.Electronic.City.Cafeteria.JPG) |
 | campus | поиск | Campus: не современное фото: категория Commons «PD-old» (Joseph_Ramée_Union_College_USA.jpg) |
+| cart | поиск | ru:Телега: не современное фото: категория Commons «PD-old» (Корзухин_Возок_1891.jpg) |
+| chamber | поиск | ru:Комната: не современное фото: категория Commons «1899 paintings» (Красная_палата.jpg) |
 | chemistry | поиск | Chemistry: по имени файла это схема/карта/логотип (Reaction_Coordinate_Diagram.svg) |
 | circus | поиск | Circus: не современное фото: категория Commons «in art» (Barnum_&_Bailey_clowns_and_geese2.jpg) |
+| clerk | поиск | ru:Служащие: ограничения на использование (personality) (OpenPlanRedBalloon1.jpg) |
 | clothes | поиск | Clothing: не современное фото: категория Commons «PD-Art» (Clothes.jpg) |
+| coach | поиск | ru:Тренер: лицензия вне белого списка (GFDL 1.2) (Coach_Ross_Lyon_addresses_team,_St_Kilda_FC_01.jpg) |
+| collector | поиск | ru:Коллекционирование: по имени файла это схема/карта/логотип (My_stamp_collection_book_opened.jpg) |
 | comedy | поиск | Comedy: не современное фото: категория Commons «PD-old» (Tragic_comic_masks_-_roman_mosaic.jpg) |
+| comparison | поиск | Comparison: не современное фото: категория Commons «Lithographs» (An_anxious_man_comparing_his_own_head_to_a_skull,_using_the_Wellcome_V0009466_(cropped).jpg) |
 | compete | поиск | Competition: лицензия вне белого списка (GFDL) (Athletics_competitions.jpg) |
 | conference | поиск | Conference: не современное фото: категория Commons «Paintings» (Lenin_at_Tampere.JPG) |
 | consumer | поиск | Consumer: несвободная лицензия (No restrictions) (The_Kodak_Salesman_(1919)_(14597240757).jpg) |
+| contempt | поиск | Contempt: несвободная лицензия (No restrictions) (Thomas_Ward,_arrested_for_stealing_a_sovereign_(23114652176).jpg) |
+| conversation | поиск | Conversation: не современное фото: категория Commons «PD-Art» (Arnold_Lakhovsky_Conversation.png) |
 | copyright | поиск | Copyright: SVG — это рисунок или схема, не фотография (Intellectual_property_Noun_project.svg) |
 | country | поиск | Country: по имени файла это схема/карта/логотип (Official_United_Nations_World_Map_-_October_2022.svg) |
 | cowboy | поиск | Cowboy: не современное фото: категория Commons «1897 paintings» (HerdQuit.jpg) |
+| cup | поиск | ru:Чашка: не современное фото: категория Commons «paintings» (Kaffeetasse_halbhoch_Golddekor_05,_KPM.jpg) |
 | dark | поиск | Darkness: не современное фото: категория Commons «PD-Art» (Creation_of_Light.png) |
 | data | поиск | Data: не современное фото: категория Commons «Diagrams» (Data_types_-_en.svg) |
 | debt | поиск | Debt: панорама 724x1600 — квадратная обрезка потеряет сюжет (Payday_loan_shop_window.jpg) |
+| define | поиск | Definition: слишком мелкий оригинал (300x217) (Blacks-Law-Dictionary.jpg) |
 | designer | поиск | Designer: не современное фото: категория Commons «Drawing» (Architect.png) |
+| dialogue | поиск | Dialogue: несвободная лицензия (No restrictions) (Conversation_about_Cross-Cultural_Youth_Convention,_1972_(16432965096).jpg) |
+| dictation | поиск | ru:Диктант: не современное фото: категория Commons «1890s paintings» (Il_dettato.jpg) |
+| disappointed | поиск | Disappointment: не современное фото: категория Commons «1880s paintings» ("Disappointment"_-_1882_-_Julius_Leblanc_Stewart.jpg) |
+| dish | поиск | ru:Тарелка: не современное фото: категория Commons «paintings» (Plate_with_grotesque_ornament_and_scenes_01.jpg) |
 | earth | поиск | Earth: лицензия вне белого списка (Attribution) (Meteosat-12-fci-march-equinox-2025-noon.jpg) |
 | economy | поиск | Economy: по имени файла это схема/карта/логотип (Map_of_countries_by_GDP_(PPP)_per_capita_in_2024.svg) |
 | editor | поиск | Editing: не современное фото: категория Commons «1900 photographs» (Seattle_Daily_Times_news_editor_quarters_-_1900.jpg) |
 | education | поиск | Education: ограничения на использование (personality) (Schoolgirls_in_Bamozai.JPG) |
 | elephant | поиск | Elephant: лицензия вне белого списка (GFDL 1.2) (African_Bush_Elephant.jpg) |
+| email | поиск | ru:Электронная почта: по имени файла это схема/карта/логотип (Mozilla_thunderbird_empty_screenshot.png) |
+| embarrassed | поиск | Embarrassment: ограничения на использование (personality) (Embarrassed_woman.jpg) |
 | empire | поиск | Empire: не современное фото: категория Commons «Maps» (Modern_Empires.svg) |
+| engagement | поиск | ru:Обручение: не современное фото: категория Commons «Paintings» (William-Adolphe_Bouguereau_(1825-1905)_-_The_Proposal_(1872).jpg) |
 | envelope | поиск | Envelope: не современное фото: категория Commons «PD Old» (Envelope_-_Boonville_Address-000.jpg) |
 | essay | поиск | Essay: не современное фото: категория Commons «PD-old» (Essais_Titelblatt_(1588).png) |
 | estuary | поиск | Estuary: не современное фото: категория Commons «Satellite pictures» (Rio_de_la_Plata_BA_2.JPG) |
+| evacuation | поиск | ru:Эвакуация: не современное фото: категория Commons «PD Old» (White_army_departure.jpg) |
 | expert | поиск | Expert: не современное фото: категория Commons «1880s paintings» (Becker_von,_Adolf_-_The_Art_Expert_-_Google_Art_Project.jpg) |
 | factory | поиск | Factory: ограничения на использование (trademarked) (Wolfsburg_VW-Werk.jpg) |
+| fail | поиск | Failure: по имени файла это схема/карта/логотип (Failure_is_not_a_crime._Sign_on_Leh-Nubra_road.2010.jpg) |
 | fairy | поиск | Fairy: не современное фото: категория Commons «1888 paintings» (Falero_Luis_Ricardo_Lily_Fairy_1888.jpg) |
 | farmer | поиск | Farmer: ограничения на использование (personality) (Woman_at_work,_Gujarat.jpg) |
 | fashion | поиск | Fashion: ограничения на использование (personality) (Carolina_Herrera_AW14_12.jpg) |
 | fiction | поиск | Fiction: не современное фото: категория Commons «illustrations of» (Alice_par_John_Tenniel_25.png) |
 | fingerprint | поиск | Fingerprint: слишком мелкий оригинал (215x319) (Fingerprintforcriminologystubs.jpg) |
+| fluid | поиск | ru:Жидкость: SVG — это рисунок или схема, не фотография (BernoullisLawDerivationDiagram.svg) |
+| ford | поиск | ru:Переправа: не современное фото: категория Commons «1883 paintings» (Pereprava_cherez_Dunaj.jpg) |
 | game | поиск | Game: несвободная лицензия (No restrictions) (Gaming_Board_Inscribed_for_Amenhotep_III_with_Separate_Sliding_Drawer,_ca._1390-1353_B.C.E.,49.56a-b.jpg) |
 | gene | поиск | Gene: SVG — это рисунок или схема, не фотография (Chromosome_DNA_Gene_unannotated.svg) |
 | girl | поиск | Girl: ограничения на использование (personality) (Young_girl_smiling_in_sunshine_(2).jpg) |
+| globe | поиск | ru:Сфера: слишком мелкий оригинал (293x293) (Sphere-wireframe.png) |
 | goggles | поиск | Goggles: формат tiff (Your_Quota_Two_eyes_that_see_Protect_them_2012_002_7217_xg94hq433_crop.tiff) |
 | gossip | поиск | Gossip: не современное фото: категория Commons «PD-old» (Pieter_Brueghel_the_Younger_-_Proverbs_(detail)_-_WGA03627.jpg) |
 | government | поиск | Government: не современное фото: категория Commons «maps» (Forms_of_government.svg) |
+| ground | поиск | ru:Земля: лицензия вне белого списка (Attribution) (Meteosat-12-fci-march-equinox-2025-noon.jpg) |
+| guard | поиск | ru:Стражник: не современное фото: категория Commons «16th century» (Тревога_на_пограничном_карауле.jpg) |
 | hair | поиск | Hair: по имени файла это схема/карта/логотип (Gray945.png) |
+| happy | поиск | Happiness: ограничения на использование (personality) (Girl_of_Vietnam.jpg) |
+| health | поиск | ru:Здоровье: не современное фото: категория Commons «PD-old» (Uomo_Vitruviano.jpg) |
 | helmet | поиск | Helmet: панорама 3932x1344 — квадратная обрезка потеряет сюжет (A_Wide_Variety_Of_Helmets.png) |
 | history | поиск | History: не современное фото: категория Commons «PD-old» (Carstian_Luyckx_-_Still_life_with_a_globe,_books,_shells_and_corals_resting_on_a_stone_ledge.jpg) |
 | hitchhike | поиск | Hitchhiking: не современное фото: категория Commons «maps» (Hitchhiking_worldwide_2024.png) |
 | holiday | поиск | Holiday: ограничения на использование (personality) (Lathmar_Holi_2022_in_Nandgaon,_Uttar_Pradesh_(edited).jpg) |
 | homework | поиск | Homework: лицензия вне белого списка (GFDL 1.2) (Homework_-_vector_maths.jpg) |
+| horoscope | поиск | ru:Гороскоп: по имени файла это схема/карта/логотип (Astrological_Chart_-_New_Millennium.JPG) |
+| horror | поиск | ru:Ужас: не современное фото: категория Commons «PD Old» (Expression_of_the_Emotions_Figure_21.png) |
 | hour | поиск | Hour: формат gif (AnalogClockAnimation1_2hands_1h_in_6sec.gif) |
 | housewife | поиск | Housewife: не современное фото: категория Commons «PD-old» (Tyranov_-_Young_Housewife.jpg) |
 | husband | поиск | Husband: не современное фото: категория Commons «PD-old» (Lotto,_Lorenzo_-_Husband_and_Wife.jpg) |
 | immigrant | поиск | Immigration: не современное фото: категория Commons «maps» (Net_Migration_Rate,_Population_Reference_Bureau,_Current.svg) |
 | inmate | поиск | Prisoner: не современное фото: категория Commons «PD-Art» (Pentonvilleiso19.jpg) |
 | innovation | поиск | Innovation: не современное фото: категория Commons «PD Old» (Edison_and_phonograph_edit2.jpg) |
-| inventor | поиск | Invention: по имени файла это схема/карта/логотип (Science_and_Invention_Nov_1928_Cover_2.jpg) |
+| interpreter | поиск | ru:Переводчик: не современное фото: категория Commons «PD-Art» (John_Dryden_portrait.jpg) |
+| invent | поиск | Invention: по имени файла это схема/карта/логотип (Science_and_Invention_Nov_1928_Cover_2.jpg) |
+| jazz | поиск | ru:Джаз: не современное фото: категория Commons «1953 photographs» (Louis_Armstrong_restored.jpg) |
 | kilt | поиск | Kilt: не современное фото: категория Commons «PD-old» (Scottish_mercenaries_in_the_Thirty_Years_War.jpg) |
+| kiss | поиск | Kiss: не современное фото: категория Commons «PD-Art» (Cassatt_Mary_Maternal_Kiss_1896.jpg) |
+| lady | поиск | ru:Хозяин: панорама 2853x1066 — квадратная обрезка потеряет сюжет (Обращение_Врангеля_о_Хозяине_20_мая_1920.JPG) |
+| landowner | поиск | ru:Помещик: не современное фото: категория Commons «PD-old» (NEVREV_Torg.jpg) |
 | lavender | поиск | Lavandula: лицензия вне белого списка (GFDL 1.2) (Single_lavender_flower02.jpg) |
+| legacy | поиск | ru:Наследование (право): не современное фото: категория Commons «PD-old» (Nevrev_b_005.jpeg) |
 | lesson | поиск | Lesson: не современное фото: категория Commons «1884 paintings» (William-Adolphe_Bouguereau_(1825-1905)_-_The_Difficult_Lesson_(1884).jpg) |
 | lever | поиск | Lever: панорама 888x398 — квадратная обрезка потеряет сюжет (Palanca-ejemplo.jpg) |
 | liver | поиск | Liver: по имени файла это схема/карта/логотип (Anatomy_Abdomen_Tiesworks.jpg) |
-| logic | поиск | Logic: не современное фото: категория Commons «diagrams» (Modus_ponendo_ponens.png) |
+| logic | поиск | ru:Логика: не современное фото: категория Commons «in art» (Gregor_Reisch,_Margarita_Philosophica,_Typus_Logice.jpg) |
+| logical | поиск | Logic: не современное фото: категория Commons «diagrams» (Modus_ponendo_ponens.png) |
+| loneliness | поиск | Loneliness: не современное фото: категория Commons «PD-old» (Thoma_Loneliness.jpg) |
 | lung | поиск | Lung: по имени файла это схема/карта/логотип (Lungs_diagram_detailed.svg) |
 | map | поиск | Map: по имени файла это схема/карта/логотип (World_Map_1689.JPG) |
+| master | поиск | ru:Хозяин: панорама 2853x1066 — квадратная обрезка потеряет сюжет (Обращение_Врангеля_о_Хозяине_20_мая_1920.JPG) |
 | mathematics | поиск | Mathematics: не современное фото: категория Commons «manuscripts» (Woman_teaching_geometry.jpg) |
 | matter | поиск | Matter: панорама 3000x1000 — квадратная обрезка потеряет сюжет (Hydrogen_discharge_tube.jpg) |
 | medical | поиск | Medicine: не современное фото: категория Commons «PD-Art» (The_Doctor_Luke_Fildes_crop.jpg) |
 | medication | поиск | Medication: ограничения на использование (trademarked) (12-08-18-tilidin-retard.jpg) |
+| medium | поиск | ru:Среда: не современное фото: категория Commons «1511 paintings» (Sun_and_Moon_creation.jpg) |
 | mermaid | поиск | Mermaid: не современное фото: категория Commons «PD-old» (John_William_Waterhouse_A_Mermaid.jpg) |
+| message | поиск | Message: не современное фото: категория Commons «PD-old» (Glaspalast_München_1891_062.jpg) |
 | messiah | поиск | Messiah: не современное фото: категория Commons «PD-Art» (Samuel_e_david.jpg) |
 | metaphor | поиск | Metaphor: не современное фото: категория Commons «in art» (George_Cruikshank_-_Very_unpleasant_Weather_(retouched).jpg) |
 | minute | поиск | Minute: не современное фото: категория Commons «PD shape» (Clock_12-01.svg) |
+| monster | поиск | ru:Чудовище: не современное фото: категория Commons «18th-century» (ChudoLesnoye.jpg) |
 | motor | поиск | Engine: формат gif (4StrokeEngine_Ortho_3D_Small.gif) |
 | movie | поиск | Film: не современное фото: категория Commons «PD-old» (Le_Voyage_dans_la_Lune_(1902).webm) |
+| muscle | поиск | ru:Мышцы: по имени файла это схема/карта/логотип (Gustaf_Wennman-Anatomical_poster.jpg) |
+| neutrality | поиск | ru:Нейтралитет: по имени файла это схема/карта/логотип (Neutral_countries_map.svg) |
 | noon | поиск | Noon: не современное фото: категория Commons «paintings» (Баку._Улица_в_полдень._1861.jpg) |
 | north | поиск | North: SVG — это рисунок или схема, не фотография (Compass_Rose_English_North.svg) |
 | ocean | поиск | Ocean: не современное фото: категория Commons «Satellite pictures» (Pacific_Ocean_as_viewed_from_GOES-18_on_September_23,_2023.jpg) |
+| one | поиск | ru:Один: не современное фото: категория Commons «PD-old» (Georg_von_Rosen_-_Oden_som_vandringsman,_1886_(Odin,_the_Wanderer).jpg) |
 | opportunist | поиск | Opportunism: не современное фото: категория Commons «17th-century» (Theodoor_Galle_-_Opportunity_Seized,_Opportunity_Missed_-_WGA08445.jpg) |
 | outfit | поиск | Clothing: не современное фото: категория Commons «PD-Art» (Clothes.jpg) |
 | paddle | поиск | Paddle: слишком мелкий оригинал (300x450) (Raft_paddle.png) |
 | papaya | поиск | Papaya: не современное фото: категория Commons «PD Old» (Carica_papaya_-_Köhler–s_Medizinal-Pflanzen-029.jpg) |
 | paradise | поиск | Paradise: не современное фото: категория Commons «PD-old» (Angelico,_giudizio_universale_01.jpg) |
+| parliament | поиск | Parliament: лицензия вне белого списка (OGL 3) (House_of_Commons_2010.jpg) |
+| patch | поиск | ru:Заплата: ограничения на использование (personality) (Gisele_Bundchen6.jpg) |
 | patience | поиск | Patience: не современное фото: категория Commons «Engravings» (Geduld_(Patientia)_Pacientia_(titel_op_object),_RP-P-OB-10.853.jpg) |
+| perry | поиск | ru:Грушевый сидр: слишком мелкий оригинал (160x320) (Poiré_de_Normandie_glass.jpg) |
 | pessimist | поиск | Pessimism: не современное фото: категория Commons «1893 paintings» (Оптимист_и_пессимист.jpg) |
 | pharmacy | поиск | Pharmacy: не современное фото: категория Commons «in art» (PharmacistsMortar.svg) |
 | philosophy | поиск | Philosophy: не современное фото: категория Commons «PD Old» (Le_Penseur_by_Rodin_(Kunsthalle_Bielefeld)_2014-04-10.JPG) |
+| phoenix | поиск | ru:Феникс: не современное фото: категория Commons «PD-Art» (Phoenix-Fabelwesen.jpg) |
 | physician | поиск | Medical doctor: не современное фото: категория Commons «PD-Art» (The_Doctor_Luke_Fildes_crop.jpg) |
+| picture | поиск | ru:Картина: не современное фото: категория Commons «1867 paintings» (Alexej_Kondratjewitsch_Sawrassow_001.jpg) |
+| poet | поиск | ru:Поэт: файл не с Commons (вероятно fair use) |
 | polygraph | поиск | Polygraph: не современное фото: категория Commons «PD Old» (Leonarde_Keeler_1937.jpg) |
 | poncho | поиск | Poncho: не современное фото: категория Commons «19th century» (Chile,_Araucanian_Indians_and_gauchos_-_Racinet_(70086930).jpg) |
+| population | поиск | ru:Население: не современное фото: категория Commons «maps» (World_population.PNG) |
 | portrait | поиск | Portrait: слишком мелкий оригинал (200x290) (Achaemenid_Satrap_Asia_Minor_end_of_6th_century_BCE.jpg) |
 | poster | поиск | Poster: не современное фото: категория Commons «PD-old» (Vichy-Louis_Tauzin.jpg) |
 | price | поиск | Price: не современное фото: категория Commons «diagrams» (The_competitive_price_system_adapted_from_Samuelson,_1961.jpg) |
 | princess | поиск | Princess: не современное фото: категория Commons «PD-Art» (Sigrid_Eriksdotter_Vasa.jpg) |
 | professor | поиск | Professor: не современное фото: категория Commons «PD-old» (Einstein_1921_by_F_Schmutzer_-_restoration.jpg) |
 | psychology | поиск | Psychology: по имени файла это схема/карта/логотип (Greek_uc_psi_icon.svg) |
+| pulse | поиск | ru:Пульс: SVG — это рисунок или схема, не фотография (Pulse_sites-en.svg) |
+| question | поиск | Question: не современное фото: категория Commons «in art» (Question_in_a_question_in_a_question_in_a_question.gif) |
 | ranch | поиск | Ranch: слишком мелкий оригинал (375x181) (Grant-Kohrs_Ranch.jpg) |
+| reader | поиск | ru:Чтение: не современное фото: категория Commons «PD-old» (The_Magdalen_Reading_-_Rogier_van_der_Weyden.jpg) |
 | realtor | поиск | Real estate agent: по имени файла это схема/карта/логотип (Houses_for_sale_sign.jpg) |
+| reed | поиск | ru:Камыш: не современное фото: категория Commons «drawings» (Scirpus_sylvaticus_(Leningrad_oblast).jpg) |
 | religion | поиск | Religion: по имени файла это схема/карта/логотип (Icon-religion.svg) |
 | research | поиск | Research: SVG — это рисунок или схема, не фотография (Pioneer_plaque_(transparent).svg) |
+| resent | поиск | Resentment: не современное фото: категория Commons «PD Old» (PSM_V36_D697_Bitter_facial_expressions.jpg) |
+| rooster | поиск | ru:Петух: лицензия вне белого списка (GFDL 1.2) (Rooster02.jpg) |
 | root | поиск | Root: слишком мелкий оригинал (360x270) (Primary_and_secondary_cotton_roots.jpg) |
+| rubber | поиск | ru:Резина: не современное фото: категория Commons «diagrams» (Vulcanization_of_POLYIsoprene_V.2.png) |
+| sad | поиск | Sadness: не современное фото: категория Commons «in art» (Sépulcre_Arc-en-Barrois_111008_12.jpg) |
+| safety | поиск | Safety: по имени файла это схема/карта/логотип (Snake_warning_sign.jpg) |
 | sail | поиск | Sail: не современное фото: категория Commons «in art» (Chesapeake.jpg) |
 | salad | поиск | Salad: лицензия вне белого списка (GFDL 1.2) (Salad_platter.jpg) |
 | salt | поиск | Salt: по имени файла это схема/карта/логотип (Rock_salt_(halitite)_(Billianwala_Salt_Member,_Salt_Range_Formation,_Ediacaran_to_Lower_Cambrian;_Khewra_Salt_Mine,_Salt_Range,_Pakist |
+| scene | поиск | ru:Сцена: не современное фото: категория Commons «PD-old» (Microcosm_of_London_Plate_032_-_Drury_Lane_Theatre_(colour).jpg) |
+| science | поиск | ru:Наука: не современное фото: категория Commons «diagrams» (The_Scientific_Universe.png) |
+| scream | поиск | ru:Крик: лицензия вне белого списка (OGL v1.0) (Drill_Sergeant_Shouting_Orders_MOD_45155579.jpg) |
 | screw | поиск | Screw: слишком мелкий оригинал (300x198) (Screws.jpg) |
+| search | поиск | ru:Поиск: слишком мелкий оригинал (345x243) (Pudelpointer_on_point.jpg) |
 | season | поиск | Season: не современное фото: категория Commons «diagrams» (ChangingSeasons_NH_01.png) |
 | secretary | поиск | Secretary: ограничения на использование (personality) (Secretary_at_work.jpg) |
 | seminar | поиск | Seminar: формат tif (Afifa_Afrin_Discussing_-_Women_Involvement_in_Bengali_Wikipedia_-_Bengali_Wikipedia_10th_Anniversary_Celebration_-_Daffodil_International_University_-_Dhaka_20 |
 | senator | поиск | Senate: не современное фото: категория Commons «PD-old» (Cicero_Denounces_Catiline_in_the_Roman_Senate_by_Cesare_Maccari.png) |
+| sentiment | поиск | ru:Ощущение: не современное фото: категория Commons «PD-old» (Makart_Fuenf_Sinne.jpg) |
 | servant | поиск | Domestic worker: не современное фото: категория Commons «1914 photographs» (Amesservants.jpg) |
+| sew | поиск | Sewing: не современное фото: категория Commons «PD-Art» (Syende_fiskerpige.jpeg) |
+| shame | поиск | Shame: не современное фото: категория Commons «PD-old» (75_-_Musée_Rodin_-_Ève_au_rocher,_grand_modèle_–_Auguste_Rodin.jpg) |
 | shamrock | поиск | Shamrock: SVG — это рисунок или схема, не фотография (Irish_clover.svg) |
 | shoulder | поиск | Shoulder: ограничения на использование (personality) (Left_shoulder.jpg) |
+| shuffle | поиск | Shuffling: формат gif (Riffle_shuffle.gif) |
+| signal | поиск | Signal: не современное фото: категория Commons «1858 paintings» (William_Powell_Frith_The_signal_1858.jpg) |
+| signature | поиск | ru:Подпись: не современное фото: категория Commons «PD-old» (Шаляпин_Федор_письмо.jpg) |
 | skirt | поиск | Skirt: не современное фото: категория Commons «drawings» (Skirt.jpg) |
 | skull | поиск | Skull: формат gif (VolRenderShearWarp.gif) |
+| smell | поиск | ru:Запах: не современное фото: категория Commons «1610s paintings» (Jan_Brueghel_d._O._-_Allegorie_van_de_geur.jpg) |
 | smile | поиск | Smile: не современное фото: категория Commons «PD-old» (Leonardo_da_Vinci_043-mod.jpg) |
 | smiley | поиск | Smiley: SVG — это рисунок или схема, не фотография (Smiley.svg) |
+| snore | поиск | Snoring: SVG — это рисунок или схема, не фотография (Obstruction_ventilation_apnée_sommeil.svg) |
+| solidarity | поиск | Solidarity: не современное фото: категория Commons «in art» (The_hand_that_will_rule_the_world.jpg) |
+| song | поиск | ru:Пение: ограничения на использование (personality) (Patti_Smith_performing_in_Finland,_2007.jpg) |
 | space | поиск | Space: SVG — это рисунок или схема, не фотография (3D_coordinate_system.svg) |
+| spirit | поиск | ru:Душа: не современное фото: категория Commons «paintings» (Meister_von_Heiligenkreuz_001.jpg) |
 | stomach | поиск | Stomach: по имени файла это схема/карта/логотип (Gray1046.svg) |
+| story | поиск | ru:История: не современное фото: категория Commons «PD-old» (Nikolaos_Gyzis_-_Historia.jpg) |
+| substance | поиск | ru:Вещество: SVG — это рисунок или схема, не фотография (Particle_overview-ru.svg) |
 | suit | поиск | Suit: ограничения на использование (personality) (Matt_Smith_on_"Christopher_And_His_Kind"_set.jpg) |
 | superhero | поиск | Superhero: по имени файла это схема/карта/логотип (Front_cover,_"Wow_Comics"_no._38_(art_by_Jack_Binder).jpg) |
+| surprise | поиск | ru:Удивление: не современное фото: категория Commons «in art» (Jeffrey_Isaac_self-portrait_(2009-02_surprise).jpg) |
+| surprised | поиск | Surprise (emotion): по имени файла это схема/карта/логотип (Charles_Bell,_Essays_on_the_anatomy_of_Wellcome_L0031951.jpg) |
 | taste | поиск | Taste: SVG — это рисунок или схема, не фотография (Taste_bud.svg) |
+| technique | поиск | ru:Техника: не современное фото: категория Commons «PD-old» (Первая_швейная_машина_Элиаса_Хоу,_1845.jpg) |
+| teller | поиск | ru:Рассказчик: не современное фото: категория Commons «PD-old» (Маковский_Рассказы_деда_1881.jpg) |
 | theater | поиск | Theatre: не современное фото: категория Commons «19th-century» (Bernhardt_Hamlet2.jpg) |
+| theology | поиск | ru:Богословие: не современное фото: категория Commons «PD-old» (Otsy.jpg) |
+| therapy | поиск | ru:Терапия (лечение): не современное фото: категория Commons «in art» (A_maid_bringing_medicine_and_soup_to_her_master_who_has_a_co_Wellcome_L0025090.jpg) |
 | thirst | поиск | Thirst: не современное фото: категория Commons «1886 paintings» (William-Adolphe_Bouguereau_(1825-1905)_-_Thirst_(1886).jpg) |
 | toolbar | поиск | Toolbar: слишком мелкий оригинал (500x300) (Barre_d'outils_flottante.PNG) |
 | toy | обработка | Toy_car_(AM_1996.165.95).jpg: не открылось: OSError('image file is truncated (1 bytes not processed)') |
 | trade | поиск | Trade: не современное фото: категория Commons «PD Old» (Kaufmann-1568.png) |
 | troll | поиск | Troll: не современное фото: категория Commons «PD-old» (John_Bauer_1915.jpg) |
+| tub | поиск | ru:Кадка: не современное фото: категория Commons «PD Old» (Кадников_1780_из_Винклера.jpg) |
 | twin | поиск | Twin: не современное фото: категория Commons «PD-old» (Mauch_Twins.jpg) |
+| ultimatum | поиск | Ultimatum: лицензия вне белого списка (PDM-owner) (Unceremonious_Treatment_of_the_Russian_Ultimatum.jpg) |
+| undergraduate | поиск | ru:Студент: не современное фото: категория Commons «PD-old» (Nikolaj_Alexandrowitsch_Jaroschenko_003.jpg) |
 | unemployment | поиск | Unemployment: не современное фото: категория Commons «Maps» (Unemployment_rate,_World,_2025_(cropped).svg) |
 | vampire | поиск | Vampire: не современное фото: категория Commons «PD-Art» (Philip_Burne-Jones_-_The_Vampire.jpg) |
 | victory | поиск | Victory: не современное фото: категория Commons «PD-old» (La_Liberté_guidant_le_peuple_-_Eugène_Delacroix_-_Musée_du_Louvre_Peintures_RF_129_-_après_restauration_2024.jpg) |
 | vomiting | поиск | Vomiting: не современное фото: категория Commons «PD-old» (49-aspetti_di_vita_quotidiana,_vomito,Taccuino_Sanitatis,_Ca.jpg) |
+| wag | поиск | ru:Виледь: лицензия вне белого списка (FAL) (Виледь_2.jpg) |
 | warrior | поиск | Warrior: панорама 5436x1865 — квадратная обрезка потеряет сюжет (Gari-Melchers-War-Highsmith.jpeg) |
 | wealth | поиск | Wealth: по имени файла это схема/карта/логотип (World_map_of_median_wealth_per_adult_by_country._Credit_Suisse._2021_publication.png) |
 | week | поиск | Week: по имени файла это схема/карта/логотип (First_Day_of_Week_World_Map.svg) |
 | wife | поиск | Wife: не современное фото: категория Commons «PD-Art» (Kustodiev_Merchants_Wife.jpg) |
 | wind | поиск | Wind: формат gif (Cherry_tree_moving_in_the_wind_1.gif) |
+| witch | поиск | ru:Ведьма: не современное фото: категория Commons «in art» (Ведьма_1897.jpg) |
 | writer | поиск | Writer: не современное фото: категория Commons «PD-Art» (Francisco_de_Goya_y_Lucientes_-_Gaspar_Melchor_de_Jovellanos.jpg) |
 | zebra | поиск | Zebra: лицензия вне белого списка (GFDL 1.2) (Plains_Zebra_Equus_quagga_cropped.jpg) |
 | zoology | поиск | Zoology: не современное фото: категория Commons «diagrams» (DNA_simple_horizontal.svg) |
 
-## Отобраны, но фотографии не нашлось (160)
+## Отобраны, но фотографии не нашлось (248)
 
 Слова были в выборке, но после просмотра глазами вылетели: у Википедии
 по ним лид — не фотография предмета, а гравюра, схема, текст или логотип,
@@ -216,15 +314,19 @@
 
 | Слово | Перевод | Почему |
 |---|---|---|
+| accommodation | жильё | здание с машиной — «дом» |
 | activist | активист | ч/б митинг с плакатами, текст в кадре |
+| adult | взрослый | ч/б группа стариков |
 | air | воздух | облака — читается как cloud |
 | airline | авиакомпания | просто самолёт — не отличить от aircraft |
 | anniversary | годовщина | групповое фото в зале |
 | apartment | квартира | здание снаружи — читается как «дом» |
 | arena | арена | фасад с улицей — читается как «город» |
 | aunt | тётя | женщина с ребёнком — прочитают «мама» |
+| avenue | проспект | ночной неон — читается как «город ночью» |
 | bag | пакет | лид Plastic bag — пакет на урне, читается как «мусорка» |
 | baseball | бейсбол | поле с высоты, игроков не разглядеть |
+| behavior | поведение | дерущиеся антилопы |
 | birth | рождение | окот овцы — прочитают «овца» |
 | boot | сапог | то же фото, что boots |
 | boutique | бутик | тёмный фасад с машиной |
@@ -234,44 +336,69 @@
 | building | здание | лид скачет между музейной избой и случайным домом; слово слишком общее |
 | business | бизнес | улица с палатками |
 | buttermilk | пахта | стаканы молока — читается как milk |
+| cable | трос | витой канат — читается как rope |
 | cage | клетка | сфера с арбузами |
+| capitalism | капитализм | портрет экономиста |
 | cash | наличные | купюры и монеты — читается как money (money оставлен) |
 | cattle | крупный рогатый скот | корова — читается как cow |
 | ceiling | потолок | роспись собора — читается как «мозаика/церковь» |
 | chairman | председатель | табличка CHAIRPERSON — английский текст подсказывает слово |
+| chef | шеф-повар | повар — не отличить от cook |
 | clay | глина | глинистый обрыв — читается как «песок/берег» |
 | climate | климат | Земля из космоса |
 | clinic | клиника | безликий фасад |
 | cloth | ткань | ткацкий станок — читается как «нитки» |
 | cloudy | облачный, пасмурный | Земля из космоса, читается как «планета/космос» |
 | coat | пальто | все свободные варианты — гравюры 1872 года и солдат в шинели |
+| cobbler | сапожник | ч/б старина |
+| cole | капуста | жёлтые цветы на скале — «цветы» |
+| commerce | торговля | статуя Меркурия (то же фото у dealer) |
+| competition | состязание | бодающиеся олени — читается как deer |
 | computer | компьютер | ч/б ЭНИАК — не опознают компьютером |
+| conservative | консерватор | гравюра-портрет |
 | cosmology | космология | звёздное поле — читается как «космос» |
 | court | двор | лид Courtyard — двор мечети, читается как «мечеть» |
+| cruise | круиз | парусник — читается как boat |
 | culture | культура | наскальная живопись |
 | currency | валюта | купюры — читается как money |
 | daddy | папа | то же фото, что father (обе статьи — Father) |
 | dancer | танцор | то же фото, что dance |
 | database | база данных | скриншот SQL-текста |
 | daughter | дочь | ч/б семейное фото |
+| dawn | рассветать | рассвет — не отличить от morning |
+| dealer | торговец | статуя Меркурия |
+| degree | диплом, учёная степень | диплом СССР — русский текст в кадре |
 | detective | детектив | люди у полицейской машины — читается как «полиция» |
+| dial | циферблат | настенные часы — не отличить от clock |
 | diamond | алмаз | неогранённый кристалл — читается как «камень», ждут бриллиант |
 | dingo | динго | читается как dog |
+| director | режиссёр | ч/б съёмочная группа |
+| dirt | грязь | нога в грязи — то же, что mud |
+| dislike | неприязнь | то же фото, что anger (спорящий мужчина) |
 | door | дверь | лид — гравюра из технического словаря |
+| downtown | центр города | скайлайн — читается как city |
 | draw | рисовать (карандашом) | лид — анатомические наброски Микеланджело |
 | drink | пить | en:Soft drink даёт стакан колы — путается с juice и water |
 | drywall | гипсокартон | куски гипсокартона — читается как «мусор» |
 | dust | пыль | ч/б пыльная буря — читается как «дым» |
 | ear | ухо | en:Ear — personality rights, ru:Ухо — анатомическая схема SVG |
 | eat | есть, кушать | en:Dinner даёт тарелку с едой — это дублирует food, а не «есть» |
+| enthusiastic | полный энтузиазма | ч/б смеющиеся |
+| environment | окружающая среда | водопад — читается как «водопад», абстракция |
 | espresso | эспрессо | чашка кофе — читается как coffee |
 | eye | глаз | синяя сфера-модель, не глаз |
+| fear | страх | гравюра лиц |
+| finance | финансы | монеты — читается как coin |
 | flea | блоха | розовая электронная микроскопия |
+| fleece | шерсть | лид — котёнок, читается как cat |
+| flesh | мясо | нарезка мяса — читается как «мясо» |
 | flight | полёт | пеликан — читается как bird |
 | foot | ступня | en:Foot — personality rights, ru:Стопа — файл 214×356 |
 | footwear | обувь | ботинок — не отличить от shoe/boots |
+| formation | формирование | ч/б строй солдат |
 | furniture | мебель | каменная резьба, не мебель |
 | future | будущее | бетонные блоки в поле |
+| garage | гараж | сарай с солнечной панелью |
 | garland | венок | лид Garland — новогодняя ёлка, в базе «венок» |
 | gelatin | желатин | прозрачная миска, не читается |
 | geology | геология | Гранд-Каньон — читается как «каньон» |
@@ -280,17 +407,30 @@
 | graduate | оканчивать (учёбу) | старое групповое фото выпуска, ребёнок такое не прочитает |
 | grandmother | бабушка | все свободные лиды — живопись |
 | groceries | продукты | то же фото, что shop (Westside Market) |
+| grove | роща | осенние деревья — читается как forest |
+| haircut | стрижка | японская причёска гейши |
 | hand | рука, кисть руки | en:Hand — ограничение personality rights, ru:Кисть — атлас Грея |
+| hardware | стройматериалы | кирпичная кладка |
 | hat | шапка, шляпа | en:Straw hat — портрет комика 1920-х; Baseball cap — кепка с логотипом клуба |
 | head | голова | голова суриката: слово про человека, фото про зверька |
 | hedge | живая изгородь | аллея деревьев, не изгородь |
 | highway | шоссе | просёлочная на вид — читается как road |
+| hog | свинья | кабаны — читается как pig |
 | honeymoon | медовый месяц | ч/б пара у трапа |
 | hook | крюк | кран-манипулятор, крюка не видно |
+| hound | охотничья собака | пёс с добычей — читается как dog |
+| hunter | охотник | масаи в поле — не читается |
 | image | изображение | человек с телефоном — читается как «фото/дорога» |
+| incense | ладан | кусочки смолы — не читается |
+| incentive | стимул, поощрение | мама с младенцем |
+| income | доход | график с русскими подписями |
+| interrogation | допрос | пустой офис |
+| investigation | расследование | мутная комната |
 | investor | инвестор | гора монет — читается как coin |
 | island | остров | лиды — спутниковые снимки и голая скала Рокол; читается как карта |
 | jackal | шакал | читается как coyote/dog |
+| jam | джем | банка с оранжевым — не отличить от marmalade |
+| jet | реактивный двигатель | тёмный стенд с паром |
 | kidney | почка | анатомическая схема с подписями |
 | knowledge | знания | древняя монета с совой |
 | laboratory | лаборатория | кампус снаружи — читается как «здание» |
@@ -299,44 +439,74 @@
 | lens | объектив | линза маяка в музее — читается как «фонарь» |
 | life | жизнь | коралловый риф — читается как «море/рыбы» |
 | liquid | жидкость | капля воды — не отличить от water |
+| lodge | домик | особняк — «дом» |
+| lumber | дерево | ru:Дерево — фото дерева, конфликт с tree/wood |
 | lunch | обед | у статьи нет лида, у ru:Обед — чёрно-белое фото XIX века |
 | machine | механизм | ч/б цех — мутно |
+| madness | безумие | античная мозаика |
 | maintenance | обслуживание | ч/б мотор в ремонте |
 | malaria | малярия | микроскопия клеток |
+| man | мужчина | коллаж лиц знаменитостей — отвлекает |
+| manager | управляющий | пустая стойка с монитором |
 | mandolin | мандолина | читается как guitar |
+| marrow | костный мозг | схема кости |
+| men | люди | одинокий абориген — не «люди», и то же фото у person |
 | midnight | полночь | башенные часы днём — читается как clock |
 | miller | мельник | ч/б старина |
 | mirror | зеркало | единственный свободный лид 300×308 — мельче плитки |
 | month | месяц | астрономический циферблат |
 | mother | мама, мать | все свободные лиды — живопись XIX века и сепия |
+| mountaintop | горная вершина | гора со снегом — читается как mountain |
 | mozzarella | моцарелла | белый шар — читается как cheese |
+| music | музыка | золотая пластинка «Вояджера» — не опознают |
 | nature | природа | звёзды над облаками — читается как night |
 | navigation | навигация | экран с картой — читается как «монитор» |
+| nerd | ботаник | ru:Ботаник — растения вместо задрота, ложный друг |
 | nest | гнездо | висячее гнездо ткачика — читается как «куст» |
 | online | онлайн | роутер — читается как «модем» |
 | ore | руда | полосатый камень — читается как «камень» |
 | oven | духовка | ржавая печь-ящик на улице |
 | oxygen | кислород | голубая жидкость в стакане |
+| pack | упаковка | упаковки с русским текстом |
+| pact | соглашение | документ с текстом |
 | pain | боль | рисунок рук, не читается |
 | paper | бумага | набор из хлопьев, яиц и туалетной бумаги |
 | pastry | мучные кондитерские изделия | сырое тесто — читается как «тесто» |
+| person | человек | то же фото, что men — и оба не читаются |
 | pet | домашнее животное | собаки — читается как dog |
+| petition | петиция | стол с английскими плакатами |
 | photography | фотография | по смыслу дубль photographer — человек с камерой |
+| physics | физика | коллаж — «наука вообще» |
+| pick | кирка | тёмное нечитаемое |
 | pin | булавка | игла на двери, еле видна |
+| pipe | свирель | деревянные флейты — не «труба» |
+| pity | сочувствие | девочка обнимает малыша — читается как hug |
 | plant | растение | цветущее дерево — читается как tree |
+| plug | штепсельная вилка | разъём электромобиля — ждут вилку 220В |
+| poetry | поэзия | античный бюст |
 | poor | бедный | люди с коляской — не читается и этически сомнительно |
 | powder | порошок | серая банка, не читается |
+| prescription | рецепт | бланк «Рецепт» — русский текст |
 | professional | профессионал | врач с пациентами — читается как doctor |
 | progress | прогресс, успехи | обложка WOMAN'S PROGRESS — английский текст в кадре |
+| publication | публикация | печатный цех |
+| publish | издать | полки книг — читается как book |
+| purse | кошелёк | бумажник с картами — не отличить от wallet |
+| rail | перила | лестничные перила |
 | receipt | чек | чек — лист с текстом |
 | recipe | рецепт | стол с книгой — читается как «кухня» |
 | recycle | перерабатывать (вторсырьё) | лид — зелёный значок переработки, то есть логотип |
 | resort | курорт | горы и озеро — читается как lake/mountain |
+| respect | уважение | табличка SILENCE AND RESPECT — английский текст |
+| roar | реветь | пейзаж с дорогой |
 | ruin | руина | обломанные колонны — не отличить от column |
 | scapegoat | козёл отпущения | витраж, абстракция |
 | schedule | расписание, график | надпись Schedule в кадре подсказывает слово |
+| scout | разведчик | фишки на листовке |
+| senate | сенат | зал заседаний — читается как lecture |
 | sheriff | шериф | ч/б групповое фото |
 | shore | берег | то же фото, что coast (одна статья Coast) |
+| sick | больной | больничный коридор — читается как hospital |
 | sidewalk | тротуар | мостовая Помпей — читается как «руины» |
 | singer | певица | то же фото, что sing |
 | sister | сестра | ч/б старинное фото |
@@ -344,6 +514,7 @@
 | skin | кожа | кожа слона — читается как «слон» |
 | sky | небо | звёздная ночь — читается как night |
 | sleeve | рукав | ч/б дама с велосипедом |
+| sniffles | сопли | пинцет |
 | society | общество | дети на пикнике |
 | software | программное обеспечение | скриншот кода |
 | sport | спорт | дети с футбольным мячом — прочитают «футбол» |
@@ -351,23 +522,38 @@
 | stable | конюшня | сарай — не отличить от barn, лошадь еле видна |
 | star | звезда | диск Солнца — то же, что sun |
 | stone | камень | Гранд-Каньон — читается как «горы/каньон» |
+| store | склад | складские стеллажи |
+| string | верёвка | витой шнур — читается как rope, перевод тот же «верёвка» |
+| suffer | страдать | трагическая маска-горгулья — читается как mask |
+| supervisor | руководитель | пустой ресепшн |
 | swine | свинья | кабаны — читается как pig |
+| table | стол | антикварный стол — не отличить от desk |
 | tail | хвост | хвост оленя — читается как deer |
+| tale | сказка | сепия-гравюра |
+| tax | налог | монеты — читается как coin |
 | teacher | учитель | лид сменился: люди за столом, учителя не видно |
 | teahouse | чайхана | интерьер — читается как «комната» |
+| telegram | телеграмма | бланк Western Union — текст |
 | territory | территория | горы с пирамидкой |
 | ticket | билет | билет — это по определению лист с текстом, к тому же немецким |
 | tool | инструмент | археологические деревяшки |
+| tourism | туризм | Таймс-сквер — читается как city (как и tourist) |
 | tourist | турист | Таймс-сквер — читается как city |
 | town | город | улица городка — не отличить от street |
 | training | тренировка | водолаз в бассейне НАСА |
 | travel | путешествовать | ночная пробка |
+| trigger | курок | кремнёвый пистолет — «пистолет» |
+| trip | путешествие | памятник с чемоданами |
+| tube | тюбик | тюбик клея с русским текстом |
 | uncle | дядя | ч/б двое мужчин |
 | university | университет | статуя с надписью — читается как «статуя» |
 | vacuum | вакуум | старинный прибор под колпаком |
+| variety | сорт | розовый пион — «цветок» |
 | varnish | лак | красная глянцевая поверхность — читается как paint |
+| venerate | почитать, благоговеть | алтарная ниша |
 | veterinary | ветеринарный | человек с ослом |
 | vinegar | уксус | полки с бутылками — читается как «магазин» |
+| voice | голос | спектрограмма |
 | walk | ходить пешком, гулять | en:Walking — personality rights, ru:Ходьба — файл не с Commons |
 | wall | стена | лид сменился на Великую китайскую стену — читается как достопримечательность |
 | weather | погода | гроза над пирсом — не отличить от lightning и storm |

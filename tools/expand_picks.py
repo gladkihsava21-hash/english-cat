@@ -51,9 +51,13 @@ CONCRETE_CATS = {
     "food", "animals", "objects", "home", "clothes", "nature", "places",
     "city", "travel", "school", "tech", "weather", "sports", "money",
     "family", "people", "work", "art", "health", "time", "body",
+    # у действий, чувств и общения хватает фотографируемого (прыжок,
+    # улыбка, конверт) — абстрактное отсеют смысловая проверка и глаза
+    "actions", "feelings", "communication",
 }
 
 API = "https://en.wikipedia.org/w/api.php"
+RU_API = "https://ru.wikipedia.org/w/api.php"
 
 
 def norm_tokens(s):
@@ -111,6 +115,63 @@ def api_batch(fetcher, titles):
     return json.loads(res.body)
 
 
+def ru_guess(t):
+    """Перевод из базы → заголовок для русской Википедии.
+    «летучая мышь» → «Летучая мышь»; «позволить себе (по деньгам)» → отсев."""
+    first = re.split(r"[,;/]", t or "")[0]
+    first = re.sub(r"\([^)]*\)", " ", first).strip().strip("«»\"' ")
+    if len(first) < 3 or re.search(r"[a-z]", first, re.I):
+        return None
+    if len(first.split()) > 3:
+        return None
+    return first[0].upper() + first[1:]
+
+
+def ru_pass(fetcher, words, base):
+    """Второй заход: ищем статью ПО САМОМУ ПЕРЕВОДУ в русской Википедии.
+    Смысловая проверка не нужна — мы искали ровно то слово, которое ученик
+    должен назвать. Нужны только: статья есть, не диcамбиг, лид-картинка.
+
+    Один и тот же перевод у двух слов (wood и lumber — «дерево») дал бы
+    одно фото под двумя словами — берём первое по алфавиту, остальные в лог."""
+    guesses = {}
+    for w in sorted(words):
+        g = ru_guess(base.words[w]["t"])
+        if g and g not in guesses.values():
+            guesses[w] = g
+    accepted, order = {}, sorted(guesses)
+    for i in range(0, len(order), 50):
+        chunk = [guesses[w] for w in order[i:i + 50]]
+        q = urllib.parse.urlencode({
+            "action": "query", "format": "json", "redirects": 1,
+            "titles": "|".join(chunk),
+            "prop": "pageprops|pageimages",
+            "ppprop": "disambiguation",
+            "piprop": "name", "pilimit": "50",
+        })
+        res = fetcher.get(RU_API + "?" + q, "expand-ru",
+                          key=chunk[0] + "|" + str(len(chunk)), min_interval=0.3)
+        if not res.ok:
+            raise RuntimeError("ру-вики ответила %s (%s)" % (res.status, res.error))
+        data = json.loads(res.body)
+        qd = data.get("query", {})
+        alias = {}
+        for m in qd.get("normalized", []) + qd.get("redirects", []):
+            alias[m["to"]] = alias.get(m["from"], m["from"])
+        by_title = {}
+        for p in qd.get("pages", {}).values():
+            asked = alias.get(p.get("title"), p.get("title"))
+            by_title[asked] = p
+        for w in order[i:i + 50]:
+            p = by_title.get(guesses[w])
+            if (p and "missing" not in p and "invalid" not in p
+                    and "disambiguation" not in (p.get("pageprops") or {})
+                    and p.get("pageimage")):
+                accepted[w] = ("ru:" + p["title"],)
+        time.sleep(0.3)
+    return accepted
+
+
 def main():
     base = existing.load(WORDS_JS)
     have = set(picks.PICKS) | set(picks.NO_PHOTO) | set(picks.REVIEW)
@@ -155,6 +216,12 @@ def main():
                 sense_fail.append((w, p["title"], ru, base.words[w]["t"]))
         time.sleep(0.3)
         print("  %d/%d обработано, принято %d" % (min(i + 50, len(todo)), len(todo), len(accepted)))
+
+    remaining = [w for w in todo if w not in accepted]
+    ru_found = ru_pass(fetcher, remaining, base)
+    accepted.update(ru_found)
+    print("Второй заход по русской вики: +%d слов (из %d оставшихся)"
+          % (len(ru_found), len(remaining)))
 
     os.makedirs(OUT_DIR, exist_ok=True)
     with open(AUTO_PATH, "w", encoding="utf-8") as fh:

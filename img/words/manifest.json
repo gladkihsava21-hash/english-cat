@@ -1,8 +1,8 @@
 {
- "generated": "2026-08-20 18:33",
+ "generated": "2026-08-20 23:17",
  "note": "Файлы скачаны с Wikimedia Commons и приведены к квадратному WebP. Лицензии: public domain / CC0 / CC BY / CC BY-SA. Атрибуция — credits.html",
  "size": 336,
- "count": 300,
+ "count": 355,
  "words": {
   "aircraft": {
    "file": "aircraft.webp",
@@ -64,6 +64,18 @@
    "bytes": 18924,
    "quality": 78
   },
+  "anger": {
+   "file": "anger.webp",
+   "author": "David Shankbone",
+   "license": "CC BY-SA 3.0",
+   "license_url": "http://creativecommons.org/licenses/by-sa/3.0/",
+   "source": "https://commons.wikimedia.org/wiki/File:Anger_during_a_protest_by_David_Shankbone.jpg",
+   "article": "Гнев",
+   "article_url": "https://ru.wikipedia.org/wiki/%D0%93%D0%BD%D0%B5%D0%B2",
+   "commons_file": "Anger_during_a_protest_by_David_Shankbone.jpg",
+   "bytes": 24486,
+   "quality": 78
+  },
   "animal": {
    "file": "animal.webp",
    "author": "Chiswick Chap",
@@ -74,6 +86,18 @@
    "article_url": "https://en.wikipedia.org/wiki/Animal",
    "commons_file": "Animal_diversity_b.png",
    "bytes": 24080,
+   "quality": 78
+  },
+  "applause": {
+   "file": "applause.webp",
+   "author": "Indigo Goat from Liverpool",
+   "license": "CC BY 2.0",
+   "license_url": "https://creativecommons.org/licenses/by/2.0",
+   "source": "https://commons.wikimedia.org/wiki/File:Arabic_arts_festival_applause.jpg",
+   "article": "Applause",
+   "article_url": "https://en.wikipedia.org/wiki/Applause",
+   "commons_file": "Arabic_arts_festival_applause.jpg",
+   "bytes": 9574,
    "quality": 78
   },
   "apple": {
@@ -304,6 +328,18 @@
    "bytes": 9182,
    "quality": 78
   },
+  "belt": {
+   "file": "belt.webp",
+   "author": "Hedwig von Ebbel",
+   "license": "Public domain",
+   "license_url": "",
+   "source": "https://commons.wikimedia.org/wiki/File:Belt_G%C3%BCrtel.jpg",
+   "article": "Ремень",
+   "article_url": "https://ru.wikipedia.org/wiki/%D0%A0%D0%B5%D0%BC%D0%B5%D0%BD%D1%8C",
+   "commons_file": "Belt_Gürtel.jpg",
+   "bytes": 19708,
+   "quality": 78
+  },
   "bicycle": {
    "file": "bicycle.webp",
    "author": "齐健 from Peking, People's Republic of China",
@@ -326,6 +362,18 @@
    "article_url": "https://en.wikipedia.org/wiki/Bicycle",
    "commons_file": "Left_side_of_Flying_Pigeon.jpg",
    "bytes": 16522,
+   "quality": 78
+  },
+  "biker": {
+   "file": "biker.webp",
+   "author": "Roy Lister from Salisbury North, South Australia",
+   "license": "CC BY 2.0",
+   "license_url": "https://creativecommons.org/licenses/by/2.0",
+   "source": "https://commons.wikimedia.org/wiki/File:Gypsy_Joker_Protest_Run_2.jpg",
+   "article": "Байкеры",
+   "article_url": "https://ru.wikipedia.org/wiki/%D0%91%D0%B0%D0%B9%D0%BA%D0%B5%D1%80%D1%8B",
+   "commons_file": "Gypsy_Joker_Protest_Run_2.jpg",
+   "bytes": 14352,
    "quality": 78
   },
   "biotechnology": {
@@ -496,6 +544,18 @@
    "bytes": 18506,
    "quality": 78
   },
+  "buffalo": {
+   "file": "buffalo.webp",
+   "author": "Karelj",
+   "license": "Public domain",
+   "license_url": "",
+   "source": "https://commons.wikimedia.org/wiki/File:Syncerus_caffer_nanus_Dvur_zoo_1.jpg",
+   "article": "Буйволы",
+   "article_url": "https://ru.wikipedia.org/wiki/%D0%91%D1%83%D0%B9%D0%B2%D0%BE%D0%BB%D1%8B",
+   "commons_file": "Syncerus_caffer_nanus_Dvur_zoo_1.jpg",
+   "bytes": 31568,
+   "quality": 78
+  },
   "bus": {
    "file": "bus.webp",
    "author": "SIA321",
@@ -508,6 +568,18 @@
    "bytes": 25402,
    "quality": 78
   },
+  "bush": {
+   "file": "bush.webp",
+   "author": "Magnus Manske",
+   "license": "CC BY 1.0",
+   "license_url": "https://creativecommons.org/licenses/by/1.0",
+   "source": "https://commons.wikimedia.org/wiki/File:Lilac_(2).jpg",
+   "article": "Кустарник",
+   "article_url": "https://ru.wikipedia.org/wiki/%D0%9A%D1%83%D1%81%D1%82%D0%B0%D1%80%D0%BD%D0%B8%D0%BA",
+   "commons_file": "Lilac_(2).jpg",
+   "bytes": 39918,
+   "quality": 60
+  },
   "butterfly": {
    "file": "butterfly.webp",
    "author": "fesoj",
@@ -518,6 +590,18 @@
    "article_url": "https://en.wikipedia.org/wiki/Butterfly",
    "commons_file": "Fesoj_-_Papilio_machaon_(by).jpg",
    "bytes": 20700,
+   "quality": 78
+  },
+  "buyer": {
+   "file": "buyer.webp",
+   "author": "IvanA",
+   "license": "CC BY-SA 4.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+   "source": "https://commons.wikimedia.org/wiki/File:%D0%9F%D0%BE%D0%BA%D1%83%D0%BF%D0%B0%D1%82%D0%B5%D0%BB%D1%8C_%D0%B1%D0%B5%D0%B7_%D0%BC%D0%B0%D1%81%D0%BA%D0%B8_%D0%B2_%D0%9F%D0%B5%D1%80%D0%B5%D0%BA%D1%80%D0%B5%D1%81%D1%82%D0%BA%D0%B5_1_%D0%B0%D0%BF%D1%80%D0%B5%D0%BB%D1%8F_2021_%D0%B3%D0%BE%D0%B4%D0%B0.jpg",
+   "article": "Покупатель",
+   "article_url": "https://ru.wikipedia.org/wiki/%D0%9F%D0%BE%D0%BA%D1%83%D0%BF%D0%B0%D1%82%D0%B5%D0%BB%D1%8C",
+   "commons_file": "Покупатель_без_маски_в_Перекрестке_1_апреля_2021_года.jpg",
+   "bytes": 26344,
    "quality": 78
   },
   "cake": {
@@ -940,6 +1024,18 @@
    "bytes": 23078,
    "quality": 78
   },
+  "construction": {
+   "file": "construction.webp",
+   "author": "Whiteghost.ink",
+   "license": "CC BY-SA 4.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+   "source": "https://commons.wikimedia.org/wiki/File:Construction_site_in_Cologne,_Germany_(2017).jpg",
+   "article": "Construction",
+   "article_url": "https://en.wikipedia.org/wiki/Construction",
+   "commons_file": "Construction_site_in_Cologne,_Germany_(2017).jpg",
+   "bytes": 25958,
+   "quality": 78
+  },
   "cook": {
    "file": "cook.webp",
    "author": "The Pocket from Nanjin , China",
@@ -950,6 +1046,18 @@
    "article_url": "https://ru.wikipedia.org/wiki/%D0%9F%D1%80%D0%B8%D0%B3%D0%BE%D1%82%D0%BE%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5_%D0%BF%D0%B8%D1%89%D0%B8",
    "commons_file": "Wok_cooking_and_the_heat_source_by_The_Pocket_in_Nanjing.jpg",
    "bytes": 13544,
+   "quality": 78
+  },
+  "corn": {
+   "file": "corn.webp",
+   "author": "Fir0002",
+   "license": "CC BY-SA 3.0",
+   "license_url": "http://creativecommons.org/licenses/by-sa/3.0/",
+   "source": "https://commons.wikimedia.org/wiki/File:Assorted_grains.jpg",
+   "article": "Зерно",
+   "article_url": "https://ru.wikipedia.org/wiki/%D0%97%D0%B5%D1%80%D0%BD%D0%BE",
+   "commons_file": "Assorted_grains.jpg",
+   "bytes": 22934,
    "quality": 78
   },
   "cottage": {
@@ -1000,6 +1108,30 @@
    "bytes": 13550,
    "quality": 78
   },
+  "crane": {
+   "file": "crane.webp",
+   "author": "Fotograf: JeLuF",
+   "license": "CC BY-SA 3.0",
+   "license_url": "http://creativecommons.org/licenses/by-sa/3.0/",
+   "source": "https://commons.wikimedia.org/wiki/File:Jungfernkranich.jpg",
+   "article": "Журавли",
+   "article_url": "https://ru.wikipedia.org/wiki/%D0%96%D1%83%D1%80%D0%B0%D0%B2%D0%BB%D0%B8",
+   "commons_file": "Jungfernkranich.jpg",
+   "bytes": 12434,
+   "quality": 78
+  },
+  "crate": {
+   "file": "crate.webp",
+   "author": "ArnoldReinhold",
+   "license": "CC BY-SA 3.0",
+   "license_url": "http://creativecommons.org/licenses/by-sa/3.0/",
+   "source": "https://commons.wikimedia.org/wiki/File:Box.agr.jpg",
+   "article": "Коробка",
+   "article_url": "https://ru.wikipedia.org/wiki/%D0%9A%D0%BE%D1%80%D0%BE%D0%B1%D0%BA%D0%B0",
+   "commons_file": "Box.agr.jpg",
+   "bytes": 6212,
+   "quality": 78
+  },
   "cricket": {
    "file": "cricket.webp",
    "author": "Didier Descouens",
@@ -1036,6 +1168,30 @@
    "bytes": 8872,
    "quality": 78
   },
+  "cure": {
+   "file": "cure.webp",
+   "author": "Würfel",
+   "license": "CC BY-SA 3.0",
+   "license_url": "http://creativecommons.org/licenses/by-sa/3.0/",
+   "source": "https://commons.wikimedia.org/wiki/File:Medikamente.jpg",
+   "article": "Лекарственное средство",
+   "article_url": "https://ru.wikipedia.org/wiki/%D0%9B%D0%B5%D0%BA%D0%B0%D1%80%D1%81%D1%82%D0%B2%D0%B5%D0%BD%D0%BD%D0%BE%D0%B5_%D1%81%D1%80%D0%B5%D0%B4%D1%81%D1%82%D0%B2%D0%BE",
+   "commons_file": "Medikamente.jpg",
+   "bytes": 7060,
+   "quality": 78
+  },
+  "daisy": {
+   "file": "daisy.webp",
+   "author": "Krzysztof Golik",
+   "license": "CC BY-SA 4.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+   "source": "https://commons.wikimedia.org/wiki/File:Bellis_perennis_in_Aveyron_(17).jpg",
+   "article": "Маргаритка",
+   "article_url": "https://ru.wikipedia.org/wiki/%D0%9C%D0%B0%D1%80%D0%B3%D0%B0%D1%80%D0%B8%D1%82%D0%BA%D0%B0",
+   "commons_file": "Bellis_perennis_in_Aveyron_(17).jpg",
+   "bytes": 35786,
+   "quality": 72
+  },
   "dam": {
    "file": "dam.webp",
    "author": "Wiki Commons users Qurren at https://commons.wikimedia.org/wiki/User:Qurren",
@@ -1060,6 +1216,18 @@
    "bytes": 14934,
    "quality": 78
   },
+  "date": {
+   "file": "date.webp",
+   "author": "This photography was created by Mariluna . Other photos see here .",
+   "license": "CC BY-SA 3.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/3.0",
+   "source": "https://commons.wikimedia.org/wiki/File:Phoenix_(botanical)_%D1%84%D0%B8%D0%BD%D0%B8%D0%BA%D0%B8.jpg",
+   "article": "Финики",
+   "article_url": "https://ru.wikipedia.org/wiki/%D0%A4%D0%B8%D0%BD%D0%B8%D0%BA%D0%B8",
+   "commons_file": "Phoenix_(botanical)_финики.jpg",
+   "bytes": 15246,
+   "quality": 78
+  },
   "deer": {
    "file": "deer.webp",
    "author": "Wikimedia Commons",
@@ -1072,6 +1240,18 @@
    "bytes": 33174,
    "quality": 78
   },
+  "delivery": {
+   "file": "delivery.webp",
+   "author": "Brateevsky",
+   "license": "CC BY-SA 4.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+   "source": "https://commons.wikimedia.org/wiki/File:%D0%9C%D1%83%D0%B6%D1%87%D0%B8%D0%BD%D0%B0_%D1%81_%D0%AF%D0%BD%D0%B4%D0%B5%D0%BA%D1%81.%D0%95%D0%B4%D0%BE%D0%B9_%D0%B2_%D0%BC%D0%BE%D1%81%D0%BA%D0%BE%D0%B2%D1%81%D0%BA%D0%BE%D0%BC_%D0%BC%D0%B5%D1%82%D1%80%D0%BE_(2019).jpg",
+   "article": "Доставка",
+   "article_url": "https://ru.wikipedia.org/wiki/%D0%94%D0%BE%D1%81%D1%82%D0%B0%D0%B2%D0%BA%D0%B0",
+   "commons_file": "Мужчина_с_Яндекс.Едой_в_московском_метро_(2019).jpg",
+   "bytes": 10628,
+   "quality": 78
+  },
   "desk": {
    "file": "desk.webp",
    "author": "John Townsend",
@@ -1082,6 +1262,18 @@
    "article_url": "https://en.wikipedia.org/wiki/Desk",
    "commons_file": "Bureau_table_MET_DP108643.jpg",
    "bytes": 9672,
+   "quality": 78
+  },
+  "detail": {
+   "file": "detail.webp",
+   "author": "Schekinov Alexey Victorovich",
+   "license": "CC BY-SA 4.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+   "source": "https://commons.wikimedia.org/wiki/File:%D0%94%D0%B5%D1%82%D0%B0%D0%BB%D0%B8_1.jpg",
+   "article": "Деталь",
+   "article_url": "https://ru.wikipedia.org/wiki/%D0%94%D0%B5%D1%82%D0%B0%D0%BB%D1%8C",
+   "commons_file": "Детали_1.jpg",
+   "bytes": 16550,
    "quality": 78
   },
   "dictionary": {
@@ -1106,6 +1298,18 @@
    "article_url": "https://en.wikipedia.org/wiki/Dinner",
    "commons_file": "Filet_de_bœuf.jpg",
    "bytes": 17144,
+   "quality": 78
+  },
+  "discount": {
+   "file": "discount.webp",
+   "author": "Alvaro A. Novo",
+   "license": "CC BY-SA 3.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/3.0",
+   "source": "https://commons.wikimedia.org/wiki/File:%D0%A1%D0%BA%D0%B8%D0%B4%D0%BA%D0%B8_%D0%BD%D0%B0_%D0%B2%D0%B8%D1%82%D1%80%D0%B8%D0%BD%D0%B5_%D0%BC%D0%B0%D0%B3%D0%B0%D0%B7%D0%B8%D0%BD%D0%B0.png",
+   "article": "Скидка",
+   "article_url": "https://ru.wikipedia.org/wiki/%D0%A1%D0%BA%D0%B8%D0%B4%D0%BA%D0%B0",
+   "commons_file": "Скидки_на_витрине_магазина.png",
+   "bytes": 18826,
    "quality": 78
   },
   "dishwasher": {
@@ -1166,6 +1370,18 @@
    "article_url": "https://en.wikipedia.org/wiki/Driving",
    "commons_file": "Convertible_Mercedes_Car_Driving_On_A_Highway.jpg",
    "bytes": 20306,
+   "quality": 78
+  },
+  "dump": {
+   "file": "dump.webp",
+   "author": "Ropable",
+   "license": "Public domain",
+   "license_url": "",
+   "source": "https://commons.wikimedia.org/wiki/File:Landfill_compactor.jpg",
+   "article": "Свалка",
+   "article_url": "https://ru.wikipedia.org/wiki/%D0%A1%D0%B2%D0%B0%D0%BB%D0%BA%D0%B0",
+   "commons_file": "Landfill_compactor.jpg",
+   "bytes": 24594,
    "quality": 78
   },
   "eagle": {
@@ -1468,6 +1684,30 @@
    "bytes": 10960,
    "quality": 78
   },
+  "gallery": {
+   "file": "gallery.webp",
+   "author": "Wikimedia Commons",
+   "license": "CC BY-SA 3.0",
+   "license_url": "http://creativecommons.org/licenses/by-sa/3.0/",
+   "source": "https://commons.wikimedia.org/wiki/File:Uffizi_Hallway.jpg",
+   "article": "Галерея",
+   "article_url": "https://ru.wikipedia.org/wiki/%D0%93%D0%B0%D0%BB%D0%B5%D1%80%D0%B5%D1%8F",
+   "commons_file": "Uffizi_Hallway.jpg",
+   "bytes": 18404,
+   "quality": 78
+  },
+  "garbage": {
+   "file": "garbage.webp",
+   "author": "Flandria12",
+   "license": "CC BY-SA 4.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+   "source": "https://commons.wikimedia.org/wiki/File:%D0%9D%D0%B5%D1%85%D1%88_%D1%87%D1%83_%D0%BA%D1%85%D1%83%D1%8C%D1%81%D1%83_%D0%BA%D0%BE%D0%BD%D1%82%D0%B5%D0%B9%D0%BD%D0%B5%D1%80%D1%88._%D0%98%D1%82%D0%BE%D0%BD-%D0%9A%D1%85%D0%B5%D0%BB%D0%BB%D0%B0_%D0%BAl%D0%BE%D1%88%D1%82%D0%B0.jpg",
+   "article": "Твёрдые бытовые отходы",
+   "article_url": "https://ru.wikipedia.org/wiki/%D0%A2%D0%B2%D1%91%D1%80%D0%B4%D1%8B%D0%B5_%D0%B1%D1%8B%D1%82%D0%BE%D0%B2%D1%8B%D0%B5_%D0%BE%D1%82%D1%85%D0%BE%D0%B4%D1%8B",
+   "commons_file": "Нехш_чу_кхуьсу_контейнерш._Итон-Кхелла_кlошта.jpg",
+   "bytes": 25210,
+   "quality": 78
+  },
   "garden": {
    "file": "garden.webp",
    "author": "King of Hearts",
@@ -1526,6 +1766,18 @@
    "article_url": "https://en.wikipedia.org/wiki/Grain",
    "commons_file": "Dhaniyangal.jpg",
    "bytes": 34334,
+   "quality": 78
+  },
+  "grandfather": {
+   "file": "grandfather.webp",
+   "author": "Bogdanov-62",
+   "license": "CC BY-SA 3.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/3.0",
+   "source": "https://commons.wikimedia.org/wiki/File:Grandfather_rus.jpg",
+   "article": "Дедушка",
+   "article_url": "https://ru.wikipedia.org/wiki/%D0%94%D0%B5%D0%B4%D1%83%D1%88%D0%BA%D0%B0",
+   "commons_file": "Grandfather_rus.jpg",
+   "bytes": 9794,
    "quality": 78
   },
   "grass": {
@@ -1612,6 +1864,18 @@
    "bytes": 8198,
    "quality": 78
   },
+  "heather": {
+   "file": "heather.webp",
+   "author": "Kurt Kulac",
+   "license": "CC BY-SA 3.0",
+   "license_url": "http://creativecommons.org/licenses/by-sa/3.0/",
+   "source": "https://commons.wikimedia.org/wiki/File:Calluna_vulgaris11.jpg",
+   "article": "Вереск",
+   "article_url": "https://ru.wikipedia.org/wiki/%D0%92%D0%B5%D1%80%D0%B5%D1%81%D0%BA",
+   "commons_file": "Calluna_vulgaris11.jpg",
+   "bytes": 37274,
+   "quality": 72
+  },
   "hill": {
    "file": "hill.webp",
    "author": "Rics1299",
@@ -1622,6 +1886,18 @@
    "article_url": "https://en.wikipedia.org/wiki/Hill",
    "commons_file": "Uliveti_monte_cinto.JPG",
    "bytes": 32344,
+   "quality": 78
+  },
+  "horn": {
+   "file": "horn.webp",
+   "author": "Museum of Fine Arts, Boston",
+   "license": "CC BY 2.0",
+   "license_url": "https://creativecommons.org/licenses/by/2.0",
+   "source": "https://commons.wikimedia.org/wiki/File:Erkencho_del_norte.jpg",
+   "article": "Рог",
+   "article_url": "https://ru.wikipedia.org/wiki/%D0%A0%D0%BE%D0%B3",
+   "commons_file": "Erkencho_del_norte.jpg",
+   "bytes": 4662,
    "quality": 78
   },
   "horse": {
@@ -1684,6 +1960,18 @@
    "bytes": 17332,
    "quality": 78
   },
+  "hug": {
+   "file": "hug.webp",
+   "author": "Braden Kowitz",
+   "license": "CC BY-SA 2.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/2.0",
+   "source": "https://commons.wikimedia.org/wiki/File:Wedding_hugs.jpg",
+   "article": "Hug",
+   "article_url": "https://en.wikipedia.org/wiki/Hug",
+   "commons_file": "Wedding_hugs.jpg",
+   "bytes": 8978,
+   "quality": 78
+  },
   "ice": {
    "file": "ice.webp",
    "author": "Sharon Mollerus",
@@ -1718,6 +2006,30 @@
    "article_url": "https://en.wikipedia.org/wiki/Inn",
    "commons_file": "King_George_Inn.JPG",
    "bytes": 24366,
+   "quality": 78
+  },
+  "inspector": {
+   "file": "inspector.webp",
+   "author": "Mos.ru",
+   "license": "CC BY 4.0",
+   "license_url": "https://creativecommons.org/licenses/by/4.0",
+   "source": "https://commons.wikimedia.org/wiki/File:%D0%98%D0%BD%D1%81%D0%BF%D0%B5%D0%BA%D1%82%D0%BE%D1%80_%D0%90%D0%9C%D0%9F%D0%9F_%D0%B2_%D0%9C%D0%BE%D1%81%D0%BA%D0%B2%D0%B5.jpg",
+   "article": "Инспектор",
+   "article_url": "https://ru.wikipedia.org/wiki/%D0%98%D0%BD%D1%81%D0%BF%D0%B5%D0%BA%D1%82%D0%BE%D1%80",
+   "commons_file": "Инспектор_АМПП_в_Москве.jpg",
+   "bytes": 16380,
+   "quality": 78
+  },
+  "instrument": {
+   "file": "instrument.webp",
+   "author": "Per Erik Strandberg sv:User:PER9000",
+   "license": "CC BY-SA 2.5",
+   "license_url": "https://creativecommons.org/licenses/by-sa/2.5",
+   "source": "https://commons.wikimedia.org/wiki/File:20060513_toolbox.jpg",
+   "article": "Инструмент",
+   "article_url": "https://ru.wikipedia.org/wiki/%D0%98%D0%BD%D1%81%D1%82%D1%80%D1%83%D0%BC%D0%B5%D0%BD%D1%82",
+   "commons_file": "20060513_toolbox.jpg",
+   "bytes": 23414,
    "quality": 78
   },
   "interview": {
@@ -2008,6 +2320,18 @@
    "bytes": 14692,
    "quality": 78
   },
+  "log": {
+   "file": "log.webp",
+   "author": "Андрей Перцев",
+   "license": "CC0",
+   "license_url": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+   "source": "https://commons.wikimedia.org/wiki/File:Puchnava_14.jpg",
+   "article": "Бревно",
+   "article_url": "https://ru.wikipedia.org/wiki/%D0%91%D1%80%D0%B5%D0%B2%D0%BD%D0%BE",
+   "commons_file": "Puchnava_14.jpg",
+   "bytes": 19002,
+   "quality": 78
+  },
   "luggage": {
    "file": "luggage.webp",
    "author": "TonyTheTiger",
@@ -2018,6 +2342,18 @@
    "article_url": "https://en.wikipedia.org/wiki/Baggage",
    "commons_file": "20180520_Away_carryon_(1).jpg",
    "bytes": 21062,
+   "quality": 78
+  },
+  "mall": {
+   "file": "mall.webp",
+   "author": "User Arpingstone on en.wikipedia",
+   "license": "Public domain",
+   "license_url": "",
+   "source": "https://commons.wikimedia.org/wiki/File:The_Mall,_Patchway,_Bristol,_England.jpg",
+   "article": "Торговый центр",
+   "article_url": "https://ru.wikipedia.org/wiki/%D0%A2%D0%BE%D1%80%D0%B3%D0%BE%D0%B2%D1%8B%D0%B9_%D1%86%D0%B5%D0%BD%D1%82%D1%80",
+   "commons_file": "The_Mall,_Patchway,_Bristol,_England.jpg",
+   "bytes": 39760,
    "quality": 78
   },
   "mannequin": {
@@ -2068,6 +2404,30 @@
    "bytes": 27390,
    "quality": 78
   },
+  "mason": {
+   "file": "mason.webp",
+   "author": "Brice Blondel for HDPTCAR ( hdptcar.net )",
+   "license": "CC BY 2.0",
+   "license_url": "https://creativecommons.org/licenses/by/2.0",
+   "source": "https://commons.wikimedia.org/wiki/File:Bricklayer.jpg",
+   "article": "Каменщик",
+   "article_url": "https://ru.wikipedia.org/wiki/%D0%9A%D0%B0%D0%BC%D0%B5%D0%BD%D1%89%D0%B8%D0%BA",
+   "commons_file": "Bricklayer.jpg",
+   "bytes": 19174,
+   "quality": 78
+  },
+  "massage": {
+   "file": "massage.webp",
+   "author": "IQP",
+   "license": "CC BY-SA 3.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/3.0",
+   "source": "https://commons.wikimedia.org/wiki/File:Spa_Picture_2.jpg",
+   "article": "Massage",
+   "article_url": "https://en.wikipedia.org/wiki/Massage",
+   "commons_file": "Spa_Picture_2.jpg",
+   "bytes": 8162,
+   "quality": 78
+  },
   "menu": {
    "file": "menu.webp",
    "author": "Andy Li",
@@ -2078,6 +2438,18 @@
    "article_url": "https://en.wikipedia.org/wiki/Menu",
    "commons_file": "Menu_of_Fatto_a_Mano_Pizzeria,_North_Laine_(desserts).jpg",
    "bytes": 15128,
+   "quality": 78
+  },
+  "mercury": {
+   "file": "mercury.webp",
+   "author": "Bionerd",
+   "license": "CC BY 3.0",
+   "license_url": "https://creativecommons.org/licenses/by/3.0",
+   "source": "https://commons.wikimedia.org/wiki/File:Pouring_liquid_mercury_bionerd.jpg",
+   "article": "Ртуть",
+   "article_url": "https://ru.wikipedia.org/wiki/%D0%A0%D1%82%D1%83%D1%82%D1%8C",
+   "commons_file": "Pouring_liquid_mercury_bionerd.jpg",
+   "bytes": 15158,
    "quality": 78
   },
   "microscope": {
@@ -2102,6 +2474,18 @@
    "article_url": "https://en.wikipedia.org/wiki/Milk",
    "commons_file": "Glass_of_Milk_(33657535532).jpg",
    "bytes": 4770,
+   "quality": 78
+  },
+  "mobile": {
+   "file": "mobile.webp",
+   "author": "Jojhnjoy",
+   "license": "Public domain",
+   "license_url": "",
+   "source": "https://commons.wikimedia.org/wiki/File:Mobile_Phone_Evolution_1992_-_2014.jpg",
+   "article": "Сотовый телефон",
+   "article_url": "https://ru.wikipedia.org/wiki/%D0%A1%D0%BE%D1%82%D0%BE%D0%B2%D1%8B%D0%B9_%D1%82%D0%B5%D0%BB%D0%B5%D1%84%D0%BE%D0%BD",
+   "commons_file": "Mobile_Phone_Evolution_1992_-_2014.jpg",
+   "bytes": 4964,
    "quality": 78
   },
   "money": {
@@ -2152,6 +2536,18 @@
    "bytes": 21740,
    "quality": 78
   },
+  "mouse": {
+   "file": "mouse.webp",
+   "author": "Rasbak",
+   "license": "CC BY-SA 3.0",
+   "license_url": "http://creativecommons.org/licenses/by-sa/3.0/",
+   "source": "https://commons.wikimedia.org/wiki/File:Apodemus_sylvaticus_bosmuis.jpg",
+   "article": "Мышиные",
+   "article_url": "https://ru.wikipedia.org/wiki/%D0%9C%D1%8B%D1%88%D0%B8%D0%BD%D1%8B%D0%B5",
+   "commons_file": "Apodemus_sylvaticus_bosmuis.jpg",
+   "bytes": 17914,
+   "quality": 78
+  },
   "mud": {
    "file": "mud.webp",
    "author": "Ildar Sagdejev ( Specious )",
@@ -2186,6 +2582,30 @@
    "article_url": "https://en.wikipedia.org/wiki/Necklace",
    "commons_file": "Dasaneh_girls.JPG",
    "bytes": 20444,
+   "quality": 78
+  },
+  "needle": {
+   "file": "needle.webp",
+   "author": "Pavel Krok",
+   "license": "CC BY-SA 2.5",
+   "license_url": "https://creativecommons.org/licenses/by-sa/2.5",
+   "source": "https://commons.wikimedia.org/wiki/File:Naehnadel.jpg",
+   "article": "Игла",
+   "article_url": "https://ru.wikipedia.org/wiki/%D0%98%D0%B3%D0%BB%D0%B0",
+   "commons_file": "Naehnadel.jpg",
+   "bytes": 2142,
+   "quality": 78
+  },
+  "negotiate": {
+   "file": "negotiate.webp",
+   "author": "United States Department of State",
+   "license": "Public domain",
+   "license_url": "",
+   "source": "https://commons.wikimedia.org/wiki/File:Negotiations_about_Iranian_Nuclear_Program_-_Foreign_Ministers_and_other_Officials_of_P5%2B1_Iran_and_EU_in_Lausanne.jpg",
+   "article": "Negotiation",
+   "article_url": "https://en.wikipedia.org/wiki/Negotiation",
+   "commons_file": "Negotiations_about_Iranian_Nuclear_Program_-_Foreign_Ministers_and_other_Officials_of_P5+1_Iran_and_EU_in_Lausanne.jpg",
+   "bytes": 16430,
    "quality": 78
   },
   "neighborhood": {
@@ -2236,6 +2656,18 @@
    "bytes": 9130,
    "quality": 78
   },
+  "notebook": {
+   "file": "notebook.webp",
+   "author": "theilr",
+   "license": "CC BY-SA 2.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/2.0",
+   "source": "https://commons.wikimedia.org/wiki/File:More_spiralage_(2273648835).jpg",
+   "article": "Блокнот",
+   "article_url": "https://ru.wikipedia.org/wiki/%D0%91%D0%BB%D0%BE%D0%BA%D0%BD%D0%BE%D1%82",
+   "commons_file": "More_spiralage_(2273648835).jpg",
+   "bytes": 17144,
+   "quality": 78
+  },
   "notepad": {
    "file": "notepad.webp",
    "author": "L.Marie",
@@ -2284,6 +2716,18 @@
    "bytes": 25700,
    "quality": 78
   },
+  "oil": {
+   "file": "oil.webp",
+   "author": "Nefronus",
+   "license": "CC0",
+   "license_url": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+   "source": "https://commons.wikimedia.org/wiki/File:Petroleum_sample.jpg",
+   "article": "Нефть",
+   "article_url": "https://ru.wikipedia.org/wiki/%D0%9D%D0%B5%D1%84%D1%82%D1%8C",
+   "commons_file": "Petroleum_sample.jpg",
+   "bytes": 4690,
+   "quality": 78
+  },
   "olive": {
    "file": "olive.webp",
    "author": "en:User:Nickfraser",
@@ -2294,6 +2738,18 @@
    "article_url": "https://en.wikipedia.org/wiki/Olive",
    "commons_file": "Olivesfromjordan.jpg",
    "bytes": 22750,
+   "quality": 78
+  },
+  "orange": {
+   "file": "orange.webp",
+   "author": "Luis Miguel Bugallo Sánchez ( Lmbuga Commons )( Lmbuga Galipedia ) Publicada por/ Publish by : Luis Miguel Bugallo Sánchez",
+   "license": "CC BY-SA 3.0",
+   "license_url": "http://creativecommons.org/licenses/by-sa/3.0/",
+   "source": "https://commons.wikimedia.org/wiki/File:Laranxeira_Naranjo_GFDL.JPG",
+   "article": "Апельсин",
+   "article_url": "https://ru.wikipedia.org/wiki/%D0%90%D0%BF%D0%B5%D0%BB%D1%8C%D1%81%D0%B8%D0%BD",
+   "commons_file": "Laranxeira_Naranjo_GFDL.JPG",
+   "bytes": 34566,
    "quality": 78
   },
   "orchid": {
@@ -2366,6 +2822,30 @@
    "article_url": "https://en.wikipedia.org/wiki/Passport",
    "commons_file": "Passports-assorted.jpg",
    "bytes": 13104,
+   "quality": 78
+  },
+  "pavement": {
+   "file": "pavement.webp",
+   "author": "Vitold Muratov",
+   "license": "CC BY-SA 3.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/3.0",
+   "source": "https://commons.wikimedia.org/wiki/File:Palatine_Hill.Pavement.jpg",
+   "article": "Мостовая",
+   "article_url": "https://ru.wikipedia.org/wiki/%D0%9C%D0%BE%D1%81%D1%82%D0%BE%D0%B2%D0%B0%D1%8F",
+   "commons_file": "Palatine_Hill.Pavement.jpg",
+   "bytes": 21872,
+   "quality": 78
+  },
+  "payment": {
+   "file": "payment.webp",
+   "author": "Lidongyun",
+   "license": "Public domain",
+   "license_url": "",
+   "source": "https://commons.wikimedia.org/wiki/File:TaiwanMoney_card_in_use_in_Hi-Life_20051223.jpg",
+   "article": "Платёж",
+   "article_url": "https://ru.wikipedia.org/wiki/%D0%9F%D0%BB%D0%B0%D1%82%D1%91%D0%B6",
+   "commons_file": "TaiwanMoney_card_in_use_in_Hi-Life_20051223.jpg",
+   "bytes": 21534,
    "quality": 78
   },
   "pear": {
@@ -2536,6 +3016,42 @@
    "bytes": 21628,
    "quality": 78
   },
+  "porter": {
+   "file": "porter.webp",
+   "author": "Dmitry A. Mottl",
+   "license": "CC BY-SA 3.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/3.0",
+   "source": "https://commons.wikimedia.org/wiki/File:Nepali_porters.jpg",
+   "article": "Носильщик",
+   "article_url": "https://ru.wikipedia.org/wiki/%D0%9D%D0%BE%D1%81%D0%B8%D0%BB%D1%8C%D1%89%D0%B8%D0%BA",
+   "commons_file": "Nepali_porters.jpg",
+   "bytes": 39906,
+   "quality": 78
+  },
+  "portfolio": {
+   "file": "portfolio.webp",
+   "author": "Varano",
+   "license": "CC BY-SA 3.0",
+   "license_url": "http://creativecommons.org/licenses/by-sa/3.0/",
+   "source": "https://commons.wikimedia.org/wiki/File:Briefcase.jpg",
+   "article": "Портфель",
+   "article_url": "https://ru.wikipedia.org/wiki/%D0%9F%D0%BE%D1%80%D1%82%D1%84%D0%B5%D0%BB%D1%8C",
+   "commons_file": "Briefcase.jpg",
+   "bytes": 14532,
+   "quality": 78
+  },
+  "pot": {
+   "file": "pot.webp",
+   "author": "Pogrebnoj-Alexandroff",
+   "license": "CC BY-SA 3.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/3.0",
+   "source": "https://commons.wikimedia.org/wiki/File:Ceramic_stock_pan_G.jpg",
+   "article": "Кастрюля",
+   "article_url": "https://ru.wikipedia.org/wiki/%D0%9A%D0%B0%D1%81%D1%82%D1%80%D1%8E%D0%BB%D1%8F",
+   "commons_file": "Ceramic_stock_pan_G.jpg",
+   "bytes": 3514,
+   "quality": 78
+  },
   "potato": {
    "file": "potato.webp",
    "author": "Scott Bauer, USDA ARS",
@@ -2546,6 +3062,18 @@
    "article_url": "https://en.wikipedia.org/wiki/Potato",
    "commons_file": "Patates.jpg",
    "bytes": 21678,
+   "quality": 78
+  },
+  "pouch": {
+   "file": "pouch.webp",
+   "author": "Hooemz Ming Shum",
+   "license": "CC BY-SA 4.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+   "source": "https://commons.wikimedia.org/wiki/File:HK_CWB_%E9%8A%85%E9%91%BC%E7%81%A3_Causeway_Bay_%E8%BB%92%E5%B0%BC%E8%A9%A9%E9%81%93_555_Hennessy_Road_East_Point_Centre_SOGO_Department_Store_Thankful_Weeks_October_2021_SS2_073.jpg",
+   "article": "Сумка",
+   "article_url": "https://ru.wikipedia.org/wiki/%D0%A1%D1%83%D0%BC%D0%BA%D0%B0",
+   "commons_file": "HK_CWB_銅鑼灣_Causeway_Bay_軒尼詩道_555_Hennessy_Road_East_Point_Centre_SOGO_Department_Store_Thankful_Weeks_October_2021_SS2_073.jpg",
+   "bytes": 39016,
    "quality": 78
   },
   "pub": {
@@ -2606,6 +3134,18 @@
    "article_url": "https://ru.wikipedia.org/wiki/%D0%94%D0%BE%D0%B6%D0%B4%D1%8C",
    "commons_file": "Falling_rain_in_mexico.jpg",
    "bytes": 24634,
+   "quality": 78
+  },
+  "rest": {
+   "file": "rest.webp",
+   "author": "Vitold Muratov",
+   "license": "CC BY-SA 4.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+   "source": "https://commons.wikimedia.org/wiki/File:Rest_after_washing_in_sauna.jpg",
+   "article": "Отдых",
+   "article_url": "https://ru.wikipedia.org/wiki/%D0%9E%D1%82%D0%B4%D1%8B%D1%85",
+   "commons_file": "Rest_after_washing_in_sauna.jpg",
+   "bytes": 29816,
    "quality": 78
   },
   "rice": {
@@ -2704,6 +3244,18 @@
    "bytes": 15458,
    "quality": 78
   },
+  "salmon": {
+   "file": "salmon.webp",
+   "author": "Hans-Petter Fjeld",
+   "license": "CC BY-SA 2.5",
+   "license_url": "https://creativecommons.org/licenses/by-sa/2.5",
+   "source": "https://commons.wikimedia.org/wiki/File:Salmo_salar-Atlantic_Salmon-Atlanterhavsparken_Norway_(cropped).JPG",
+   "article": "Атлантический лосось",
+   "article_url": "https://ru.wikipedia.org/wiki/%D0%90%D1%82%D0%BB%D0%B0%D0%BD%D1%82%D0%B8%D1%87%D0%B5%D1%81%D0%BA%D0%B8%D0%B9_%D0%BB%D0%BE%D1%81%D0%BE%D1%81%D1%8C",
+   "commons_file": "Salmo_salar-Atlantic_Salmon-Atlanterhavsparken_Norway_(cropped).JPG",
+   "bytes": 9092,
+   "quality": 78
+  },
   "sand": {
    "file": "sand.webp",
    "author": "Luca Galuzzi ( Lucag )",
@@ -2798,6 +3350,18 @@
    "article_url": "https://ru.wikipedia.org/wiki/%D0%9C%D0%BE%D1%80%D0%B5",
    "commons_file": "POL_2007_08_04_Jaroslawiec_zachodniopomorskie_02.JPG",
    "bytes": 15400,
+   "quality": 78
+  },
+  "seed": {
+   "file": "seed.webp",
+   "author": "Alexander Klepnev",
+   "license": "CC BY 4.0",
+   "license_url": "https://creativecommons.org/licenses/by/4.0",
+   "source": "https://commons.wikimedia.org/wiki/File:%D0%A0%D0%B0%D0%B7%D0%BD%D0%BE%D0%BE%D0%B1%D1%80%D0%B0%D0%B7%D0%B8%D0%B5_%D1%81%D0%B5%D0%BC%D1%8F%D0%BD.jpg",
+   "article": "Семя",
+   "article_url": "https://ru.wikipedia.org/wiki/%D0%A1%D0%B5%D0%BC%D1%8F",
+   "commons_file": "Разнообразие_семян.jpg",
+   "bytes": 18342,
    "quality": 78
   },
   "shark": {
@@ -3004,6 +3568,18 @@
    "bytes": 9446,
    "quality": 78
   },
+  "stream": {
+   "file": "stream.webp",
+   "author": "Leif Jørgensen",
+   "license": "CC BY-SA 4.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+   "source": "https://commons.wikimedia.org/wiki/File:Japanese_garden_in_Kadrioru_Park_17.jpg",
+   "article": "Ручей",
+   "article_url": "https://ru.wikipedia.org/wiki/%D0%A0%D1%83%D1%87%D0%B5%D0%B9",
+   "commons_file": "Japanese_garden_in_Kadrioru_Park_17.jpg",
+   "bytes": 39814,
+   "quality": 78
+  },
   "street": {
    "file": "street.webp",
    "author": "Onofre_Bouvila.",
@@ -3076,6 +3652,18 @@
    "bytes": 28798,
    "quality": 78
   },
+  "surf": {
+   "file": "surf.webp",
+   "author": "No machine-readable author provided. Cantus assumed (based on copyright claims).",
+   "license": "Public domain",
+   "license_url": "",
+   "source": "https://commons.wikimedia.org/wiki/File:Rompiente.jpg",
+   "article": "Прибой",
+   "article_url": "https://ru.wikipedia.org/wiki/%D0%9F%D1%80%D0%B8%D0%B1%D0%BE%D0%B9",
+   "commons_file": "Rompiente.jpg",
+   "bytes": 16410,
+   "quality": 78
+  },
   "surgeon": {
    "file": "surgeon.webp",
    "author": "Pfree2014",
@@ -3122,6 +3710,18 @@
    "article_url": "https://en.wikipedia.org/wiki/Taco",
    "commons_file": "001_Tacos_de_carnitas,_carne_asada_y_al_pastor.jpg",
    "bytes": 26588,
+   "quality": 78
+  },
+  "tattoo": {
+   "file": "tattoo.webp",
+   "author": "Bernhard Hanakam",
+   "license": "CC BY-SA 3.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/3.0",
+   "source": "https://commons.wikimedia.org/wiki/File:%D0%9F%D1%80%D0%BE%D1%86%D0%B5%D1%81%D1%81_%D0%BD%D0%B0%D0%BD%D0%B5%D1%81%D0%B5%D0%BD%D0%B8%D1%8F_%D1%82%D0%B0%D1%82%D1%83%D0%B8%D1%80%D0%BE%D0%B2%D0%BA%D0%B8.jpg",
+   "article": "Татуировка",
+   "article_url": "https://ru.wikipedia.org/wiki/%D0%A2%D0%B0%D1%82%D1%83%D0%B8%D1%80%D0%BE%D0%B2%D0%BA%D0%B0",
+   "commons_file": "Процесс_нанесения_татуировки.jpg",
+   "bytes": 13152,
    "quality": 78
   },
   "taxi": {
@@ -3184,6 +3784,18 @@
    "bytes": 12984,
    "quality": 78
   },
+  "ten": {
+   "file": "ten.webp",
+   "author": "海豚1",
+   "license": "CC BY-SA 4.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+   "source": "https://commons.wikimedia.org/wiki/File:Puzzle_from_Shantou_-_10%C3%9710%C3%9710_Magic_Cube_solved_in_Triple_Ten_pattern.jpg",
+   "article": "10 (число)",
+   "article_url": "https://ru.wikipedia.org/wiki/10_%28%D1%87%D0%B8%D1%81%D0%BB%D0%BE%29",
+   "commons_file": "Puzzle_from_Shantou_-_10×10×10_Magic_Cube_solved_in_Triple_Ten_pattern.jpg",
+   "bytes": 10200,
+   "quality": 78
+  },
   "tennis": {
    "file": "tennis.webp",
    "author": "Brendan Dennis",
@@ -3218,6 +3830,30 @@
    "article_url": "https://en.wikipedia.org/wiki/Tiger",
    "commons_file": "Bengal_tiger_(Panthera_tigris_tigris)_female_3_crop.jpg",
    "bytes": 39948,
+   "quality": 78
+  },
+  "toad": {
+   "file": "toad.webp",
+   "author": "Kuebi = Armin Kübelbeck",
+   "license": "CC BY-SA 3.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/3.0",
+   "source": "https://commons.wikimedia.org/wiki/File:Bufo_bufo_03-clean.jpg",
+   "article": "Жабы",
+   "article_url": "https://ru.wikipedia.org/wiki/%D0%96%D0%B0%D0%B1%D1%8B",
+   "commons_file": "Bufo_bufo_03-clean.jpg",
+   "bytes": 14642,
+   "quality": 78
+  },
+  "toast": {
+   "file": "toast.webp",
+   "author": "Dheera Venkatraman",
+   "license": "CC BY-SA 3.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/3.0",
+   "source": "https://commons.wikimedia.org/wiki/File:%D0%A2%D0%BE%D1%81%D1%82.jpg",
+   "article": "Тост",
+   "article_url": "https://ru.wikipedia.org/wiki/%D0%A2%D0%BE%D1%81%D1%82",
+   "commons_file": "Тост.jpg",
+   "bytes": 15812,
    "quality": 78
   },
   "toe": {
@@ -3376,6 +4012,18 @@
    "bytes": 24416,
    "quality": 78
   },
+  "vendor": {
+   "file": "vendor.webp",
+   "author": "Marcus Böhmer",
+   "license": "CC BY-SA 4.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+   "source": "https://commons.wikimedia.org/wiki/File:Outlet.jpg",
+   "article": "Продавец",
+   "article_url": "https://ru.wikipedia.org/wiki/%D0%9F%D1%80%D0%BE%D0%B4%D0%B0%D0%B2%D0%B5%D1%86",
+   "commons_file": "Outlet.jpg",
+   "bytes": 19566,
+   "quality": 78
+  },
   "villa": {
    "file": "villa.webp",
    "author": "sailko",
@@ -3518,6 +4166,18 @@
    "article_url": "https://en.wikipedia.org/wiki/Winter",
    "commons_file": "Winter_forest_silver.jpg",
    "bytes": 20314,
+   "quality": 78
+  },
+  "wizard": {
+   "file": "wizard.webp",
+   "author": "Wikimedia Commons",
+   "license": "CC BY-SA 2.5",
+   "license_url": "https://creativecommons.org/licenses/by-sa/2.5",
+   "source": "https://commons.wikimedia.org/wiki/File:Saluzzo-Castello_della_Manta-mago.jpg",
+   "article": "Волшебник",
+   "article_url": "https://ru.wikipedia.org/wiki/%D0%92%D0%BE%D0%BB%D1%88%D0%B5%D0%B1%D0%BD%D0%B8%D0%BA",
+   "commons_file": "Saluzzo-Castello_della_Manta-mago.jpg",
+   "bytes": 18982,
    "quality": 78
   },
   "woman": {
