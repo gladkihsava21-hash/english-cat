@@ -222,10 +222,12 @@ def write_credits(path, manifest, words_meta):
             "      <td class=\"cr-word\"><b>%s</b><span>%s</span></td>\n"
             "      <td>%s</td>\n"
             "      <td>%s</td>\n"
-            "      <td><a href=\"%s\" rel=\"noopener\" target=\"_blank\">файл на Commons</a></td>\n"
+            "      <td><a href=\"%s\" rel=\"noopener\" target=\"_blank\">%s</a></td>\n"
             "    </tr>"
             % (esc(m["file"]), esc(word), esc(word), esc(translation),
-               esc(m["author"]), lic, esc(m["source"])))
+               esc(m["author"]), lic, esc(m["source"]),
+               "страница на Pixabay" if "pixabay" in (m["source"] or "")
+               else "файл на Commons"))
 
     html = """<!DOCTYPE html>
 <html lang="ru">
@@ -271,9 +273,11 @@ def write_credits(path, manifest, words_meta):
 <body>
 <main class="credits">
   <h1>Источники картинок</h1>
-  <p>Все фотографии на карточках слов взяты с
+  <p>Фотографии на карточках слов взяты с
     <a href="https://commons.wikimedia.org/" rel="noopener" target="_blank">Wikimedia Commons</a>
-    и используются на условиях свободных лицензий: public domain, CC0, CC BY и CC BY-SA.
+    (свободные лицензии: public domain, CC0, CC BY, CC BY-SA) и с фотостока
+    <a href="https://pixabay.com/" rel="noopener" target="_blank">Pixabay</a>
+    (Pixabay Content License).
     Файлы скачаны и уменьшены до квадратной плитки (кадрирование по центру) —
     оригиналы доступны по ссылкам в таблице.</p>
   <p>Лицензии CC BY и CC BY-SA требуют указания автора — эта страница и есть такое указание.
