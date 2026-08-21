@@ -7,3 +7,5 @@ savely.db-shm
 *.bak-*
 demo.db*
 tools/out/contact-sheet-*.jpg
+savely-data/
+tools/cache/

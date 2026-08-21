@@ -165,6 +165,23 @@ def write_manifest(path, manifest, tile=None):
         fh.write("\n")
 
 
+def merge_stock(manifest):
+    """Подмешать плитки с фотостоков (tools/stock_picks.py).
+
+    Сток-манифест живёт отдельно: вики-конвейер пересобирает свой манифест
+    с нуля и иначе выбрасывал бы стоковые плитки при prune. NO_PHOTO
+    главнее: слово, забракованное глазами, не вернётся и со стока,
+    пока запись не вычеркнут."""
+    if not os.path.exists(os.path.join(IMG_DIR, "manifest-stock.json")):
+        return manifest
+    stock = json.load(open(os.path.join(IMG_DIR, "manifest-stock.json"),
+                           encoding="utf-8")).get("words", {})
+    for w, entry in stock.items():
+        if w not in manifest and w not in picks.NO_PHOTO and w not in picks.REVIEW:
+            manifest[w] = entry
+    return manifest
+
+
 def write_word_photos_js(path, manifest):
     """js/word-photos.js — список слов с фотографией для фронтенда.
 
@@ -595,6 +612,7 @@ def main(argv=None):
                 print("  снято: %s" % word)
         # --drop только удаляет плитки, размер оставшихся не трогает —
         # поэтому берём тот, что записан в манифесте, а не текущий args
+        old = merge_stock(old)
         write_manifest(manifest_path, old, prev_tile)
         write_credits(CREDITS, old, words_meta)
         write_word_photos_js(os.path.join(PROJECT_DIR, "js", "word-photos.js"), old)
@@ -608,7 +626,11 @@ def main(argv=None):
         old = json.load(open(manifest_path, encoding="utf-8")).get("words", {})
         old.update(manifest)
         manifest = old
+        manifest = merge_stock(manifest)
     else:
+        # сток подмешивается ДО prune — иначе prune снесёт стоковые плитки,
+        # которых нет в вики-манифесте
+        manifest = merge_stock(manifest)
         dropped = prune(IMG_DIR, manifest)
         if dropped:
             print("Убраны устаревшие плитки: %s" % ", ".join(dropped))
