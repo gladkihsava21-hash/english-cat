@@ -211,3 +211,16 @@
   .ac-confirm .ac-actions { flex-direction: column-reverse; align-items: stretch; }
   .ac-confirm .ac-actions .btn { width: 100%; }
 }
+
+/* Поле в карточке профиля: почта и пароль для входа. Раньше в кабинете
+   вводили только имя, и стиль поля был привязан к нему одному. */
+.ac-field { display: flex; flex-direction: column; gap: 6px; margin-top: 12px;
+            font-size: var(--text-caption); font-weight: 700; color: var(--ink-soft); }
+.ac-field input {
+  font: inherit; font-size: var(--text-body); font-weight: 400; color: var(--ink);
+  padding: 10px 12px; border: 1px solid var(--line-control); border-radius: 10px;
+  background: var(--surface); min-height: 44px;
+}
+.ac-field .pass-field { display: flex; align-items: center; gap: 6px; }
+.ac-field .pass-field input { flex: 1; }
+.ac-ok { color: var(--accent); font-weight: 700; }

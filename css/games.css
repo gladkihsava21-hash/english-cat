@@ -401,3 +401,30 @@
   .bal { animation: none !important; }
   .box-tile.opening { transform: none; }
 }
+
+/* Разбор диктанта: слово, которое ученик не расслышал. Красным помечаем
+   в ОБРАЗЦЕ — так видно, что именно надо было услышать. */
+.dict-review { display: block; line-height: 1.6; }
+.dict-sample { display: inline-block; margin-top: 4px; }
+.dw-miss {
+  color: var(--red);
+  border-bottom: 2px solid var(--red);
+  padding-bottom: 1px;
+}
+
+/* Кнопки скорости озвучки. Стоят рядом с «Прослушать», выбранная залита —
+   как переключатель скорости в голосовых сообщениях мессенджера. */
+.audio-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: center; }
+.speed-pills { display: inline-flex; gap: 4px; padding: 3px; border-radius: 999px; background: var(--surface-alt); }
+.speed-pill {
+  border: 0; background: transparent; cursor: pointer;
+  font: inherit; font-size: 13px; font-weight: 600; color: var(--ink-soft);
+  padding: 5px 12px; border-radius: 999px; min-height: 32px;
+}
+.speed-pill.on { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+.speed-pill:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* Замечания к своему предложению: список под полем ввода. Не «ошибки» —
+   ученик мог написать и хорошо, просто оформил не так. */
+.self-hints { margin: 8px 0 0; padding-left: 20px; text-align: left; }
+.self-hints li { font-size: var(--text-caption); color: var(--ink-soft); line-height: 1.5; margin-bottom: 4px; }

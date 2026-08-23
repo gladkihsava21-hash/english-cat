@@ -260,6 +260,14 @@ MIGRATIONS = [
     # по почте в админке и называет код. У пришедших по ссылке репетитора
     # почты не спрашиваем — код им назовёт репетитор.
     ("students", "email", "TEXT"),
+    # Пароль ученика. Раньше пароля не было принципиально: вход по ссылке
+    # репетитора, возврат по личному коду. Практика показала, что код
+    # теряют и не понимают («захожу в другом браузере — просит имя
+    # и тест заново»), а почта с паролем — то, чего человек ждёт от входа
+    # по умолчанию. Код никуда не делся и работает как раньше: пароль —
+    # второй путь, а не замена.
+    ("students", "pass_hash", "TEXT"),
+    ("students", "pass_salt", "TEXT"),
     # ---- свои задания ----
     # Домашка может нести набор из конструктора (game = "custom").
     ("homework", "taskset_id", "INTEGER REFERENCES tasksets(id)"),
@@ -633,20 +641,69 @@ def create_student(tutor_id, name):
     return get_student_by_id(cur.lastrowid)
 
 
-def create_student_standalone(name, email=None):
+def create_student_standalone(name, email=None, password=None):
     """Ученик без репетитора: сам зашёл на сайт и зарегистрировался.
     Аккаунт настоящий — с токеном, личным кодом и синхронизацией, просто
     tutor_id пуст: рейтинга, домашек и фото у него нет, пока репетитор
-    не появится (student_adopt)."""
+    не появится (student_adopt).
+
+    Пароль необязателен: пришедшему по ссылке репетитора он не нужен,
+    там вход по коду. Но если человек его задал — сможет войти почтой
+    и паролем на любом устройстве."""
     token = new_token()
     code = new_restore_code()
+    ph, salt = hash_password(password) if password else (None, None)
     cur = conn().execute(
-        "INSERT INTO students (tutor_id, name, token, restore_code, email, created_at)"
-        " VALUES (NULL, ?, ?, ?, ?, ?)",
-        (name.strip()[:60], token, code, (email or "").strip().lower()[:254] or None, now()),
+        "INSERT INTO students (tutor_id, name, token, restore_code, email,"
+        " pass_hash, pass_salt, created_at)"
+        " VALUES (NULL, ?, ?, ?, ?, ?, ?, ?)",
+        (name.strip()[:60], token, code, (email or "").strip().lower()[:254] or None,
+         ph, salt, now()),
     )
     conn().commit()
     return get_student_by_id(cur.lastrowid)
+
+
+def student_by_email(email):
+    """Ученик по почте. Почта не уникальна на уровне схемы: у родителя
+    может быть двое детей на один адрес. Для входа берём того, у кого
+    вообще задан пароль, и самого свежего из таких."""
+    return conn().execute(
+        "SELECT * FROM students WHERE lower(email)=? AND pass_hash IS NOT NULL"
+        " ORDER BY id DESC LIMIT 1",
+        ((email or "").strip().lower(),)).fetchone()
+
+
+def email_taken_by_student(email):
+    """Есть ли уже аккаунт с паролем на этот адрес — чтобы при регистрации
+    сказать «войди», а не заводить второй молча."""
+    return student_by_email(email) is not None
+
+
+def set_student_password(student_id, password):
+    ph, salt = hash_password(password)
+    conn().execute("UPDATE students SET pass_hash=?, pass_salt=? WHERE id=?",
+                   (ph, salt, student_id))
+    conn().commit()
+
+
+def set_student_email(student_id, email):
+    conn().execute("UPDATE students SET email=? WHERE id=?",
+                   ((email or "").strip().lower()[:254] or None, student_id))
+    conn().commit()
+
+
+def student_login(email, password):
+    """Вход по почте и паролю. Возвращает строку ученика или None.
+
+    Ответ намеренно одинаковый и для несуществующей почты, и для неверного
+    пароля: иначе форма превращается в проверялку «есть ли такой адрес»."""
+    row = student_by_email(email)
+    if not row or not row["pass_hash"]:
+        return None
+    if not check_password(password, row["pass_hash"], row["pass_salt"]):
+        return None
+    return row
 
 
 def adopt_student(student_id, tutor_id):
@@ -720,8 +777,9 @@ def reissue_restore_code(student_id):
 def student_profile(row):
     """Личный кабинет ученика: то, чем он управляет сам.
 
-    Почты и пароля у ученика нет — вход по личному коду, и код здесь
-    ровно то же, чем у взрослых бывает пара «логин + пароль».
+    Входов теперь два: личный код (был всегда) и почта с паролем — их
+    задают здесь же. Код остаётся рабочим и после того, как пароль задан:
+    у пришедших по ссылке репетитора пароля может не быть вовсе.
 
     Имя репетитора отдаём, адрес — нет: ученику он не нужен, а утечка
     адреса из детского кабинета — это утечка адреса.
@@ -730,6 +788,9 @@ def student_profile(row):
     tutor = get_tutor_by_id(row["tutor_id"])
     return {
         "name": row["name"],
+        # Свою почту ученику показываем — он её и вводил; чужую не отдаём нигде
+        "email": (row["email"] if "email" in keys else "") or "",
+        "hasPassword": bool("pass_hash" in keys and row["pass_hash"]),
         "restoreCode": (row["restore_code"] if "restore_code" in keys else "") or "",
         "codeChangedAt": row["code_changed_at"] if "code_changed_at" in keys else None,
         "level": row["level"] or "",

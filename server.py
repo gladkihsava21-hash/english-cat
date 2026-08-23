@@ -35,7 +35,7 @@ import mailer
 # Теперь это видно одним curl /health: цифра совпала с ?v= на странице —
 # приложение перезапущено; не совпала или её нет вовсе — в памяти старый
 # код, надо нажать «Перезапустить приложение» в панели хостинга.
-ASSET_VERSION = 170
+ASSET_VERSION = 171
 
 PORT = int(os.environ.get("SAVELY_PORT", "4210"))
 # За nginx сервер слушает только localhost — снаружи он не должен быть виден
@@ -348,6 +348,10 @@ _HIT_LIMITS = {
     "/api/student/reading": (30, 300),
     "/api/student/join": (30, 600),
     "/api/student/register": (10, 600),
+    # Вход по паролю — самая привлекательная цель для перебора: 10 попыток
+    # с адреса за 10 минут. Честному человеку хватает двух.
+    "/api/student/login": (10, 600),
+    "/api/student/password": (10, 600),
     "/api/student/adopt": (10, 600),
     # Личный кабинет ученика. Профиль открывают часто (каждый заход на
     # экран), остальное — редкие и необратимые действия, и частить ими
@@ -1122,8 +1126,64 @@ class Api:
         email = str(p.get("email", "")).strip()
         if email and not valid_email(email):
             return {"ok": False, "error": "Проверь адрес почты — или оставь поле пустым."}
-        row = db.create_student_standalone(name, email)
-        return {"ok": True, "token": row["token"], "restoreCode": row["restore_code"]}
+        # Пароль необязателен, но если задан — почта обязательна: без неё
+        # входить будет нечем, пароль сам по себе никого не опознаёт.
+        password = str(p.get("password", ""))
+        if password:
+            if not email:
+                return {"ok": False, "error": "С паролем нужна и почта — по ней будешь входить."}
+            problem = db.password_problem(password)
+            if problem:
+                return {"ok": False, "error": problem}
+            if db.email_taken_by_student(email):
+                return {"ok": False, "emailTaken": True,
+                        "error": "На эту почту уже есть аккаунт. Войди — вкладка «Вход»."}
+        row = db.create_student_standalone(name, email, password or None)
+        return {"ok": True, "token": row["token"], "restoreCode": row["restore_code"],
+                "hasPassword": bool(password)}
+
+    @staticmethod
+    def student_login(h, p):
+        """Вход по почте и паролю — то, чего человек ждёт от входа
+        по умолчанию. Личный код остался и работает как раньше:
+        у пришедших по ссылке репетитора пароля нет вовсе."""
+        email = str(p.get("email", "")).strip()
+        password = str(p.get("password", ""))
+        if not email or not password:
+            return {"ok": False, "error": "Нужны почта и пароль."}
+        row = db.student_login(email, password)
+        if not row:
+            # Один и тот же текст на «нет такой почты» и «неверный пароль»:
+            # иначе форма превращается в проверялку чужих адресов.
+            return {"ok": False, "error": "Не подошло. Проверь почту и пароль."}
+        tutor = db.get_tutor_by_id(row["tutor_id"]) if row["tutor_id"] else None
+        # Форма ответа та же, что у входа по коду: клиент разбирает её
+        # одной функцией, и расходиться этим двум ответам нельзя.
+        return {"ok": True, "found": True, "token": row["token"],
+                "state": db.student_state(row),
+                "tutorName": tutor["name"] if tutor else "",
+                "ai": ai_available()}
+
+    @staticmethod
+    def student_set_password(h, p):
+        """Задать или сменить пароль уже существующему аккаунту — из профиля.
+        Нужен и тем, кто регистрировался до пароля, и пришедшим по ссылке."""
+        row, err = student_owner(p)
+        if err:
+            return err
+        email = str(p.get("email", "")).strip() or (row["email"] or "")
+        password = str(p.get("password", ""))
+        if not email or not valid_email(email):
+            return {"ok": False, "error": "Нужна почта — по ней будешь входить."}
+        problem = db.password_problem(password)
+        if problem:
+            return {"ok": False, "error": problem}
+        other = db.student_by_email(email)
+        if other and other["id"] != row["id"]:
+            return {"ok": False, "error": "На эту почту уже есть другой аккаунт."}
+        db.set_student_email(row["id"], email)
+        db.set_student_password(row["id"], password)
+        return {"ok": True, "email": email}
 
     @staticmethod
     def student_adopt(h, p):
@@ -2078,6 +2138,8 @@ ROUTES = {
     "/api/join": Api.join_info,
     "/api/student/join": Api.student_join,
     "/api/student/register": Api.student_register,
+    "/api/student/login": Api.student_login,
+    "/api/student/password": Api.student_set_password,
     "/api/student/adopt": Api.student_adopt,
     "/api/student/restore": Api.student_restore,
     "/api/student/pull": Api.student_pull,

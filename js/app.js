@@ -251,23 +251,78 @@ document.addEventListener("click", e => {
 // ===== Регистрация / вход =====
 let authMode = "register";
 
+/** Переключение «Регистрация ↔ Вход».
+ *
+ * Раньше вкладка меняла только подписи, а отправка формы в любом случае
+ * заводила НОВЫЙ аккаунт — человек с готовым аккаунтом вводил имя
+ * и попадал на тест уровня с нуля. Теперь режим меняет и поля, и то,
+ * какой запрос уйдёт на сервер. */
+function setAuthMode(mode) {
+  authMode = mode;
+  const login = mode === "login";
+  document.querySelectorAll(".tab").forEach(t =>
+    t.classList.toggle("active", t.dataset.tab === mode));
+
+  // Имя спрашиваем только при регистрации: при входе человека опознаёт почта
+  const nameRow = document.getElementById("name-row");
+  nameRow.classList.toggle("hidden", login);
+  document.getElementById("reg-name").required = !login;
+
+  // Почта при входе обязательна — это и есть логин
+  document.getElementById("reg-email").required = login;
+  document.getElementById("email-hint").textContent = login
+    ? "Тот адрес, который указывал при регистрации."
+    : "Нужен, чтобы входить с любого устройства.";
+
+  const pass = document.getElementById("reg-password");
+  pass.required = login;
+  pass.setAttribute("autocomplete", login ? "current-password" : "new-password");
+  document.getElementById("password-hint").textContent = login
+    ? "Забыл пароль? Внизу — вход по личному коду."
+    : "Можно не задавать — тогда вход будет по личному коду, он покажется после теста.";
+
+  // Согласие даётся один раз, при регистрации
+  const consent = document.getElementById("reg-consent");
+  const crow = consent && consent.closest(".consent-row");
+  if (crow) crow.classList.toggle("hidden", login);
+  if (consent) consent.required = !login;
+
+  document.getElementById("auth-submit").textContent = login ? "Войти" : "Создать аккаунт";
+  const err = document.getElementById("auth-error");
+  if (err) err.textContent = "";
+}
+
 document.querySelectorAll(".tab").forEach(tab => {
-  tab.addEventListener("click", () => {
-    authMode = tab.dataset.tab;
-    document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t === tab));
-    document.getElementById("email-row").classList.toggle("hidden", authMode === "login");
-    // При входе согласие уже дано — спрашивать второй раз незачем
-    const consent = document.getElementById("reg-consent");
-    const crow = consent && consent.closest(".consent-row");
-    if (crow) crow.classList.toggle("hidden", authMode === "login");
-    if (consent) consent.required = authMode !== "login";
-    document.getElementById("auth-submit").textContent =
-      authMode === "register" ? "Создать аккаунт" : "Войти";
-  });
+  tab.addEventListener("click", () => setAuthMode(tab.dataset.tab));
 });
 
-document.getElementById("auth-form").addEventListener("submit", e => {
+function authError(text) {
+  const err = document.getElementById("auth-error");
+  if (err) err.textContent = text || "";
+}
+
+document.getElementById("auth-form").addEventListener("submit", async e => {
   e.preventDefault();
+  authError("");
+  const email = document.getElementById("reg-email").value.trim();
+  const password = document.getElementById("reg-password").value;
+
+  // ---- ВХОД по почте и паролю ----
+  if (authMode === "login") {
+    if (!email || !password) { authError("Нужны почта и пароль."); return; }
+    const btn = document.getElementById("auth-submit");
+    btn.disabled = true;
+    btn.textContent = "Проверяю…";
+    const ok = typeof loginByPassword === "function" && await loginByPassword(email, password);
+    btn.disabled = false;
+    btn.textContent = "Войти";
+    if (!ok) return;                 // текст ошибки поставил loginByPassword
+    updateChrome();
+    show(state.level ? "dashboard" : "test");
+    return;
+  }
+
+  // ---- РЕГИСТРАЦИЯ ----
   const name = document.getElementById("reg-name").value.trim();
   if (!name) return;
   // Браузер и сам не пропустит required, но форму отправляют и с
@@ -277,7 +332,16 @@ document.getElementById("auth-form").addEventListener("submit", e => {
     consent.focus();
     return;
   }
-  const email = document.getElementById("reg-email").value.trim();
+  // Пароль проверяем ДО создания аккаунта: короткий пароль сервер отвергнет,
+  // а ученик к этому моменту уже уедет на тест и ошибки не увидит.
+  if (password && password.length < 8) {
+    authError("Пароль — хотя бы 8 символов. Или оставь поле пустым.");
+    return;
+  }
+  if (password && !email) {
+    authError("С паролем нужна и почта — по ней будешь входить.");
+    return;
+  }
   state.user = { name, email };
   saveState();
   if (window.pendingInvite) {
@@ -286,7 +350,7 @@ document.getElementById("auth-form").addEventListener("submit", e => {
   } else if (typeof registerStandalone === "function") {
     // одиночка: настоящий аккаунт с кодом и синхронизацией. Не ждём
     // ответа — тест можно начинать, токен доедет фоном.
-    registerStandalone(name, email);
+    registerStandalone(name, email, password);
   }
   updateChrome();
   if (state.level) {
@@ -1697,12 +1761,23 @@ function setFlashFaces(flipped) {
   if (back)  back.setAttribute("aria-hidden", flipped ? "false" : "true");
 }
 
+/* Карточка крутится в ОБЕ стороны, сколько угодно раз.
+ *
+ * Раньше переворот был односторонним: увидел перевод — и всё, вернуться
+ * к английскому слову нельзя до следующей карточки. Методист: «нужно
+ * кликать и крутить, столько раз, сколько нужно ученику для запоминания» —
+ * и это правильно, повторение и есть работа с карточкой.
+ *
+ * Кнопки оценки, один раз включившись, остаются доступны: перевод уже
+ * увиден, и прятать оценку, когда ученик перевернул карточку обратно,
+ * значило бы заставлять его переворачивать её ещё раз ради кнопки. */
 function flipFlashcard() {
   const card = document.getElementById("flashcard");
-  card.classList.add("flipped");
-  card.setAttribute("aria-expanded", "true");
-  setFlashFaces(true);
-  setFlashButtons(true);
+  const flipped = !card.classList.contains("flipped");
+  card.classList.toggle("flipped", flipped);
+  card.setAttribute("aria-expanded", flipped ? "true" : "false");
+  setFlashFaces(flipped);
+  if (flipped) setFlashButtons(true);
 }
 
 document.getElementById("flashcard").addEventListener("click", flipFlashcard);

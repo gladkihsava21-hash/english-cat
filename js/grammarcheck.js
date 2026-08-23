@@ -141,6 +141,37 @@ function grammarCheck(text) {
     add("i", "I", "Местоимение «я» по-английски пишется заглавной буквой всегда: I.");
   }
 
+  // --- 2б. Кальки с русского ---
+  //
+  // Эти три ошибки не выводятся из общих правил: их делают именно
+  // русскоязычные, дословно переводя привычную фразу. Все три однозначны,
+  // исключений в школьных текстах нет.
+  const calques = [
+    { re: /\b(i|we|they|you)\s+am\s+agree\b/i, bad: "am agree", good: "agree",
+      why: "Agree — уже глагол «соглашаться». «Я согласен» — просто I agree, без am." },
+    // Только третье лицо: первое уже поймало правило выше, и два
+    // замечания об одной ошибке — лишний шум.
+    { re: /\b(he|she|it)\s+is\s+agree\b/i, bad: "is agree", good: "agrees",
+      why: "Agree — глагол, а не прилагательное: he agrees, а не he is agree." },
+    { re: /\b(i|he|she|we|they)\s+(have|has)\s+\d+\s+years?\b/i,
+      bad: "have 15 years", good: "am 15 (years old)",
+      why: "О возрасте говорят через be: I am 15, he is 15 — а не «have 15 years»." },
+    { re: /\b(me|him|her|them|us)\s+(and|или)\s+\w+\s+(go|goes|is|are|was|were|have|has|like|likes|want|wants)\b/i,
+      bad: "me and …", good: "… and I",
+      why: "Подлежащее — I, а не me: «My friend and I go», не «me and my friend goes»." },
+    { re: /\band\s+me\s+(go|goes|am|is|are|was|were|have|has|like|likes|want|wants)\b/i,
+      bad: "and me", good: "and I",
+      why: "В подлежащем — I: «My friend and I go», не «and me goes»." },
+    { re: /\bhow\s+do\s+you\s+think\b/i, bad: "how do you think", good: "what do you think",
+      why: "«Как ты думаешь?» по-английски — what do you think, а не how." },
+    { re: /\bi\s+feel\s+myself\b/i, bad: "I feel myself", good: "I feel",
+      why: "«Чувствую себя» — просто I feel good. Myself здесь лишнее и звучит двусмысленно." },
+  ];
+  calques.forEach(c => {
+    const m = c.re.exec(raw);
+    if (m) add(m[0].trim(), c.good, c.why);
+  });
+
   // --- 3. Точка в конце ---
   const trimmed = raw.trim();
   if (trimmed.length > 12 && !/[.!?]$/.test(trimmed)) {

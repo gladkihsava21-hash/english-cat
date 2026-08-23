@@ -10,7 +10,7 @@
        подмножества браузер возьмёт сам, если встретит редкую букву. -->
   <link rel="preload" href="css/fonts/nunito-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="css/fonts/inter-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="css/fonts.css?v=170">
+  <link rel="stylesheet" href="css/fonts.css?v=171">
   <!-- Тему ставим ДО первой отрисовки, отдельным крошечным скриптом.
        Всё остальное грузится с defer, а defer выполняется после разбора
        страницы — то есть уже после того, как браузер её покажет. Если
@@ -26,14 +26,14 @@
       document.documentElement.dataset.theme = t;
     } catch (e) { /* приватный режим — просто останется дневная */ }
   </script>
-  <link rel="stylesheet" href="css/tokens.css?v=170">
-  <link rel="stylesheet" href="css/style.css?v=170">
-  <link rel="stylesheet" href="css/savely.css?v=170">
-  <link rel="stylesheet" href="css/motion.css?v=170">
-<link rel="stylesheet" href="css/a11y.css?v=170">
-  <link rel="stylesheet" href="css/games.css?v=170">
-  <link rel="stylesheet" href="css/cat.css?v=170">
-  <link rel="stylesheet" href="css/account.css?v=170">
+  <link rel="stylesheet" href="css/tokens.css?v=171">
+  <link rel="stylesheet" href="css/style.css?v=171">
+  <link rel="stylesheet" href="css/savely.css?v=171">
+  <link rel="stylesheet" href="css/motion.css?v=171">
+<link rel="stylesheet" href="css/a11y.css?v=171">
+  <link rel="stylesheet" href="css/games.css?v=171">
+  <link rel="stylesheet" href="css/cat.css?v=171">
+  <link rel="stylesheet" href="css/account.css?v=171">
   <!-- Ссылку на сайт репетитор кидает ученикам в чат — это единственный
        канал раздачи. Без этих тегов она приходила туда голым адресом,
        без картинки и описания, то есть выглядела как спам. -->
@@ -150,19 +150,29 @@
           <button class="tab" data-tab="login">Вход</button>
         </div>
         <form id="auth-form">
-          <label>Имя
-            <input type="text" id="reg-name" placeholder="Как тебя зовут?" required maxlength="30">
+          <!-- Вкладка «Вход» раньше меняла только надписи на кнопках, а форма
+               всё равно РЕГИСТРИРОВАЛА: человек вводил имя и попадал на тест
+               уровня с пустым аккаунтом. Именно на это жаловались — «захожу
+               в другом браузере, а он снова просит имя и тест».
+               Теперь это две разные формы: регистрация просит имя, вход —
+               почту и пароль. Личный код никуда не делся, он ниже ссылкой:
+               у пришедших по ссылке репетитора пароля нет вовсе. -->
+          <label id="name-row">Имя
+            <input type="text" id="reg-name" placeholder="Как тебя зовут?" maxlength="30">
           </label>
-          <!-- Поля «Пароль» здесь больше нет, и это не упущение. У ученика
-               пароля не существует ни в схеме, ни в коде: вход по ссылке
-               репетитора, возврат по личному коду. Поле стояло, ребёнок
-               придумывал пароль — и он выбрасывался, потому что форма
-               ниже читает только имя и почту. Интерфейс врал на первом
-               же экране, а потом профиль честно писал «пароля у тебя нет». -->
           <label id="email-row">Email
-            <input type="email" id="reg-email" placeholder="you@example.com">
-            <span class="field-hint">Необязательно. Нужен только чтобы вернуть доступ,
-              если потеряешь свой код.</span>
+            <input type="email" id="reg-email" placeholder="you@example.com" autocomplete="email">
+            <span class="field-hint" id="email-hint">Нужен, чтобы входить с любого устройства.</span>
+          </label>
+          <label id="password-row">Пароль
+            <span class="pass-field">
+              <input type="password" id="reg-password" minlength="8"
+                     autocomplete="new-password" placeholder="хотя бы 8 символов">
+              <button type="button" class="pass-eye" data-eye="reg-password"
+                      aria-label="Показать пароль" aria-pressed="false"></button>
+            </span>
+            <span class="field-hint" id="password-hint">Можно не задавать — тогда вход
+              будет по личному коду, он покажется после теста.</span>
           </label>
           <!-- Согласие на обработку данных. Ссылка в подвале согласием
                не считается: по статье 9 152-ФЗ оно должно быть конкретным
@@ -181,8 +191,9 @@
               Если тебе меньше 14, отметить должен родитель.</span>
           </label>
           <button type="submit" class="btn btn-primary btn-wide" id="auth-submit">Создать аккаунт</button>
-          <p class="fine-print">Уже занимался на другом устройстве?
-            <button type="button" class="link-btn" id="show-restore">Войти по коду</button></p>
+          <p class="type-feedback err" id="auth-error" role="status" aria-live="polite"></p>
+          <p class="fine-print">Пароля нет или забыл?
+            <button type="button" class="link-btn" id="show-restore">Войти по личному коду</button></p>
         </form>
       </div>
     </div>
@@ -444,7 +455,7 @@
              вообще, и перевод оставался недоступен. -->
         <div class="flashcard" id="flashcard" role="button" tabindex="0"
              aria-expanded="false"
-             aria-label="Карточка со словом. Нажми, чтобы перевернуть">
+             aria-label="Карточка со словом. Нажми, чтобы перевернуть; ещё раз — вернуться">
           <div class="flashcard-inner" id="flashcard-inner">
             <div class="flashcard-face flashcard-front">
               <div class="word-art word-art-big" id="flash-art"></div>
@@ -455,6 +466,9 @@
             <div class="flashcard-face flashcard-back" aria-hidden="true">
               <div class="quiz-word quiz-word-small" id="flash-translation">яблоко</div>
               <p class="flash-example" id="flash-example" lang="en"></p>
+              <!-- Подсказка и на обороте: без неё возврат к английскому
+                   слову — недокументированная возможность. -->
+              <p class="flip-hint">нажми ещё раз, чтобы вернуться к слову</p>
             </div>
           </div>
         </div>
@@ -636,13 +650,13 @@
     <a href="https://t.me/KOTSAVELII" target="_blank" rel="noopener">@KOTSAVELII</a></p>
 </footer>
 
-<script defer src="js/theme.js?v=170"></script>
-<script defer src="js/i18n.js?v=170"></script>
-<script defer src="js/icons.js?v=170"></script>
-<script defer src="js/cat.js?v=170"></script>
-<script defer src="js/motion.js?v=170"></script>
-<script defer src="js/util.js?v=170"></script>
-<script defer src="js/levels.js?v=170"></script>
+<script defer src="js/theme.js?v=171"></script>
+<script defer src="js/i18n.js?v=171"></script>
+<script defer src="js/icons.js?v=171"></script>
+<script defer src="js/cat.js?v=171"></script>
+<script defer src="js/motion.js?v=171"></script>
+<script defer src="js/util.js?v=171"></script>
+<script defer src="js/levels.js?v=171"></script>
 <!-- js/words.js здесь НЕТ намеренно: 326 КБ сжатыми, и на экране
      приветствия они не нужны — там ещё нет ни аккаунта, ни уровня.
      Подгружается через ensureWords(): для вернувшегося ученика сразу,
@@ -650,19 +664,19 @@
 <!-- js/phrases.js здесь НЕТ намеренно: 150 КБ ради трёх упражнений
      из двадцати семи и одного раздела словаря. Подгружается по месту,
      через ensurePhrases() — см. js/exercises.js и js/app.js. -->
-<script defer src="js/srs.js?v=170"></script>
-<script defer src="js/images.js?v=170"></script>
-<script defer src="js/word-photos.js?v=170"></script>
-<script defer src="js/app.js?v=170"></script>
-<script defer src="js/achievements.js?v=170"></script>
-<script defer src="js/exercises.js?v=170"></script>
-<script defer src="js/games.js?v=170"></script>
-<script defer src="js/voice.js?v=170"></script>
-<script defer src="js/sync.js?v=170"></script>
-  <script defer src="js/reading.js?v=170"></script>
-  <script defer src="js/photo.js?v=170"></script>
+<script defer src="js/srs.js?v=171"></script>
+<script defer src="js/images.js?v=171"></script>
+<script defer src="js/word-photos.js?v=171"></script>
+<script defer src="js/app.js?v=171"></script>
+<script defer src="js/achievements.js?v=171"></script>
+<script defer src="js/exercises.js?v=171"></script>
+<script defer src="js/games.js?v=171"></script>
+<script defer src="js/voice.js?v=171"></script>
+<script defer src="js/sync.js?v=171"></script>
+  <script defer src="js/reading.js?v=171"></script>
+  <script defer src="js/photo.js?v=171"></script>
   <!-- После sync.js: профиль ходит на сервер через api() оттуда -->
-  <script defer src="js/account.js?v=170"></script>
+  <script defer src="js/account.js?v=171"></script>
 <script>
   // офлайн-режим: сайт открывается без интернета и ставится на телефон
   if ("serviceWorker" in navigator && location.protocol !== "file:") {

@@ -139,12 +139,13 @@ function paintAccount(note) {
   const online = !!(typeof studentToken === "function" && studentToken());
 
   lead.textContent = note || (online
-    ? "Здесь твоё имя, личный код для входа и уровень. Пароля у тебя нет — вместо него код."
+    ? "Здесь твоё имя, вход по почте и паролю, личный код и уровень."
     : "Ты занимаешься без репетитора: прогресс живёт только в этом браузере, личного кода нет.");
   lead.classList.toggle("ac-lead-warn", !!note);
 
   box.innerHTML = [
     acNameCard(p, online),
+    acPasswordCard(p, online),
     acCodeCard(p, online),
     acLevelCard(p),
     acTutorCard(p, online),
@@ -153,6 +154,42 @@ function paintAccount(note) {
 
   if (typeof paintIcons === "function") paintIcons(box);
   wireAccount(online);
+}
+
+/** Вход по почте и паролю.
+ *
+ * Нужна и тем, кто регистрировался до появления пароля: методист написала
+ * «не могу зайти в Chrome, он просит какой-то код» — а код она не сохранила.
+ * Отсюда пароль можно задать в любой момент с того устройства, где ты уже
+ * вошёл, и дальше входить обычным способом. Личный код при этом остаётся
+ * рабочим: две двери в один аккаунт. */
+function acPasswordCard(p, online) {
+  if (!online) return "";
+  const has = !!p.hasPassword;
+  return `
+    <section class="card ac-card">
+      <h3 class="ac-h">${iconInline("lock", 18)} Вход по почте и паролю</h3>
+      <p class="ac-note">${has
+        ? "Пароль задан — входи почтой и паролём на любом устройстве. Здесь можно его сменить."
+        : "Пароля пока нет: вход только по личному коду. Задай пароль — и код можно будет не помнить."}</p>
+      <label class="ac-field">Почта
+        <input type="email" id="ac-email" autocomplete="email"
+               value="${esc(p.email || "")}" placeholder="you@example.com">
+      </label>
+      <label class="ac-field">${has ? "Новый пароль" : "Пароль"}
+        <span class="pass-field">
+          <input type="password" id="ac-password" minlength="8"
+                 autocomplete="new-password" placeholder="хотя бы 8 символов">
+          <button type="button" class="pass-eye" data-eye="ac-password"
+                  aria-label="Показать пароль" aria-pressed="false"></button>
+        </span>
+      </label>
+      <div class="ac-actions">
+        <button type="button" class="btn btn-primary btn-small" id="ac-save-pass">
+          ${has ? "Сменить пароль" : "Задать пароль"}</button>
+      </div>
+      <p class="ac-note" id="ac-pass-msg" role="status" aria-live="polite"></p>
+    </section>`;
 }
 
 /* Имя. Единственное, что ученик может испортить репетитору: в панели
@@ -307,6 +344,33 @@ function acMsg(id, text, kind) {
 
 function wireAccount(online) {
   const $ = id => document.getElementById(id);
+
+  // --- пароль ---
+  const savePass = $("ac-save-pass");
+  if (savePass) {
+    savePass.addEventListener("click", async () => {
+      const msg = $("ac-pass-msg");
+      const email = $("ac-email").value.trim();
+      const password = $("ac-password").value;
+      msg.className = "ac-note";
+      if (!email) { msg.textContent = "Нужна почта — по ней будешь входить."; return; }
+      if (password.length < 8) { msg.textContent = "Пароль — хотя бы 8 символов."; return; }
+      savePass.disabled = true;
+      let res;
+      try {
+        res = await api("/api/student/password",
+          { token: studentToken(), email, password });
+      } catch (e) {
+        res = { ok: false, error: "Сервер не отвечает. Попробуй позже." };
+      }
+      savePass.disabled = false;
+      if (!res.ok) { msg.textContent = res.error || "Не получилось."; return; }
+      $("ac-password").value = "";
+      msg.className = "ac-note ac-ok";
+      msg.textContent = "Готово. Теперь можно входить почтой и паролем с любого устройства.";
+      if (accountData) { accountData.hasPassword = true; accountData.email = res.email; }
+    });
+  }
 
   // --- имя ---
   const nameForm = $("ac-name-form");

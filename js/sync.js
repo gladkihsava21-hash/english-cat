@@ -88,10 +88,11 @@ async function initInvite() {
  *  Раньше такой ученик жил только в localStorage: на сервере его не было,
  *  личного кода не было, и на другом устройстве сайт встречал его именем
  *  и тестом заново. Возвращает true, если аккаунт создан на сервере. */
-async function registerStandalone(name, email) {
+async function registerStandalone(name, email, password) {
   if (studentToken()) return true;   // уже есть аккаунт — не плодим
   try {
-    const res = await api("/api/student/register", { name, email: email || "" });
+    const res = await api("/api/student/register",
+      { name, email: email || "", password: password || "" });
     if (!res.ok) return false;       // имя не прошло проверку и т.п. — живём локально
     localStorage.setItem(STUDENT_TOKEN_KEY, res.token);
     localStorage.setItem(TUTOR_NAME_KEY, "");
@@ -115,6 +116,32 @@ async function joinTutor(name) {
   // навсегда остался бы вне кабинета репетитора и молча учился один.
   localStorage.setItem(PENDING_JOIN_KEY, JSON.stringify({ code: inv.code, name }));
   await tryPendingJoin();
+}
+
+/** Вход по почте и паролю — обычный вход, которого от сайта и ждут.
+ *
+ * Возвращает true при успехе. Текст ошибки пишет сам: форма показывает
+ * то, что сказал сервер, и не гадает. Прогресс с сервера подхватывается
+ * ровно так же, как при входе по коду — обе двери ведут в один аккаунт. */
+async function loginByPassword(email, password) {
+  const fail = t => { if (typeof authError === "function") authError(t); return false; };
+  let res;
+  try {
+    res = await api("/api/student/login", { email, password });
+  } catch (e) {
+    return fail("Сервер не отвечает. Проверь интернет и попробуй ещё раз.");
+  }
+  if (!res.ok) return fail(res.error || "Не подошло.");
+  if (typeof res.ai === "boolean") window.SAVELY_AI = res.ai;
+  localStorage.setItem(STUDENT_TOKEN_KEY, res.token);
+  localStorage.setItem(TUTOR_NAME_KEY, res.tutorName || "");
+  localStorage.removeItem(PENDING_JOIN_KEY);
+  state.user = state.user || { name: res.state.name || "Ученик", email };
+  if (res.state && res.state.name) state.user.name = res.state.name;
+  state.user.email = email;
+  adoptServerState(res.state);
+  pushProgress();          // домашка и сообщения приходят ответом на sync
+  return true;
 }
 
 /** Вход с другого устройства по личному коду ученика. */

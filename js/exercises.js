@@ -15,7 +15,14 @@ if (TTS_OK) {
   speechSynthesis.onvoiceschanged = pickVoice;
 }
 
-function speak(text) {
+/* Скорость озвучки. Медленный режим — просьба методиста: на диктанте
+ * ученик не успевает разобрать фразу, а переслушивание на той же скорости
+ * не помогает. Значение живёт здесь, а не в state: это настройка «здесь
+ * и сейчас», и тащить её между устройствами незачем. */
+let TTS_RATE = 0.92;
+function setSpeechRate(rate) { TTS_RATE = rate; }
+
+function speak(text, opts) {
   if (!TTS_OK) return;
   // Android Chrome (и WebView) молча глотает utterance в двух случаях:
   // сразу после cancel() и когда синтез завис в paused. Репетитор прислала
@@ -29,7 +36,7 @@ function speak(text) {
     // Голос ставим только если он есть: с u.voice = null часть прошивок
     // не говорит вовсе, а без поля берётся системный английский.
     if (TTS_VOICE) u.voice = TTS_VOICE;
-    u.rate = 0.92;
+    u.rate = (opts && opts.rate) || TTS_RATE;
     return u;
   };
   const go = () => {
@@ -202,6 +209,77 @@ const GRAMMAR_PER_RUN_MIN = 10;
 function grammarPerRun(bankSize) {
   return Math.max(GRAMMAR_PER_RUN_MIN,
                   Math.min(GRAMMAR_PER_RUN_MAX, Math.ceil(bankSize / 2)));
+}
+
+/* ===== Сверка диктанта =====
+ *
+ * Возвращает разметку по словам образца: каждое слово — «попал», «не так»
+ * или «пропустил». На этом же разборе строится показ ошибки: ученик должен
+ * увидеть, КАКОЕ слово он не расслышал, а не только правильный ответ
+ * целиком — иначе он ищет отличие глазами и чаще всего не находит.
+ */
+function levDistance(a, b) {
+  // Расстояние Левенштейна. Нужно ровно для одного: отличить опечатку
+  // в букву от другого слова. Строки тут короткие, поэтому простая матрица.
+  if (a === b) return 0;
+  if (!a.length || !b.length) return Math.max(a.length, b.length);
+  let prev = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i];
+    for (let j = 1; j <= b.length; j++) {
+      cur[j] = Math.min(
+        prev[j] + 1,
+        cur[j - 1] + 1,
+        prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    }
+    prev = cur;
+  }
+  return prev[b.length];
+}
+
+/** Слово засчитано? Точное совпадение или опечатка в одну букву,
+ *  но только в слове от шести букв: в коротком «is/it/in» одна буква —
+ *  это уже другое слово. */
+function wordMatches(got, want) {
+  if (got === want) return true;
+  return want.length >= 6 && levDistance(got, want) <= 1;
+}
+
+function dictationDiff(value, sample) {
+  const got = normEn(value).split(" ").filter(Boolean);
+  const want = normEn(sample).split(" ").filter(Boolean);
+  const used = new Array(got.length).fill(false);
+  const marks = want.map((w, i) => {
+    // сначала пробуем слово на своём месте — так порядок слов тоже важен
+    if (got[i] && !used[i] && wordMatches(got[i], w)) { used[i] = true; return "hit"; }
+    const found = got.findIndex((g, k) => !used[k] && wordMatches(g, w));
+    if (found >= 0) { used[found] = true; return "moved"; }
+    return "miss";
+  });
+  return {
+    marks,
+    want,
+    ok: marks.every(m => m === "hit"),
+    missed: want.filter((_, i) => marks[i] !== "hit"),
+  };
+}
+
+function dictationReviewHTML(value, sample) {
+  const d = dictationDiff(value, sample);
+  if (d.ok) return "";
+  const words = d.want.map((w, i) =>
+    d.marks[i] === "hit" ? esc(w) : `<b class="dw-miss">${esc(w)}</b>`).join(" ");
+
+  // Слова все на месте, но переставлены — это ДРУГАЯ ошибка, и говорить
+  // «не расслышал» тут нельзя: человек всё расслышал, порядок перепутал.
+  const misheard = d.want.filter((_, i) => d.marks[i] === "miss");
+  if (!misheard.length) {
+    return `<span class="dict-review">Слова верные, а порядок другой — в английском`
+         + ` он и есть грамматика.<br><span class="dict-sample">${words}</span></span>`;
+  }
+  const which = misheard.length === 1 ? "Не расслышал слово:" : "Не расслышал слова:";
+  return `<span class="dict-review">${which} <b>${esc(misheard.join(", "))}</b>`
+       + `<br><span class="dict-sample">${words}</span></span>`;
 }
 
 function pickFresh(bucket, all, n, keyFn) {
@@ -1160,7 +1238,13 @@ function runType(rounds, opts = {}) {
         ${r.art ? `<div class="word-art word-art-mid" style="background:${wordTint(r.artCat)}">${r.art}</div>` : ""}
         <div class="quiz-word quiz-word-small">${
           r.promptHTML || esc(r.prompt || "")}</div>
-        ${r.audioText ? `<button class="btn btn-ghost btn-small" id="type-audio">${iconInline("sound", 16)} Прослушать</button>` : ""}
+        ${r.audioText ? `<div class="audio-row">
+            <button class="btn btn-ghost btn-small" id="type-audio">${iconInline("sound", 16)} Прослушать</button>
+            <div class="speed-pills" role="group" aria-label="Скорость озвучки">
+              <button type="button" class="speed-pill" data-rate="0.92">Обычно</button>
+              <button type="button" class="speed-pill" data-rate="0.62">Медленно</button>
+            </div>
+          </div>` : ""}
         ${opts.textarea
           ? `<textarea class="type-input type-area" id="type-input" rows="3" placeholder="${opts.placeholder || "Напиши по-английски…"}"></textarea>`
           : `<input class="type-input" id="type-input" autocomplete="off" placeholder="${opts.placeholder || "Введи слово…"}">`}
@@ -1173,6 +1257,17 @@ function runType(rounds, opts = {}) {
     if (r.audioText) {
       const play = () => speak(r.audioText);
       document.getElementById("type-audio").addEventListener("click", play);
+      // Кнопки скорости: выбранная подсвечена, нажатие сразу переслушивает —
+      // иначе пришлось бы жать две кнопки подряд, чтобы услышать разницу.
+      const pills = [...document.querySelectorAll(".speed-pill")];
+      const mark = () => pills.forEach(b =>
+        b.classList.toggle("on", Math.abs(+b.dataset.rate - TTS_RATE) < 0.01));
+      pills.forEach(b => b.addEventListener("click", () => {
+        setSpeechRate(+b.dataset.rate);
+        mark();
+        play();
+      }));
+      mark();
       setTimeout(play, 350);
     }
     const input = document.getElementById("type-input");
@@ -1201,6 +1296,13 @@ function runType(rounds, opts = {}) {
       fb.textContent = ok
         ? "Верно, мяу! " + (r.sample ? "Образец: " + r.sample : "")
         : "Не совсем. Правильно: " + (r.sample || r.answer);
+      // Разбор по словам (диктант): показать, ЧТО именно не расслышал.
+      // Без него ученик сличает две длинные фразы глазами и не находит
+      // отличия — то есть ошибка не учит.
+      if (!ok && typeof r.review === "function") {
+        const html = r.review(val);
+        if (html) fb.insertAdjacentHTML("afterend", `<p class="muted-small">${html}</p>`);
+      }
       input.disabled = true;
       i++;
       // Верный ответ уезжает сам — кроме длинных: в диктанте засчитывается
@@ -1678,15 +1780,23 @@ const EX_RUNNERS = {
       promptHTML: icon("listening", 44),
       audioText: p.ex,
       answer: p.ex,
-      check: v => {
-        const a = normEn(v).split(" ");
-        const b = normEn(p.ex).split(" ");
-        const hits = b.filter(w => a.includes(w)).length;
-        return hits / b.length >= 0.8;
-      },
+      // Сверяем ПОСЛОВНО и требуем все слова.
+      //
+      // Было «от 80% совпавших слов» — и в предложении из пяти слов одно
+      // можно было написать как угодно. Методист прислала скриншоты:
+      // «The lumbary is still green» при образце «The lumber is still
+      // green» — четыре слова из пяти, засчитано «Верно, мяу!». Причём
+      // неверным оказывалось ровно то слово, ради которого диктант
+      // и затевался: the, is, still ученик и так знает.
+      //
+      // Опечатку в одну букву в длинном слове прощаем: диктант проверяет,
+      // расслышал ли человек фразу, а не орфографическую безупречность.
+      check: v => dictationDiff(v, p.ex).ok,
+      review: v => dictationReviewHTML(v, p.ex),
       statWord: p.w,
       sample: p.ex,
-    })), { textarea: true, placeholder: "Напиши, что услышал…", note: "Засчитывается от 80% правильных слов." });
+    })), { textarea: true, placeholder: "Напиши, что услышал…",
+           note: "Нужно расслышать все слова. Опечатку в одну букву прощаю." });
   },
 
   context() {
