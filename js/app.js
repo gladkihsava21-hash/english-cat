@@ -556,7 +556,43 @@ function finishTest() {
     C2: "Мяу?! Может, это ТЫ будешь меня учить? Но пару слов я всё же найду.",
   };
   document.getElementById("result-comment").textContent = comments[level];
+  showResultCode();
 }
+
+/** Показать личный код на экране результата теста.
+ *
+ *  Код приходит с сервера при регистрации, а она идёт параллельно тесту
+ *  (чтобы ребёнок не ждал сети) — поэтому к моменту показа результата его
+ *  может ещё не быть. Тогда ждём и дорисовываем: без кода карточка не
+ *  показывается вовсе, пустая рамка «твой код: —» хуже её отсутствия. */
+function showResultCode() {
+  const card = document.getElementById("result-code-card");
+  if (!card) return;
+  const draw = () => {
+    if (!state.restoreCode) return false;
+    document.getElementById("result-code").textContent = state.restoreCode;
+    card.classList.remove("hidden");
+    return true;
+  };
+  if (draw()) return;
+  let tries = 0;
+  const timer = setInterval(() => {
+    if (draw() || ++tries > 20) clearInterval(timer);   // ждём до 10 секунд
+  }, 500);
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  const btn = document.getElementById("result-code-copy");
+  if (!btn) return;
+  btn.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(state.restoreCode || "");
+      btn.textContent = "скопировано";
+    } catch (e) {
+      btn.textContent = "выдели код и скопируй";
+    }
+  });
+});
 
 document.getElementById("to-dashboard-btn").addEventListener("click", () => show("dashboard"));
 
@@ -1065,6 +1101,17 @@ function renderLeaderboard() {
 function renderRecGrid() {
   const grid = document.getElementById("recommend-grid");
   grid.innerHTML = "";
+  // Транскрипция приезжает отдельным файлом и может опоздать к первой
+  // отрисовке — тогда дозаполняем уже нарисованные карточки на месте.
+  // Ждать её было бы хуже: карточки важнее подписи под словом.
+  if (typeof ensureIPA === "function" && typeof IPA === "undefined") {
+    ensureIPA().then(() => {
+      document.querySelectorAll("[data-ipa-for]").forEach(el => {
+        const t = ipaOf(el.dataset.ipaFor);
+        if (t) el.textContent = "[" + t + "]";
+      });
+    });
+  }
   const inDict = new Set(state.dictionary.map(d => d.w));
   currentRecs.forEach(rec => {
     const card = document.createElement("div");
@@ -1076,6 +1123,7 @@ function renderRecGrid() {
       </div>
       <div class="w-en">${esc(rec.w)} <button class="say-btn" title="Произношение"
               aria-label="Произношение: ${esc(rec.w)}">${icon("sound", 18)}</button></div>
+      <div class="w-ipa" data-ipa-for="${esc(rec.w)}">${esc(ipaOf(rec.w) ? "[" + ipaOf(rec.w) + "]" : "")}</div>
       <div class="w-ru">${esc(rec.t)}</div>
       <div class="w-ex">${esc(rec.ex)}</div>
     `;
@@ -1507,14 +1555,75 @@ function renderDictionary() {
   });
 }
 
+/* Подсказка перевода при добавлении своего слова.
+ *
+ * Раньше ученик набирал перевод целиком руками — хотя у 11 тысяч слов
+ * он лежит в нашей же базе, вместе с примером и транскрипцией. Методист
+ * попросила «как в Quizlet»: система предлагает, а вписать своё
+ * по-прежнему можно. Поэтому подсказка НЕ подставляется автоматически:
+ * ученик нажимает её сам, и его собственный текст не затирается.
+ */
+function addWordHint() {
+  const box = document.getElementById("add-word-hint");
+  const enInput = document.getElementById("add-word-en");
+  const ruInput = document.getElementById("add-word-ru");
+  if (!box) return;
+  const en = enInput.value.trim();
+  box.innerHTML = "";
+  if (en.length < 2 || typeof WORDS === "undefined") { box.classList.add("hidden"); return; }
+  const hit = typeof wordInfo === "function" ? wordInfo(en) : null;
+  if (!hit || !hit.t) { box.classList.add("hidden"); return; }
+  box.classList.remove("hidden");
+  const ipa = typeof ipaOf === "function" ? ipaOf(hit.w) : "";
+  const label = document.createElement("span");
+  label.className = "muted-small";
+  label.textContent = "В базе есть перевод: ";
+  const chip = document.createElement("button");
+  chip.type = "button";
+  chip.className = "chip";
+  chip.textContent = hit.t;
+  chip.addEventListener("click", () => {
+    ruInput.value = hit.t;
+    ruInput.focus();
+  });
+  box.append(label, chip);
+  if (ipa) {
+    const tr = document.createElement("span");
+    tr.className = "muted-small";
+    tr.textContent = "  [" + ipa + "]";
+    box.append(tr);
+  }
+}
+
+document.getElementById("add-word-en").addEventListener("input", () => {
+  // Словарь и транскрипция могут быть ещё не загружены — тогда просто
+  // подтягиваем их и пробуем снова: подсказка появится через мгновение.
+  if (typeof WORDS === "undefined" && typeof ensureWords === "function") {
+    ensureWords().then(addWordHint);
+    return;
+  }
+  if (typeof IPA === "undefined" && typeof ensureIPA === "function") ensureIPA().then(addWordHint);
+  addWordHint();
+});
+
 document.getElementById("add-word-form").addEventListener("submit", e => {
   e.preventDefault();
   const en = document.getElementById("add-word-en").value.trim();
   const ru = document.getElementById("add-word-ru").value.trim();
   if (!en || !ru) return;
-  addToDictionary({ w: en, t: ru, ex: "", level: state.level });
+  // Если слово нашлось в базе — забираем заодно пример и уровень:
+  // карточка без примера учит хуже, а уровень нужен подбору заданий.
+  const hit = typeof wordInfo === "function" ? wordInfo(en) : null;
+  addToDictionary({
+    w: hit ? hit.w : en,
+    t: ru,
+    ex: hit && hit.ex ? hit.ex : "",
+    cat: hit ? hit.cat : undefined,
+    level: hit && hit.level ? hit.level : state.level,
+  });
   document.getElementById("add-word-en").value = "";
   document.getElementById("add-word-ru").value = "";
+  addWordHint();
   renderDictionary();
 });
 

@@ -110,6 +110,24 @@ function ensureWords() {
   return loadScriptOnce("js/words.js");
 }
 
+/** Транскрипция (МФА). Отдельным файлом и НЕ обязательна: 276 КБ ради
+ *  строчки под словом — не та цена, чтобы задерживать показ карточки.
+ *  Поэтому грузим фоном и рисуем транскрипцию, когда придёт; см. ipaOf(). */
+let ipaLoading = null;
+function ensureIPA() {
+  if (typeof IPA !== "undefined") return Promise.resolve(true);
+  if (!ipaLoading) ipaLoading = loadScriptOnce("js/ipa.js").catch(() => false);
+  return ipaLoading;
+}
+
+/** Транскрипция слова или пустая строка. Пусто — это норма: у выражений
+ *  из нескольких слов её нет, и подпись просто не рисуется. */
+function ipaOf(word) {
+  if (typeof IPA === "undefined") return "";
+  const w = String(word || "").trim().toLowerCase();
+  return IPA[w] || "";
+}
+
 /** Выражения: фразовые глаголы, идиомы, коллокации. */
 function ensurePhrases() {
   if (typeof PHRASES !== "undefined") return Promise.resolve(true);
@@ -245,4 +263,11 @@ function ensureWordForms() {
 function ensureGrammar() {
   if (typeof GRAMMAR !== "undefined") return Promise.resolve(true);
   return loadScriptOnce("js/grammar.js");
+}
+
+/** Разбор своего текста по правилам — нужен одному упражнению
+ *  («Свои предложения»), поэтому грузится по месту. */
+function ensureGrammarCheck() {
+  if (typeof grammarCheck !== "undefined") return Promise.resolve(true);
+  return loadScriptOnce("js/grammarcheck.js");
 }

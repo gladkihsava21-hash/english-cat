@@ -1767,6 +1767,66 @@ h2[tabindex="-1"]:focus-visible { outline: none; box-shadow: none; }
   line-height: 1.5;
 }
 
+/* Личный код на экране результата теста. Крупно и отдельной карточкой:
+   это единственный ключ от аккаунта, и увидеть его ученик должен один
+   раз, но так, чтобы запомнить или переписать. */
+.code-card {
+  margin: var(--space-20) auto;
+  max-width: 26rem;
+  border: 2px solid var(--accent-line);
+  background: var(--accent-soft);
+  text-align: center;
+}
+.code-card-title { font-weight: 700; margin-bottom: var(--space-8); }
+.code-card .code-value {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: var(--text-heading-sm);
+  letter-spacing: 0.06em;
+  margin: var(--space-8) 0;
+  user-select: all;
+}
+.code-card .muted-small { margin-bottom: var(--space-12); }
+
+/* Подсказка «здесь нет озвучки» над разделом «На слух». Карточкой,
+   а не серой строкой: это не сноска, а единственный выход из тупика —
+   в ней личный код, по которому ученик войдёт в нормальном браузере. */
+.audio-help {
+  margin-bottom: var(--space-16);
+  border: 2px solid var(--accent-line);
+  background: var(--accent-soft);
+  text-align: left;
+}
+.audio-help p { margin: 0 0 var(--space-8); }
+.audio-help p:last-child { margin-bottom: 0; }
+.audio-help-code {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  flex-wrap: wrap;
+}
+.audio-help .code-value {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: var(--text-subheading);
+  letter-spacing: 0.04em;
+  user-select: all;
+}
+
+/* Разбор своего текста в «Своих предложениях»: список «было → стало».
+   Слева, а не по центру, — это список правок, его читают построчно,
+   и зачёркнутое с исправленным должны стоять в одной колонке. */
+.gc-list {
+  margin: var(--space-12) auto 0;
+  max-width: 34rem;
+  text-align: left;
+  padding-left: var(--space-20);
+  line-height: var(--leading-normal);
+  font-size: var(--text-body-sm);
+  color: var(--ink);
+}
+.gc-list li { margin-bottom: var(--space-8); }
+.gc-list s { color: var(--ink-soft); }
+.gc-list b { color: var(--accent); }
+
 /* «Эти слова ещё не твои» на экране результата упражнения.
    Отделено карточкой: это предложение, а не часть отчёта, и его легко
    пропустить, если оно сольётся со строкой «верно 5 из 8». */

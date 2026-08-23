@@ -185,6 +185,25 @@ function shuffled(arr) {
  * её при смене устройства не жалко. */
 const EX_SEEN_KEY = "savelyExSeen";
 
+/* Сколько грамматических заданий выдаём за один подход.
+ *
+ * Не фиксированное число, а половина банка темы — и вот почему. Методист
+ * просила увеличить подход (было 8), но у длины подхода есть потолок,
+ * который задаёт сам банк: если выдать за раз больше половины, второй
+ * подход неизбежно пойдёт по уже виденным заданиям, и вернётся исходная
+ * жалоба «задания не меняются». Половина гарантирует, что подряд идущие
+ * подходы не пересекаются вовсе.
+ *
+ * Границы: не меньше 10 (иначе тема не отрабатывается) и не больше 25
+ * (дальше устаёт даже мотивированный ученик). Темы по 32–33 задания дают
+ * 16–17 за подход, новые темы по 16 — по 10. */
+const GRAMMAR_PER_RUN_MAX = 25;
+const GRAMMAR_PER_RUN_MIN = 10;
+function grammarPerRun(bankSize) {
+  return Math.max(GRAMMAR_PER_RUN_MIN,
+                  Math.min(GRAMMAR_PER_RUN_MAX, Math.ceil(bankSize / 2)));
+}
+
 function pickFresh(bucket, all, n, keyFn) {
   let seen = {};
   try { seen = JSON.parse(localStorage.getItem(EX_SEEN_KEY)) || {}; } catch (e) { /* мусор в хранилище */ }
@@ -422,7 +441,8 @@ const EXERCISES = [
   { id: "translate", group: "writing", icon: "translate", name: "Перевод фразы", desc: "Переведи предложение на англ." },
   { id: "personal", group: "writing", icon: "personal", name: "Свои предложения", desc: "Составь фразы с новыми словами" },
   { id: "context", group: "writing", icon: "context", name: "Слово в контексте", desc: "Где слово использовано верно?" },
-  { id: "synonyms", group: "writing", icon: "synonyms", name: "Синонимы", desc: "Синонимы и антонимы" },
+  { id: "synonyms", group: "writing", icon: "synonyms", name: "Синонимы и антонимы",
+    desc: "Близкое по смыслу или противоположное" },
   { id: "collocations", group: "writing", icon: "collocations", name: "Сочетания", desc: "Соедини слова, которые ходят парой" },
 
   // --- игры: тот же словарь, но на скорость и азарт ---
@@ -615,6 +635,46 @@ function renderLevelNudge() {
   });
 }
 
+/* Подсказка, когда в браузере нет английской озвучки.
+ *
+ * Старый текст говорил «открой сайт в Chrome или Safari» — и упирался
+ * ровно в то, о чём написала методист: она открыла ссылку из Telegram,
+ * встроенный браузер озвучку не умеет, а перейти в Chrome не может,
+ * потому что «нет ни логина, ни пароля». Логина у нас и не бывает:
+ * вход по личному коду. Значит подсказка обязана этот код показать —
+ * иначе она отправляет человека туда, куда он не сможет войти.
+ */
+function audioHelpHTML() {
+  const inApp = /(Telegram|Instagram|FBAN|FBAV|VKAndroid|OKApp|Line\/)/i.test(navigator.userAgent);
+  const code = (state && state.restoreCode) || "";
+  return `<div class="card audio-help">
+    <p><b>Здесь нет английской озвучки.</b> ${inApp
+      ? "Сайт открыт внутри приложения (Telegram, ВК или похожего) — их встроенный браузер не умеет произносить слова."
+      : "Этот браузер не умеет произносить слова."}</p>
+    <p class="muted-small">Открой <b>wordcat.ru</b> в Chrome или Safari — там раздел заработает.
+      ${code
+        ? `Пароля у тебя нет и не нужно: на новом месте нажми «Вход» и введи свой личный код.`
+        : `Вход на новом устройстве — по личному коду со страницы «профиль».`}</p>
+    ${code ? `<p class="audio-help-code">Твой код: <b class="code-value">${esc(code)}</b>
+      <button type="button" class="btn btn-ghost btn-small" id="audio-copy">скопировать</button></p>` : ""}
+  </div>`;
+}
+
+/** Кнопка «скопировать» под подсказкой про озвучку. Вешается после
+ *  отрисовки: разметка собирается строкой выше. */
+function wireAudioHelp(root) {
+  const btn = root.querySelector("#audio-copy");
+  if (!btn) return;
+  btn.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(state.restoreCode || "");
+      btn.textContent = "скопировано";
+    } catch (e) {
+      btn.textContent = "выдели и скопируй вручную";
+    }
+  });
+}
+
 function renderPracticeHub() {
   const host = document.getElementById("practice-grid");
   renderTrainLevel();
@@ -647,9 +707,9 @@ function renderPracticeHub() {
     sec.innerHTML = `
       <div class="section-head ex-group-head"><h3>${g.title}</h3></div>
       ${g.note ? `<p class="muted-small ex-group-note">${g.note}</p>` : ""}
-      ${noAudio ? `<p class="muted-small ex-group-note">В этом браузере нет английской озвучки —
-        открой сайт в Chrome или Safari, и раздел заработает.</p>` : ""}
+      ${noAudio ? audioHelpHTML() : ""}
       <div class="ex-grid"></div>`;
+    if (noAudio) wireAudioHelp(sec);
     const grid = sec.querySelector(".ex-grid");
     list.forEach(ex => {
       const card = document.createElement("button");
@@ -745,6 +805,9 @@ function openExercise(id) {
   const EXAM_DATA = {
     wordform: { ready: () => typeof WORD_FORMS !== "undefined", load: ensureWordForms },
     grammar:  { ready: () => typeof GRAMMAR !== "undefined",    load: ensureGrammar },
+    // «Свои предложения» живут в другой группе, но данные им тоже нужны
+    // заранее: проверять грамматику имеет смысл сразу, а не со второго раза.
+    personal: { ready: () => typeof grammarCheck !== "undefined", load: ensureGrammarCheck },
   };
   const need = EXAM_DATA[id];
   if (need && !need.ready()) {
@@ -1140,12 +1203,15 @@ function runType(rounds, opts = {}) {
         : "Не совсем. Правильно: " + (r.sample || r.answer);
       input.disabled = true;
       i++;
-      if (ok) { setTimeout(next, 900); return; }
+      // Верный ответ уезжает сам — кроме длинных: в диктанте засчитывается
+      // от 80% слов, то есть «верно» бывает с опечатками, и их надо увидеть.
+      // Из-за этого экран вёл себя по-разному на разных ответах, и методист
+      // написала «некоторые работают через Дальше, некоторые нет».
+      if (ok && !opts.textarea) { setTimeout(next, 900); return; }
 
-      // ЛЮБАЯ ошибка: экран НЕ угоняем по таймеру. Сравнить свой ответ
-      // с правильным — тоже разбор, и в диктанте, где предложение целиком,
-      // на это не хватало никаких 2,2 секунды (жалоба методиста). Свой
-      // текст остаётся в поле выше — сверяй сколько нужно, потом «Дальше».
+      // Дальше — только по кнопке. Сравнить свой ответ с правильным это
+      // тоже разбор, и в диктанте, где предложение целиком, на него
+      // не хватало никаких 2,2 секунды. Свой текст остаётся в поле выше.
       let anchor = fb;
       if (r.why) {
         const ex = document.createElement("p");
@@ -1287,12 +1353,21 @@ const EX_RUNNERS = {
             msg.textContent = "Верно! " + p.w + " — " + p.t;
             if (typeof catReact === "function") catReact("happy");
             i++; setTimeout(next, 1100);
-          } else {
-            msg.className = "type-feedback err";
-            msg.textContent = "Не так. Правильно: " + p.w;
-            if (typeof catReact === "function") catReact("oops");
-            i++; setTimeout(next, 2000);
+            return;
           }
+          msg.className = "type-feedback err";
+          msg.textContent = "Не так. Правильно: " + p.w + " — " + p.t;
+          if (typeof catReact === "function") catReact("oops");
+          i++;
+          // Экран не угоняем по таймеру: правильный порядок слов надо
+          // сравнить со своим, а двух секунд на это не хватало.
+          const row = document.createElement("div");
+          row.className = "quiz-buttons";
+          row.innerHTML = '<button type="button" class="btn btn-primary" id="bp-next">Дальше →</button>';
+          msg.insertAdjacentElement("afterend", row);
+          const nb = row.querySelector("#bp-next");
+          nb.addEventListener("click", next);
+          nb.focus();
         });
       });
     };
@@ -1561,20 +1636,43 @@ const EX_RUNNERS = {
   listening() {
     const pool = trainPool(6);
     runMCQ(pool.map(p => {
-      const options = shuffled([p.w, ...distractors(p, 3, "w")]);
+      // Варианты с переводом: услышать слово мало, надо ещё понять его.
+      // Раньше стояли голые английские слова, и ученик, разобравший звук,
+      // всё равно не знал, что выбрал (просьба методиста).
+      const wrong = distractors(p, 3, "w");
+      const label = w => {
+        // У правильного слова перевод уже на руках (из словаря ученика),
+        // у ловушек берём из базы. Не нашли — оставляем голое слово.
+        const t = w === p.w ? p.t : ((wordInfo(w) || {}).t || "");
+        return t ? `${w} — ${t}` : w;
+      };
+      const options = shuffled([p.w, ...wrong]).map(label);
       return {
         sub: "Послушай и выбери, что услышал",
         promptHTML: icon("sound", 44),
         audioText: p.w,
         options,
-        correct: options.indexOf(p.w),
+        correct: options.indexOf(label(p.w)),
         statWord: p.w,
       };
     }));
   },
 
   dictation() {
-    const pool = trainPool(3, ["ex"]);
+    // Раньше брались первые три из очереди SRS — очередь детерминированная,
+    // и подход за подходом диктовались ОДНИ И ТЕ ЖЕ три предложения
+    // («вернулась потренироваться, а новых не даёт»). Теперь пул широкий:
+    // весь словарь с примерами плюс предложения своего и соседнего уровня,
+    // а pickFresh следит, чтобы сначала шли ещё не слышанные.
+    const wide = trainPool(60, ["ex"]);
+    const seen = new Set(wide.map(p => p.ex));
+    const lvl = studyLevel();
+    const nextLvl = LEVELS[Math.min(LEVELS.indexOf(lvl) + 1, LEVELS.length - 1)];
+    const extra = [...WORDS[lvl], ...WORDS[nextLvl]]
+      .filter(x => x.ex && !seen.has(x.ex));
+    const all = [...wide, ...extra];
+    if (!all.length) { exFinish(0, 0, "Нужны слова с примерами — добавь пару слов в словарь."); return; }
+    const pool = pickFresh("dict:" + lvl, all, 5, p => p.ex);
     runType(pool.map(p => ({
       sub: "Послушай и напиши предложение",
       promptHTML: icon("listening", 44),
@@ -1620,6 +1718,9 @@ const EX_RUNNERS = {
   synonyms() {
     // Через pickFresh: банк из 60 пар, но раньше шесть случайных из
     // двадцати повторялись каждый второй подход — «одни и те же слова».
+    // Синоним или антоним — жребий на каждом задании, поэтому за подход
+    // встречается и то и другое. Перекос в сторону синонимов намеренный:
+    // антоним школьник подбирает увереннее, синоним — то, чему учим.
     const rounds = pickFresh("syn", SYNONYMS, 6, s => s.w).map(s => {
       const askSyn = Math.random() < 0.6;
       const right = askSyn ? s.syn : s.ant;
@@ -1636,9 +1737,14 @@ const EX_RUNNERS = {
         options,
         correct: options.indexOf(right),
         statWord: s.w,
+        // Разбор с переводами всей тройки. Без него ученик видел
+        // «meticulous → thorough», не понимая ни одного из трёх слов, —
+        // упражнение проверяло везение, а не язык.
+        why: `${s.w} — ${s.ru}. Синоним: ${s.syn} — ${s.synRu}. `
+           + `Антоним: ${s.ant} — ${s.antRu}.`,
       };
     });
-    runMCQ(rounds);
+    runMCQ(rounds, { note: "Синоним — близкое по смыслу слово, антоним — противоположное." });
   },
 
   translate() {
@@ -1692,22 +1798,53 @@ const EX_RUNNERS = {
         fb.textContent = "Не хватает: " + missing.map(p => p.w).join(", ");
         return;
       }
-      award(30);
-      fb.className = "type-feedback ok";
-      // Честно о границе проверки: сами мы видим только, что слова
-      // на месте. Грамматику и естественность разберёт Савелий-ИИ —
-      // кнопкой, а не автоматически: разбор тратит дневной лимит чата,
-      // и решать должен ученик. Без нейросети кнопку не обещаем.
+      // Грамматику смотрим сами — набором правил на частые школьные
+      // ошибки (js/grammarcheck.js). Это не полный разбор языка, поэтому
+      // «замечаний нет» мы формулируем как «явных ошибок не вижу»,
+      // а не «всё верно»: соврать ученику дороже, чем промолчать.
+      const notes = typeof grammarCheck === "function" ? grammarCheck(raw) : [];
       const aiOn = typeof aiKnownOff === "function" && !aiKnownOff()
                 && typeof sendToSavely === "function";
-      fb.textContent = "Все три слова на месте — мур-р!"
-        + (aiOn ? "" : " Я проверил только слова; грамматику покажи репетитору.");
+      if (!notes.length) award(30);          // за чистый текст полная награда
+      else award(15);                        // слова на месте — половина
+      fb.className = "type-feedback " + (notes.length ? "err" : "ok");
+      fb.textContent = notes.length
+        ? `Все три слова на месте, но по грамматике есть замечания (${notes.length}):`
+        : "Все три слова на месте, и явных ошибок я не вижу — мур-р!";
+      // Всё, что появляется после проверки, собираем в один блок и
+      // вставляем разом: insertAdjacentElement("afterend") кладёт каждый
+      // следующий элемент ПЕРЕД предыдущим, и кнопки уезжали выше разбора.
+      const after = document.createElement("div");
+      if (notes.length) {
+        const list = document.createElement("ul");
+        list.className = "gc-list";
+        notes.slice(0, 6).forEach(n => {
+          const li = document.createElement("li");
+          // Через textContent по частям: это текст ученика, в innerHTML
+          // ему делать нечего.
+          const was = document.createElement("s");
+          was.textContent = n.bad;
+          const now = document.createElement("b");
+          now.textContent = n.good;
+          li.append(was, " → ", now, " — " + n.why);
+          list.appendChild(li);
+        });
+        after.appendChild(list);
+      }
+      const tail = document.createElement("p");
+      tail.className = "muted-small";
+      tail.textContent = notes.length
+        ? "Исправь и попробуй написать так же ещё раз — это лучший способ запомнить."
+        : "Проверяю частые ошибки: формы глагола, артикли, окончания, опечатки. "
+          + "Стиль и естественность звучания оценит репетитор.";
+      after.appendChild(tail);
       const row = document.createElement("div");
       row.className = "quiz-buttons";
       row.innerHTML = (aiOn
         ? '<button type="button" class="btn btn-ghost" id="pers-ai">Разбор от Савелия</button>' : "")
         + '<button type="button" class="btn btn-primary" id="pers-next">Дальше →</button>';
-      fb.insertAdjacentElement("afterend", row);
+      after.appendChild(row);
+      fb.insertAdjacentElement("afterend", after);
       document.getElementById("pers-check").disabled = true;
       const finish = () => exFinish(used.length, pool.length);
       row.querySelector("#pers-next").addEventListener("click", finish);
@@ -2056,10 +2193,16 @@ const EX_RUNNERS = {
     const start = topicId => {
       const all = GRAMMAR[topicId] || [];
       const fit = all.filter(x => near.has(x.lvl));
-      // 15 за подход — просьба методиста: 8 не хватало на отработку темы.
-      // Порог "fit достаточно велик" держим в полтора подхода, иначе
-      // на краях (A1) фильтр по уровню оставит одни и те же задания.
-      const pool = pickFresh("gr:" + topicId + ":" + lvl, fit.length >= 20 ? fit : all, 15, r => r.s);
+      // Сколько заданий за подход. Было 8 → 15 (просьба методиста) → 25:
+      // на 15 тема всё ещё не отрабатывалась за подход. Выше не поднимаем:
+      // в банке 32 задания на тему, и если брать почти всё, у pickFresh не
+      // остаётся остатка и следующий подход идёт теми же предложениями.
+      // Фильтр по уровню применяем, только если на уровне набирается вдвое
+      // больше подхода: иначе на краях (A1, B2+) он оставит одни и те же
+      // задания. Длину подхода считаем от того банка, из которого берём.
+      const bank = fit.length >= grammarPerRun(fit.length) * 2 ? fit : all;
+      const perRun = grammarPerRun(bank.length);
+      const pool = pickFresh("gr:" + topicId + ":" + lvl, bank, perRun, r => r.s);
       const topic = GRAMMAR_TOPICS.find(t => t.id === topicId);
       runMCQ(pool.map(r => {
         const options = shuffled(r.o.slice());

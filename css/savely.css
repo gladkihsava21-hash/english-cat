@@ -568,8 +568,28 @@ h3, .section-head h3 {
 }
 .word-card .w-en, .ex-name, .ach-name { font-weight: 700; }
 .word-card .w-en { font-size: var(--text-subheading); letter-spacing: -0.01em; }
+/* Транскрипция под словом. Моноширинным нарочно: знаки МФА в обычном
+   тексте сливаются с буквами, и [ˈæpəl] читается как опечатка. */
+.word-card .w-ipa {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: var(--text-caption);
+  color: var(--ink-soft);
+  margin: 2px 0 4px;
+  min-height: 1em;          /* место занято заранее: карточка не прыгает,
+                               когда транскрипция догрузится отдельным файлом */
+}
 .word-card .w-ru { font-weight: 500; color: var(--ink); }
 .word-card .w-ex { color: var(--ink-soft); font-size: var(--text-caption); }
+
+/* Подсказка перевода под формой добавления слова */
+.add-word-hint {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  flex-wrap: wrap;
+  margin: -12px 0 22px;
+}
+.add-word-hint .chip { cursor: pointer; }
 .w-level {
   background: none;
   border: var(--border-w) solid var(--line-soft);
