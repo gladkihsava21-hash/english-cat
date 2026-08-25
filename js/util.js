@@ -265,6 +265,13 @@ function ensureGrammar() {
   return loadScriptOnce("js/grammar.js");
 }
 
+/** Слова для теста на уровень. Отдельный файл в 4 КБ: тест берёт слова
+ *  не из всего банка, а из отобранных наборов (tools/build-leveltest.py). */
+function ensureLevelTest() {
+  if (typeof LEVEL_TEST_WORDS !== "undefined") return Promise.resolve(true);
+  return loadScriptOnce("js/leveltest.js");
+}
+
 /** Разбор своего текста по правилам — нужен одному упражнению
  *  («Свои предложения»), поэтому грузится по месту. */
 function ensureGrammarCheck() {

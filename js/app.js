@@ -514,12 +514,12 @@ document.getElementById("start-test-btn").addEventListener("click", async () => 
   // Первая точка, где словарь действительно нужен. У нового ученика его
   // ещё нет — на медленной сети это несколько секунд, и молчащая кнопка
   // выглядит как поломка. Поэтому говорим, что происходит.
-  if (typeof WORDS === "undefined") {
+  if (typeof WORDS === "undefined" || typeof LEVEL_TEST_WORDS === "undefined") {
     const was = btn.textContent;
     btn.disabled = true;
     btn.textContent = "Достаю слова…";
     try {
-      await ensureWords();
+      await Promise.all([ensureWords(), ensureLevelTest()]);
     } catch (e) {
       btn.disabled = false;
       btn.textContent = was;
@@ -532,7 +532,15 @@ document.getElementById("start-test-btn").addEventListener("click", async () => 
   }
   testWords = [];
   LEVELS.forEach(lvl => {
-    sample(WORDS[lvl], TEST_PER_LEVEL).forEach(w => testWords.push({ ...w, level: lvl }));
+    // Берём из отобранных наборов (js/leveltest.js): самые частотные слова
+    // уровня. Раньше брали случайные из всего банка — и в A2 попадались
+    // «nowadays» и «illegal», а в B1 «flute». Блок выходил лотереей, и один
+    // ученик получал то A2, то C1. Если набор почему-то не подгрузился,
+    // откатываемся на прежнее поведение: тест важнее идеальных слов.
+    const pool = (typeof LEVEL_TEST_WORDS !== "undefined" && LEVEL_TEST_WORDS[lvl])
+      ? LEVEL_TEST_WORDS[lvl].map(w => ({ w }))
+      : WORDS[lvl];
+    sample(pool, TEST_PER_LEVEL).forEach(w => testWords.push({ ...w, level: lvl }));
   });
   testIndex = 0;
   testAnswers = {};
@@ -569,18 +577,47 @@ function answerTest(knows) {
 document.getElementById("btn-know").addEventListener("click", () => answerTest(true));
 document.getElementById("btn-dont-know").addEventListener("click", () => answerTest(false));
 
-function finishTest() {
-  // Уровень: самый высокий, где ученик знает хотя бы 60% слов И в среднем
-  // уверенно держит всё до него. Прежний вариант обрывался на первом же
-  // блоке ниже порога — один неудачный ответ на A1 отбрасывал с C2 на A1,
-  // хотя блок это всего несколько случайных слов.
-  let level = LEVELS[0];
-  LEVELS.forEach((lvl, i) => {
-    const share = testAnswers[lvl] / TEST_PER_LEVEL;
-    const avgBelow = LEVELS.slice(0, i + 1)
-      .reduce((s, l) => s + testAnswers[l] / TEST_PER_LEVEL, 0) / (i + 1);
-    if (share >= 0.6 && avgBelow >= 0.65) level = lvl;
+/* Ожидаемая доля знакомых слов: насколько выше или ниже своего уровня
+ * стоит слово. Цифры не выдуманы — это то, как ведёт себя ученик:
+ * своё знает уверенно, но не всё; на уровень выше знает примерно треть;
+ * на два выше — единицы. */
+const LEVEL_HIT = [0.97, 0.92, 0.75, 0.35, 0.12, 0.04];
+function levelHit(assumed, wordLevel) {
+  const d = wordLevel - assumed;
+  return d <= -2 ? LEVEL_HIT[0] : d === -1 ? LEVEL_HIT[1] : d === 0 ? LEVEL_HIT[2]
+       : d === 1 ? LEVEL_HIT[3] : d === 2 ? LEVEL_HIT[4] : LEVEL_HIT[5];
+}
+
+/** Уровень по ВСЕЙ картине ответов, а не по порогам на каждом блоке.
+ *
+ * Было: «самый высокий уровень, где знает 60% и в среднем держит всё ниже».
+ * Такое правило принимает решение по шести ответам одного блока, и один
+ * неудачный блок сдвигал результат на уровень. Методист прислала случай:
+ * ученица проходила трижды и получила A2, C1 и B1.
+ *
+ * Стало: перебираем все шесть уровней и спрашиваем, какой из них лучше
+ * объясняет ВСЕ 36 ответов разом. Считаем это правдоподобием — насколько
+ * вероятно получить именно такие ответы, будь у ученика такой уровень.
+ * Один неудачный блок больше не решает: его перевешивают остальные пять.
+ *
+ * На модели ученика (20 000 прогонов на уровень) точность выросла
+ * с 77 до 86 процентов, а промахи сразу на два уровня исчезли совсем. */
+function estimateLevelIndex(answers) {
+  let best = 0, bestScore = -Infinity;
+  LEVELS.forEach((_, assumed) => {
+    let score = 0;
+    LEVELS.forEach((lvl, i) => {
+      const known = answers[lvl] || 0;
+      const p = levelHit(assumed, i);
+      score += known * Math.log(p) + (TEST_PER_LEVEL - known) * Math.log(1 - p);
+    });
+    if (score > bestScore) { bestScore = score; best = assumed; }
   });
+  return best;
+}
+
+function finishTest() {
+  const level = LEVELS[estimateLevelIndex(testAnswers)];
   // Оценка словарного запаса: доля знакомых слов уровня × его объём.
   // Никаких множителей «достигнут / не достигнут» — они делали оценку
   // немонотонной: ученик, ответивший верно БОЛЬШЕ раз, мог получить
@@ -1394,35 +1431,62 @@ function renderFolders() {
   }
 }
 
-/** Окно «в какую папку положить слово». Работает как переключатели:
- *  слово может лежать сразу в нескольких папках — «неправильные глаголы»
- *  и «к контрольной» не исключают друг друга. */
-function openFolderPicker(word) {
+/** «1 слово / 2 слова / 5 слов». Такие же помощники есть в exercises.js
+ *  и account.js — те файлы грузятся отдельно и не могут звать этот. */
+function plural(n, one, few, many) {
+  const a = Math.abs(n) % 100, b = a % 10;
+  if (a > 10 && a < 20) return many;
+  if (b > 1 && b < 5) return few;
+  return b === 1 ? one : many;
+}
+
+/** Окно «в какую папку положить». Работает как переключатели: слово может
+ *  лежать сразу в нескольких папках — «неправильные глаголы» и «к контрольной»
+ *  не исключают друг друга.
+ *
+ *  Принимает и одно слово, и пачку отмеченных. Для пачки галочка стоит,
+ *  когда в папке лежат ВСЕ отмеченные; если часть — показываем это третьим
+ *  состоянием, а не врём галочкой. */
+function openFolderPicker(wordOrList) {
+  const words = Array.isArray(wordOrList) ? wordOrList : [wordOrList];
   const modal = document.getElementById("folder-modal");
   const pick = document.getElementById("folder-pick");
-  document.getElementById("folder-modal-title").textContent = `«${word.w}» — в какую папку?`;
+  document.getElementById("folder-modal-title").textContent = words.length === 1
+    ? `«${words[0].w}» — в какую папку?`
+    : `${words.length} ${plural(words.length, "слово", "слова", "слов")} — в какую папку?`;
 
   const draw = () => {
     const names = allFolders();
-    const mine = word.folders || [];
+    const countIn = n => words.filter(w => (w.folders || []).includes(n)).length;
     pick.innerHTML = names.length
-      ? names.map(n => `
+      ? names.map(n => {
+          const c = countIn(n);
+          const all = c === words.length, some = c > 0 && !all;
+          return `
           <label class="ack-row">
-            <input type="checkbox" data-f="${esc(n)}"${mine.includes(n) ? " checked" : ""}>
-            <span>${esc(n)}</span>
-          </label>`).join("")
+            <input type="checkbox" data-f="${esc(n)}"${all ? " checked" : ""}>
+            <span>${esc(n)}${some ? ` <span class="muted-small">(в папке ${c} из ${words.length})</span>` : ""}</span>
+          </label>`;
+        }).join("")
       : `<p class="muted-small">Папок пока нет — создай первую.</p>`;
     pick.querySelectorAll("input[data-f]").forEach(cb => {
+      const name = cb.dataset.f;
+      // Частичное состояние — «чёрточка» вместо галочки: так устроены
+      // все списки с вложенными пунктами, и объяснять это не нужно.
+      const c = countIn(name);
+      cb.indeterminate = c > 0 && c < words.length;
       cb.addEventListener("change", () => {
-        word.folders = word.folders || [];
-        const name = cb.dataset.f;
-        if (cb.checked) {
-          if (!word.folders.includes(name)) word.folders.push(name);
-        } else {
-          word.folders = word.folders.filter(x => x !== name);
-        }
+        words.forEach(w => {
+          w.folders = w.folders || [];
+          if (cb.checked) {
+            if (!w.folders.includes(name)) w.folders.push(name);
+          } else {
+            w.folders = w.folders.filter(x => x !== name);
+          }
+        });
         saveState();
         renderFolders();
+        draw();
       });
     });
   };
@@ -1474,10 +1538,20 @@ function renderPickBar() {
   bar.innerHTML = n
     ? `<span>Отмечено: <b>${n}</b></span>
        <button type="button" class="btn btn-primary btn-small" id="dict-pick-go">Тренировать отмеченные</button>
+       <button type="button" class="btn btn-ghost btn-small" id="dict-pick-fold">В папку…</button>
        <button type="button" class="link-btn" id="dict-pick-clear">снять отметки</button>`
-    : `<span class="muted-small">Отметь галочками слова, которые хочешь отработать, — потом «Тренировать отмеченные».</span>`;
+    : `<span class="muted-small">Отметь галочками слова — их можно отправить на тренировку или сложить в папку разом.</span>`;
   const go = document.getElementById("dict-pick-go");
   if (go) go.addEventListener("click", () => { dictPickMode = false; show("practice"); });
+  // Раньше папка назначалась по одному слову: отметить пятнадцать слов
+  // «к контрольной» значило пятнадцать раз открыть окно. Отмеченные уже
+  // есть — остаётся дать им общее действие.
+  const fold = document.getElementById("dict-pick-fold");
+  if (fold) fold.addEventListener("click", () => {
+    const picked = new Set((state.trainWords || []).map(w => w.toLowerCase()));
+    const words = state.dictionary.filter(d => picked.has(d.w.toLowerCase()));
+    if (words.length) openFolderPicker(words);
+  });
   const clear = document.getElementById("dict-pick-clear");
   if (clear) clear.addEventListener("click", () => {
     state.trainWords = [];

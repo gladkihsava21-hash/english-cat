@@ -37,7 +37,7 @@ def current():
 # В офлайн-кэш они обязаны попасть всё равно — иначе в самолёте у ученика
 # откроется упражнение без заданий.
 LAZY = ["js/words.js", "js/phrases.js", "js/wordform.js", "js/grammar.js",
-        "js/ipa.js", "js/grammarcheck.js"]
+        "js/ipa.js", "js/grammarcheck.js", "js/leveltest.js"]
 
 
 def assets_from_pages():
