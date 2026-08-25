@@ -25,6 +25,14 @@ function srsDatePlus(days) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+/** Сколько дней прошло с даты. Ноль — сегодня, отрицательного не бывает:
+ *  дату из будущего в словаре взять неоткуда, а если она там окажется
+ *  (перевели часы, сбилось время), считаем её сегодняшней. */
+function srsDaysSince(iso) {
+  if (!iso) return null;
+  return Math.max(0, -srsDaysUntil(String(iso).slice(0, 10)));
+}
+
 function srsDaysUntil(iso) {
   if (!iso) return 0;
   const [y, m, d] = iso.split("-").map(Number);
@@ -109,12 +117,33 @@ function srsQueue(dictionary, limit = 10) {
   const today = srsToday();
   const overdue = [], fresh = [], future = [];
 
+  // Слова, добавленные вручную на днях, — отдельная стопка.
+  //
+  // Учитель выписала с урока пятнадцать слов и пошла тренироваться,
+  // а тренировка выдала повторы старых: в очереди просроченные всегда
+  // шли первыми, и новое слово ждало своей очереди сутками. Человек
+  // добавляет слово ровно затем, чтобы учить его СЕЙЧАС, — значит
+  // первый показ должен быть сразу, а расписание повторов начнётся
+  // уже после него.
+  //
+  // Порог по дате: слова без addedAt (все, кто в словаре до этой
+  // правки) ведут себя как раньше — молча менять порядок у тех, кто
+  // уже занимается, нельзя.
+  const recent = [];
+  const RECENT_DAYS = 7;
   dictionary.forEach(d => {
     const neverSeen = !d.seen && !d.reps && (d.knew || 0) === 0 && (d.forgot || 0) === 0;
-    if (neverSeen) { fresh.push(d); return; }
+    if (neverSeen) {
+      const days = d.addedAt ? srsDaysSince(d.addedAt) : null;
+      if (days !== null && days <= RECENT_DAYS) recent.push(d);
+      else fresh.push(d);
+      return;
+    }
     if (!d.due || d.due <= today) { overdue.push(d); return; }
     future.push(d);
   });
+  // самое свежее — первым: последнее добавленное слово помнится хуже всего
+  recent.sort((a, b) => String(b.addedAt).localeCompare(String(a.addedAt)));
 
   overdue.sort((a, b) => {
     const byDue = srsDaysUntil(a.due || today) - srsDaysUntil(b.due || today);
@@ -130,9 +159,14 @@ function srsQueue(dictionary, limit = 10) {
   const newQuota = Math.max(1, Math.round(limit * 0.3));
   const takeFresh = fresh.slice(0, Math.min(newQuota, fresh.length));
   const rest = [...overdue, ...fresh.slice(takeFresh.length), ...future];
-  const out = [...overdue.slice(0, Math.max(0, limit - takeFresh.length)), ...takeFresh];
+  // Только что добавленные идут ПЕРЕД просроченными. Повторы от этого
+  // не теряются: они следом, и как только новые слова показаны по разу,
+  // очередь возвращается к обычному порядку.
+  const out = [...recent,
+               ...overdue.slice(0, Math.max(0, limit - recent.length - takeFresh.length)),
+               ...takeFresh];
   // добираем, если просроченных и новых не хватило на полный подход
-  for (const d of rest) {
+  for (const d of [...rest, ...recent]) {
     if (out.length >= limit) break;
     if (!out.includes(d)) out.push(d);
   }

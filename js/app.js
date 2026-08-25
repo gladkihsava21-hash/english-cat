@@ -1222,6 +1222,10 @@ function addToDictionary(word) {
   const rec = {
     w: word.w, t: word.t, ex: word.ex || "", level: word.level || state.level,
     status: "new", knew: 0, forgot: 0,
+    // Дата добавления. По ней очередь повторений пускает свежие слова
+    // вперёд: человек добавил слово, чтобы учить его сейчас, а не через
+    // неделю, когда до него дойдёт очередь (см. srsQueue).
+    addedAt: new Date().toISOString().slice(0, 10),
   };
   if (typeof srsInit === "function") srsInit(rec);
   state.dictionary.push(rec);
@@ -1235,6 +1239,11 @@ document.querySelectorAll(".dict-filter").forEach(btn => {
   btn.addEventListener("click", () => {
     dictFilter = btn.dataset.f;
     document.querySelectorAll(".dict-filter").forEach(b => b.classList.toggle("active", b === btn));
+    // Подпись кнопки честно говорит, что уедет в тренировку: молчаливое
+    // изменение поведения кнопки — это ловушка, а не удобство.
+    const LABEL = { all: "Тренировать →", new: "Тренировать новые →",
+                    learning: "Тренировать те, что учу →", learned: "Повторить выученное →" };
+    document.getElementById("train-btn").textContent = LABEL[dictFilter] || LABEL.all;
     renderDictionary();
   });
 });
@@ -1691,7 +1700,27 @@ document.getElementById("add-word-form").addEventListener("submit", e => {
   renderDictionary();
 });
 
-document.getElementById("train-btn").addEventListener("click", () => show("practice"));
+/* «Тренировать →» уважает выбранный фильтр.
+ *
+ * Учитель отобрала пятнадцать слов с урока, нажала «новые» и пошла
+ * тренироваться — а система выдала повторы старых. Кнопка молча
+ * тренировала ВЕСЬ словарь, и связи между тем, что человек видит
+ * на экране, и тем, что он получит, не было никакой.
+ *
+ * Теперь показанное на экране и есть то, что будет в тренировке.
+ * Фильтр «все» работает как раньше — весь словарь. */
+document.getElementById("train-btn").addEventListener("click", () => {
+  // Кнопка ВСЕГДА приводит отбор в соответствие с тем, что на экране.
+  // Иначе так: отобрал «новые», потренировался, через день вернулся,
+  // нажал «Тренировать →» при фильтре «все» — и снова получил те же
+  // пятнадцать слов, потому что старый отбор молча пережил сессию.
+  const words = dictFilter === "all" ? [] : state.dictionary
+    .filter(d => d.status === dictFilter)
+    .map(d => d.w.toLowerCase());
+  state.trainWords = words;
+  saveState();
+  show("practice");
+});
 
 // ===== Тренажёр-карточки =====
 let trainQueue = [];

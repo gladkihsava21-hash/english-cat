@@ -116,6 +116,15 @@ function renderAccount() {
 
 /* ---------- отрисовка ---------- */
 
+/** Русское множественное: 1 слово, 2 слова, 5 слов. */
+function pluralRuAc(n, one, few, many) {
+  const a = Math.abs(n) % 100, b = a % 10;
+  if (a > 10 && a < 20) return many;
+  if (b > 1 && b < 5) return few;
+  if (b === 1) return one;
+  return many;
+}
+
 /** Дата по-человечески: «12 августа 2026».
  *  Хвост «г.» убираем: он у нас всегда встаёт перед точкой предложения
  *  и даёт «12 августа 2026 г..» — две точки подряд. */
@@ -140,7 +149,7 @@ function paintAccount(note) {
 
   lead.textContent = note || (online
     ? "Здесь твоё имя, вход по почте и паролю, личный код и уровень."
-    : "Ты занимаешься без репетитора: прогресс живёт только в этом браузере, личного кода нет.");
+    : "Прогресс живёт только в этом браузере. Ниже — как сохранить его и входить с любого устройства.");
   lead.classList.toggle("ac-lead-warn", !!note);
 
   box.innerHTML = [
@@ -164,7 +173,41 @@ function paintAccount(note) {
  * вошёл, и дальше входить обычным способом. Личный код при этом остаётся
  * рабочим: две двери в один аккаунт. */
 function acPasswordCard(p, online) {
-  if (!online) return "";
+  // Аккаунт живёт ТОЛЬКО в этом браузере: на сервере его нет вовсе.
+  // Так заведены все, кто регистрировался до появления настоящих
+  // аккаунтов-одиночек, — у них нет ни токена, ни личного кода, ни
+  // возможности войти с другого устройства. Методист написала прямо:
+  // «начала добавлять слова, а зайти с телефона не могу».
+  // Поэтому здесь не отказ, а выход: заводим настоящий аккаунт и
+  // отправляем на сервер уже накопленный прогресс.
+  if (!online) {
+    const words = (state.dictionary || []).length;
+    return `
+      <section class="card ac-card">
+        <h3 class="ac-h">${iconInline("lock", 18)} Вход с другого устройства</h3>
+        <p class="ac-note">Сейчас твой прогресс лежит только в этом браузере:
+          ${words ? `${words} ${pluralRuAc(words, "слово", "слова", "слов")}` : "словарь"},
+          очки и награды. Почисти историю — и всё пропадёт.
+          Заведи вход по почте и паролю: прогресс уедет на сервер,
+          и ты откроешь его на телефоне и компьютере.</p>
+        <label class="ac-field">Почта
+          <input type="email" id="ac-email" autocomplete="email"
+                 value="${esc(p.email || "")}" placeholder="you@example.com">
+        </label>
+        <label class="ac-field">Пароль
+          <span class="pass-field">
+            <input type="password" id="ac-password" minlength="8"
+                   autocomplete="new-password" placeholder="хотя бы 8 символов">
+            <button type="button" class="pass-eye" data-eye="ac-password"
+                    aria-label="Показать пароль" aria-pressed="false"></button>
+          </span>
+        </label>
+        <div class="ac-actions">
+          <button type="button" class="btn btn-primary btn-small" id="ac-claim">Сохранить прогресс</button>
+        </div>
+        <p class="ac-note" id="ac-pass-msg" role="status" aria-live="polite"></p>
+      </section>`;
+  }
   const has = !!p.hasPassword;
   return `
     <section class="card ac-card">
@@ -344,6 +387,40 @@ function acMsg(id, text, kind) {
 
 function wireAccount(online) {
   const $ = id => document.getElementById(id);
+
+  // --- завести настоящий аккаунт из локального ---
+  const claim = $("ac-claim");
+  if (claim) {
+    claim.addEventListener("click", async () => {
+      const msg = $("ac-pass-msg");
+      const email = $("ac-email").value.trim();
+      const password = $("ac-password").value;
+      msg.className = "ac-note";
+      if (!email) { msg.textContent = "Нужна почта — по ней будешь входить."; return; }
+      if (password.length < 8) { msg.textContent = "Пароль — хотя бы 8 символов."; return; }
+      if (typeof registerStandalone !== "function") {
+        msg.textContent = "Нет связи с сервером. Попробуй позже — прогресс никуда не денется.";
+        return;
+      }
+      claim.disabled = true;
+      msg.textContent = "Сохраняю…";
+      const name = (state.user && state.user.name) || "Ученик";
+      // Аккаунт создаётся на сервере, а pushProgress внутри отправляет
+      // ВЕСЬ накопленный словарь — ничего не теряется.
+      const ok = await registerStandalone(name, email, password);
+      claim.disabled = false;
+      if (!ok) {
+        msg.textContent = "Не получилось. Возможно, на эту почту уже есть аккаунт — тогда войди на странице входа.";
+        return;
+      }
+      // Перерисовка стирает это сообщение вместе со всей карточкой,
+      // поэтому подтверждение уходит в подводку экрана — она переживает
+      // перерисовку и человек видит, что всё получилось.
+      loadAccount();
+      paintAccount("Готово! Прогресс сохранён на сервере. Теперь входи почтой и паролем "
+                 + "с любого устройства — а личный код ниже работает как запасной ключ.");
+    });
+  }
 
   // --- пароль ---
   const savePass = $("ac-save-pass");
