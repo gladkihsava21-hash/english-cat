@@ -521,3 +521,28 @@
   .ts-gap-row { grid-template-columns: 1fr; }
   .ts-item-pair { flex-wrap: wrap; }
 }
+
+/* ===== QR со ссылкой для учеников =====
+   Код и пояснение стоят рядом: сам по себе чёрный квадрат ничего
+   не объясняет, а репетитору важно понимать, что показывать ученикам. */
+.invite-qr {
+  display: flex; align-items: center; gap: 22px; flex-wrap: wrap;
+  margin: 18px 0 4px; padding: 18px;
+  background: var(--surface-alt); border-radius: var(--radius-card);
+}
+.qr-box {
+  width: 188px; height: 188px; flex: none;
+  background: #fff; border-radius: 12px; padding: 10px;
+  box-shadow: 0 2px 10px rgba(43, 54, 48, .10);
+}
+.qr-box svg { display: block; width: 100%; height: 100%; }
+.qr-side { flex: 1 1 260px; display: flex; flex-direction: column; gap: 8px; }
+.qr-lead { font-weight: 900; font-size: var(--text-body); }
+.qr-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
+
+/* На телефоне репетитора код уезжает под текст — ставим его первым
+   и во всю ширину, иначе он ужимается до нечитаемого. */
+@media (max-width: 560px) {
+  .invite-qr { gap: 14px; }
+  .qr-box { width: 100%; height: auto; aspect-ratio: 1; }
+}

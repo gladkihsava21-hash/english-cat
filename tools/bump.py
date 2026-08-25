@@ -82,6 +82,19 @@ def check_banks():
     return r.returncode == 0
 
 
+def check_qr():
+    """QR-код рисуем сами, без библиотек. Сломанный код выглядит нормально
+    и не читается только телефоном ученика — поэтому его читают обратно
+    детектором на каждой выкладке."""
+    script = ROOT / "tools" / "check-qr.py"
+    if not script.exists():
+        return True
+    r = subprocess.run([sys.executable, str(script)], capture_output=True, text=True)
+    sys.stdout.write(r.stdout)
+    sys.stderr.write(r.stderr)
+    return r.returncode == 0
+
+
 def main():
     if not validate_state():
         print()
@@ -90,6 +103,10 @@ def main():
     if not check_banks():
         print()
         print("Версия НЕ поднята: сначала почините банки заданий.")
+        return 1
+    if not check_qr():
+        print()
+        print("Версия НЕ поднята: QR-код не читается.")
         return 1
 
     ver = int(sys.argv[1]) if len(sys.argv) > 1 else current() + 1

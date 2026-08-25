@@ -780,7 +780,88 @@ function renderInvite() {
   const url = location.origin + location.pathname.replace(/tutor\.html$/, "index.html") + "?join=" + tutor.inviteCode;
   $("invite-url").value = url;
   $("invite-code").textContent = tutor.inviteCode;
+  renderInviteQr(url);
 }
+
+/** QR со ссылкой приглашения. Рисуем сами (js/qr.js) — ссылка с кодом
+ *  никуда не уходит, и панель продолжает работать без интернета. */
+function renderInviteQr(url) {
+  const box = $("invite-qr");
+  if (!box || typeof qrSvg !== "function") return;
+  box.innerHTML = qrSvg(url, { level: "Q" });
+  box.dataset.url = url;
+}
+
+/** Картинкой — чтобы вставить в презентацию или отправить родителям.
+ *  Векторный SVG переводим в PNG через canvas: PNG открывается везде,
+ *  включая старые мессенджеры, которые SVG показывать не умеют. */
+function qrToPng(url, size, done) {
+  const svg = qrSvg(url, { level: "Q" });
+  const img = new Image();
+  const blob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
+  const src = URL.createObjectURL(blob);
+  img.onload = () => {
+    const canvas = document.createElement("canvas");
+    canvas.width = canvas.height = size;
+    const ctx = canvas.getContext("2d");
+    ctx.imageSmoothingEnabled = false;      // модули должны остаться резкими
+    ctx.fillStyle = "#FFFFFF";
+    ctx.fillRect(0, 0, size, size);
+    ctx.drawImage(img, 0, 0, size, size);
+    URL.revokeObjectURL(src);
+    canvas.toBlob(done, "image/png");
+  };
+  img.onerror = () => { URL.revokeObjectURL(src); done(null); };
+  img.src = src;
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  const save = $("qr-save"), print = $("qr-print");
+  if (save) save.addEventListener("click", () => {
+    const url = $("invite-qr").dataset.url;
+    if (!url) return;
+    qrToPng(url, 1000, blob => {
+      if (!blob) return;
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "wordcat-qr-" + (tutor && tutor.inviteCode ? tutor.inviteCode : "invite") + ".png";
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    });
+  });
+
+  // Печать: отдельное окно с крупным кодом и подписью. Печатать саму
+  // панель нельзя — на лист уедут таблицы, кнопки и меню.
+  if (print) print.addEventListener("click", () => {
+    const url = $("invite-qr").dataset.url;
+    if (!url) return;
+    const w = window.open("", "_blank", "width=720,height=900");
+    if (!w) return;
+    const name = (tutor && tutor.name) ? esc(tutor.name) : "";
+    w.document.write(`<!DOCTYPE html><html lang="ru"><head><meta charset="UTF-8">
+      <title>QR для учеников</title><style>
+        @page { margin: 18mm; }
+        body { font-family: system-ui, sans-serif; color: #24302A; text-align: center;
+               display: flex; flex-direction: column; align-items: center; gap: 18px; padding: 24px; }
+        h1 { font-size: 30px; margin: 0; }
+        p { margin: 0; font-size: 17px; color: #5A665E; max-width: 46ch; line-height: 1.5; }
+        .qr { width: 320px; height: 320px; }
+        .url { font-family: ui-monospace, monospace; font-size: 15px; word-break: break-all; }
+        .code { font-size: 26px; font-weight: 700; letter-spacing: .1em; }
+      </style></head><body>
+      <h1>Английский с котом Савелием</h1>
+      <p>Наведи камеру телефона на код — откроется регистрация${name ? " у репетитора " + name : ""}.
+         Имя, и можно заниматься.</p>
+      <div class="qr">${qrSvg(url, { level: "Q" })}</div>
+      <p class="code">${esc(tutor && tutor.inviteCode ? tutor.inviteCode : "")}</p>
+      <p class="url">${esc(url)}</p>
+      </body></html>`);
+    w.document.close();
+    // Печать зовём после отрисовки: без задержки часть браузеров
+    // печатает пустой лист.
+    setTimeout(() => { w.focus(); w.print(); }, 350);
+  });
+});
 
 $("copy-link").addEventListener("click", () => {
   const input = $("invite-url");

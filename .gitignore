@@ -9,3 +9,4 @@ demo.db*
 tools/out/contact-sheet-*.jpg
 savely-data/
 tools/cache/
+tools/out/qr-*.png

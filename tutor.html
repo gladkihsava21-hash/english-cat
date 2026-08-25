@@ -32,7 +32,7 @@
   <meta name="twitter:card" content="summary_large_image">
   <link rel="preload" href="css/fonts/nunito-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="css/fonts/inter-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="css/fonts.css?v=172">
+  <link rel="stylesheet" href="css/fonts.css?v=173">
   <!-- Тему ставим ДО первой отрисовки, отдельным крошечным скриптом.
        Всё остальное грузится с defer, а defer выполняется после разбора
        страницы — то есть уже после того, как браузер её покажет. Если
@@ -48,13 +48,13 @@
       document.documentElement.dataset.theme = t;
     } catch (e) { /* приватный режим — просто останется дневная */ }
   </script>
-  <link rel="stylesheet" href="css/tokens.css?v=172">
-  <link rel="stylesheet" href="css/style.css?v=172">
-  <link rel="stylesheet" href="css/savely.css?v=172">
-  <link rel="stylesheet" href="css/tutor.css?v=172">
-<link rel="stylesheet" href="css/motion.css?v=172">
-<link rel="stylesheet" href="css/a11y.css?v=172">
-<link rel="stylesheet" href="css/cat.css?v=172">
+  <link rel="stylesheet" href="css/tokens.css?v=173">
+  <link rel="stylesheet" href="css/style.css?v=173">
+  <link rel="stylesheet" href="css/savely.css?v=173">
+  <link rel="stylesheet" href="css/tutor.css?v=173">
+<link rel="stylesheet" href="css/motion.css?v=173">
+<link rel="stylesheet" href="css/a11y.css?v=173">
+<link rel="stylesheet" href="css/cat.css?v=173">
 </head>
 <body>
 
@@ -470,6 +470,25 @@
           <button class="btn btn-primary" id="copy-link">Скопировать ссылку</button>
         </div>
         <p class="muted-small">Код приглашения: <b id="invite-code"></b></p>
+
+        <!-- QR на ту же ссылку. На занятии это быстрее любого чата:
+             показали с экрана — ученики навели телефоны и уже внутри.
+             Рисуется на месте (js/qr.js), никаких сторонних сервисов:
+             ссылка с кодом приглашения никуда не уходит. -->
+        <div class="invite-qr">
+          <div class="qr-box" id="invite-qr" aria-label="QR-код со ссылкой для учеников"></div>
+          <div class="qr-side">
+            <p class="qr-lead">Или покажите QR</p>
+            <p class="muted-small">Ученик наводит камеру телефона — и попадает
+              сразу на регистрацию у&nbsp;вас. Удобно на занятии и на родительском
+              собрании.</p>
+            <div class="qr-actions">
+              <button class="btn btn-ghost btn-small" id="qr-print">Распечатать</button>
+              <button class="btn btn-ghost btn-small" id="qr-save">Скачать картинкой</button>
+            </div>
+          </div>
+        </div>
+
         <p class="muted-small">Ученику не&nbsp;нужно ничего устанавливать, придумывать пароль
           и&nbsp;платить — занятия для него бесплатны. Подписку оплачиваете только вы.</p>
       </div>
@@ -591,21 +610,22 @@
     <a href="https://t.me/KOTSAVELII" target="_blank" rel="noopener">@KOTSAVELII</a></p>
 </footer>
 
-<script defer src="js/theme.js?v=172"></script>
-<script defer src="js/icons.js?v=172"></script>
-<script defer src="js/cat.js?v=172"></script>
-<script defer src="js/motion.js?v=172"></script>
-<script defer src="js/util.js?v=172"></script>
-<script defer src="js/levels.js?v=172"></script>
+<script defer src="js/theme.js?v=173"></script>
+<script defer src="js/icons.js?v=173"></script>
+<script defer src="js/cat.js?v=173"></script>
+<script defer src="js/motion.js?v=173"></script>
+<script defer src="js/util.js?v=173"></script>
+<script defer src="js/levels.js?v=173"></script>
 <!-- js/words.js здесь НЕТ намеренно. Это 326 КБ сжатыми, а на экране
      входа словарь не нужен вообще: он нужен только внутри панели, чтобы
      собрать домашку. Подгружается в openPanel через ensureWords(). -->
-<script defer src="js/images.js?v=172"></script>
-<script defer src="js/word-photos.js?v=172"></script>
-<script defer src="js/tutor.js?v=172"></script>
-<script defer src="js/tutor-tasks.js?v=172"></script>
-<script defer src="js/tutor-photos.js?v=172"></script>
-<script defer src="js/tutor-auth.js?v=172"></script>
-<script defer src="js/tutor-verify.js?v=172"></script>
+<script defer src="js/images.js?v=173"></script>
+<script defer src="js/word-photos.js?v=173"></script>
+<script defer src="js/qr.js?v=173"></script>
+<script defer src="js/tutor.js?v=173"></script>
+<script defer src="js/tutor-tasks.js?v=173"></script>
+<script defer src="js/tutor-photos.js?v=173"></script>
+<script defer src="js/tutor-auth.js?v=173"></script>
+<script defer src="js/tutor-verify.js?v=173"></script>
 </body>
 </html>
