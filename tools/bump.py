@@ -113,8 +113,14 @@ def main():
 
     for page in PAGES:
         p = ROOT / page
-        p.write_text(re.sub(r"\?v=\d+", f"?v={ver}", p.read_text(encoding="utf-8")),
-                     encoding="utf-8")
+        text = p.read_text(encoding="utf-8")
+        text = re.sub(r"\?v=\d+", f"?v={ver}", text)
+        # Версия для файлов, которые подставляет код, а не разметка:
+        # ролик на экране регистрации грузится из js/app.js, и без этого
+        # он оставался в кэше браузера прежним — правку текста в ролике
+        # зрители не видели неделю.
+        text = re.sub(r'data-v="\d+"', f'data-v="{ver}"', text)
+        p.write_text(text, encoding="utf-8")
 
     assets = assets_from_pages()
     # Без ?v= : обработчик fetch кладёт в кэш то, что реально запрошено,

@@ -432,8 +432,14 @@ document.addEventListener("DOMContentLoaded", () => {
   if (!play || !box) return;
   play.addEventListener("click", () => {
     const v = document.createElement("video");
-    v.src = "video/tour.mp4";
-    v.poster = "video/tour-poster.jpg";
+    // Версию берём из разметки (data-v на блоке), а её проставляет
+    // tools/bump.py вместе со всей статикой. Без этого перевыпущенный
+    // ролик не доезжал: сервис-воркер видео не трогает, но HTTP-кэш
+    // браузера держит старый файл — методист неделю смотрела прошлую
+    // версию и сообщала об уже исправленном тексте.
+    const ver = box.dataset.v ? "?v=" + box.dataset.v : "";
+    v.src = "video/tour.mp4" + ver;
+    v.poster = "video/tour-poster.jpg" + ver;
     v.controls = true;
     v.playsInline = true;                 // иначе iPhone открывает во весь экран
     v.preload = "auto";
