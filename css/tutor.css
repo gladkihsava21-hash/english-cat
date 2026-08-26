@@ -581,7 +581,10 @@
   overflow-y: hidden;
   scrollbar-width: none;              /* полосу прокрутки прячем: строка узкая */
   padding: 4px 2px;
-  scroll-behavior: smooth;
+  /* Плавность прокрутки НЕ здесь, а в js/tutor-nav.js отдельным вызовом.
+     С правилом scroll-behavior: smooth программная установка scrollLeft
+     просто не срабатывала — полоса оставалась на месте, и выбранный
+     раздел за краем экрана так и не показывался. */
   /* Края подтаивают — так видно, что строка продолжается за границей */
   -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 18px,
                       #000 calc(100% - 18px), transparent 100%);
@@ -657,8 +660,50 @@
    переставляется, разделы появляются без подъёма. */
 @media (prefers-reduced-motion: reduce) {
   .nav-marker { transition: none; }
-  .nav-strip { scroll-behavior: auto; }
   .tab-enter { animation: none; }
   .tutor-body .nav-btn:hover { transform: none; }
   .tutor-body .nav-btn .badge.pop { animation: none; }
+}
+
+/* --------------------------------------------------------------------------
+   Телефон: у панели репетитора СВОЯ навигация, не ученическая
+   --------------------------------------------------------------------------
+   На узком экране .topbar .nav у сайта ученика превращается в нижнюю
+   панель на пять равных кнопок — и это правильно ровно для пяти пунктов.
+   У репетитора их десять: они слипались в кашу, подписи наезжали друг
+   на друга и не читались вовсе.
+
+   Поэтому здесь панель остаётся строкой сверху и просто листается вбок,
+   как на большом экране. Репетитор работает за ноутбуком, а с телефона
+   заходит посмотреть — листнуть строку ему проще, чем искать раздел
+   среди десяти слипшихся значков. */
+@media (max-width: 820px) {
+  .tutor-body .topbar .nav {
+    position: static;
+    display: block;
+    padding: 0;
+    background: none;
+    backdrop-filter: none;
+    border-top: 0;
+    z-index: auto;
+  }
+  .tutor-body .topbar .nav-btn {
+    flex: none;                       /* иначе кнопки сжимаются в кашу */
+    min-width: auto;
+    text-align: left;
+    padding: 9px 12px;
+    /* Иконка слева от подписи, а не над ней: «столбиком» — раскладка
+       ученической нижней панели, где пять кнопок делят ширину поровну.
+       Здесь строка листается, и высокие двухэтажные кнопки только
+       съедают экран. */
+    flex-direction: row;
+    gap: var(--space-8, 8px);
+  }
+  .tutor-body .topbar .nav-btn .nav-label { font-size: 13px; }
+  /* Счётчик возвращается в строку: в ученической панели он висел
+     уголком над иконкой, здесь для этого нет второго этажа. */
+  .tutor-body .topbar .nav-btn .badge { position: static; margin-left: 0; }
+  /* Отступ под нижнюю панель ученика тут не нужен: её нет */
+  .tutor-body main { padding-bottom: var(--space-24, 24px); }
+  .tutor-body .site-footer { margin-bottom: 0; }
 }
