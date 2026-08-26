@@ -100,16 +100,26 @@
 }
 
 /* ---------- инструменты слева ---------- */
-.bd-tools {
+/* Док слева: инструменты и их настройки одним блоком. Настройки
+   отделены линией, а не отдельной плашкой — так видно, что цвет
+   относится к выбранному инструменту, а не живёт сам по себе. */
+.bd-dock {
   position: fixed;
   left: 12px; top: 50%;
   transform: translateY(-50%);
-  display: flex; flex-direction: column; gap: 6px;
+  display: flex; flex-direction: column;
   background: var(--surface);
   border: 1px solid var(--line-control);
-  border-radius: 14px;
+  border-radius: 16px;
   padding: 8px;
   z-index: 20;
+  box-shadow: 0 6px 20px rgba(43, 54, 48, .10);
+  /* Ниже шапки и выше нижней панели: доска остаётся видимой целиком */
+  max-height: calc(100vh - 130px);
+  overflow-y: auto;
+}
+.bd-tools {
+  display: flex; flex-direction: column; gap: 4px;
 }
 .bd-tool {
   width: 44px; height: 44px;
@@ -130,17 +140,21 @@
 
 /* ---------- цвет и толщина ---------- */
 .bd-style {
-  position: fixed;
-  left: 74px; top: 50%;
-  transform: translateY(-50%);
   display: flex; flex-direction: column; gap: 10px;
-  background: var(--surface);
-  border: 1px solid var(--line-control);
-  border-radius: 14px;
-  padding: 10px 8px;
-  z-index: 20;
+  margin-top: 8px; padding-top: 10px;
+  border-top: 1px solid var(--line-soft);
 }
-.bd-colors, .bd-sizes { display: flex; flex-direction: column; gap: 6px; }
+/* У ластика и выделения настраивать нечего — панель просто уходит */
+.bd-style[hidden] { display: none; }
+/* Цвета — в два столбца, толщина — в ряд. В одну колонку панель
+   с ручкой вырастала на весь экран и налезала на шапку доски. */
+.bd-colors {
+  display: grid; grid-template-columns: repeat(2, 26px);
+  gap: 6px; justify-content: center;
+}
+.bd-sizes { display: flex; gap: 4px; justify-content: center; }
+.bd-swatch { width: 26px; height: 26px; }
+.bd-size { width: 24px; height: 24px; }
 .bd-swatch {
   width: 30px; height: 30px;
   border-radius: 50%;
@@ -260,19 +274,44 @@
 /* ---------- телефон ----------
    На узком экране вертикальный ряд инструментов не помещается вместе
    с палитрой: палитра уезжает вниз, инструменты становятся строкой. */
-@media (max-width: 760px) {
-  .bd-tools {
-    left: 8px; right: 8px; top: auto; bottom: 66px;
-    transform: none;
-    flex-direction: row;
-    justify-content: center;
-    flex-wrap: wrap;
+/* Планшет в портретной ориентации. Раньше он попадал в «настольную»
+   вёрстку: док слева, панель слов справа на 300 px — и доске оставалась
+   узкая полоса посередине. Репетитор на iPad — основной сценарий урока,
+   поэтому здесь панель слов ложится снизу, как выдвижной ящик. */
+@media (min-width: 761px) and (max-width: 1100px) and (orientation: portrait) {
+  /* Док горизонтальный внизу — в портрете вертикальный столбик занимал
+     треть высоты и перекрывал ящик со словами. */
+  .bd-dock {
+    left: 10px; right: 10px; top: auto; bottom: 68px;
+    transform: none; flex-direction: column;
+    max-height: none; overflow: visible;
   }
+  .bd-tools { flex-direction: row; justify-content: center; flex-wrap: wrap; }
   .bd-style {
-    left: 8px; top: auto; bottom: 128px;
+    flex-direction: row; justify-content: center; align-items: center;
+    margin-top: 6px; padding-top: 8px; gap: 16px;
+  }
+  .bd-colors { grid-template-columns: repeat(6, 26px); }
+
+  /* Слова — выдвижным ящиком над доком, а не колонкой справа */
+  .bd-panel {
+    right: 10px; left: 10px; width: auto;
+    top: auto; bottom: 150px; max-height: 44vh;
+  }
+  .bd-word-list { max-height: 28vh; }
+}
+
+@media (max-width: 760px) {
+  .bd-dock {
+    left: 8px; right: 8px; top: auto; bottom: 62px;
     transform: none;
-    flex-direction: row;
-    padding: 8px;
+    flex-direction: column;
+    border-radius: 14px;
+  }
+  .bd-tools { flex-direction: row; justify-content: center; flex-wrap: wrap; }
+  .bd-style {
+    flex-direction: row; justify-content: center; align-items: center;
+    margin-top: 6px; padding-top: 8px; gap: 14px;
   }
   .bd-colors, .bd-sizes { flex-direction: row; }
   .bd-sep { width: 1px; height: auto; margin: 2px 4px; }
@@ -290,3 +329,38 @@
 .bd-toast[hidden],
 .bd-live[hidden],
 .bd-btn[hidden] { display: none; }
+
+/* Иконки в кнопках доски: тот же набор, что на всём сайте (js/icons.js).
+   Раньше здесь стояли текстовые символы — они рисовались разной толщиной
+   в разных шрифтах и выбивались из остального интерфейса. */
+.bd-tool svg.ic, .bd-btn svg.ic { display: block; }
+.bd-btn svg.ic { display: inline-block; vertical-align: -3px; }
+.bd-tool { display: flex; align-items: center; justify-content: center; }
+
+/* Свотчи цветов прячутся по инструменту, поэтому нужен flex-контейнер,
+   который не оставляет дырок от скрытых кружков. */
+.bd-swatch[hidden] { display: none; }
+.bd-colors[hidden], .bd-sizes[hidden] { display: none; }
+
+
+/* Бейдж присутствия ученика: в узкой шапке он ломался на три строки
+   и распирал панель. */
+.bd-live { white-space: nowrap; }
+
+/* Взведённая кнопка очистки: цвет вместо подписи — она теперь с иконкой */
+.bd-btn.armed { color: var(--red); border-color: var(--red); }
+
+/* Объяснение на месте пустого полотна */
+.bd-empty {
+  position: fixed; left: 50%; top: 50%;
+  transform: translate(-50%, -50%);
+  max-width: 420px; text-align: center;
+  padding: 26px 28px; border-radius: 16px;
+  background: var(--surface); border: 1px solid var(--line-soft);
+  z-index: 15;
+}
+.bd-empty b { display: block; font-size: var(--text-h3); margin-bottom: 8px; }
+.bd-empty p { color: var(--ink-soft); line-height: 1.5; }
+
+/* hidden на панелях доски должен побеждать их display:flex */
+.bd-dock[hidden], .bd-bottom[hidden], .bd-panel[hidden] { display: none !important; }

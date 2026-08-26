@@ -32,7 +32,7 @@
   <meta name="twitter:card" content="summary_large_image">
   <link rel="preload" href="css/fonts/nunito-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="css/fonts/inter-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="css/fonts.css?v=183">
+  <link rel="stylesheet" href="css/fonts.css?v=184">
   <!-- Тему ставим ДО первой отрисовки, отдельным крошечным скриптом.
        Всё остальное грузится с defer, а defer выполняется после разбора
        страницы — то есть уже после того, как браузер её покажет. Если
@@ -48,13 +48,13 @@
       document.documentElement.dataset.theme = t;
     } catch (e) { /* приватный режим — просто останется дневная */ }
   </script>
-  <link rel="stylesheet" href="css/tokens.css?v=183">
-  <link rel="stylesheet" href="css/style.css?v=183">
-  <link rel="stylesheet" href="css/savely.css?v=183">
-  <link rel="stylesheet" href="css/tutor.css?v=183">
-<link rel="stylesheet" href="css/motion.css?v=183">
-<link rel="stylesheet" href="css/a11y.css?v=183">
-<link rel="stylesheet" href="css/cat.css?v=183">
+  <link rel="stylesheet" href="css/tokens.css?v=184">
+  <link rel="stylesheet" href="css/style.css?v=184">
+  <link rel="stylesheet" href="css/savely.css?v=184">
+  <link rel="stylesheet" href="css/tutor.css?v=184">
+<link rel="stylesheet" href="css/motion.css?v=184">
+<link rel="stylesheet" href="css/a11y.css?v=184">
+<link rel="stylesheet" href="css/cat.css?v=184">
 </head>
 <body>
 
@@ -171,17 +171,48 @@
            страницы не было вовсе. Для программы чтения это значит
            «страница без названия»: непонятно, куда попал. -->
       <h1 class="brand-h1"><button class="brand"><span class="brand-cat cat-avatar" data-cat="hello" aria-hidden="true"></span> Савелий · панель</button></h1>
+      <!-- Разделы панели. Одна строка с прокруткой, а не перенос на две:
+           десять пунктов в две строки съедали треть первого экрана и
+           разъезжались при каждом изменении ширины. Иконки — чтобы
+           находить раздел взглядом, а не читать десять подписей.
+           Под кнопками ездит подсветка (.nav-marker) — она показывает,
+           откуда и куда переехали, и связывает нажатие с разделом. -->
       <nav class="nav" aria-label="Разделы панели">
-        <button class="nav-btn active" aria-current="page" data-tab="students">Ученики <span id="stu-count" class="badge">0</span></button>
-        <button class="nav-btn" data-tab="homework">Выдать домашку</button>
-        <button class="nav-btn" data-tab="tasks">Домашки</button>
-        <button class="nav-btn" data-tab="tasksets">Свои задания</button>
-        <button class="nav-btn" data-tab="photos">Фото тетрадей <span id="photo-count" class="badge">0</span></button>
-        <button class="nav-btn" data-tab="checks">Проверка домашек</button>
-        <button class="nav-btn" data-tab="boards">Доски</button>
-        <button class="nav-btn" data-tab="lesson">Видеоурок</button>
-        <button class="nav-btn" data-tab="invite">Ссылка для учеников</button>
-        <button class="nav-btn" data-tab="plan">Подписка</button>
+        <div class="nav-strip" id="nav-strip">
+          <span class="nav-marker" id="nav-marker" aria-hidden="true"></span>
+          <button class="nav-btn active" aria-current="page" data-tab="students">
+            <span class="nav-ico" data-icon="paw" data-icon-size="18" aria-hidden="true"></span>
+            <span class="nav-label">Ученики</span>
+            <span id="stu-count" class="badge">0</span></button>
+          <button class="nav-btn" data-tab="homework">
+            <span class="nav-ico" data-icon="send" data-icon-size="18" aria-hidden="true"></span>
+            <span class="nav-label">Выдать домашку</span></button>
+          <button class="nav-btn" data-tab="tasks">
+            <span class="nav-ico" data-icon="check" data-icon-size="18" aria-hidden="true"></span>
+            <span class="nav-label">Домашки</span></button>
+          <button class="nav-btn" data-tab="tasksets">
+            <span class="nav-ico" data-icon="personal" data-icon-size="18" aria-hidden="true"></span>
+            <span class="nav-label">Свои задания</span></button>
+          <button class="nav-btn" data-tab="photos">
+            <span class="nav-ico" data-icon="camera" data-icon-size="18" aria-hidden="true"></span>
+            <span class="nav-label">Фото тетрадей</span>
+            <span id="photo-count" class="badge">0</span></button>
+          <button class="nav-btn" data-tab="checks">
+            <span class="nav-ico" data-icon="eye" data-icon-size="18" aria-hidden="true"></span>
+            <span class="nav-label">Проверка домашек</span></button>
+          <button class="nav-btn" data-tab="boards">
+            <span class="nav-ico" data-icon="marker" data-icon-size="18" aria-hidden="true"></span>
+            <span class="nav-label">Доски</span></button>
+          <button class="nav-btn" data-tab="lesson">
+            <span class="nav-ico" data-icon="mic" data-icon-size="18" aria-hidden="true"></span>
+            <span class="nav-label">Видеоурок</span></button>
+          <button class="nav-btn" data-tab="invite">
+            <span class="nav-ico" data-icon="target" data-icon-size="18" aria-hidden="true"></span>
+            <span class="nav-label">Ссылка для учеников</span></button>
+          <button class="nav-btn" data-tab="plan">
+            <span class="nav-ico" data-icon="star" data-icon-size="18" aria-hidden="true"></span>
+            <span class="nav-label">Подписка</span></button>
+        </div>
       </nav>
       <div class="plan-chip" id="plan-chip" title="Тариф и занятые места"></div>
       <div class="user-chip">
@@ -633,23 +664,24 @@
     <a href="https://t.me/KOTSAVELII" target="_blank" rel="noopener">@KOTSAVELII</a></p>
 </footer>
 
-<script defer src="js/theme.js?v=183"></script>
-<script defer src="js/icons.js?v=183"></script>
-<script defer src="js/cat.js?v=183"></script>
-<script defer src="js/motion.js?v=183"></script>
-<script defer src="js/util.js?v=183"></script>
-<script defer src="js/levels.js?v=183"></script>
+<script defer src="js/theme.js?v=184"></script>
+<script defer src="js/icons.js?v=184"></script>
+<script defer src="js/cat.js?v=184"></script>
+<script defer src="js/motion.js?v=184"></script>
+<script defer src="js/util.js?v=184"></script>
+<script defer src="js/levels.js?v=184"></script>
 <!-- js/words.js здесь НЕТ намеренно. Это 326 КБ сжатыми, а на экране
      входа словарь не нужен вообще: он нужен только внутри панели, чтобы
      собрать домашку. Подгружается в openPanel через ensureWords(). -->
-<script defer src="js/images.js?v=183"></script>
-<script defer src="js/word-photos.js?v=183"></script>
-<script defer src="js/qr.js?v=183"></script>
-<script defer src="js/tutor.js?v=183"></script>
-<script defer src="js/tutor-tasks.js?v=183"></script>
-<script defer src="js/tutor-photos.js?v=183"></script>
-<script defer src="js/tutor-auth.js?v=183"></script>
-<script defer src="js/tutor-verify.js?v=183"></script>
-<script defer src="js/tutor-boards.js?v=183"></script>
+<script defer src="js/images.js?v=184"></script>
+<script defer src="js/word-photos.js?v=184"></script>
+<script defer src="js/qr.js?v=184"></script>
+<script defer src="js/tutor.js?v=184"></script>
+<script defer src="js/tutor-tasks.js?v=184"></script>
+<script defer src="js/tutor-photos.js?v=184"></script>
+<script defer src="js/tutor-auth.js?v=184"></script>
+<script defer src="js/tutor-verify.js?v=184"></script>
+<script defer src="js/tutor-boards.js?v=184"></script>
+<script defer src="js/tutor-nav.js?v=184"></script>
 </body>
 </html>

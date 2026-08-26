@@ -557,3 +557,108 @@
 .board-rename-input { flex: 1; font: inherit; padding: 8px 10px; min-height: 40px;
   border: 1px solid var(--line-control); border-radius: 10px;
   background: var(--surface); color: var(--ink); }
+
+/* ==========================================================================
+   РАЗДЕЛЫ ПАНЕЛИ: одна строка, скользящая подсветка
+   --------------------------------------------------------------------------
+   Было: десять текстовых кнопок в два ряда. Они занимали треть первого
+   экрана, переносились по-разному на каждой ширине, а активный раздел
+   отличался только цветом — глазу не за что зацепиться.
+
+   Стало: строка с горизонтальной прокруткой (кнопки не переносятся
+   никогда), иконка у каждого пункта и подсветка, которая ЕЗДИТ между
+   пунктами. Движение здесь не украшение: оно показывает, откуда и куда
+   переехали, — связь между нажатием и сменой раздела перестаёт быть
+   догадкой.
+   ========================================================================== */
+.tutor-body .nav { flex: 1 1 100%; min-width: 0; }
+
+.nav-strip {
+  position: relative;
+  display: flex;
+  gap: 2px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;              /* полосу прокрутки прячем: строка узкая */
+  padding: 4px 2px;
+  scroll-behavior: smooth;
+  /* Края подтаивают — так видно, что строка продолжается за границей */
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 18px,
+                      #000 calc(100% - 18px), transparent 100%);
+          mask-image: linear-gradient(90deg, transparent 0, #000 18px,
+                      #000 calc(100% - 18px), transparent 100%);
+}
+.nav-strip::-webkit-scrollbar { display: none; }
+
+.tutor-body .nav-btn {
+  position: relative;
+  z-index: 1;                         /* над подсветкой */
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-8, 8px);
+  white-space: nowrap;
+  flex: none;
+  padding: 9px 14px;
+  border-radius: 12px;
+  background: none;
+  transition: color .18s ease, transform .18s ease;
+}
+.tutor-body .nav-btn:hover { background: none; transform: translateY(-1px); }
+.tutor-body .nav-btn.active { background: none; color: var(--accent-dark); }
+.tutor-body .nav-btn .nav-ico { flex: none; opacity: .75; transition: opacity .18s ease; }
+.tutor-body .nav-btn.active .nav-ico,
+.tutor-body .nav-btn:hover .nav-ico { opacity: 1; }
+
+/* Подсветка активного пункта. Ездит через transform — он не вызывает
+   пересчёт раскладки, поэтому движение остаётся плавным даже на слабом
+   ноутбуке репетитора. */
+.nav-marker {
+  position: absolute;
+  left: 0; top: 4px; bottom: 4px;
+  width: 0;
+  border-radius: 12px;
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--accent-line);
+  transform: translateX(0);
+  transition: transform .34s cubic-bezier(.22, 1, .36, 1),
+              width .34s cubic-bezier(.22, 1, .36, 1);
+  pointer-events: none;
+  z-index: 0;
+}
+/* До первого измерения подсветки нет — иначе она прилетает из левого
+   угла на глазах у пользователя при каждой загрузке страницы. */
+.nav-marker.ready { opacity: 1; }
+.nav-marker:not(.ready) { opacity: 0; }
+
+/* Счётчик рядом с подписью: подпрыгивает, когда число изменилось —
+   репетитор видит, что появилось новое фото тетради, не вчитываясь. */
+.tutor-body .nav-btn .badge { transition: transform .2s ease; }
+.tutor-body .nav-btn .badge.pop { animation: badge-pop .45s cubic-bezier(.22,1,.36,1); }
+@keyframes badge-pop {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.35); }
+  100% { transform: scale(1); }
+}
+
+/* Появление раздела: короткий подъём с проявлением. Полсекунды здесь
+   были бы уже задержкой — держим 220 мс. */
+.tab-enter { animation: tab-enter .22s ease-out; }
+@keyframes tab-enter {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+
+@media (max-width: 820px) {
+  .tutor-body .nav-btn { padding: 8px 11px; }
+  .tutor-body .nav-btn .nav-label { font-size: 13px; }
+}
+
+/* Уважаем системную настройку «меньше движения»: подсветка просто
+   переставляется, разделы появляются без подъёма. */
+@media (prefers-reduced-motion: reduce) {
+  .nav-marker { transition: none; }
+  .nav-strip { scroll-behavior: auto; }
+  .tab-enter { animation: none; }
+  .tutor-body .nav-btn:hover { transform: none; }
+  .tutor-body .nav-btn .badge.pop { animation: none; }
+}

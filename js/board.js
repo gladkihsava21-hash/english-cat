@@ -624,6 +624,10 @@ function buildStyleBar() {
   const colors = $("bd-colors");
   COLORS.concat(NOTE_COLORS).forEach(name => {
     const b = document.createElement("button");
+    // Помечаем, к чему цвет: чернила рисуют линию, бумага красит стикер.
+    // Раньше все девять кружков лежали вперемешку, и выбрать «жёлтый»
+    // для ручки было нельзя — он оказывался цветом стикера.
+    b.dataset.kind = NOTE_COLORS.includes(name) ? "note" : "ink";
     b.className = "bd-swatch" + (name === BD.color ? " active" : "");
     b.style.background = cssColor(name);
     b.title = name;
@@ -655,11 +659,48 @@ function buildStyleBar() {
   });
 }
 
+/* Какие настройки нужны инструменту.
+ *
+ * У ластика и выделения нет ни цвета, ни толщины — показывать их значит
+ * предлагать выбор, который ни на что не влияет. У стикера цвет есть,
+ * но это цвет бумаги, а не чернил, и толщина ему не нужна. */
+const TOOL_STYLE = {
+  select:  { colors: null,  sizes: false },
+  eraser:  { colors: null,  sizes: false },
+  note:    { colors: "note", sizes: false },
+  text:    { colors: "ink", sizes: false },
+  pen:     { colors: "ink", sizes: true },
+  marker:  { colors: "ink", sizes: true },
+  rect:    { colors: "ink", sizes: true },
+  ellipse: { colors: "ink", sizes: true },
+  arrow:   { colors: "ink", sizes: true },
+};
+
+function syncStyleBar() {
+  const conf = TOOL_STYLE[BD.tool] || TOOL_STYLE.pen;
+  const box = $("bd-style");
+  box.hidden = !conf.colors && !conf.sizes;
+  $("bd-colors").hidden = !conf.colors;
+  $("bd-sizes").hidden = !conf.sizes;
+  document.querySelectorAll(".bd-swatch").forEach(sw => {
+    sw.hidden = sw.dataset.kind !== conf.colors;
+  });
+  // Инструмент сменился, а выбранный цвет из чужого набора — берём
+  // первый подходящий, иначе рисовали бы цветом бумаги по холсту.
+  const list = conf.colors === "note" ? NOTE_COLORS : COLORS;
+  if (conf.colors && !list.includes(BD.color)) {
+    BD.color = list[0];
+    document.querySelectorAll(".bd-swatch").forEach(sw =>
+      sw.classList.toggle("active", sw.title === BD.color));
+  }
+}
+
 document.querySelectorAll(".bd-tool[data-tool]").forEach(b => {
   b.addEventListener("click", () => {
     BD.tool = b.dataset.tool;
     document.querySelectorAll(".bd-tool[data-tool]").forEach(x => x.classList.toggle("active", x === b));
     canvas.classList.toggle("picking", BD.tool === "select");
+    syncStyleBar();
   });
 });
 
@@ -697,10 +738,26 @@ function fitToContent() {
     x2 = Math.max(x2, b.x + b.w); y2 = Math.max(y2, b.y + b.h);
   });
   // Панели плавают поверх полотна, поэтому «весь экран» — это не весь
-  // экран: слева инструменты с палитрой, справа список слов, если открыт.
-  const L = innerWidth > 760 ? 124 : 20;
-  const R = $("bd-panel").hidden ? 20 : (innerWidth > 760 ? 324 : 20);
-  const TOP = 66, BOT = innerWidth > 760 ? 74 : 200;
+  // экран. Отступы МЕРЯЕМ по факту, а не задаём числами: раскладка
+  // меняется от ширины и поворота экрана (на планшете док уезжает вниз,
+  // список слов становится выдвижным ящиком), и зашитые константы врали —
+  // после «показать всё» содержимое пряталось под открытой панелью.
+  const free = { L: 16, R: 16, T: 16, B: 16 };
+  [".bd-top", ".bd-bottom", ".bd-dock", ".bd-panel"].forEach(sel => {
+    const el = document.querySelector(sel);
+    if (!el || el.hidden || !el.offsetParent) return;
+    const b = el.getBoundingClientRect();
+    if (b.width > innerWidth * 0.6) {
+      // Широкая панель — значит прижата к верху или к низу
+      if (b.top < innerHeight / 2) free.T = Math.max(free.T, b.bottom + 12);
+      else free.B = Math.max(free.B, innerHeight - b.top + 12);
+    } else {
+      // Узкая — прижата к левому или правому краю
+      if (b.left < innerWidth / 2) free.L = Math.max(free.L, b.right + 12);
+      else free.R = Math.max(free.R, innerWidth - b.left + 12);
+    }
+  });
+  const L = free.L, R = free.R, TOP = free.T, BOT = free.B;
   const availW = Math.max(200, innerWidth - L - R);
   const availH = Math.max(200, innerHeight - TOP - BOT);
   const k = Math.max(0.15, Math.min(2, Math.min(
@@ -717,13 +774,16 @@ function fitToContent() {
 let clearArmed = false;
 $("bd-clear").addEventListener("click", async () => {
   if (!clearArmed) {
+    // Кнопка теперь с иконкой, и textContent затирал бы её насовсем.
+    // Взводим классом, а предупреждение говорим словами в тосте.
     clearArmed = true;
-    $("bd-clear").textContent = "точно очистить?";
-    setTimeout(() => { clearArmed = false; $("bd-clear").textContent = "Очистить"; }, 4000);
+    $("bd-clear").classList.add("armed");
+    toast("Нажми ещё раз, чтобы стереть всю доску.");
+    setTimeout(() => { clearArmed = false; $("bd-clear").classList.remove("armed"); }, 4000);
     return;
   }
   clearArmed = false;
-  $("bd-clear").textContent = "Очистить";
+  $("bd-clear").classList.remove("armed");
   if (BD.role === "tutor") {
     await api("/api/board/update", { token: BD.token, boardId: BD.boardId, action: "clear" });
     BD.objects.clear();
@@ -855,10 +915,29 @@ $("bd-share").addEventListener("click", async () => {
   toast(on ? "Ученики видят доску и могут рисовать." : "Доступ закрыт.");
 });
 
+/** Объяснение вместо пустого полотна: когда доски нет, ученик должен
+ *  понимать почему, а не смотреть в серую сетку. */
+function showEmpty(title, note) {
+  // Рисовать не на чем: инструменты и зум только сбивают с толку.
+  ["bd-dock", "bd-bottom"].forEach(id => {
+    const el = document.getElementById(id) || document.querySelector("." + id);
+    if (el) el.hidden = true;
+  });
+  document.querySelectorAll(".bd-dock, .bd-bottom").forEach(el => el.hidden = true);
+  const box = document.createElement("div");
+  box.className = "bd-empty";
+  box.innerHTML = `<b></b><p></p>`;
+  box.querySelector("b").textContent = title;
+  box.querySelector("p").textContent = note;
+  document.body.appendChild(box);
+}
+
 /* ---------- запуск ---------- */
 async function boot() {
   fitCanvas();
   buildStyleBar();
+  syncStyleBar();                 // стартовый инструмент — выделение, настройки прячем
+  if (typeof paintIcons === "function") paintIcons();
   addEventListener("resize", fitCanvas);
 
   const params = new URLSearchParams(location.search);
@@ -875,10 +954,27 @@ async function boot() {
     BD.role = "student";
     BD.token = studentToken;
     $("bd-back").href = "index.html";
+    // Очистка доски — только репетитору. Раньше кнопка была видна всем
+    // и на нажатие отвечала «может только репетитор»: кнопка, которая
+    // существует, чтобы отказать, хуже отсутствующей.
+    $("bd-clear").hidden = true;
     const res = await api("/api/student/board", { token: studentToken });
     if (!res.ok || !res.board) {
-      setState("репетитор ещё не открыл доску", true);
-      $("bd-name").textContent = "Доска закрыта";
+      // Две разные причины, и путать их нельзя: одиночка может ждать
+      // вечно, доска бывает только на уроке с репетитором.
+      if (res.ok && !res.hasTutor) {
+        $("bd-name").textContent = "Доска";
+        setState("доска бывает на уроке с репетитором", true);
+        showEmpty("Доска — это общий лист на уроке.",
+                  "Она появится, когда ты начнёшь заниматься с репетитором: "
+                  + "он откроет доску, и вы будете писать на ней вдвоём.");
+      } else {
+        $("bd-name").textContent = "Доска закрыта";
+        setState("репетитор ещё не открыл доску", true);
+        showEmpty("Репетитор ещё не открыл доску.",
+                  "Она откроется сама, когда начнётся урок, — эту страницу "
+                  + "можно не перезагружать.");
+      }
       return;
     }
     BD.boardId = res.board.id;

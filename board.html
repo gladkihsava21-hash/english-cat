@@ -7,7 +7,7 @@
   <meta name="robots" content="noindex, nofollow">
   <link rel="preload" href="css/fonts/nunito-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="css/fonts/inter-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="css/fonts.css?v=183">
+  <link rel="stylesheet" href="css/fonts.css?v=184">
   <script>
     try {
       var t = localStorage.getItem("savelyTheme");
@@ -16,9 +16,9 @@
       document.documentElement.dataset.theme = t;
     } catch (e) { /* приватный режим */ }
   </script>
-  <link rel="stylesheet" href="css/tokens.css?v=183">
-  <link rel="stylesheet" href="css/style.css?v=183">
-  <link rel="stylesheet" href="css/board.css?v=183">
+  <link rel="stylesheet" href="css/tokens.css?v=184">
+  <link rel="stylesheet" href="css/style.css?v=184">
+  <link rel="stylesheet" href="css/board.css?v=184">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
 </head>
 <body class="board-body">
@@ -37,44 +37,73 @@
   <div class="bd-top-right">
     <span class="bd-live" id="bd-live" hidden>ученик на доске</span>
     <button class="bd-btn" id="bd-share" hidden>Открыть ученику</button>
-    <button class="bd-btn" id="bd-png" title="Скачать картинкой">PNG</button>
-    <button class="bd-btn" id="bd-theme" title="День и ночь">◐</button>
+    <button class="bd-btn" id="bd-png" title="Скачать картинкой">
+      <span data-icon="download" data-icon-size="18"></span> PNG</button>
+    <button class="bd-btn" id="bd-clear" title="Очистить доску"
+            data-icon="trash" data-icon-size="18"></button>
+    <button class="bd-btn" id="bd-theme" title="День и ночь"
+            data-icon="moon" data-icon-size="18"></button>
   </div>
 </header>
 
-<!-- Инструменты. Слева, вертикально: так они не спорят с рукой,
-     когда рисуют пальцем на планшете. -->
-<nav class="bd-tools" aria-label="Инструменты">
-  <button class="bd-tool active" data-tool="select" title="Выделить и двигать (V)">✥</button>
-  <button class="bd-tool" data-tool="pen" title="Ручка (P)">✎</button>
-  <button class="bd-tool" data-tool="marker" title="Маркер — полупрозрачный (M)">▬</button>
-  <button class="bd-tool" data-tool="eraser" title="Ластик (E)">⌫</button>
-  <button class="bd-tool" data-tool="note" title="Стикер (S)">▢</button>
-  <button class="bd-tool" data-tool="text" title="Текст (T)">T</button>
-  <button class="bd-tool" data-tool="rect" title="Прямоугольник (R)">▭</button>
-  <button class="bd-tool" data-tool="ellipse" title="Овал (O)">◯</button>
-  <button class="bd-tool" data-tool="arrow" title="Стрелка (A)">↗</button>
-  <div class="bd-sep"></div>
-  <button class="bd-tool" id="bd-words" title="Слова ученика (W)">Аа</button>
+<!-- Инструменты и их настройки — ОДНА панель, а не два столбика рядом.
+     Раньше цвет с толщиной жили отдельной плашкой правее, и связь между
+     «выбрал ручку» и «выбрал цвет» приходилось додумывать.
+
+     Настройки показываются по месту: у ластика и выделения цвета нет,
+     у стикера свои цвета бумаги, у остальных — цвета чернил. Панель
+     слева и вертикально, чтобы не спорить с рукой на планшете. -->
+<nav class="bd-dock" aria-label="Инструменты">
+  <div class="bd-tools">
+    <button class="bd-tool active" data-tool="select" title="Выделить и двигать (V)"
+            data-icon="cursor" data-icon-size="22"></button>
+    <button class="bd-tool" data-tool="pen" title="Ручка (P)"
+            data-icon="pen" data-icon-size="22"></button>
+    <button class="bd-tool" data-tool="marker" title="Маркер — полупрозрачный (M)"
+            data-icon="marker" data-icon-size="22"></button>
+    <button class="bd-tool" data-tool="eraser" title="Ластик (E)"
+            data-icon="eraser" data-icon-size="22"></button>
+    <div class="bd-sep"></div>
+    <button class="bd-tool" data-tool="note" title="Стикер (S)"
+            data-icon="note" data-icon-size="22"></button>
+    <button class="bd-tool" data-tool="text" title="Текст (T)"
+            data-icon="textTool" data-icon-size="22"></button>
+    <button class="bd-tool" data-tool="rect" title="Прямоугольник (R)"
+            data-icon="square" data-icon-size="22"></button>
+    <button class="bd-tool" data-tool="ellipse" title="Овал (O)"
+            data-icon="circle" data-icon-size="22"></button>
+    <button class="bd-tool" data-tool="arrow" title="Стрелка (A)"
+            data-icon="diagonal" data-icon-size="22"></button>
+    <div class="bd-sep"></div>
+    <button class="bd-tool bd-tool-words" id="bd-words" title="Слова ученика (W)"
+            data-icon="words" data-icon-size="22"></button>
+  </div>
+
+  <!-- Цвет и толщина: часть той же панели, отделены линией -->
+  <div class="bd-style" id="bd-style">
+    <div class="bd-colors" id="bd-colors" role="group" aria-label="Цвет"></div>
+    <div class="bd-sizes" id="bd-sizes" role="group" aria-label="Толщина"></div>
+  </div>
 </nav>
 
-<!-- Цвет и толщина -->
-<div class="bd-style">
-  <div class="bd-colors" id="bd-colors" role="group" aria-label="Цвет"></div>
-  <div class="bd-sizes" id="bd-sizes" role="group" aria-label="Толщина"></div>
-</div>
-
 <!-- Низ: отмена, масштаб -->
+<!-- «Очистить» уехала отсюда наверх, к остальным действиям над доской:
+     стирающая всё кнопка не должна стоять вплотную к зуму, по которому
+     жмут не глядя. -->
 <div class="bd-bottom">
-  <button class="bd-btn" id="bd-undo" title="Отменить (Ctrl+Z)">↶</button>
-  <button class="bd-btn" id="bd-redo" title="Вернуть (Ctrl+Shift+Z)">↷</button>
+  <button class="bd-btn" id="bd-undo" title="Отменить (Ctrl+Z)"
+          data-icon="undo" data-icon-size="19"></button>
+  <button class="bd-btn" id="bd-redo" title="Вернуть (Ctrl+Shift+Z)"
+          data-icon="redo" data-icon-size="19"></button>
   <div class="bd-sep-h"></div>
-  <button class="bd-btn" id="bd-zoom-out" title="Мельче">−</button>
+  <button class="bd-btn" id="bd-zoom-out" title="Мельче"
+          data-icon="zoomOut" data-icon-size="19"></button>
   <button class="bd-btn bd-zoom" id="bd-zoom" title="Вернуть 100%">100%</button>
-  <button class="bd-btn" id="bd-zoom-in" title="Крупнее">+</button>
+  <button class="bd-btn" id="bd-zoom-in" title="Крупнее"
+          data-icon="zoomIn" data-icon-size="19"></button>
   <div class="bd-sep-h"></div>
-  <button class="bd-btn" id="bd-fit" title="Показать всё">⤢</button>
-  <button class="bd-btn danger" id="bd-clear" title="Очистить доску">Очистить</button>
+  <button class="bd-btn" id="bd-fit" title="Показать всё"
+          data-icon="fit" data-icon-size="19"></button>
 </div>
 
 <!-- Панель слов: то, ради чего доска именно наша, а не Miro.
@@ -103,7 +132,8 @@
 
 <p class="bd-toast" id="bd-toast" hidden></p>
 
-<script defer src="js/util.js?v=183"></script>
-<script defer src="js/board.js?v=183"></script>
+<script defer src="js/icons.js?v=184"></script>
+<script defer src="js/util.js?v=184"></script>
+<script defer src="js/board.js?v=184"></script>
 </body>
 </html>

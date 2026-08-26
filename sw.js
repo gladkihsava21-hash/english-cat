@@ -13,7 +13,7 @@
 //
 // Список собирается из самих страниц, поэтому новый css или js попадает
 // в офлайн-кэш сам — про него не нужно помнить отдельно.
-const CACHE = "savely-v183";
+const CACHE = "savely-v184";
 const ASSETS = [
   "./",
   "./index.html",
@@ -55,6 +55,7 @@ const ASSETS = [
   "./js/tutor-auth.js",
   "./js/tutor-verify.js",
   "./js/tutor-boards.js",
+  "./js/tutor-nav.js",
   "./css/admin.css",
   "./js/admin.js",
   "./css/board.css",

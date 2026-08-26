@@ -35,7 +35,7 @@ import mailer
 # Теперь это видно одним curl /health: цифра совпала с ?v= на странице —
 # приложение перезапущено; не совпала или её нет вовсе — в памяти старый
 # код, надо нажать «Перезапустить приложение» в панели хостинга.
-ASSET_VERSION = 183
+ASSET_VERSION = 184
 
 PORT = int(os.environ.get("SAVELY_PORT", "4210"))
 # За nginx сервер слушает только localhost — снаружи он не должен быть виден
@@ -1203,11 +1203,16 @@ class Api:
 
     @staticmethod
     def student_board(h, p):
-        """Какая доска открыта ученику сейчас (кнопка на главной)."""
+        """Какая доска открыта ученику сейчас (кнопка на главной).
+
+        Отдаём и hasTutor: без него страница доски не могла отличить
+        «репетитор ещё не открыл» от «репетитора вообще нет», и ученику-
+        одиночке показывалось ожидание того, чего не случится."""
         row, err = student_owner(p)
         if err:
             return err
-        return {"ok": True, "board": db.shared_board_for_student(row)}
+        return {"ok": True, "board": db.shared_board_for_student(row),
+                "hasTutor": bool(row["tutor_id"])}
 
     @staticmethod
     def student_register(h, p):
