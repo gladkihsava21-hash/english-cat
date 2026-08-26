@@ -53,6 +53,8 @@ const I18N_EN = {
   "Ответь на 36 слов — пойму твой уровень и дальше дам ровно то, что ты потянешь. И сам помню, когда какое слово пора повторить, — зайдёшь, а они уже ждут.":
     "Answer 36 words — I'll figure out your level and give you exactly what you can handle. I also remember when each word is due for review: come back and they'll be waiting.",
   "Регистрация": "Sign up",
+  "Я ученик": "I'm a student",
+  "Я репетитор": "I'm a tutor",
   "Вход": "Log in",
   "Имя": "Name",
   "Как тебя зовут?": "What's your name?",
