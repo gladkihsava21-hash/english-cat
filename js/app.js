@@ -418,26 +418,49 @@ function doLogout() {
    а ВОЗМОЖНОСТЬ ВЕРНУТЬСЯ, потому что личный код никто не записывал.
    Поэтому теперь выход показывает код и требует подтвердить, что он
    записан, а стирание вынесено отдельным действием. */
-document.getElementById("logout-btn").addEventListener("click", () => {
+document.getElementById("logout-btn").addEventListener("click", openLogoutModal);
+
+/** Открыть окно выхода. Раньше оно вызывалось только из шапки, а шапка
+ *  появляется лишь после теста — и тот, кто ввёл имя и ушёл, оставался
+ *  заперт на экране теста. Теперь то же окно доступно и оттуда. */
+function openLogoutModal() {
   const box = document.getElementById("logout-modal");
   const safe = progressIsOnServer();
   document.getElementById("logout-code").textContent = state.restoreCode || "—";
   document.getElementById("logout-code-row").classList.toggle("hidden", !safe);
   document.getElementById("logout-safe").classList.toggle("hidden", !safe);
   document.getElementById("logout-unsafe").classList.toggle("hidden", safe);
-  document.getElementById("logout-go").disabled = safe;   // включит галочка
+  // Кнопка ждёт отметки в ЛЮБОМ случае: своя галочка есть и там, и там.
   document.getElementById("logout-ack").checked = false;
+  const unsafeAck = document.getElementById("logout-ack-unsafe");
+  if (unsafeAck) unsafeAck.checked = false;
+  document.getElementById("logout-go").disabled = true;
   openModal(box);
-});
+}
 
 document.addEventListener("DOMContentLoaded", () => {
   const $ = id => document.getElementById(id);
   const box = $("logout-modal");
   if (!box) return;
 
-  $("logout-ack").addEventListener("change", e => {
-    $("logout-go").disabled = !e.target.checked;
+  // Выход с экрана теста: «Это не твой аккаунт? Войти под другим».
+  const switchBtn = $("test-switch");
+  if (switchBtn) switchBtn.addEventListener("click", () => {
+    // Помечаем намерение: после перезагрузки откроем сразу вкладку «Вход»,
+    // а не регистрацию — человек шёл входить, а не заводить третий аккаунт.
+    try { sessionStorage.setItem("savelyWantLogin", "1"); } catch (e) {}
+    openLogoutModal();
   });
+
+  const gate = () => {
+    // Смотрим на ту галочку, которая сейчас на экране
+    const safe = !$("logout-safe").classList.contains("hidden");
+    const box2 = safe ? $("logout-ack") : $("logout-ack-unsafe");
+    $("logout-go").disabled = !(box2 && box2.checked);
+  };
+  $("logout-ack").addEventListener("change", gate);
+  const unsafeAck = $("logout-ack-unsafe");
+  if (unsafeAck) unsafeAck.addEventListener("change", gate);
   $("logout-cancel").addEventListener("click", () => closeModal(box));
   $("logout-go").addEventListener("click", doLogout);
 
@@ -2272,6 +2295,13 @@ if (state.user && state.level) {
   show("test");
 } else {
   show("welcome");
+  // Пришли сюда из «Войти под другим» — сразу открываем вкладку входа.
+  try {
+    if (sessionStorage.getItem("savelyWantLogin")) {
+      sessionStorage.removeItem("savelyWantLogin");
+      if (typeof setAuthMode === "function") setAuthMode("login");
+    }
+  } catch (e) { /* приватный режим — просто останется регистрация */ }
 }
 
 /* ПРОГРЕВА СЛОВАРЯ ЗДЕСЬ НЕТ, И ЭТО ИЗМЕРЕНО.

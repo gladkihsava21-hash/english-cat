@@ -10,7 +10,7 @@
        подмножества браузер возьмёт сам, если встретит редкую букву. -->
   <link rel="preload" href="css/fonts/nunito-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="css/fonts/inter-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="css/fonts.css?v=174">
+  <link rel="stylesheet" href="css/fonts.css?v=175">
   <!-- Тему ставим ДО первой отрисовки, отдельным крошечным скриптом.
        Всё остальное грузится с defer, а defer выполняется после разбора
        страницы — то есть уже после того, как браузер её покажет. Если
@@ -26,14 +26,14 @@
       document.documentElement.dataset.theme = t;
     } catch (e) { /* приватный режим — просто останется дневная */ }
   </script>
-  <link rel="stylesheet" href="css/tokens.css?v=174">
-  <link rel="stylesheet" href="css/style.css?v=174">
-  <link rel="stylesheet" href="css/savely.css?v=174">
-  <link rel="stylesheet" href="css/motion.css?v=174">
-<link rel="stylesheet" href="css/a11y.css?v=174">
-  <link rel="stylesheet" href="css/games.css?v=174">
-  <link rel="stylesheet" href="css/cat.css?v=174">
-  <link rel="stylesheet" href="css/account.css?v=174">
+  <link rel="stylesheet" href="css/tokens.css?v=175">
+  <link rel="stylesheet" href="css/style.css?v=175">
+  <link rel="stylesheet" href="css/savely.css?v=175">
+  <link rel="stylesheet" href="css/motion.css?v=175">
+<link rel="stylesheet" href="css/a11y.css?v=175">
+  <link rel="stylesheet" href="css/games.css?v=175">
+  <link rel="stylesheet" href="css/cat.css?v=175">
+  <link rel="stylesheet" href="css/account.css?v=175">
   <!-- Ссылку на сайт репетитор кидает ученикам в чат — это единственный
        канал раздачи. Без этих тегов она приходила туда голым адресом,
        без картинки и описания, то есть выглядела как спам. -->
@@ -210,6 +210,14 @@
           и мучиться будешь ты, а не я.</p>
         <p class="handnote">честно — не подглядывать</p>
         <button class="btn btn-primary" id="start-test-btn">Поехали, 36 слов</button>
+        <!-- Выход отсюда обязателен. Шапка с «выйти» появляется только
+             после теста, и человек, который когда-то ввёл имя и ушёл,
+             оставался заперт на этом экране навсегда: ни войти в свой
+             аккаунт, ни начать заново. Совладелец так и написала —
+             «нет возможности начать всё заново», и открывала сайт
+             в режиме инкогнито, чтобы обойти. -->
+        <p class="fine-print" id="test-switch-row">Это не твой аккаунт?
+          <button type="button" class="link-btn" id="test-switch">Войти под другим</button></p>
       </div>
 
       <!-- Тест — это 36 экранов подряд, на которых меняется одно слово,
@@ -625,9 +633,22 @@
       </label>
     </div>
 
-    <p class="reset-note hidden" id="logout-unsafe">Ты занимаешься без репетитора,
-      и прогресс живёт только в этом браузере — на сервер он не уходит.
-      Если выйти, вернуть его будет нечем.</p>
+    <!-- Подтверждение нужно ОБОИМ случаям, и опасному — тем более.
+         Раньше галочка стояла только в безопасном: где прогресс на сервере
+         и его не потерять, выход требовал отметки, а где он живёт лишь
+         в этом браузере и пропадёт навсегда — уходил одним нажатием. -->
+    <div id="logout-unsafe" class="hidden">
+      <p class="reset-note">Ты занимаешься без репетитора, и прогресс живёт
+        только в этом браузере — на сервер он не уходит. Если выйти,
+        вернуть его будет нечем.</p>
+      <p class="reset-note">Сохранить его можно за минуту: профиль →
+        «Вход по почте и паролю». После этого словарь и очки будут
+        открываться на любом устройстве.</p>
+      <label class="ack-row">
+        <input type="checkbox" id="logout-ack-unsafe">
+        <span>Понимаю: прогресс в этом браузере пропадёт</span>
+      </label>
+    </div>
 
     <div class="quiz-buttons">
       <button type="button" class="btn btn-ghost" id="logout-cancel">Остаться</button>
@@ -650,13 +671,13 @@
     <a href="https://t.me/KOTSAVELII" target="_blank" rel="noopener">@KOTSAVELII</a></p>
 </footer>
 
-<script defer src="js/theme.js?v=174"></script>
-<script defer src="js/i18n.js?v=174"></script>
-<script defer src="js/icons.js?v=174"></script>
-<script defer src="js/cat.js?v=174"></script>
-<script defer src="js/motion.js?v=174"></script>
-<script defer src="js/util.js?v=174"></script>
-<script defer src="js/levels.js?v=174"></script>
+<script defer src="js/theme.js?v=175"></script>
+<script defer src="js/i18n.js?v=175"></script>
+<script defer src="js/icons.js?v=175"></script>
+<script defer src="js/cat.js?v=175"></script>
+<script defer src="js/motion.js?v=175"></script>
+<script defer src="js/util.js?v=175"></script>
+<script defer src="js/levels.js?v=175"></script>
 <!-- js/words.js здесь НЕТ намеренно: 326 КБ сжатыми, и на экране
      приветствия они не нужны — там ещё нет ни аккаунта, ни уровня.
      Подгружается через ensureWords(): для вернувшегося ученика сразу,
@@ -664,19 +685,19 @@
 <!-- js/phrases.js здесь НЕТ намеренно: 150 КБ ради трёх упражнений
      из двадцати семи и одного раздела словаря. Подгружается по месту,
      через ensurePhrases() — см. js/exercises.js и js/app.js. -->
-<script defer src="js/srs.js?v=174"></script>
-<script defer src="js/images.js?v=174"></script>
-<script defer src="js/word-photos.js?v=174"></script>
-<script defer src="js/app.js?v=174"></script>
-<script defer src="js/achievements.js?v=174"></script>
-<script defer src="js/exercises.js?v=174"></script>
-<script defer src="js/games.js?v=174"></script>
-<script defer src="js/voice.js?v=174"></script>
-<script defer src="js/sync.js?v=174"></script>
-  <script defer src="js/reading.js?v=174"></script>
-  <script defer src="js/photo.js?v=174"></script>
+<script defer src="js/srs.js?v=175"></script>
+<script defer src="js/images.js?v=175"></script>
+<script defer src="js/word-photos.js?v=175"></script>
+<script defer src="js/app.js?v=175"></script>
+<script defer src="js/achievements.js?v=175"></script>
+<script defer src="js/exercises.js?v=175"></script>
+<script defer src="js/games.js?v=175"></script>
+<script defer src="js/voice.js?v=175"></script>
+<script defer src="js/sync.js?v=175"></script>
+  <script defer src="js/reading.js?v=175"></script>
+  <script defer src="js/photo.js?v=175"></script>
   <!-- После sync.js: профиль ходит на сервер через api() оттуда -->
-  <script defer src="js/account.js?v=174"></script>
+  <script defer src="js/account.js?v=175"></script>
 <script>
   // офлайн-режим: сайт открывается без интернета и ставится на телефон
   if ("serviceWorker" in navigator && location.protocol !== "file:") {
