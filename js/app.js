@@ -420,6 +420,30 @@ function doLogout() {
    записан, а стирание вынесено отдельным действием. */
 document.getElementById("logout-btn").addEventListener("click", openLogoutModal);
 
+/* Ролик на экране регистрации.
+ *
+ * До нажатия на странице только заставка. По нажатию подставляем <video>
+ * и запускаем — это единственный момент, когда полтора мегабайта
+ * оправданы: человек сам попросил. Никакого автозапуска: звука в ролике
+ * нет, но самопроизвольно играющее видео раздражает и съедает трафик. */
+document.addEventListener("DOMContentLoaded", () => {
+  const play = document.getElementById("intro-play");
+  const box = document.getElementById("intro-video");
+  if (!play || !box) return;
+  play.addEventListener("click", () => {
+    const v = document.createElement("video");
+    v.src = "video/tour.mp4";
+    v.poster = "video/tour-poster.jpg";
+    v.controls = true;
+    v.playsInline = true;                 // иначе iPhone открывает во весь экран
+    v.preload = "auto";
+    v.setAttribute("aria-label", "Как заниматься на сайте");
+    box.innerHTML = "";
+    box.appendChild(v);
+    v.play().catch(() => { /* не дали автозапуск — остаются кнопки плеера */ });
+  });
+});
+
 /** Открыть окно выхода. Раньше оно вызывалось только из шапки, а шапка
  *  появляется лишь после теста — и тот, кто ввёл имя и ушёл, оставался
  *  заперт на экране теста. Теперь то же окно доступно и оттуда. */

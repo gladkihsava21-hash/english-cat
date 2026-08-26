@@ -664,3 +664,38 @@ body {
   padding: 5px 9px; cursor: pointer;
 }
 .lang-btn:hover { border-color: var(--accent); color: var(--ink); }
+
+/* ===== Ролик на экране регистрации =====
+   До нажатия это картинка с кнопкой: видео весит полтора мегабайта,
+   и тянуть его тем, кто пришёл просто зарегистрироваться, незачем. */
+.intro-video { margin: 22px auto 26px; max-width: 620px; width: 100%; }
+.intro-play {
+  display: block; position: relative; width: 100%; padding: 0;
+  border: 1px solid var(--line-soft); border-radius: var(--radius-card);
+  overflow: hidden; cursor: pointer; background: var(--surface);
+  box-shadow: 0 6px 22px rgba(43, 54, 48, .12);
+}
+.intro-play img { display: block; width: 100%; height: auto; }
+/* Треугольник рисуем рамкой, без картинки: одна фигура — один элемент. */
+.intro-play-mark {
+  position: absolute; left: 50%; top: 50%; width: 74px; height: 74px;
+  margin: -37px 0 0 -37px; border-radius: 50%;
+  background: rgba(252, 251, 247, .94);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, .28);
+}
+.intro-play-mark::after {
+  content: ""; position: absolute; left: 29px; top: 23px;
+  border-style: solid; border-width: 14px 0 14px 22px;
+  border-color: transparent transparent transparent var(--accent);
+}
+/* Подпись СВЕРХУ, а не снизу: внизу кадра у кота реплики в облаках,
+   и надпись с ними сталкивалась — нечитаемо становилось и то, и другое. */
+.intro-play-label {
+  position: absolute; left: 0; right: 0; top: 0;
+  padding: 12px 16px 26px; color: #FFFFFF;
+  font-size: var(--text-caption); font-weight: 700;
+  background: linear-gradient(rgba(12, 30, 18, .82), transparent);
+}
+.intro-play:hover .intro-play-mark { background: #FFFFFF; }
+.intro-play:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.intro-video video { width: 100%; display: block; border-radius: var(--radius-card); }

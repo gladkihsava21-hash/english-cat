@@ -13,7 +13,7 @@
 //
 // Список собирается из самих страниц, поэтому новый css или js попадает
 // в офлайн-кэш сам — про него не нужно помнить отдельно.
-const CACHE = "savely-v175";
+const CACHE = "savely-v176";
 const ASSETS = [
   "./",
   "./index.html",
@@ -107,6 +107,11 @@ self.addEventListener("fetch", e => {
   const url = new URL(e.request.url);
   // запросы к API никогда не кэшируем: прогресс и домашка должны быть свежими
   if (url.pathname.startsWith("/api/") || e.request.method !== "GET") return;
+  // Видео не трогаем вовсе. Браузер тянет его кусками (Range → ответ 206),
+  // а класть частичный ответ в кэш нельзя: Cache.put на 206 падает, и уже
+  // из кэша видео отдавалось бы обрезанным. Пусть идёт напрямую в сеть —
+  // офлайн-ролик никому не нужен, а сломанное воспроизведение заметят все.
+  if (url.pathname.startsWith("/video/")) return;
 
   e.respondWith(
     fetch(e.request)
