@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10">
+  <script><![CDATA[
+    localStorage.setItem("savelyTheme", "day");
+    localStorage.setItem("savelyState", JSON.stringify({
+      user: { name: "Тест", email: "" }, level: "B1", xp: 300,
+      folders: ["к контрольной", "неправильные глаголы"],
+      dictionary: [
+        { w:"apple", t:"яблоко", level:"A1", status:"learning", knew:1, forgot:0, folders:["к контрольной"] },
+        { w:"water", t:"вода", level:"A1", status:"new", knew:0, forgot:0 },
+        { w:"brave", t:"храбрый", level:"A2", status:"new", knew:0, forgot:0 },
+        { w:"journey", t:"путешествие", level:"B1", status:"new", knew:0, forgot:0 },
+        { w:"improve", t:"улучшать", level:"B1", status:"learning", knew:1, forgot:0 },
+        { w:"decide", t:"решать", level:"B1", status:"new", knew:0, forgot:0 }
+      ]
+    }));
+    location.href = "/#dict";
+  ]]></script>
+</svg>

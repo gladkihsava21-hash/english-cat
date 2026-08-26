@@ -115,6 +115,35 @@ body {
 /* Выделения внутри подводки: акцент на обещании, а не на всей строке */
 .hero-sub b { color: var(--ink); font-weight: 800; }
 .auth-card { text-align: left; }
+/* Кто вы: ученик или репетитор.
+ *
+ * Стоит НАД вкладками «Регистрация / Вход» и крупнее их — потому что
+ * это вопрос первее. Сайт ученика и панель репетитора живут по разным
+ * адресам, формы входа у них похожи, и репетитор, попавший на страницу
+ * ученика, вводил верный пароль и получал «не подошло».
+ *
+ * Активная сторона — кнопка (мы уже здесь), неактивная — ссылка
+ * на соседнюю страницу. Разметка разная намеренно: так переход
+ * работает и без JS, и открывается в новой вкладке средним щелчком.
+ */
+.role-switch {
+  display: flex; gap: 8px; margin-bottom: 14px;
+}
+.role-btn {
+  flex: 1; text-align: center; text-decoration: none;
+  font-family: inherit; font-weight: 900; font-size: var(--text-body-sm, 15px);
+  padding: 13px 10px; border-radius: 12px; cursor: pointer;
+  border: 2px solid var(--border); background: var(--bg); color: var(--muted);
+  transition: border-color .15s, color .15s, background .15s;
+  min-height: 48px; display: flex; align-items: center; justify-content: center;
+}
+.role-btn:hover { color: var(--ink); border-color: var(--line-control, var(--border)); }
+.role-btn.active {
+  background: var(--accent-soft); border-color: var(--accent-line, var(--accent));
+  color: var(--accent-dark, var(--accent)); cursor: default;
+}
+.role-btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
 .tabs { display: flex; gap: 6px; margin-bottom: 18px; background: var(--bg); border-radius: 12px; padding: 4px; }
 .tab {
   flex: 1; font-family: inherit; font-weight: 800; font-size: var(--text-caption); padding: 9px;
@@ -762,3 +791,7 @@ body { overflow-wrap: break-word; }
   line-height: 1.35;
   white-space: normal;
 }
+
+/* Кнопка «Отметить несколько» в словаре: иконка галочки рядом с подписью */
+.chip-pick { display: inline-flex; align-items: center; gap: 7px; }
+.chip-pick .ic-inline, .chip-pick svg { flex: none; }

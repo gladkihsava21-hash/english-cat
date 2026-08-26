@@ -292,6 +292,11 @@ MIGRATIONS = [
     # второй путь, а не замена.
     ("students", "pass_hash", "TEXT"),
     ("students", "pass_salt", "TEXT"),
+    # Сброс пароля по коду из письма — то же, что у репетиторов.
+    # Ученику это нужнее: личный код он теряет чаще, чем взрослый пароль.
+    ("students", "reset_code", "TEXT"),
+    ("students", "reset_sent_at", "TEXT"),
+    ("students", "reset_tries", "INTEGER DEFAULT 0"),
     # ---- свои задания ----
     # Домашка может нести набор из конструктора (game = "custom").
     ("homework", "taskset_id", "INTEGER REFERENCES tasksets(id)"),
@@ -1909,6 +1914,68 @@ def seconds_since_reset_sent(row):
     if not sent:
         return None
     return (datetime.now(timezone.utc) - sent).total_seconds()
+
+
+def set_student_reset_code(student_id):
+    code = new_verify_code()   # шесть цифр, тот же формат
+    conn().execute(
+        "UPDATE students SET reset_code=?, reset_sent_at=?, reset_tries=0 WHERE id=?",
+        (code, now(), student_id))
+    conn().commit()
+    return code
+
+
+def student_reset_password(email, code, new_password):
+    """Сброс пароля ученика по коду из письма. Возвращает (ок, ошибка, строка).
+
+    Свойства ровно те же, что у репетиторского сброса, и по тем же
+    причинам: про несуществующую почту наружу не говорим (иначе форма
+    становится проверялкой чужих адресов), код живёт полчаса, попыток
+    ограниченное число, а при успехе меняется токен — если пароль
+    сбрасывают потому, что доступ увели, чужая сессия обязана оборваться.
+
+    Отличие одно: у ученика может не быть пароля вовсе (пришёл по ссылке
+    репетитора). Тогда сброс ЗАВОДИТ пароль — это тот же путь «войти
+    с другого устройства», только через почту.
+    """
+    row = student_by_email_any(email)
+    generic = "Код не подошёл или устарел. Запроси новый."
+    if not row or not row["reset_code"]:
+        return False, generic, None
+    age = seconds_since_reset_sent(row)
+    if age is None or age > RESET_TTL:
+        return False, "Код устарел — он живёт 30 минут. Запроси новый.", None
+    if (row["reset_tries"] or 0) >= RESET_MAX_TRIES:
+        return False, "Слишком много попыток. Запроси новый код.", None
+    if not secrets.compare_digest(str(code or "").strip().encode("utf-8"),
+                                  str(row["reset_code"]).encode("utf-8")):
+        conn().execute("UPDATE students SET reset_tries=reset_tries+1 WHERE id=?", (row["id"],))
+        conn().commit()
+        left = RESET_MAX_TRIES - (row["reset_tries"] or 0) - 1
+        return False, "Код не подошёл. Осталось попыток: %d." % max(0, left), None
+    problem = password_problem(new_password)
+    if problem:
+        return False, problem, None
+    pass_hash, salt = hash_password(new_password)
+    new_tok = new_token()
+    conn().execute(
+        "UPDATE students SET pass_hash=?, pass_salt=?, token=?,"
+        " reset_code=NULL, reset_tries=0 WHERE id=?",
+        (pass_hash, salt, new_tok, row["id"]))
+    conn().commit()
+    return True, None, get_student_by_id(row["id"])
+
+
+def student_by_email_any(email):
+    """Ученик по почте — БЕЗ требования, чтобы пароль уже был задан.
+
+    student_by_email отбирает только тех, у кого пароль есть: он для
+    входа. Для сброса нужен любой, кто оставил адрес, — иначе тот, кто
+    пришёл по ссылке репетитора и потерял личный код, не может ничего.
+    """
+    return conn().execute(
+        "SELECT * FROM students WHERE lower(email)=? ORDER BY id DESC LIMIT 1",
+        ((email or "").strip().lower(),)).fetchone()
 
 
 def reset_password_by_code(email, code, new_password):

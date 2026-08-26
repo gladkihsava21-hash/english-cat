@@ -278,8 +278,12 @@ function setAuthMode(mode) {
   pass.required = login;
   pass.setAttribute("autocomplete", login ? "current-password" : "new-password");
   document.getElementById("password-hint").textContent = login
-    ? "Забыл пароль? Внизу — вход по личному коду."
+    ? "Не помнишь пароль — пришлю код на почту."
     : "Можно не задавать — тогда вход будет по личному коду, он покажется после теста.";
+  // Ссылка на сброс нужна только там, где вводят пароль для входа:
+  // при регистрации пароля ещё нет, и «забыл» звучало бы издевательски.
+  const forgot = document.getElementById("show-reset");
+  if (forgot) forgot.classList.toggle("hidden", !login);
 
   // Согласие даётся один раз, при регистрации
   const consent = document.getElementById("reg-consent");
@@ -366,13 +370,85 @@ document.getElementById("auth-form").addEventListener("submit", async e => {
 let logoutArmed = false;
 let logoutTimer = null;
 // вход по личному коду (перенос прогресса с другого устройства)
-document.getElementById("show-restore").addEventListener("click", () => {
-  document.getElementById("restore-card").classList.remove("hidden");
-  document.querySelector(".auth-card:not(#restore-card)").classList.add("hidden");
+/* Три карточки входа: обычная (вкладки), вход по личному коду и новый
+ * пароль по письму. Показываем строго одну.
+ *
+ * Раньше переключение искало «ту, которая не #restore-card», — и стоило
+ * появиться третьей карточке, как оно начало прятать не ту. Поэтому
+ * теперь карточки перечислены поимённо: добавится четвёртая — правило
+ * не сломается молча. */
+const AUTH_CARDS = ["auth-main-card", "restore-card", "reset-card"];
+function showAuthCard(id) {
+  AUTH_CARDS.forEach(x => {
+    const el = document.getElementById(x);
+    if (el) el.classList.toggle("hidden", x !== id);
+  });
+}
+document.getElementById("show-restore").addEventListener("click", () => showAuthCard("restore-card"));
+document.getElementById("hide-restore").addEventListener("click", () => showAuthCard("auth-main-card"));
+document.getElementById("reset-back").addEventListener("click", () => showAuthCard("auth-main-card"));
+document.getElementById("show-reset").addEventListener("click", () => {
+  showAuthCard("reset-card");
+  // Почту переносим из формы входа: человек её только что вводил,
+  // заставлять набирать второй раз — грубо.
+  const typed = document.getElementById("reg-email").value.trim();
+  if (typed) document.getElementById("reset-email").value = typed;
+  document.getElementById("reset-email").focus();
 });
-document.getElementById("hide-restore").addEventListener("click", () => {
-  document.getElementById("restore-card").classList.add("hidden");
-  document.querySelector(".auth-card:not(#restore-card)").classList.remove("hidden");
+
+/* Шаг 1: отправить код. Ответ всегда одинаковый, даже если такой почты
+ * у нас нет, — так устроена и серверная ручка. Поэтому текст говорит
+ * «если аккаунт есть», а не «письмо отправлено». */
+document.getElementById("reset-send").addEventListener("click", async () => {
+  const email = document.getElementById("reset-email").value.trim();
+  const msg = document.getElementById("reset-msg");
+  const btn = document.getElementById("reset-send");
+  msg.className = "type-feedback";
+  if (!email || !email.includes("@")) { msg.textContent = "Проверь адрес почты."; return; }
+  btn.disabled = true;
+  btn.textContent = "Отправляю…";
+  try {
+    await api("/api/student/reset/send", { email });
+  } catch (e) {
+    msg.className = "type-feedback err";
+    msg.textContent = "Сервер не отвечает. Попробуй позже.";
+    btn.disabled = false;
+    btn.textContent = "Прислать код";
+    return;
+  }
+  btn.disabled = false;
+  btn.textContent = "Прислать код ещё раз";
+  document.getElementById("reset-step2").hidden = false;
+  msg.className = "type-feedback ok";
+  msg.textContent = "Если аккаунт с такой почтой есть, код уже летит. Загляни в письмо — "
+                  + "и проверь папку «Спам», письма от котов туда попадают.";
+  document.getElementById("reset-code").focus();
+});
+
+/* Шаг 2: код и новый пароль. При успехе человек сразу внутри. */
+document.getElementById("reset-apply").addEventListener("click", async () => {
+  const email = document.getElementById("reset-email").value.trim();
+  const code = document.getElementById("reset-code").value.trim();
+  const password = document.getElementById("reset-password").value;
+  const msg = document.getElementById("reset-msg");
+  const btn = document.getElementById("reset-apply");
+  msg.className = "type-feedback";
+  if (code.length < 4) { msg.textContent = "Впиши код из письма — шесть цифр."; return; }
+  if (password.length < 8) { msg.textContent = "Пароль — хотя бы 8 символов."; return; }
+  btn.disabled = true;
+  btn.textContent = "Проверяю…";
+  const err = typeof resetByEmailCode === "function"
+    ? await resetByEmailCode(email, code, password)
+    : "Нет связи с сервером.";
+  btn.disabled = false;
+  btn.textContent = "Задать пароль и войти";
+  if (err) {
+    msg.className = "type-feedback err";
+    msg.textContent = err;
+    return;
+  }
+  updateChrome();
+  show(state.level ? "dashboard" : "test");
 });
 document.getElementById("restore-btn").addEventListener("click", async () => {
   const msg = document.getElementById("restore-msg");
@@ -1580,6 +1656,13 @@ function renderFolders() {
                   type="button" data-folder="${esc(n)}">${esc(n)} <b>${wordsInFolder(n)}</b></button>`).join("")
       : `<span class="folders-hint">Папки — свои темы: «к контрольной», «неправильные глаголы».</span>`)
     + `<button class="chip chip-add" type="button" id="folder-add">+ Папка</button>`
+    // Второй вход в отметку слов — прямо здесь, где задача и возникает.
+    // Человек, который смотрит на папки и думает «надо докинуть сюда слов»,
+    // не пойдёт искать кнопку ниже списка: он начнёт открывать окно папок
+    // у каждого слова по очереди. Ровно на это и пожаловались.
+    + (names.length
+      ? `<button class="chip chip-add" type="button" id="folder-fill">+ Слова в папку</button>`
+      : "")
     + (dictFolder
       ? `<button class="link-btn folder-del" type="button" id="folder-del">удалить «${esc(dictFolder)}»</button>`
       : "");
@@ -1589,6 +1672,17 @@ function renderFolders() {
       dictFolder = b.dataset.folder || null;
       renderDictionary();
     });
+  });
+
+  const fill = document.getElementById("folder-fill");
+  if (fill) fill.addEventListener("click", () => {
+    // Показываем ВЕСЬ словарь: складывать в папку удобнее, видя всё,
+    // а не только то, что уже в этой папке лежит.
+    dictFolder = null;
+    dictPickMode = true;
+    renderDictionary();
+    const bar = document.getElementById("dict-pick-bar");
+    if (bar) bar.scrollIntoView({ block: "nearest" });
   });
 
   // Поле прямо в ряду, а не системное окно. prompt() рисует диалог
@@ -1756,14 +1850,24 @@ function renderPickBar() {
   const n = (state.trainWords || []).length;
   btn.classList.toggle("active", dictPickMode);
   btn.setAttribute("aria-pressed", String(dictPickMode));
-  btn.textContent = dictPickMode ? "Готово" : (n ? `Отобрано на тренировку: ${n}` : "Отобрать слова на тренировку");
+  // Подпись меняем внутри span: рядом лежит иконка, и textContent
+  // на всей кнопке стёр бы её вместе с текстом.
+  const label = document.getElementById("dict-pick-label");
+  if (label) {
+    label.textContent = dictPickMode ? "Готово"
+      : (n ? `Отмечено: ${n}` : "Отметить несколько");
+  }
   bar.classList.toggle("hidden", !dictPickMode && !n);
+  // «В папку» стоит ПЕРВОЙ и главной кнопкой: разложить слова по темам —
+  // то, ради чего отмечают несколько слов чаще всего. Тренировка
+  // отмеченных рядом, вторым действием.
   bar.innerHTML = n
     ? `<span>Отмечено: <b>${n}</b></span>
-       <button type="button" class="btn btn-primary btn-small" id="dict-pick-go">Тренировать отмеченные</button>
-       <button type="button" class="btn btn-ghost btn-small" id="dict-pick-fold">В папку…</button>
+       <button type="button" class="btn btn-primary btn-small" id="dict-pick-fold">Сложить в папку</button>
+       <button type="button" class="btn btn-ghost btn-small" id="dict-pick-go">Тренировать отмеченные</button>
        <button type="button" class="link-btn" id="dict-pick-clear">снять отметки</button>`
-    : `<span class="muted-small">Отметь галочками слова — их можно отправить на тренировку или сложить в папку разом.</span>`;
+    : `<span class="muted-small">Отметь галочками сколько нужно слов — потом сложи их
+       в папку или отправь на тренировку разом, а не по одному.</span>`;
   const go = document.getElementById("dict-pick-go");
   if (go) go.addEventListener("click", () => { dictPickMode = false; show("practice"); });
   // Раньше папка назначалась по одному слову: отметить пятнадцать слов

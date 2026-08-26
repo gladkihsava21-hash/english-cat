@@ -35,7 +35,7 @@ import mailer
 # Теперь это видно одним curl /health: цифра совпала с ?v= на странице —
 # приложение перезапущено; не совпала или её нет вовсе — в памяти старый
 # код, надо нажать «Перезапустить приложение» в панели хостинга.
-ASSET_VERSION = 193
+ASSET_VERSION = 199
 
 PORT = int(os.environ.get("SAVELY_PORT", "4210"))
 # За nginx сервер слушает только localhost — снаружи он не должен быть виден
@@ -357,6 +357,10 @@ _HIT_LIMITS = {
     # Вход по паролю — самая привлекательная цель для перебора: 10 попыток
     # с адреса за 10 минут. Честному человеку хватает двух.
     "/api/student/login": (10, 600),
+    # Отправка кода — самая дорогая ручка: каждый вызов это письмо.
+    # Пять штук за четверть часа с адреса хватает любому забывчивому.
+    "/api/student/reset/send": (5, 900),
+    "/api/student/reset/check": (10, 600),
     "/api/student/password": (10, 600),
     "/api/student/adopt": (10, 600),
     # Личный кабинет ученика. Профиль открывают часто (каждый заход на
@@ -1200,6 +1204,48 @@ class Api:
                     "rev": res["rev"]}
         return {"ok": True, "title": board["title"], "shared": bool(board["shared"]),
                 "me": author, **res}
+
+    @staticmethod
+    def student_reset_send(h, p):
+        """Отправить ученику код для нового пароля.
+
+        Ответ всегда одинаковый — «отправили», даже если такой почты нет:
+        иначе форма превращается в проверялку чужих адресов. Настоящий
+        владелец письмо получит и без подсказки.
+
+        Повторную отправку придерживаем (RESET_RESEND): иначе кнопкой
+        «отправить ещё раз» можно завалить чужой ящик письмами.
+        """
+        email = str(p.get("email", "")).strip().lower()
+        row = db.student_by_email_any(email) if valid_email(email) else None
+        if row:
+            age = db.seconds_since_reset_sent(row)
+            if age is None or age >= db.RESET_RESEND:
+                code = db.set_student_reset_code(row["id"])
+                try:
+                    mailer.send_student_reset_code(row["email"], row["name"], code)
+                except Exception as e:
+                    # Наружу не выносим: «письмо не ушло» тоже выдало бы,
+                    # что адрес в базе есть.
+                    report_error("mail/student-reset", e, {"_ip": p.get("_ip")})
+        return {"ok": True, "sent": True}
+
+    @staticmethod
+    def student_reset_check(h, p):
+        """Проверить код и задать новый пароль.
+
+        При успехе сразу впускаем: человек только что доказал, что почта
+        его, и заставлять его после этого ещё раз вводить пароль на форме
+        входа — лишний шаг ровно там, где он и так намучился."""
+        ok, err, row = db.student_reset_password(
+            str(p.get("email", "")), str(p.get("code", "")), str(p.get("password", "")))
+        if not ok:
+            return {"ok": False, "error": err}
+        tutor = db.get_tutor_by_id(row["tutor_id"]) if row["tutor_id"] else None
+        return {"ok": True, "found": True, "token": row["token"],
+                "state": db.student_state(row),
+                "tutorName": tutor["name"] if tutor else "",
+                "ai": ai_available()}
 
     @staticmethod
     def student_board(h, p):
@@ -2246,6 +2292,8 @@ ROUTES = {
     "/api/board/sync": Api.board_sync,
     "/api/student/board": Api.student_board,
     "/api/student/login": Api.student_login,
+    "/api/student/reset/send": Api.student_reset_send,
+    "/api/student/reset/check": Api.student_reset_check,
     "/api/student/password": Api.student_set_password,
     "/api/student/adopt": Api.student_adopt,
     "/api/student/restore": Api.student_restore,

@@ -144,6 +144,32 @@ async function loginByPassword(email, password) {
   return true;
 }
 
+/** Сброс пароля по коду из письма.
+ *
+ *  Возвращает текст ошибки или null при успехе. При успехе человек уже
+ *  внутри: он только что доказал, что почта его, и просить после этого
+ *  ввести свежий пароль на форме входа — лишний шаг ровно там, где он
+ *  и так намучился. */
+async function resetByEmailCode(email, code, password) {
+  let res;
+  try {
+    res = await api("/api/student/reset/check", { email, code, password });
+  } catch (e) {
+    return "Сервер не отвечает. Попробуй ещё раз.";
+  }
+  if (!res.ok) return res.error || "Не получилось.";
+  if (typeof res.ai === "boolean") window.SAVELY_AI = res.ai;
+  localStorage.setItem(STUDENT_TOKEN_KEY, res.token);
+  localStorage.setItem(TUTOR_NAME_KEY, res.tutorName || "");
+  localStorage.removeItem(PENDING_JOIN_KEY);
+  state.user = state.user || { name: res.state.name || "Ученик", email };
+  if (res.state && res.state.name) state.user.name = res.state.name;
+  state.user.email = email;
+  adoptServerState(res.state);
+  pushProgress();
+  return null;
+}
+
 /** Вход с другого устройства по личному коду ученика. */
 async function restoreByCode(code) {
   const res = await api("/api/student/restore", { restoreCode: code });
