@@ -10,7 +10,7 @@
        подмножества браузер возьмёт сам, если встретит редкую букву. -->
   <link rel="preload" href="css/fonts/nunito-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="css/fonts/inter-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="css/fonts.css?v=181">
+  <link rel="stylesheet" href="css/fonts.css?v=182">
   <!-- Тему ставим ДО первой отрисовки, отдельным крошечным скриптом.
        Всё остальное грузится с defer, а defer выполняется после разбора
        страницы — то есть уже после того, как браузер её покажет. Если
@@ -26,14 +26,14 @@
       document.documentElement.dataset.theme = t;
     } catch (e) { /* приватный режим — просто останется дневная */ }
   </script>
-  <link rel="stylesheet" href="css/tokens.css?v=181">
-  <link rel="stylesheet" href="css/style.css?v=181">
-  <link rel="stylesheet" href="css/savely.css?v=181">
-  <link rel="stylesheet" href="css/motion.css?v=181">
-<link rel="stylesheet" href="css/a11y.css?v=181">
-  <link rel="stylesheet" href="css/games.css?v=181">
-  <link rel="stylesheet" href="css/cat.css?v=181">
-  <link rel="stylesheet" href="css/account.css?v=181">
+  <link rel="stylesheet" href="css/tokens.css?v=182">
+  <link rel="stylesheet" href="css/style.css?v=182">
+  <link rel="stylesheet" href="css/savely.css?v=182">
+  <link rel="stylesheet" href="css/motion.css?v=182">
+<link rel="stylesheet" href="css/a11y.css?v=182">
+  <link rel="stylesheet" href="css/games.css?v=182">
+  <link rel="stylesheet" href="css/cat.css?v=182">
+  <link rel="stylesheet" href="css/account.css?v=182">
   <!-- Ссылку на сайт репетитор кидает ученикам в чат — это единственный
        канал раздачи. Без этих тегов она приходила туда голым адресом,
        без картинки и описания, то есть выглядела как спам. -->
@@ -125,19 +125,26 @@
            не дожидается и решает, что сайт сломался.
            Что делается на самом деле — расписание повторений: слово
            всплывает само на нужный день. Про это и пишем. -->
-      <p class="hero-sub">Ответь на 36 слов — пойму твой уровень и дальше дам ровно то,
-        что ты потянешь. И сам помню, когда какое слово пора повторить, —
-        зайдёшь, а они уже ждут.</p>
+      <p class="hero-sub">Ответь на <b>36 слов</b> — я пойму твой уровень и подберу
+        именно то, <b>что тебе по силам</b>.</p>
+      <p class="hero-sub">А ещё я запомню, какое слово пора повторить. Ты просто
+        заходишь — <b>а нужные слова уже ждут тебя</b>.</p>
+      <!-- Подпись кота. Смайлик здесь НЕ системный: во всём интерфейсе
+           эмодзи живут только в репликах кота, а рисованный Савелий —
+           наш собственный и одинаково выглядит на всех телефонах.
+           Системная 😼 на Android и iPhone — две разные кошки. -->
+      <p class="hero-deal"><b>Ты учишь. Я помню. Договорились?</b>
+        <span class="cat-avatar cat-tiny" data-cat="wink" aria-hidden="true"></span></p>
 
       <!-- Ролик «как здесь заниматься». Стоит ДО формы: человек, впервые
            попавший на сайт, сначала хочет понять, куда он попал, а уже
            потом заводить аккаунт. Само видео не грузится, пока не нажмут:
            полтора мегабайта мобильного трафика ради того, что посмотрят
            не все, — плохая сделка. До нажатия висит только заставка (20 КБ). -->
-      <div class="intro-video" id="intro-video" data-v="181">
+      <div class="intro-video" id="intro-video" data-v="182">
         <button type="button" class="intro-play" id="intro-play"
                 aria-label="Посмотреть, как заниматься. Видео, 36 секунд">
-          <img src="video/tour-poster.jpg?v=181" alt="" width="1280" height="720" loading="lazy">
+          <img src="video/tour-poster.jpg?v=182" alt="" width="1280" height="720" loading="lazy">
           <span class="intro-play-mark" aria-hidden="true"></span>
           <span class="intro-play-label">Как это работает · 36 секунд</span>
         </button>
@@ -691,13 +698,13 @@
     <a href="https://t.me/KOTSAVELII" target="_blank" rel="noopener">@KOTSAVELII</a></p>
 </footer>
 
-<script defer src="js/theme.js?v=181"></script>
-<script defer src="js/i18n.js?v=181"></script>
-<script defer src="js/icons.js?v=181"></script>
-<script defer src="js/cat.js?v=181"></script>
-<script defer src="js/motion.js?v=181"></script>
-<script defer src="js/util.js?v=181"></script>
-<script defer src="js/levels.js?v=181"></script>
+<script defer src="js/theme.js?v=182"></script>
+<script defer src="js/i18n.js?v=182"></script>
+<script defer src="js/icons.js?v=182"></script>
+<script defer src="js/cat.js?v=182"></script>
+<script defer src="js/motion.js?v=182"></script>
+<script defer src="js/util.js?v=182"></script>
+<script defer src="js/levels.js?v=182"></script>
 <!-- js/words.js здесь НЕТ намеренно: 326 КБ сжатыми, и на экране
      приветствия они не нужны — там ещё нет ни аккаунта, ни уровня.
      Подгружается через ensureWords(): для вернувшегося ученика сразу,
@@ -705,19 +712,19 @@
 <!-- js/phrases.js здесь НЕТ намеренно: 150 КБ ради трёх упражнений
      из двадцати семи и одного раздела словаря. Подгружается по месту,
      через ensurePhrases() — см. js/exercises.js и js/app.js. -->
-<script defer src="js/srs.js?v=181"></script>
-<script defer src="js/images.js?v=181"></script>
-<script defer src="js/word-photos.js?v=181"></script>
-<script defer src="js/app.js?v=181"></script>
-<script defer src="js/achievements.js?v=181"></script>
-<script defer src="js/exercises.js?v=181"></script>
-<script defer src="js/games.js?v=181"></script>
-<script defer src="js/voice.js?v=181"></script>
-<script defer src="js/sync.js?v=181"></script>
-  <script defer src="js/reading.js?v=181"></script>
-  <script defer src="js/photo.js?v=181"></script>
+<script defer src="js/srs.js?v=182"></script>
+<script defer src="js/images.js?v=182"></script>
+<script defer src="js/word-photos.js?v=182"></script>
+<script defer src="js/app.js?v=182"></script>
+<script defer src="js/achievements.js?v=182"></script>
+<script defer src="js/exercises.js?v=182"></script>
+<script defer src="js/games.js?v=182"></script>
+<script defer src="js/voice.js?v=182"></script>
+<script defer src="js/sync.js?v=182"></script>
+  <script defer src="js/reading.js?v=182"></script>
+  <script defer src="js/photo.js?v=182"></script>
   <!-- После sync.js: профиль ходит на сервер через api() оттуда -->
-  <script defer src="js/account.js?v=181"></script>
+  <script defer src="js/account.js?v=182"></script>
 <script>
   // офлайн-режим: сайт открывается без интернета и ставится на телефон
   if ("serviceWorker" in navigator && location.protocol !== "file:") {
