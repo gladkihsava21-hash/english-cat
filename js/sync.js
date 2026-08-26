@@ -374,6 +374,14 @@ async function pushProgress() {
     if (res.ok && res.taskResults && typeof res.taskResults === "object") {
       mergeTaskResults(res.taskResults);
     }
+    // Имя репетитора держим свежим на каждой синхронизации: его пишут
+    // на устройство при входе, но привязать ученика могут и позже —
+    // и тогда метка оставалась пустой, а профиль уверенно сообщал
+    // «репетитора нет» тому, у кого репетитор есть.
+    if (res.ok && typeof res.tutorName === "string"
+        && localStorage.getItem(TUTOR_NAME_KEY) !== res.tutorName) {
+      localStorage.setItem(TUTOR_NAME_KEY, res.tutorName);
+    }
     if (res.ok && Array.isArray(res.homework)) applyHomework(res.homework);
     if (res.ok && res.lesson) applyLesson(res.lesson);
     pollBoard();
