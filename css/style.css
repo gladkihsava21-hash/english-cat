@@ -504,6 +504,26 @@ body {
   max-width: 460px; margin: 0 auto 10px; min-height: 1.5em; text-align: center;
   font-weight: 800; font-size: var(--text-body-sm); line-height: 1.4;
 }
+/* Страница не должна ездить вбок. Никогда.
+ *
+ * Репетитор прислал скриншот: панель уехала влево, часть интерфейса
+ * за краем. Воспроизвести в Chrome на пяти ширинах не удалось —
+ * значит виновата либо особенность Safari, либо масштаб страницы,
+ * и в обоих случаях искать причину по одному скриншоту дороже, чем
+ * закрыть саму возможность.
+ *
+ * overflow-x: clip, а не hidden: hidden создаёт контейнер прокрутки
+ * и ломает position: sticky (у нас на нём держится шапка панели).
+ * Для старых браузеров ниже лежит запасное правило.
+ */
+html { max-width: 100%; overflow-x: clip; }
+@supports not (overflow-x: clip) {
+  html { overflow-x: hidden; }
+}
+/* Длинное слово без пробелов — вторая классическая причина такой
+   поездки: адрес почты или ссылка в карточке ученика. */
+body { overflow-wrap: break-word; }
+
 /* ---------- адаптив ---------- */
 @media (max-width: 720px) {
   .topbar-inner { flex-wrap: wrap; gap: 8px; padding: 8px 12px; }
