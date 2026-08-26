@@ -699,3 +699,17 @@ body {
 .intro-play:hover .intro-play-mark { background: #FFFFFF; }
 .intro-play:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 .intro-video video { width: 100%; display: block; border-radius: var(--radius-card); }
+
+/* Возрастная маркировка (436-ФЗ). Знак обязан быть заметен, но это
+   служебная пометка, а не элемент продвижения — поэтому спокойная
+   рамка в подвале, а не яркая плашка. */
+.age-mark {
+  display: inline-block;
+  border: 2px solid var(--line-soft);
+  border-radius: 8px;
+  padding: 2px 9px;
+  font-weight: 900;
+  font-size: var(--text-caption);
+  color: var(--muted);
+  letter-spacing: .02em;
+}

@@ -32,7 +32,7 @@
   <meta name="twitter:card" content="summary_large_image">
   <link rel="preload" href="css/fonts/nunito-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="css/fonts/inter-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="css/fonts.css?v=177">
+  <link rel="stylesheet" href="css/fonts.css?v=178">
   <!-- Тему ставим ДО первой отрисовки, отдельным крошечным скриптом.
        Всё остальное грузится с defer, а defer выполняется после разбора
        страницы — то есть уже после того, как браузер её покажет. Если
@@ -48,13 +48,13 @@
       document.documentElement.dataset.theme = t;
     } catch (e) { /* приватный режим — просто останется дневная */ }
   </script>
-  <link rel="stylesheet" href="css/tokens.css?v=177">
-  <link rel="stylesheet" href="css/style.css?v=177">
-  <link rel="stylesheet" href="css/savely.css?v=177">
-  <link rel="stylesheet" href="css/tutor.css?v=177">
-<link rel="stylesheet" href="css/motion.css?v=177">
-<link rel="stylesheet" href="css/a11y.css?v=177">
-<link rel="stylesheet" href="css/cat.css?v=177">
+  <link rel="stylesheet" href="css/tokens.css?v=178">
+  <link rel="stylesheet" href="css/style.css?v=178">
+  <link rel="stylesheet" href="css/savely.css?v=178">
+  <link rel="stylesheet" href="css/tutor.css?v=178">
+<link rel="stylesheet" href="css/motion.css?v=178">
+<link rel="stylesheet" href="css/a11y.css?v=178">
+<link rel="stylesheet" href="css/cat.css?v=178">
 </head>
 <body>
 
@@ -606,26 +606,31 @@
   <p class="footer-credit">Кот нарисован на основе <a href="https://github.com/jdecked/twemoji" target="_blank" rel="noopener">Twemoji</a>, лицензия CC-BY 4.0.
     Фотографии к словам — <a href="credits.html">Wikimedia Commons, авторы и лицензии</a></p>
   <p class="footer-credit"><a href="privacy.html">Что мы храним и зачем</a> · <a href="offer.html">Условия подписки</a></p>
+  <!-- Возрастная маркировка по 436-ФЗ «О защите детей от информации».
+       Сайт — информационная продукция для детей, знак обязателен.
+       6+, а не 0+: материал школьный, рассчитан на читающего ребёнка. -->
+  <p class="footer-credit"><span class="age-mark" title="Информационная продукция для детей старше шести лет">6+</span></p>
+
   <p class="footer-sub">Вопрос, счёт или «что-то сломалось» —
     <a href="https://t.me/KOTSAVELII" target="_blank" rel="noopener">@KOTSAVELII</a></p>
 </footer>
 
-<script defer src="js/theme.js?v=177"></script>
-<script defer src="js/icons.js?v=177"></script>
-<script defer src="js/cat.js?v=177"></script>
-<script defer src="js/motion.js?v=177"></script>
-<script defer src="js/util.js?v=177"></script>
-<script defer src="js/levels.js?v=177"></script>
+<script defer src="js/theme.js?v=178"></script>
+<script defer src="js/icons.js?v=178"></script>
+<script defer src="js/cat.js?v=178"></script>
+<script defer src="js/motion.js?v=178"></script>
+<script defer src="js/util.js?v=178"></script>
+<script defer src="js/levels.js?v=178"></script>
 <!-- js/words.js здесь НЕТ намеренно. Это 326 КБ сжатыми, а на экране
      входа словарь не нужен вообще: он нужен только внутри панели, чтобы
      собрать домашку. Подгружается в openPanel через ensureWords(). -->
-<script defer src="js/images.js?v=177"></script>
-<script defer src="js/word-photos.js?v=177"></script>
-<script defer src="js/qr.js?v=177"></script>
-<script defer src="js/tutor.js?v=177"></script>
-<script defer src="js/tutor-tasks.js?v=177"></script>
-<script defer src="js/tutor-photos.js?v=177"></script>
-<script defer src="js/tutor-auth.js?v=177"></script>
-<script defer src="js/tutor-verify.js?v=177"></script>
+<script defer src="js/images.js?v=178"></script>
+<script defer src="js/word-photos.js?v=178"></script>
+<script defer src="js/qr.js?v=178"></script>
+<script defer src="js/tutor.js?v=178"></script>
+<script defer src="js/tutor-tasks.js?v=178"></script>
+<script defer src="js/tutor-photos.js?v=178"></script>
+<script defer src="js/tutor-auth.js?v=178"></script>
+<script defer src="js/tutor-verify.js?v=178"></script>
 </body>
 </html>
