@@ -731,3 +731,14 @@ body {
   width: 42px; height: 42px;
   display: inline-block; vertical-align: -12px; margin-left: 6px;
 }
+
+/* Проверочный раунд теста: варианты ответа столбиком.
+   Кнопки во всю ширину — по ним попадают пальцем, не целясь. */
+.verify-options { display: flex; flex-direction: column; gap: 10px; margin-top: 18px; }
+.verify-option { width: 100%; justify-content: flex-start; text-align: left; min-height: 52px; }
+/* Предложение с пропуском длиннее слова — уменьшаем и разрешаем перенос */
+.quiz-word.verify-sentence {
+  font-size: var(--text-subheading);
+  line-height: 1.35;
+  white-space: normal;
+}

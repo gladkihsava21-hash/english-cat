@@ -549,9 +549,42 @@ function updateChrome() {
 // вопрос заметно снижает шум — при пяти один случайный промах сдвигал
 // оценку на целую ступень. Тест удлиняется с 30 вопросов до 36.
 const TEST_PER_LEVEL = 6;
+
+/* ── Слова-обманки ────────────────────────────────────────────────────
+ *
+ * Тест спрашивает «знаешь это слово?» и верит на слово. Это быстро —
+ * тридцать шесть ответов за полторы минуты, — но ученик может отвечать
+ * «знаю» из вежливости, из азарта или потому что слово кажется знакомым.
+ * Тогда уровень выходит завышенным, а дальше человек получает слова,
+ * которые ему не по зубам, и бросает.
+ *
+ * Приём известный (его используют в LexTALE и других тестах словарного
+ * запаса): подмешать несуществующие слова, построенные по правилам
+ * английского. Знать их нельзя — значит каждое «знаю» здесь показывает,
+ * насколько завышены остальные ответы.
+ *
+ * Слова придуманы так, чтобы читались по-английски и не были похожи
+ * ни на одно настоящее: ни корня, ни узнаваемой приставки.
+ */
+const FAKE_WORDS = [
+  "brindle-plack", "morkish", "plunthy", "sprandle", "gorbex", "trellick",
+  "vurnish", "clabbot", "shomble", "grindley", "fandick", "quorbin",
+];
+const FAKE_IN_TEST = 6;         // из 36 настоящих — шесть подмешанных
+
+/* Сколько «знаю» на обманках во сколько раз режет доверие к ответам.
+ * Одна случайная ошибка бывает у всех — она почти ничего не меняет;
+ * четыре и больше означают, что человек нажимал «знаю» не глядя. */
+function honestyFactor(fakeYes) {
+  if (fakeYes <= 1) return 1;
+  if (fakeYes === 2) return 0.85;
+  if (fakeYes === 3) return 0.7;
+  return 0.5;
+}
 let testWords = [];
 let testIndex = 0;
 let testAnswers = {}; // level -> known count
+let fakeYes = 0;      // сколько раз сказал «знаю» о несуществующем слове
 
 function sample(arr, n) {
   const copy = [...arr];
@@ -595,6 +628,13 @@ document.getElementById("start-test-btn").addEventListener("click", async () => 
       : WORDS[lvl];
     sample(pool, TEST_PER_LEVEL).forEach(w => testWords.push({ ...w, level: lvl }));
   });
+  // Обманки раскидываем по всему тесту, а не кучей в конце: иначе они
+  // читаются как отдельный «странный блок» и ученик настораживается.
+  sample(FAKE_WORDS, FAKE_IN_TEST).forEach(w => {
+    const at = 2 + Math.floor(Math.random() * (testWords.length - 2));
+    testWords.splice(at, 0, { w, fake: true });
+  });
+  fakeYes = 0;
   testIndex = 0;
   testAnswers = {};
   LEVELS.forEach(l => testAnswers[l] = 0);
@@ -618,7 +658,12 @@ function renderTestWord() {
 }
 
 function answerTest(knows) {
-  if (knows) testAnswers[testWords[testIndex].level]++;
+  const cur = testWords[testIndex];
+  if (cur.fake) {
+    if (knows) fakeYes++;
+  } else if (knows) {
+    testAnswers[cur.level]++;
+  }
   testIndex++;
   if (testIndex < testWords.length) {
     renderTestWord();
@@ -669,8 +714,118 @@ function estimateLevelIndex(answers) {
   return best;
 }
 
+/* ── Проверочный раунд ────────────────────────────────────────────────
+ *
+ * «Знаю / не знаю» меряет узнавание, а не знание: слово может казаться
+ * знакомым по виду. Методист попросила проверять по-настоящему —
+ * переводом и по смыслу в предложении. Делать так ВЕСЬ тест нельзя:
+ * тридцать шесть вопросов с вариантами — это семь минут, и ребёнок
+ * бросит на середине.
+ *
+ * Поэтому проверяем точечно: шесть вопросов ровно на той границе, где
+ * оценка неуверенна, — на предполагаемом уровне и на соседнем сверху.
+ * Там ответ и решает, поставить уровень или опустить на ступень.
+ * Половина вопросов — перевод, половина — слово в предложении: первое
+ * проверяет значение, второе — умение узнать его в живой фразе.
+ */
+const VERIFY_COUNT = 6;
+let verifyQs = [], verifyIndex = 0, verifyRight = 0, verifyBase = 0;
+
+function buildVerify(levelIdx) {
+  const qs = [];
+  const near = [LEVELS[levelIdx], LEVELS[Math.min(levelIdx + 1, LEVELS.length - 1)]];
+  const pool = near.flatMap(l => (WORDS[l] || []).map(w => ({ ...w, level: l })))
+    .filter(w => w.t && w.w);
+  const withEx = pool.filter(w => w.ex && w.ex.toLowerCase().includes(w.w.toLowerCase()));
+
+  // Половина — «выбери перевод»
+  sample(pool, Math.ceil(VERIFY_COUNT / 2)).forEach(w => {
+    const wrong = sample(pool.filter(x => x.w !== w.w && x.t !== w.t), 3).map(x => x.t);
+    const options = shuffleArr([w.t, ...wrong]);
+    qs.push({ kind: "tr", prompt: w.w, options, right: options.indexOf(w.t) });
+  });
+  // Половина — «какое слово подходит по смыслу»
+  sample(withEx, VERIFY_COUNT - qs.length).forEach(w => {
+    const re = new RegExp("\\b" + w.w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b", "i");
+    const sentence = w.ex.replace(re, "____");
+    const wrong = sample(pool.filter(x => x.w !== w.w), 3).map(x => x.w);
+    const options = shuffleArr([w.w, ...wrong]);
+    qs.push({ kind: "gap", prompt: sentence, options, right: options.indexOf(w.w) });
+  });
+  return shuffleArr(qs).slice(0, VERIFY_COUNT);
+}
+
+function shuffleArr(a) { return [...a].sort(() => Math.random() - 0.5); }
+
+function startVerify(levelIdx) {
+  verifyBase = levelIdx;
+  verifyQs = buildVerify(levelIdx);
+  if (!verifyQs.length) { applyLevel(levelIdx); return; }
+  verifyIndex = 0;
+  verifyRight = 0;
+  document.getElementById("test-run").classList.add("hidden");
+  document.getElementById("test-verify").classList.remove("hidden");
+  renderVerify();
+}
+
+function renderVerify() {
+  const q = verifyQs[verifyIndex];
+  document.getElementById("verify-counter").textContent =
+    `${verifyIndex + 1} / ${verifyQs.length}`;
+  document.getElementById("verify-label").textContent =
+    q.kind === "tr" ? "Что это слово значит?" : "Какое слово подходит?";
+  const prompt = document.getElementById("verify-prompt");
+  prompt.textContent = q.prompt;
+  prompt.classList.toggle("verify-sentence", q.kind === "gap");
+  prompt.lang = q.kind === "tr" ? "en" : "en";
+  const box = document.getElementById("verify-options");
+  box.innerHTML = "";
+  q.options.forEach((opt, i) => {
+    const b = document.createElement("button");
+    b.className = "btn btn-ghost verify-option";
+    b.textContent = opt;
+    if (q.kind === "gap") b.lang = "en";
+    b.addEventListener("click", () => {
+      if (i === q.right) verifyRight++;
+      verifyIndex++;
+      if (verifyIndex < verifyQs.length) renderVerify();
+      else finishVerify();
+    }, { once: true });
+    box.appendChild(b);
+  });
+}
+
+function finishVerify() {
+  /* Насколько опустить оценку.
+   *
+   * Считаем по двум уликам сразу. Первая — сколько верных ответов
+   * в проверке: она про настоящее знание. Вторая — сколько раз человек
+   * сказал «знаю» о выдуманном слове: она про то, можно ли вообще
+   * верить первой части теста.
+   *
+   * Проверено на крайнем случае: если жать «знаю» на всё подряд, включая
+   * все шесть обманок, и провалить проверку — раньше выходил C1 с запасом
+   * в восемь тысяч слов. Такой ученик открыл бы тренировку и не понял
+   * ни одного слова.
+   */
+  const total = verifyQs.length;
+  let drop = 0;
+  if (verifyRight <= Math.floor(total / 6)) drop = 2;           // почти всё мимо
+  else if (verifyRight < Math.ceil(total * 0.6)) drop = 1;      // больше половины мимо
+  if (fakeYes >= 4) drop += 1;                                  // отвечал не глядя
+  const idx = Math.max(0, verifyBase - drop);
+  document.getElementById("test-verify").classList.add("hidden");
+  applyLevel(idx, verifyRight, total);
+}
+
 function finishTest() {
-  const level = LEVELS[estimateLevelIndex(testAnswers)];
+  // Сначала — быстрая оценка по «знаю / не знаю», потом короткая
+  // проверка на границе. Уровень ставится уже по её результату.
+  startVerify(estimateLevelIndex(testAnswers));
+}
+
+function applyLevel(levelIdx, right, total) {
+  const level = LEVELS[levelIdx];
   // Оценка словарного запаса: доля знакомых слов уровня × его объём.
   // Никаких множителей «достигнут / не достигнут» — они делали оценку
   // немонотонной: ученик, ответивший верно БОЛЬШЕ раз, мог получить
@@ -679,6 +834,9 @@ function finishTest() {
   LEVELS.forEach(lvl => {
     vocab += (testAnswers[lvl] / TEST_PER_LEVEL) * LEVEL_VOCAB_SIZE[lvl];
   });
+  // Поправка на честность: «знаю» на выдуманных словах означает, что
+  // и остальные «знаю» надо делить. Без неё запас раздувается вдвое.
+  vocab *= honestyFactor(fakeYes);
   // Потолок по уровню: ученик, не знающий базовых слов, но угадавший
   // несколько редких, иначе получал бы «уровень A1, запас 14800 слов».
   let cap = 0;
@@ -710,6 +868,18 @@ function finishTest() {
     C2: "Мяу?! Может, это ТЫ будешь меня учить? Но пару слов я всё же найду.",
   };
   document.getElementById("result-comment").textContent = comments[level];
+  // Итог проверки говорим честно: ученик отвечал на настоящие вопросы
+  // и заслуживает знать, как справился. Заодно это объясняет уровень,
+  // если он вышел ниже, чем человек ожидал.
+  const note = document.getElementById("result-verify");
+  if (note && typeof total === "number" && total > 0) {
+    note.hidden = false;
+    note.textContent = right === total
+      ? `Проверка: ${right} из ${total} — ни одной ошибки, уровень подтверждён.`
+      : right <= Math.floor(total / 3)
+        ? `Проверка: ${right} из ${total}. Начнём чуть пониже — так слова закрепятся, а не пролетят мимо.`
+        : `Проверка: ${right} из ${total}. Уровень подтверждён.`;
+  }
   showResultCode();
 }
 
