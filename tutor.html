@@ -32,7 +32,7 @@
   <meta name="twitter:card" content="summary_large_image">
   <link rel="preload" href="css/fonts/nunito-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="css/fonts/inter-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="css/fonts.css?v=178">
+  <link rel="stylesheet" href="css/fonts.css?v=179">
   <!-- Тему ставим ДО первой отрисовки, отдельным крошечным скриптом.
        Всё остальное грузится с defer, а defer выполняется после разбора
        страницы — то есть уже после того, как браузер её покажет. Если
@@ -48,13 +48,13 @@
       document.documentElement.dataset.theme = t;
     } catch (e) { /* приватный режим — просто останется дневная */ }
   </script>
-  <link rel="stylesheet" href="css/tokens.css?v=178">
-  <link rel="stylesheet" href="css/style.css?v=178">
-  <link rel="stylesheet" href="css/savely.css?v=178">
-  <link rel="stylesheet" href="css/tutor.css?v=178">
-<link rel="stylesheet" href="css/motion.css?v=178">
-<link rel="stylesheet" href="css/a11y.css?v=178">
-<link rel="stylesheet" href="css/cat.css?v=178">
+  <link rel="stylesheet" href="css/tokens.css?v=179">
+  <link rel="stylesheet" href="css/style.css?v=179">
+  <link rel="stylesheet" href="css/savely.css?v=179">
+  <link rel="stylesheet" href="css/tutor.css?v=179">
+<link rel="stylesheet" href="css/motion.css?v=179">
+<link rel="stylesheet" href="css/a11y.css?v=179">
+<link rel="stylesheet" href="css/cat.css?v=179">
 </head>
 <body>
 
@@ -178,6 +178,7 @@
         <button class="nav-btn" data-tab="tasksets">Свои задания</button>
         <button class="nav-btn" data-tab="photos">Фото тетрадей <span id="photo-count" class="badge">0</span></button>
         <button class="nav-btn" data-tab="checks">Проверка домашек</button>
+        <button class="nav-btn" data-tab="boards">Доски</button>
         <button class="nav-btn" data-tab="lesson">Видеоурок</button>
         <button class="nav-btn" data-tab="invite">Ссылка для учеников</button>
         <button class="nav-btn" data-tab="plan">Подписка</button>
@@ -430,6 +431,23 @@
          Коротко: встроенное видео на старшем тарифе стоит дороже самой
          подписки, а Zoom или Телемост у репетитора уже есть. Наша работа —
          чтобы ученик попадал туда одной кнопкой и в нужный момент. -->
+    <!-- Доски для урока. Открываются отдельной страницей: доске нужен
+         весь экран, во вкладке она была бы окошком в окошке. -->
+    <section id="tab-boards" class="hidden">
+      <div class="section-head">
+        <h2>Доски</h2>
+        <button class="btn btn-primary btn-small" id="board-new">Новая доска</button>
+      </div>
+      <div class="card">
+        <p>Доска — это чистый лист на весь экран: пишите, рисуйте, клейте стикеры
+          и вытаскивайте слова из словаря ученика карточками. Открыв доступ,
+          вы увидите на ней рисунок ученика, а он — ваш, прямо во время урока.</p>
+        <p class="muted-note">Доска сохраняется сама. Открытой ученикам может быть
+          одна доска: та, на которой идёт занятие.</p>
+      </div>
+      <div id="boards-list"></div>
+    </section>
+
     <section id="tab-lesson" class="hidden">
       <div class="section-head"><h2>Видеоурок</h2></div>
       <div class="card">
@@ -615,22 +633,23 @@
     <a href="https://t.me/KOTSAVELII" target="_blank" rel="noopener">@KOTSAVELII</a></p>
 </footer>
 
-<script defer src="js/theme.js?v=178"></script>
-<script defer src="js/icons.js?v=178"></script>
-<script defer src="js/cat.js?v=178"></script>
-<script defer src="js/motion.js?v=178"></script>
-<script defer src="js/util.js?v=178"></script>
-<script defer src="js/levels.js?v=178"></script>
+<script defer src="js/theme.js?v=179"></script>
+<script defer src="js/icons.js?v=179"></script>
+<script defer src="js/cat.js?v=179"></script>
+<script defer src="js/motion.js?v=179"></script>
+<script defer src="js/util.js?v=179"></script>
+<script defer src="js/levels.js?v=179"></script>
 <!-- js/words.js здесь НЕТ намеренно. Это 326 КБ сжатыми, а на экране
      входа словарь не нужен вообще: он нужен только внутри панели, чтобы
      собрать домашку. Подгружается в openPanel через ensureWords(). -->
-<script defer src="js/images.js?v=178"></script>
-<script defer src="js/word-photos.js?v=178"></script>
-<script defer src="js/qr.js?v=178"></script>
-<script defer src="js/tutor.js?v=178"></script>
-<script defer src="js/tutor-tasks.js?v=178"></script>
-<script defer src="js/tutor-photos.js?v=178"></script>
-<script defer src="js/tutor-auth.js?v=178"></script>
-<script defer src="js/tutor-verify.js?v=178"></script>
+<script defer src="js/images.js?v=179"></script>
+<script defer src="js/word-photos.js?v=179"></script>
+<script defer src="js/qr.js?v=179"></script>
+<script defer src="js/tutor.js?v=179"></script>
+<script defer src="js/tutor-tasks.js?v=179"></script>
+<script defer src="js/tutor-photos.js?v=179"></script>
+<script defer src="js/tutor-auth.js?v=179"></script>
+<script defer src="js/tutor-verify.js?v=179"></script>
+<script defer src="js/tutor-boards.js?v=179"></script>
 </body>
 </html>

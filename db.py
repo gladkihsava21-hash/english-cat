@@ -123,6 +123,30 @@ CREATE TABLE IF NOT EXISTS tasksets (
 );
 CREATE INDEX IF NOT EXISTS idx_tasksets_tutor ON tasksets(tutor_id);
 
+-- Доски для урока: рисуем и раскладываем слова прямо на сайте.
+--
+-- Содержимое лежит одним JSON-объектом {id объекта: {…}} в data, а не
+-- отдельной таблицей на каждую наклейку. Причина простая: доска всегда
+-- читается и пишется целиком, объектов на урок — сотни, а не миллионы,
+-- и отдельная таблица дала бы сотни строк на выборку ради одной доски.
+--
+-- rev — номер версии доски, растёт на каждое изменение. По нему идёт
+-- синхронизация: клиент говорит «у меня было rev=17, дай что появилось
+-- позже», и получает только изменённые объекты. Так двое рисуют
+-- одновременно, не перетирая работу друг друга целиком.
+CREATE TABLE IF NOT EXISTS boards (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    tutor_id    INTEGER NOT NULL REFERENCES tutors(id),
+    title       TEXT NOT NULL,
+    data        TEXT NOT NULL DEFAULT '{}',
+    rev         INTEGER NOT NULL DEFAULT 0,
+    shared      INTEGER NOT NULL DEFAULT 0,   -- 1: ученики видят и рисуют
+    created_at  TEXT NOT NULL,
+    updated_at  TEXT NOT NULL,
+    archived    INTEGER DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_boards_tutor ON boards(tutor_id);
+
 -- Ограничение частоты запросов. Раньше счётчик был обычным словарём
 -- в памяти процесса — и на боевом хостинге не работал ВООБЩЕ.
 -- Запросы там обслуживает не один процесс, а сколько поднимет Apache,
@@ -1993,6 +2017,212 @@ CHECK_PACKS = [
 DEFAULT_CHECK_PACK = "normal"
 EXTRA_CHECK_PRICE = 19   # за проверку сверх лимита пакета
 SINGLE_CHECK_PRICE = 29  # разовая проверка без подписки
+
+
+# ---------- доски для урока ----------
+
+BOARD_MAX_OBJECTS = 3000      # больше на один урок не нарисовать
+BOARD_MAX_BYTES = 3_000_000   # 3 МБ на доску: рукописные линии — самое тяжёлое
+BOARD_MAX_PER_TUTOR = 60
+
+
+def _board_row(row):
+    """Строка доски → словарь для клиента. Содержимое НЕ отдаём:
+    список досок нужен для выбора, а весь JSON там лишний вес."""
+    data = json.loads(row["data"] or "{}")
+    return {
+        "id": row["id"],
+        "title": row["title"],
+        "rev": row["rev"],
+        "shared": bool(row["shared"]),
+        "objects": len(data),
+        "createdAt": row["created_at"],
+        "updatedAt": row["updated_at"],
+    }
+
+
+def list_boards(tutor_id):
+    rows = conn().execute(
+        "SELECT * FROM boards WHERE tutor_id=? AND COALESCE(archived,0)=0"
+        " ORDER BY updated_at DESC", (tutor_id,)).fetchall()
+    return [_board_row(r) for r in rows]
+
+
+def board_count(tutor_id):
+    return conn().execute(
+        "SELECT COUNT(*) n FROM boards WHERE tutor_id=? AND COALESCE(archived,0)=0",
+        (tutor_id,)).fetchone()["n"]
+
+
+def create_board(tutor_id, title):
+    ts = now()
+    cur = conn().execute(
+        "INSERT INTO boards (tutor_id, title, data, rev, created_at, updated_at)"
+        " VALUES (?, ?, '{}', 0, ?, ?)",
+        (tutor_id, (title or "Урок").strip()[:80] or "Урок", ts, ts))
+    conn().commit()
+    return get_board(cur.lastrowid)
+
+
+def get_board(board_id):
+    return conn().execute("SELECT * FROM boards WHERE id=?", (board_id,)).fetchone()
+
+
+def rename_board(board_id, tutor_id, title):
+    conn().execute("UPDATE boards SET title=?, updated_at=? WHERE id=? AND tutor_id=?",
+                   ((title or "").strip()[:80] or "Урок", now(), board_id, tutor_id))
+    conn().commit()
+    return get_board(board_id)
+
+
+def set_board_shared(board_id, tutor_id, shared):
+    conn().execute("UPDATE boards SET shared=?, updated_at=? WHERE id=? AND tutor_id=?",
+                   (1 if shared else 0, now(), board_id, tutor_id))
+    conn().commit()
+    return get_board(board_id)
+
+
+def delete_board(board_id, tutor_id):
+    """Прячем, а не стираем: доска — это конспект урока, и «удалил не ту»
+    здесь стоит дороже, чем строка в базе."""
+    conn().execute("UPDATE boards SET archived=1, updated_at=? WHERE id=? AND tutor_id=?",
+                   (now(), board_id, tutor_id))
+    conn().commit()
+
+
+def _clean_board_object(o):
+    """Объект доски приходит от клиента, поэтому проверяем всё.
+
+    На доске рисует не только репетитор: если ученикам открыт доступ,
+    любой из них может прислать что угодно. Поэтому здесь белый список
+    полей и жёсткие рамки чисел — доска не должна ронять чужой браузер
+    линией из миллиона точек или всплывать чужим скриптом в тексте."""
+    if not isinstance(o, dict):
+        return None
+    oid = str(o.get("id", ""))[:40]
+    kind = str(o.get("kind", ""))[:16]
+    if not oid or kind not in ("pen", "line", "arrow", "rect", "ellipse",
+                               "note", "text", "word"):
+        return None
+
+    def num(v, lo=-100000, hi=100000):
+        try:
+            f = float(v)
+        except (TypeError, ValueError):
+            return 0.0
+        if f != f or f in (float("inf"), float("-inf")):
+            return 0.0
+        return max(lo, min(hi, round(f, 2)))
+
+    out = {
+        "id": oid,
+        "kind": kind,
+        "x": num(o.get("x")),
+        "y": num(o.get("y")),
+        "w": num(o.get("w"), -20000, 20000),
+        "h": num(o.get("h"), -20000, 20000),
+        "color": str(o.get("color", ""))[:24],
+        "size": max(1, min(60, int(num(o.get("size", 3), 1, 60)))),
+        "rev": int(num(o.get("rev", 0), 0, 10**9)),
+        "by": str(o.get("by", ""))[:24],
+    }
+    if kind in ("note", "text", "word"):
+        out["text"] = str(o.get("text", ""))[:600]
+        out["text2"] = str(o.get("text2", ""))[:600]
+    if kind == "pen":
+        pts = o.get("pts")
+        if not isinstance(pts, list) or len(pts) < 2:
+            return None
+        # Точек в одной линии — не больше 4000: длинную линию клиент
+        # и сам режет, но присланное «сверху» ограничиваем здесь.
+        out["pts"] = [num(p) for p in pts[:8000]]
+        if len(out["pts"]) % 2:
+            out["pts"].pop()
+    return out
+
+
+def board_sync(board_id, changes, deletes, since, author):
+    """Слить изменения и вернуть то, чего у клиента ещё нет.
+
+    Правило слияния — «последний по объекту побеждает». Для доски на
+    двоих этого достаточно: конфликт возможен, только если оба тянут
+    ОДИН И ТОТ ЖЕ объект в одну секунду, а нарисованные линии у каждого
+    свои. Полной перезаписи доски не бывает никогда — иначе один
+    сохранённый кадр стирал бы то, что второй нарисовал секунду назад.
+    """
+    row = get_board(board_id)
+    if not row:
+        return None
+    data = json.loads(row["data"] or "{}")
+    rev = int(row["rev"] or 0)
+
+    touched = False
+    for raw in (changes or [])[:400]:
+        o = _clean_board_object(raw)
+        if not o:
+            continue
+        if len(data) >= BOARD_MAX_OBJECTS and o["id"] not in data:
+            break
+        rev += 1
+        o["rev"] = rev
+        o["by"] = author[:24]
+        data[o["id"]] = o
+        touched = True
+
+    for oid in (deletes or [])[:400]:
+        key = str(oid)[:40]
+        if key in data:
+            rev += 1
+            # Удалённое помним как «надгробие»: иначе второй клиент,
+            # который ещё не знает об удалении, пришлёт объект обратно.
+            data[key] = {"id": key, "kind": "gone", "rev": rev}
+            touched = True
+
+    if touched:
+        blob = json.dumps(data, ensure_ascii=False)
+        if len(blob.encode("utf-8")) > BOARD_MAX_BYTES:
+            return {"error": "board_full", "rev": row["rev"]}
+        conn().execute("UPDATE boards SET data=?, rev=?, updated_at=? WHERE id=?",
+                       (blob, rev, now(), board_id))
+        conn().commit()
+
+    fresh = [o for o in data.values() if int(o.get("rev", 0)) > int(since or 0)]
+    return {
+        "rev": rev,
+        "objects": [o for o in fresh if o.get("kind") != "gone"],
+        "deleted": [o["id"] for o in fresh if o.get("kind") == "gone"],
+        "full": int(since or 0) == 0,
+    }
+
+
+def clear_board(board_id, tutor_id):
+    """Очистить доску целиком. Версию не сбрасываем: клиенты узнают
+    об очистке по тому, что их объекты стали надгробиями."""
+    row = conn().execute("SELECT * FROM boards WHERE id=? AND tutor_id=?",
+                         (board_id, tutor_id)).fetchone()
+    if not row:
+        return None
+    data = json.loads(row["data"] or "{}")
+    rev = int(row["rev"] or 0)
+    gone = {}
+    for oid in data:
+        rev += 1
+        gone[oid] = {"id": oid, "kind": "gone", "rev": rev}
+    conn().execute("UPDATE boards SET data=?, rev=?, updated_at=? WHERE id=?",
+                   (json.dumps(gone, ensure_ascii=False), rev, now(), board_id))
+    conn().commit()
+    return get_board(board_id)
+
+
+def shared_board_for_student(student_row):
+    """Какая доска открыта ученику прямо сейчас. Ученик не выбирает доску
+    сам: он видит ровно ту, которую репетитор открыл на урок."""
+    if not student_row or not student_row["tutor_id"]:
+        return None
+    row = conn().execute(
+        "SELECT * FROM boards WHERE tutor_id=? AND shared=1 AND COALESCE(archived,0)=0"
+        " ORDER BY updated_at DESC LIMIT 1", (student_row["tutor_id"],)).fetchone()
+    return _board_row(row) if row else None
 
 
 # ---------- видеоурок ----------

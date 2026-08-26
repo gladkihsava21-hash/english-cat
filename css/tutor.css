@@ -546,3 +546,14 @@
   .invite-qr { gap: 14px; }
   .qr-box { width: 100%; height: auto; aspect-ratio: 1; }
 }
+
+/* Список досок для урока */
+.board-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 12px; }
+.board-main { flex: 1 1 260px; min-width: 0; }
+.board-title { font-family: var(--font-display), sans-serif; font-weight: 900; font-size: 18px;
+               display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.board-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.board-rename { flex: 1 1 100%; display: flex; gap: 8px; }
+.board-rename-input { flex: 1; font: inherit; padding: 8px 10px; min-height: 40px;
+  border: 1px solid var(--line-control); border-radius: 10px;
+  background: var(--surface); color: var(--ink); }

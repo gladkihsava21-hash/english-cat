@@ -35,7 +35,7 @@ import mailer
 # Теперь это видно одним curl /health: цифра совпала с ?v= на странице —
 # приложение перезапущено; не совпала или её нет вовсе — в памяти старый
 # код, надо нажать «Перезапустить приложение» в панели хостинга.
-ASSET_VERSION = 177
+ASSET_VERSION = 179
 
 PORT = int(os.environ.get("SAVELY_PORT", "4210"))
 # За nginx сервер слушает только localhost — снаружи он не должен быть виден
@@ -348,6 +348,12 @@ _HIT_LIMITS = {
     "/api/student/reading": (30, 300),
     "/api/student/join": (30, 600),
     "/api/student/register": (10, 600),
+    # Доска опрашивается раз в пару секунд обоими участниками урока,
+    # поэтому лимит высокий: 240 обращений за минуту — это два человека,
+    # которые рисуют одновременно, и ещё остаётся запас.
+    "/api/board/sync": (240, 60),
+    "/api/board/create": (20, 600),
+    "/api/board/update": (60, 600),
     # Вход по паролю — самая привлекательная цель для перебора: 10 попыток
     # с адреса за 10 минут. Честному человеку хватает двух.
     "/api/student/login": (10, 600),
@@ -1111,6 +1117,97 @@ class Api:
         if not tutor:
             return {"ok": False, "error": "Такой ссылки не существует."}
         return {"ok": True, "tutorName": tutor["name"]}
+
+    # ---------- доска для урока ----------
+
+    @staticmethod
+    def board_list(h, p):
+        tutor, err = verified_tutor(p)
+        if err:
+            return err
+        return {"ok": True, "boards": db.list_boards(tutor["id"])}
+
+    @staticmethod
+    def board_create(h, p):
+        tutor, err = verified_tutor(p)
+        if err:
+            return err
+        if db.board_count(tutor["id"]) >= db.BOARD_MAX_PER_TUTOR:
+            return {"ok": False, "error": "Досок уже много — удалите ненужные."}
+        row = db.create_board(tutor["id"], p.get("title"))
+        return {"ok": True, "board": db._board_row(row), "boards": db.list_boards(tutor["id"])}
+
+    @staticmethod
+    def board_update(h, p):
+        """Переименование, доступ ученикам и удаление — одной ручкой:
+        все три действия делает владелец доски и над одной доской."""
+        tutor, err = verified_tutor(p)
+        if err:
+            return err
+        board = db.get_board(p.get("boardId"))
+        if not board or board["tutor_id"] != tutor["id"]:
+            return {"ok": False, "error": "Доска не найдена."}
+        action = str(p.get("action", ""))
+        if action == "rename":
+            db.rename_board(board["id"], tutor["id"], p.get("title"))
+        elif action == "share":
+            # Открыта всегда ОДНА доска: ученик не выбирает, он видит ту,
+            # которую репетитор открыл на этот урок.
+            if p.get("shared"):
+                for b in db.list_boards(tutor["id"]):
+                    if b["shared"] and b["id"] != board["id"]:
+                        db.set_board_shared(b["id"], tutor["id"], False)
+            db.set_board_shared(board["id"], tutor["id"], bool(p.get("shared")))
+        elif action == "delete":
+            db.delete_board(board["id"], tutor["id"])
+        elif action == "clear":
+            db.clear_board(board["id"], tutor["id"])
+        else:
+            return {"ok": False, "error": "Неизвестное действие."}
+        return {"ok": True, "boards": db.list_boards(tutor["id"])}
+
+    @staticmethod
+    def board_sync(h, p):
+        """Обмен изменениями. Ходит и репетитор, и ученик — раз в пару
+        секунд, пока доска открыта. Отдаём только то, что появилось
+        после версии клиента: тянуть всю доску на каждый опрос нельзя,
+        она за урок вырастает до мегабайта."""
+        board = db.get_board(p.get("boardId"))
+        if not board:
+            return {"ok": False, "error": "Доска не найдена."}
+
+        author, can_write = "", False
+        tutor = db.get_tutor_by_token(p.get("token"))
+        if tutor and tutor["id"] == board["tutor_id"]:
+            author, can_write = "t" + str(tutor["id"]), True
+        else:
+            stu = db.get_student_by_token(p.get("token"))
+            # Ученик пишет только на доску СВОЕГО репетитора и только
+            # пока она открыта: закрыл — доска сразу становится чужой.
+            if stu and stu["tutor_id"] == board["tutor_id"] and board["shared"]:
+                author, can_write = "s" + str(stu["id"]), True
+        if not author:
+            return {"ok": False, "error": "unauthorized"}
+
+        res = db.board_sync(board["id"],
+                            p.get("changes") if can_write else [],
+                            p.get("deletes") if can_write else [],
+                            p.get("since"), author)
+        if res is None:
+            return {"ok": False, "error": "Доска не найдена."}
+        if res.get("error") == "board_full":
+            return {"ok": False, "error": "Доска переполнена — очистите или заведите новую.",
+                    "rev": res["rev"]}
+        return {"ok": True, "title": board["title"], "shared": bool(board["shared"]),
+                "me": author, **res}
+
+    @staticmethod
+    def student_board(h, p):
+        """Какая доска открыта ученику сейчас (кнопка на главной)."""
+        row, err = student_owner(p)
+        if err:
+            return err
+        return {"ok": True, "board": db.shared_board_for_student(row)}
 
     @staticmethod
     def student_register(h, p):
@@ -2138,6 +2235,11 @@ ROUTES = {
     "/api/join": Api.join_info,
     "/api/student/join": Api.student_join,
     "/api/student/register": Api.student_register,
+    "/api/board/list": Api.board_list,
+    "/api/board/create": Api.board_create,
+    "/api/board/update": Api.board_update,
+    "/api/board/sync": Api.board_sync,
+    "/api/student/board": Api.student_board,
     "/api/student/login": Api.student_login,
     "/api/student/password": Api.student_set_password,
     "/api/student/adopt": Api.student_adopt,
@@ -2268,7 +2370,7 @@ class Handler(SimpleHTTPRequestHandler):
         в белом списке, наружу не уходят — там хеши паролей и токены."""
         name = path.lstrip("/")
         if name in ("", "index.html", "tutor.html", "admin.html", "credits.html",
-                    "privacy.html", "offer.html",
+                    "privacy.html", "offer.html", "board.html",
                     "manifest.json", "sw.js",
                     "icon-192.png", "icon-512.png", "favicon.ico", "robots.txt"):
             return True

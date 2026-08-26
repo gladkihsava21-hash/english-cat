@@ -1,0 +1,292 @@
+/* Доска для урока.
+ *
+ * Всё поверх полотна — «плавающие» панели: доска занимает весь экран,
+ * и любая рамка вокруг неё съедала бы рабочее место. Панели прижаты
+ * к краям и не перехватывают события там, где их нет (pointer-events),
+ * иначе рисовать под панелью было бы нельзя.
+ */
+
+.board-body {
+  margin: 0;
+  overflow: hidden;
+  overscroll-behavior: none;      /* чтобы жест не тянул страницу вниз */
+  background: var(--bd-paper);
+  font-family: var(--font-ui), system-ui, sans-serif;
+  color: var(--ink);
+  touch-action: none;             /* жесты обрабатываем сами */
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+#board-canvas {
+  position: fixed;
+  inset: 0;
+  display: block;
+  cursor: crosshair;
+}
+#board-canvas.grabbing { cursor: grabbing; }
+#board-canvas.picking  { cursor: default; }
+
+/* ---------- общие кнопки доски ---------- */
+.bd-btn {
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line-control);
+  border-radius: 10px;
+  min-height: 38px;
+  padding: 0 12px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.bd-btn:hover { background: var(--surface-alt); }
+.bd-btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.bd-btn.primary { background: var(--accent-fill); color: var(--on-accent-fill); border-color: transparent; }
+.bd-btn.danger { color: var(--red); }
+.bd-btn.on { background: var(--accent-soft); border-color: var(--accent-line); color: var(--accent); }
+
+/* ---------- верхняя панель ---------- */
+.bd-top {
+  position: fixed;
+  top: 12px; left: 12px; right: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  z-index: 20;
+  pointer-events: none;           /* кликается только содержимое */
+}
+.bd-top > * { pointer-events: auto; }
+
+.bd-back {
+  width: 38px; height: 38px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 10px;
+  background: var(--surface);
+  border: 1px solid var(--line-control);
+  color: var(--ink);
+  text-decoration: none;
+  font-size: 20px;
+  flex: none;
+}
+.bd-title {
+  display: flex; align-items: baseline; gap: 10px;
+  background: var(--surface);
+  border: 1px solid var(--line-control);
+  border-radius: 10px;
+  padding: 8px 14px;
+  min-height: 38px;
+  max-width: 46vw;
+}
+.bd-title #bd-name {
+  font-family: var(--font-display), sans-serif;
+  font-weight: 900;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.bd-state { font-size: 12.5px; color: var(--ink-soft); white-space: nowrap; }
+.bd-state.err { color: var(--red); }
+
+.bd-top-right { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+.bd-live {
+  font-size: 13px; font-weight: 600;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-radius: 999px;
+  padding: 7px 14px;
+}
+
+/* ---------- инструменты слева ---------- */
+.bd-tools {
+  position: fixed;
+  left: 12px; top: 50%;
+  transform: translateY(-50%);
+  display: flex; flex-direction: column; gap: 6px;
+  background: var(--surface);
+  border: 1px solid var(--line-control);
+  border-radius: 14px;
+  padding: 8px;
+  z-index: 20;
+}
+.bd-tool {
+  width: 44px; height: 44px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--ink);
+  background: transparent;
+  border: 0;
+  border-radius: 10px;
+  cursor: pointer;
+}
+.bd-tool:hover { background: var(--surface-alt); }
+.bd-tool.active { background: var(--accent-fill); color: var(--on-accent-fill); }
+.bd-tool:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.bd-sep { height: 1px; background: var(--line-soft); margin: 4px 2px; }
+.bd-sep-h { width: 1px; align-self: stretch; background: var(--line-soft); margin: 4px 2px; }
+
+/* ---------- цвет и толщина ---------- */
+.bd-style {
+  position: fixed;
+  left: 74px; top: 50%;
+  transform: translateY(-50%);
+  display: flex; flex-direction: column; gap: 10px;
+  background: var(--surface);
+  border: 1px solid var(--line-control);
+  border-radius: 14px;
+  padding: 10px 8px;
+  z-index: 20;
+}
+.bd-colors, .bd-sizes { display: flex; flex-direction: column; gap: 6px; }
+.bd-swatch {
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+}
+.bd-swatch.active { border-color: var(--ink); }
+.bd-swatch:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+.bd-size {
+  width: 30px; height: 30px;
+  display: flex; align-items: center; justify-content: center;
+  background: transparent; border: 0; border-radius: 8px; cursor: pointer;
+}
+.bd-size i { display: block; background: var(--ink); border-radius: 50%; }
+.bd-size.active { background: var(--accent-soft); }
+
+/* ---------- нижняя панель ---------- */
+.bd-bottom {
+  position: fixed;
+  left: 50%; bottom: 14px;
+  transform: translateX(-50%);
+  display: flex; align-items: center; gap: 6px;
+  background: var(--surface);
+  border: 1px solid var(--line-control);
+  border-radius: 14px;
+  padding: 6px;
+  z-index: 20;
+  max-width: calc(100vw - 24px);
+}
+.bd-zoom { min-width: 62px; font-variant-numeric: tabular-nums; }
+
+/* ---------- панель слов ---------- */
+.bd-panel {
+  position: fixed;
+  right: 12px; top: 62px; bottom: 70px;
+  width: 300px;
+  display: flex; flex-direction: column; gap: 10px;
+  background: var(--surface);
+  border: 1px solid var(--line-control);
+  border-radius: 14px;
+  padding: 12px;
+  z-index: 21;
+}
+.bd-panel-head { display: flex; align-items: center; justify-content: space-between; }
+.bd-panel-head b { font-family: var(--font-display), sans-serif; font-size: 17px; }
+.bd-select, .bd-input {
+  font: inherit; font-size: 15px;
+  padding: 9px 10px;
+  border: 1px solid var(--line-control);
+  border-radius: 10px;
+  background: var(--paper);
+  color: var(--ink);
+  width: 100%;
+  min-height: 40px;
+}
+.bd-hint { font-size: 12.5px; color: var(--ink-soft); line-height: 1.4; margin: 0; }
+.bd-word-list { overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+.bd-word {
+  display: flex; align-items: baseline; gap: 8px;
+  padding: 9px 12px;
+  border: 1px solid var(--line-soft);
+  border-radius: 10px;
+  background: var(--paper);
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  min-height: 42px;
+}
+.bd-word:hover { border-color: var(--accent-line); background: var(--accent-soft); }
+.bd-word b { font-weight: 700; }
+.bd-word span { font-size: 13px; color: var(--ink-soft); margin-left: auto; }
+
+/* ---------- ввод текста ---------- */
+.bd-editor {
+  position: fixed;
+  left: 50%; top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(440px, 92vw);
+  display: flex; flex-direction: column; gap: 10px;
+  background: var(--surface);
+  border: 1px solid var(--line-control);
+  border-radius: 14px;
+  padding: 14px;
+  z-index: 40;
+  box-shadow: 0 20px 50px rgba(0,0,0,.22);
+}
+.bd-editor textarea {
+  font: inherit; font-size: 17px;
+  padding: 10px;
+  border: 1px solid var(--line-control);
+  border-radius: 10px;
+  background: var(--paper);
+  color: var(--ink);
+  resize: vertical;
+  width: 100%;
+}
+.bd-editor-row { display: flex; gap: 8px; justify-content: flex-end; }
+
+/* ---------- сообщение ---------- */
+.bd-toast {
+  position: fixed;
+  left: 50%; top: 70px;
+  transform: translateX(-50%);
+  background: var(--ink);
+  color: var(--paper);
+  border-radius: 10px;
+  padding: 10px 16px;
+  font-size: 14px;
+  z-index: 50;
+  margin: 0;
+  max-width: 80vw;
+  text-align: center;
+}
+
+/* ---------- телефон ----------
+   На узком экране вертикальный ряд инструментов не помещается вместе
+   с палитрой: палитра уезжает вниз, инструменты становятся строкой. */
+@media (max-width: 760px) {
+  .bd-tools {
+    left: 8px; right: 8px; top: auto; bottom: 66px;
+    transform: none;
+    flex-direction: row;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .bd-style {
+    left: 8px; top: auto; bottom: 128px;
+    transform: none;
+    flex-direction: row;
+    padding: 8px;
+  }
+  .bd-colors, .bd-sizes { flex-direction: row; }
+  .bd-sep { width: 1px; height: auto; margin: 2px 4px; }
+  .bd-panel { top: 62px; bottom: 190px; width: auto; left: 8px; right: 8px; }
+  .bd-title { max-width: 40vw; }
+  .bd-bottom { bottom: 10px; }
+}
+
+/* Атрибут hidden против display:flex.
+   У панелей задан display, а он сильнее браузерного [hidden]{display:none} —
+   поэтому «скрытая» панель оставалась на экране. Специфичность класса
+   с атрибутом выше, чем у одного класса, так что это правило побеждает. */
+.bd-panel[hidden],
+.bd-editor[hidden],
+.bd-toast[hidden],
+.bd-live[hidden],
+.bd-btn[hidden] { display: none; }

@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Доска — Савелий</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="preload" href="css/fonts/nunito-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="css/fonts/inter-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="css/fonts.css?v=179">
+  <script>
+    try {
+      var t = localStorage.getItem("savelyTheme");
+      if (t !== "night" && t !== "day")
+        t = matchMedia("(prefers-color-scheme: dark)").matches ? "night" : "day";
+      document.documentElement.dataset.theme = t;
+    } catch (e) { /* приватный режим */ }
+  </script>
+  <link rel="stylesheet" href="css/tokens.css?v=179">
+  <link rel="stylesheet" href="css/style.css?v=179">
+  <link rel="stylesheet" href="css/board.css?v=179">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+</head>
+<body class="board-body">
+
+<!-- Полотно на весь экран: доска — это рабочее место, а не раздел сайта,
+     поэтому шапки сайта здесь нет, только своя тонкая панель. -->
+<canvas id="board-canvas"></canvas>
+
+<!-- Верхняя панель: кто где и что с доской -->
+<header class="bd-top">
+  <a class="bd-back" href="tutor.html" id="bd-back" title="Выйти с доски">←</a>
+  <div class="bd-title">
+    <span id="bd-name">Доска</span>
+    <span class="bd-state" id="bd-state">сохраняю…</span>
+  </div>
+  <div class="bd-top-right">
+    <span class="bd-live" id="bd-live" hidden>ученик на доске</span>
+    <button class="bd-btn" id="bd-share" hidden>Открыть ученику</button>
+    <button class="bd-btn" id="bd-png" title="Скачать картинкой">PNG</button>
+    <button class="bd-btn" id="bd-theme" title="День и ночь">◐</button>
+  </div>
+</header>
+
+<!-- Инструменты. Слева, вертикально: так они не спорят с рукой,
+     когда рисуют пальцем на планшете. -->
+<nav class="bd-tools" aria-label="Инструменты">
+  <button class="bd-tool active" data-tool="select" title="Выделить и двигать (V)">✥</button>
+  <button class="bd-tool" data-tool="pen" title="Ручка (P)">✎</button>
+  <button class="bd-tool" data-tool="marker" title="Маркер — полупрозрачный (M)">▬</button>
+  <button class="bd-tool" data-tool="eraser" title="Ластик (E)">⌫</button>
+  <button class="bd-tool" data-tool="note" title="Стикер (S)">▢</button>
+  <button class="bd-tool" data-tool="text" title="Текст (T)">T</button>
+  <button class="bd-tool" data-tool="rect" title="Прямоугольник (R)">▭</button>
+  <button class="bd-tool" data-tool="ellipse" title="Овал (O)">◯</button>
+  <button class="bd-tool" data-tool="arrow" title="Стрелка (A)">↗</button>
+  <div class="bd-sep"></div>
+  <button class="bd-tool" id="bd-words" title="Слова ученика (W)">Аа</button>
+</nav>
+
+<!-- Цвет и толщина -->
+<div class="bd-style">
+  <div class="bd-colors" id="bd-colors" role="group" aria-label="Цвет"></div>
+  <div class="bd-sizes" id="bd-sizes" role="group" aria-label="Толщина"></div>
+</div>
+
+<!-- Низ: отмена, масштаб -->
+<div class="bd-bottom">
+  <button class="bd-btn" id="bd-undo" title="Отменить (Ctrl+Z)">↶</button>
+  <button class="bd-btn" id="bd-redo" title="Вернуть (Ctrl+Shift+Z)">↷</button>
+  <div class="bd-sep-h"></div>
+  <button class="bd-btn" id="bd-zoom-out" title="Мельче">−</button>
+  <button class="bd-btn bd-zoom" id="bd-zoom" title="Вернуть 100%">100%</button>
+  <button class="bd-btn" id="bd-zoom-in" title="Крупнее">+</button>
+  <div class="bd-sep-h"></div>
+  <button class="bd-btn" id="bd-fit" title="Показать всё">⤢</button>
+  <button class="bd-btn danger" id="bd-clear" title="Очистить доску">Очистить</button>
+</div>
+
+<!-- Панель слов: то, ради чего доска именно наша, а не Miro.
+     Слова ученика перетаскиваются на доску карточками. -->
+<aside class="bd-panel" id="bd-panel" hidden>
+  <div class="bd-panel-head">
+    <b>Слова на доску</b>
+    <button class="bd-btn" id="bd-panel-close" aria-label="Закрыть">✕</button>
+  </div>
+  <select id="bd-student" class="bd-select"></select>
+  <input type="search" id="bd-search" class="bd-input" placeholder="Найти слово…">
+  <p class="bd-hint" id="bd-words-hint">Нажми на слово — карточка ляжет на доску.
+    Перевод у карточки скрыт: нажми на неё на доске, чтобы открыть.</p>
+  <div class="bd-word-list" id="bd-word-list"></div>
+</aside>
+
+<!-- Ввод текста поверх доски: системные prompt() на сайте запрещены
+     (во встроенных браузерах их блокируют), поэтому своё поле. -->
+<div class="bd-editor" id="bd-editor" hidden>
+  <textarea id="bd-editor-input" rows="3" placeholder="Текст…"></textarea>
+  <div class="bd-editor-row">
+    <button class="bd-btn primary" id="bd-editor-ok">Готово</button>
+    <button class="bd-btn" id="bd-editor-cancel">Отмена</button>
+  </div>
+</div>
+
+<p class="bd-toast" id="bd-toast" hidden></p>
+
+<script defer src="js/util.js?v=179"></script>
+<script defer src="js/board.js?v=179"></script>
+</body>
+</html>

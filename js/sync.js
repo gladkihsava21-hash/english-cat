@@ -350,6 +350,7 @@ async function pushProgress() {
     }
     if (res.ok && Array.isArray(res.homework)) applyHomework(res.homework);
     if (res.ok && res.lesson) applyLesson(res.lesson);
+    pollBoard();
     if (res.ok && Array.isArray(res.messages)) {
       const changed = JSON.stringify(state.messages) !== JSON.stringify(res.messages);
       state.messages = res.messages;
@@ -667,6 +668,40 @@ function applyLesson(lesson) {
     saveStateQuiet();
     renderLessonBox();
   }
+}
+
+/* Доска урока: репетитор открыл — у ученика появилась кнопка.
+ *
+ * Отдельным блоком над видеоуроком: доска и комната для звонка —
+ * разные вещи, и на уроке нужны обе. Состояние приходит с сервера,
+ * а не хранится у ученика: доску открывают и закрывают во время урока,
+ * и локальная копия отставала бы на целый заход. */
+function renderBoardBox(board) {
+  const box = document.getElementById("board-box");
+  if (!box) return;
+  if (!board) { box.classList.add("hidden"); box.innerHTML = ""; return; }
+  box.classList.remove("hidden");
+  box.innerHTML = `
+    <div class="card lesson-card lesson-live">
+      <div class="cat-avatar cat-small" data-cat="happy"></div>
+      <div class="lesson-text">
+        <p class="lesson-kicker">${iconInline("book", 15)} Доска урока</p>
+        <p class="lesson-note">${esc(board.title)} — репетитор открыл доску,
+          можно писать и рисовать вместе.</p>
+      </div>
+      <a class="btn btn-primary lesson-go" href="board.html">Открыть доску</a>
+    </div>`;
+  if (typeof paintCats === "function") paintCats(box);
+}
+
+/** Спрашиваем про доску вместе с обычной синхронизацией — отдельного
+ *  опроса не заводим, лишний запрос раз в несколько секунд ни к чему. */
+async function pollBoard() {
+  if (!studentToken()) return;
+  try {
+    const res = await api("/api/student/board", { token: studentToken() });
+    if (res.ok) renderBoardBox(res.board);
+  } catch (e) { /* нет связи — блок просто не появится */ }
 }
 
 function renderLessonBox() {
