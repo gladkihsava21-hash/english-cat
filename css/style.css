@@ -458,6 +458,8 @@ body {
 .scramble-answer {
   font-size: var(--text-heading-sm); font-weight: 900; letter-spacing: 3px; margin: 6px 0 16px; min-height: 40px;
 }
+/* Ответ-фраза: разрядка в 3px хороша для букв, но рвёт слова */
+.scramble-answer.phrase { letter-spacing: .5px; font-size: var(--text-body); line-height: 1.5; }
 .scramble-tiles { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
 .scr-tile {
   font-family: inherit; font-size: var(--text-body); font-weight: 900; color: var(--ink);
@@ -467,6 +469,7 @@ body {
 .scr-tile:hover:not(:disabled) { border-color: var(--accent); transform: translateY(-2px); }
 .scr-tile:disabled { opacity: .25; cursor: default; }
 .scr-tile.sel { border-color: var(--accent); background: var(--accent-soft); }
+.pool-note-extra { opacity: .85; }
 .blitz-bar {
   display: flex; justify-content: space-between; font-weight: 800; font-size: var(--text-caption);
   margin-bottom: 10px; color: var(--muted);

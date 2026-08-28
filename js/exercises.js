@@ -350,8 +350,13 @@ function trainingDictionary() {
   return state.dictionary.filter(d => (d.folders || []).some(f => picked.includes(f)));
 }
 
-function trainPool(n, need = []) {
-  const has = rec => rec && need.every(f => rec[f]);
+/* fit — проверка пригодности слова для конкретного упражнения.
+ * Она обязана стоять ЗДЕСЬ, до отбора, а не после. «Собери слово»
+ * раньше делал trainPool(6).filter(без пробелов) — SRS выдавал шесть
+ * первых по очереди слов, все шесть оказывались фразами, фильтр съедал
+ * всё, и папка Ирины открывалась экраном «Готово! Верно 0 из 0». */
+function trainPool(n, need = [], fit = null) {
+  const has = rec => rec && need.every(f => rec[f]) && (!fit || fit(rec));
   const source = trainingDictionary();
   // порядок задаёт SRS: сначала то, что пора повторить
   const ordered = typeof srsQueue === "function"
@@ -761,7 +766,7 @@ function renderPracticeHub() {
   const picked = trainingFolders();
   const inScope = trainingDictionary().length;
   const chosenN = trainingPicked().length;
-  document.getElementById("practice-pool-note").textContent =
+  const scopeLine =
     chosenN
       ? `Только отмеченные в словаре слова — ${chosenN} ${wordsWord(chosenN)}`
       : picked.length
@@ -771,6 +776,14 @@ function renderPracticeHub() {
       : state.dictionary.length
         ? `Тренируем твой словарь (${state.dictionary.length} слов) + слова уровня ${studyLevel()}`
         : `Словарь пуст — тренируем слова уровня ${studyLevel()}`;
+  // Когда выбран свой набор, говорим честно, где он тренируется целиком,
+  // а где нет, — иначе «Определения» с двумя словами из 28 выглядят
+  // поломкой (просьба Ирины «прописать этот момент»).
+  const scopeNote = (chosenN || (picked.length && inScope))
+    ? `<br><span class="pool-note-extra">Эти слова целиком идут в «По словам», Аудирование и Диктант. `
+      + `«Определениям» нужны определения из базы, а «Выражения» и игры живут своей программой.</span>`
+    : "";
+  document.getElementById("practice-pool-note").innerHTML = esc(scopeLine) + scopeNote;
   host.innerHTML = "";
   EX_GROUPS.forEach(g => {
     const list = EXERCISES.filter(ex => ex.group === g.id && !ex.hidden);
@@ -961,11 +974,15 @@ function exFinish(correct, total, note = "") {
   const fromHomework = !!(homeworkContext && total > 0);
   if (fromHomework) recordTaskResult(correct, total, { rushed, secs });
   const perAnswer = exRound.answered ? (exRound.thinkMs / exRound.answered / 1000) : 0;
+  // Упражнение, которому не из чего собрать ни одного задания, — не
+  // «Готово! Верно 0 из 0. Ничего, повторение — мать учения» (Ирина
+  // прислала видео с этим экраном), а спокойное объяснение почему.
+  const empty = total === 0;
   stage().innerHTML = `
     <div class="empty-state">
-      <div class="cat-avatar cat-mid" data-cat="${rushed ? "oops" : pose}"></div>
-      <h2>${rushed ? "Слишком быстро" : "Готово!"}</h2>
-      <p>Верно ${correct} из ${total}. ${rushed ? "" : mood}</p>
+      <div class="cat-avatar cat-mid" data-cat="${rushed ? "oops" : empty ? "hello" : pose}"></div>
+      <h2>${rushed ? "Слишком быстро" : empty ? "Пока нечего тренировать" : "Готово!"}</h2>
+      ${empty ? "" : `<p>Верно ${correct} из ${total}. ${rushed ? "" : mood}</p>`}
       ${rushed ? `<p class="rushed-note">${iconInline("blitz", 16)} Ответы шли ${
           perAnswer < 0.5 ? "почти сразу" : `в среднем через ${perAnswer.toFixed(1)} с`
         } после того, как варианты открылись, — так не читают.
@@ -1018,7 +1035,7 @@ function exFinish(correct, total, note = "") {
         ${fromHomework
           ? `<button class="btn btn-ghost" data-nav="dashboard">На главную</button>`
           : `<button class="btn btn-ghost" data-nav="practice">К тренировкам</button>`}
-        <button class="btn btn-primary" id="ex-again">Ещё раз</button>
+        ${empty ? "" : `<button class="btn btn-primary" id="ex-again">Ещё раз</button>`}
       </div>
     </div>`;
 
@@ -1050,7 +1067,8 @@ function exFinish(correct, total, note = "") {
   }));
   // Экран нарисован после загрузки страницы — cat.js сам сюда не придёт.
   if (typeof paintCats === "function") paintCats(stage());
-  document.getElementById("ex-again").addEventListener("click", () => openExercise(currentExId));
+  const again = document.getElementById("ex-again");
+  if (again) again.addEventListener("click", () => openExercise(currentExId));
 }
 
 function exProgress(i, total) {
@@ -1287,15 +1305,18 @@ function runType(rounds, opts = {}) {
       done = true;
       exRoundAnswer(performance.now() - shownAt, 0);
       const ok = r.check ? r.check(val) : normEn(val) === normEn(r.answer);
+      // Перевод в скобках после правильного ответа — чтобы, разбирая
+      // ошибку в диктанте, ученик заодно понимал, ЧТО он писал.
+      const ruTail = r.answerRu ? ` (${r.answerRu})` : "";
       exLog.push({ q: exQuestionText(r), sub: r.sub || "", yours: val,
-                   right: r.sample || r.answer, ok, why: r.why || "" });
+                   right: (r.sample || r.answer) + ruTail, ok, why: r.why || "" });
       if (ok) { score++; award(15); }
       if (r.statWord) statUpdate(r.statWord, ok);
       const fb = document.getElementById("type-feedback");
       fb.className = "type-feedback " + (ok ? "ok" : "err");
       fb.textContent = ok
-        ? "Верно, мяу! " + (r.sample ? "Образец: " + r.sample : "")
-        : "Не совсем. Правильно: " + (r.sample || r.answer);
+        ? "Верно, мяу! " + (r.sample ? "Образец: " + r.sample + ruTail : "")
+        : "Не совсем. Правильно: " + (r.sample || r.answer) + ruTail;
       // Разбор по словам (диктант): показать, ЧТО именно не расслышал.
       // Без него ученик сличает две длинные фразы глазами и не находит
       // отличия — то есть ошибка не учит.
@@ -1672,18 +1693,38 @@ const EX_RUNNERS = {
   },
 
   scramble() {
-    const pool = trainPool(6).filter(p => p.w.length >= 4 && p.w.length <= 10 && !p.w.includes(" "));
+    // Слово собирается из букв, фраза — из слов. Раньше фразы просто
+    // выбрасывались, и папка, где одни выражения, не давала ни одного
+    // задания. Теперь любая папка тренируется целиком.
+    const pool = trainPool(6, ["t"], rec => {
+      const w = rec.w.trim();
+      if (w.includes(" ")) {
+        const k = w.split(/\s+/).length;
+        return k >= 2 && k <= 7;         // из одного слова нечего собирать
+      }
+      return w.length >= 4 && w.length <= 12;
+    });
+    if (!pool.length) {
+      exFinish(0, 0, "Для сборки нужны слова от 4 букв или фразы из "
+        + "нескольких слов — среди выбранных таких не нашлось.");
+      return;
+    }
     let i = 0, score = 0;
     const next = () => {
       if (i >= pool.length) { exFinish(score, pool.length); return; }
       const p = pool[i];
-      const letters = shuffled(p.w.toLowerCase().split(""));
+      const phrase = p.w.includes(" ");
+      const want = phrase ? p.w.toLowerCase().split(/\s+/).join(" ")
+                          : p.w.toLowerCase();
+      const parts = phrase ? want.split(" ") : want.split("");
+      const sep = phrase ? " " : "";
+      const letters = shuffled(parts);
       let picked = [];
       stage().innerHTML = `
         ${exProgress(i, pool.length)}
         <div class="card word-quiz-card">
-          <p class="quiz-label">Собери слово: «${esc(p.t)}»</p>
-          <div class="scramble-answer" id="scr-answer"></div>
+          <p class="quiz-label">${phrase ? "Собери фразу" : "Собери слово"}: «${esc(p.t)}»</p>
+          <div class="scramble-answer${phrase ? " phrase" : ""}" id="scr-answer"></div>
           <div class="scramble-tiles" id="scr-tiles"></div>
           <div class="quiz-buttons">
             <button class="btn btn-ghost" id="scr-clear">Сбросить</button>
@@ -1693,11 +1734,11 @@ const EX_RUNNERS = {
       const tilesBox = document.getElementById("scr-tiles");
       const answerBox = document.getElementById("scr-answer");
       const renderAnswer = () => {
-        answerBox.textContent = picked.map(x => x.ch).join("") || "…";
+        answerBox.textContent = picked.map(x => x.ch).join(sep) || "…";
       };
       const finishRound = () => {
-        const word = picked.map(x => x.ch).join("");
-        const ok = word === p.w.toLowerCase();
+        const word = picked.map(x => x.ch).join(sep);
+        const ok = word === want;
         if (ok) { score++; award(15); }
         statUpdate(p.w, ok);
         const fb = document.getElementById("scr-feedback");
@@ -1731,6 +1772,16 @@ const EX_RUNNERS = {
 
   defmatch() {
     const pool = trainPool(4, ["def"]);
+    // Английские определения есть только у слов из банка уровней, поэтому
+    // из папки со своими словами сюда попадает лишь часть (у Ирины из 28
+    // дошли два). Пустой пул объясняем, а не показываем «Верно 0 из 0».
+    if (!pool.length) {
+      exFinish(0, 0, "У выбранных слов нет английских определений в базе — "
+        + "«Определения» работают со словами из банка уровня. "
+        + "Свои слова целиком тренируют остальные упражнения «По словам», "
+        + "Аудирование и Диктант.");
+      return;
+    }
     runPairs(pool.map(p => ({ l: p.w, r: p.def, statWord: p.w })),
       { hint: "Соедини слово с его определением (по-английски)" });
   },
@@ -1761,41 +1812,64 @@ const EX_RUNNERS = {
   },
 
   dictation() {
-    // Раньше брались первые три из очереди SRS — очередь детерминированная,
-    // и подход за подходом диктовались ОДНИ И ТЕ ЖЕ три предложения
-    // («вернулась потренироваться, а новых не даёт»). Теперь пул широкий:
-    // весь словарь с примерами плюс предложения своего и соседнего уровня,
-    // а pickFresh следит, чтобы сначала шли ещё не слышанные.
-    const wide = trainPool(60, ["ex"]);
-    const seen = new Set(wide.map(p => p.ex));
-    const lvl = studyLevel();
-    const nextLvl = LEVELS[Math.min(LEVELS.indexOf(lvl) + 1, LEVELS.length - 1)];
-    const extra = [...WORDS[lvl], ...WORDS[nextLvl]]
-      .filter(x => x.ex && !seen.has(x.ex));
-    const all = [...wide, ...extra];
-    if (!all.length) { exFinish(0, 0, "Нужны слова с примерами — добавь пару слов в словарь."); return; }
-    const pool = pickFresh("dict:" + lvl, all, 5, p => p.ex);
-    runType(pool.map(p => ({
-      sub: "Послушай и напиши предложение",
-      promptHTML: icon("listening", 44),
-      audioText: p.ex,
-      answer: p.ex,
-      // Сверяем ПОСЛОВНО и требуем все слова.
-      //
-      // Было «от 80% совпавших слов» — и в предложении из пяти слов одно
-      // можно было написать как угодно. Методист прислала скриншоты:
-      // «The lumbary is still green» при образце «The lumber is still
-      // green» — четыре слова из пяти, засчитано «Верно, мяу!». Причём
-      // неверным оказывалось ровно то слово, ради которого диктант
-      // и затевался: the, is, still ученик и так знает.
-      //
-      // Опечатку в одну букву в длинном слове прощаем: диктант проверяет,
-      // расслышал ли человек фразу, а не орфографическую безупречность.
-      check: v => dictationDiff(v, p.ex).ok,
-      review: v => dictationReviewHTML(v, p.ex),
-      statWord: p.w,
-      sample: p.ex,
-    })), { textarea: true, placeholder: "Напиши, что услышал…",
+    // Два режима.
+    //
+    // Весь словарь: пул широкий — словарь с примерами плюс предложения
+    // своего и соседнего уровня, pickFresh следит, чтобы сначала шли ещё
+    // не слышанные. (Раньше брались первые три из очереди SRS — очередь
+    // детерминированная, и диктовались одни и те же предложения.)
+    //
+    // Папка, отмеченные слова или домашка: диктуем ИМЕННО ЭТИ слова —
+    // у кого в базе есть пример, целым предложением, у остальных само
+    // слово. Раньше сюда всё равно подмешивались предложения уровня,
+    // и Ирина писала «диктант не подстраивается под назначенные слова».
+    trainingDictionary();               // нормализует homeworkScope
+    const scoped = (homeworkScope && homeworkScope.length > 0) || !isTrainingWholeDict();
+    let pool;
+    if (scoped) {
+      const own = trainPool(60);
+      if (!own.length) { exFinish(0, 0, "В выбранных папках пока пусто — добавь слова в словаре."); return; }
+      pool = pickFresh("dict:scope", own, 5, p => p.ex || p.w);
+    } else {
+      const wide = trainPool(60, ["ex"]);
+      const seen = new Set(wide.map(p => p.ex));
+      const lvl = studyLevel();
+      const nextLvl = LEVELS[Math.min(LEVELS.indexOf(lvl) + 1, LEVELS.length - 1)];
+      const extra = [...WORDS[lvl], ...WORDS[nextLvl]]
+        .filter(x => x.ex && !seen.has(x.ex));
+      const all = [...wide, ...extra];
+      if (!all.length) { exFinish(0, 0, "Нужны слова с примерами — добавь пару слов в словарь."); return; }
+      pool = pickFresh("dict:" + lvl, all, 5, p => p.ex);
+    }
+    runType(pool.map(p => {
+      const sentence = !!p.ex;
+      const text = sentence ? p.ex : p.w;
+      return {
+        sub: sentence ? "Послушай и напиши предложение" : "Послушай и напиши слово",
+        promptHTML: icon("listening", 44),
+        audioText: text,
+        answer: text,
+        // Перевод в скобках к правильному ответу (просьба Ирины):
+        // предложения диктуются любые, и без перевода ученик собирает
+        // на слух фразу, смысла которой не знает.
+        answerRu: sentence ? p.exr : p.t,
+        // Сверяем ПОСЛОВНО и требуем все слова.
+        //
+        // Было «от 80% совпавших слов» — и в предложении из пяти слов одно
+        // можно было написать как угодно. Методист прислала скриншоты:
+        // «The lumbary is still green» при образце «The lumber is still
+        // green» — четыре слова из пяти, засчитано «Верно, мяу!». Причём
+        // неверным оказывалось ровно то слово, ради которого диктант
+        // и затевался: the, is, still ученик и так знает.
+        //
+        // Опечатку в одну букву в длинном слове прощаем: диктант проверяет,
+        // расслышал ли человек фразу, а не орфографическую безупречность.
+        check: v => dictationDiff(v, text).ok,
+        review: v => dictationReviewHTML(v, text),
+        statWord: p.w,
+        sample: text,
+      };
+    }), { textarea: true, placeholder: "Напиши, что услышал…",
            note: "Нужно расслышать все слова. Опечатку в одну букву прощаю." });
   },
 
