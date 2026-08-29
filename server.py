@@ -35,7 +35,7 @@ import mailer
 # Теперь это видно одним curl /health: цифра совпала с ?v= на странице —
 # приложение перезапущено; не совпала или её нет вовсе — в памяти старый
 # код, надо нажать «Перезапустить приложение» в панели хостинга.
-ASSET_VERSION = 231
+ASSET_VERSION = 232
 
 PORT = int(os.environ.get("SAVELY_PORT", "4210"))
 # За nginx сервер слушает только localhost — снаружи он не должен быть виден
@@ -951,6 +951,22 @@ class Api:
         return {"ok": True}
 
     @staticmethod
+    def tutor_student_level(h, p):
+        """Назначить ученику уровень вручную (пусто — вернуть «по тесту»).
+
+        Просьба совладельца: тест иногда завышает или занижает, а слова
+        для тренировок предлагаются от уровня — репетитор с урока видит
+        лучше. Применяется у ученика при следующей синхронизации."""
+        tutor, err = verified_tutor(p)
+        if err:
+            return err
+        ok = db.set_student_level(tutor["id"], int(p.get("studentId") or 0),
+                                  p.get("level") or "")
+        if not ok:
+            return {"ok": False, "error": "Такого уровня нет."}
+        return {"ok": True}
+
+    @staticmethod
     def tutor_message(h, p):
         tutor, err = verified_tutor(p)
         if err:
@@ -1472,6 +1488,13 @@ class Api:
                     "lesson": {"live": False, "url": ""}, "hasTutor": False,
                     "ai": ai_available(),
                     "taskResults": json.loads((row["task_results"] if "task_results" in row.keys() else "{}") or "{}")}
+        keys_row = row.keys()
+        # Назначенный репетитором уровень: ученик применит его по отметке
+        # времени (см. pushProgress в js/sync.js) и дальше шлёт сам.
+        level_force = None
+        if "level_forced" in keys_row and (row["level_forced"] or ""):
+            level_force = {"level": row["level_forced"],
+                           "at": row["level_forced_at"] or ""}
         hw = db.homework_for_student(db.list_homework(row["tutor_id"]), row)
         keys_cache = None
         tasks = []
@@ -1507,6 +1530,7 @@ class Api:
             # лишняя нагрузка на хостинг, где и так всё на одном процессе.
             "lesson": db.lesson_state(db.get_tutor_by_id(row["tutor_id"])),
             "hasTutor": True,
+            "levelForce": level_force,
             # Имя репетитора приходит с каждой синхронизацией.
             # Раньше оно записывалось на устройство ОДИН раз — при входе,
             # — и если ученика привязали позже или он вошёл иначе, метка
@@ -2330,6 +2354,7 @@ ROUTES = {
     "/api/tutor/students": Api.tutor_students,
     "/api/tutor/student": Api.tutor_student_detail,
     "/api/tutor/student/note": Api.tutor_student_note,
+    "/api/tutor/student/level": Api.tutor_student_level,
     "/api/tutor/student/delete": Api.tutor_student_delete,
     "/api/tutor/homework": Api.tutor_homework_create,
     "/api/tutor/homework/archive": Api.tutor_homework_archive,

@@ -520,8 +520,14 @@ async function openStudent(id) {
 
     <div class="stats-grid">
       <div class="card stat-card"><p class="stat-label">Уровень</p>
-        <p class="stat-value">${esc(s.level || "—")}</p>
-        <p class="stat-note">~${s.vocab || 0} слов запаса</p></div>
+        <select id="stu-level" class="type-input stu-level-select"
+                title="Назначить уровень вручную">
+          <option value="">${esc(s.level && !s.levelForced ? "по тесту — " + s.level : "по тесту")}</option>
+          ${["A1", "A2", "B1", "B2", "C1", "C2"].map(l =>
+            `<option value="${l}"${s.levelForced === l ? " selected" : ""}>${l}</option>`).join("")}
+        </select>
+        <p class="stat-note" id="stu-level-note">${s.levelForced
+          ? "назначен вами" : `~${s.vocab || 0} слов запаса`}</p></div>
       <div class="card stat-card"><p class="stat-label">Выучено</p>
         <p class="stat-value">${w.learned || 0}</p>
         <p class="stat-note">из ${w.total || 0} в словаре</p></div>
@@ -565,6 +571,23 @@ async function openStudent(id) {
     <p class="type-feedback" id="note-msg"></p>`;
 
   openModal("stu-modal");
+
+  // Уровень вручную: селект сохраняет сразу, ученик получит его при
+  // следующей синхронизации (просьба совладельца — тест иногда врёт,
+  // а слова для тренировок предлагаются от уровня).
+  $("stu-level").addEventListener("change", async () => {
+    const level = $("stu-level").value;
+    const note = $("stu-level-note");
+    note.textContent = "сохраняю…";
+    const res = await api("/api/tutor/student/level",
+      { token: token(), studentId: id, level });
+    if (!res.ok) { note.textContent = res.error || "не сохранилось"; return; }
+    note.textContent = level
+      ? "назначен вами — применится у ученика при следующем заходе"
+      : "снято — снова по тесту";
+    s.levelForced = level;
+    if (level) s.level = level;
+  });
 
   $("note-save").addEventListener("click", async () => {
     await api("/api/tutor/student/note",

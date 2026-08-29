@@ -265,6 +265,12 @@ MIGRATIONS = [
     # а того, кем он был, и повод пройти тест заново. Без даты «B1»
     # выглядит вечным приговором.
     ("students", "level_set_at", "TEXT"),
+    # Уровень, назначенный репетитором вручную. Отдельно от level: тот
+    # приходит из клиентского снапшота каждые секунды и перетёр бы
+    # назначение первым же синком. Ученик применяет назначение по отметке
+    # времени и дальше сам шлёт новый уровень — поля сходятся.
+    ("students", "level_forced", "TEXT"),
+    ("students", "level_forced_at", "TEXT"),
     # Когда ученик сам перевыпустил личный код. Нужно ровно для одного
     # разговора: «код не подходит» — «ты менял его тогда-то, работает новый».
     # Без даты это неотличимо от поломки сайта.
@@ -1033,6 +1039,29 @@ def student_state(row):
     }
 
 
+STUDENT_LEVELS = ("A1", "A2", "B1", "B2", "C1", "C2")
+
+def set_student_level(tutor_id, student_id, level):
+    """Репетитор назначает ученику уровень (пустая строка — снять).
+
+    Помимо level_forced обновляем и level: панель должна показать новый
+    уровень сразу, а не после того, как ученик зайдёт и отсинкается."""
+    level = str(level or "")[:4]
+    if level and level not in STUDENT_LEVELS:
+        return False
+    if level:
+        conn().execute(
+            "UPDATE students SET level_forced=?, level_forced_at=?, level=?, level_set_at=?"
+            " WHERE id=? AND tutor_id=?",
+            (level, now(), level, now(), student_id, tutor_id))
+    else:
+        conn().execute(
+            "UPDATE students SET level_forced='', level_forced_at=? WHERE id=? AND tutor_id=?",
+            (now(), student_id, tutor_id))
+    conn().commit()
+    return True
+
+
 def set_student_note(tutor_id, student_id, note):
     conn().execute("UPDATE students SET note=? WHERE id=? AND tutor_id=?",
                    (str(note)[:2000], student_id, tutor_id))
@@ -1460,6 +1489,7 @@ def student_public(row, homework=None, detail=False):
         "name": row["name"],
         "groupId": row["group_id"] if "group_id" in keys else None,
         "level": row["level"],
+        "levelForced": (row["level_forced"] if "level_forced" in keys else "") or "",
         "vocab": row["vocab"],
         "xp": row["xp"],
         "xpWeek": xp_since(activity, 7),

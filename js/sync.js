@@ -432,6 +432,27 @@ async function pushProgress() {
         && localStorage.getItem(TUTOR_NAME_KEY) !== res.tutorName) {
       localStorage.setItem(TUTOR_NAME_KEY, res.tutorName);
     }
+    // Уровень, назначенный репетитором: применяем один раз по отметке
+    // времени. Дальше ученик сам шлёт новый уровень в снапшоте, и поля
+    // на сервере сходятся. Свой выбор уровня тренировок сбрасываем:
+    // «как по тесту» теперь означает «как назначил репетитор».
+    if (res.ok && res.levelForce && res.levelForce.level
+        && state.levelForceApplied !== res.levelForce.at) {
+      state.levelForceApplied = res.levelForce.at;
+      if (state.level !== res.levelForce.level) {
+        state.level = res.levelForce.level;
+        state.trainLevel = null;
+        saveStateQuiet();
+        if (typeof updateChrome === "function") updateChrome();
+        if (typeof renderDashboard === "function"
+            && document.getElementById("screen-dashboard")
+            && !document.getElementById("screen-dashboard").classList.contains("hidden")) {
+          renderDashboard();
+        }
+      } else {
+        saveStateQuiet();
+      }
+    }
     if (res.ok && Array.isArray(res.homework)) applyHomework(res.homework);
     if (res.ok && res.lesson) applyLesson(res.lesson);
     pollBoard();
