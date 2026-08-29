@@ -459,7 +459,13 @@ body {
   font-size: var(--text-heading-sm); font-weight: 900; letter-spacing: 3px; margin: 6px 0 16px; min-height: 40px;
 }
 /* Ответ-фраза: разрядка в 3px хороша для букв, но рвёт слова */
-.scramble-answer.phrase { letter-spacing: .5px; font-size: var(--text-body); line-height: 1.5; }
+.scramble-answer.phrase { letter-spacing: 2px; font-size: var(--text-heading-sm); line-height: 1.4; }
+/* Зазор между словами фразы. Буквы стоят с разрядкой в 2–3 пикселя, и
+   обычный пробел на её фоне не читается: «bearout» и «bear out» выглядят
+   одинаково. Отступ заметно больше межбуквенного — граница слов видна
+   сразу, но строка не распадается на две. */
+.scr-word + .scr-word { margin-left: 14px; }
+.scr-word { display: inline-block; min-width: 4px; }
 .scramble-tiles { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
 .scr-tile {
   font-family: inherit; font-size: var(--text-body); font-weight: 900; color: var(--ink);

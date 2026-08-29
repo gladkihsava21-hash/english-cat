@@ -1749,38 +1749,46 @@ const EX_RUNNERS = {
   },
 
   scramble() {
-    /* Только одиночные слова, и собираются они ИЗ БУКВ.
+    /* Собирается всё ИЗ БУКВ — и слово, и короткая фраза.
      *
-     * Какое-то время сюда пускались и фразы — их выкладывали целыми
-     * словами, чтобы папка из одних выражений не осталась без задания.
-     * Выходило «Собери слово», где на плитках лежат out и bear: заголовок
-     * обещает буквы, а на экране слова, и владелец справедливо на это
-     * указал. Для фраз есть своё упражнение — «Собери выражение».
+     * Какое-то время фразы выкладывались целыми словами: плитки out и
+     * bear под заголовком «Собери слово». Заголовок обещал буквы, а на
+     * экране лежали слова, и владелец справедливо на это указал.
+     * Теперь плитка всегда одна буква, а границу между словами видно по
+     * зазору в строке ответа: b e a r  o u t.
      *
-     * От 4 букв: из трёх собирать нечего. До 12: длиннее плитки не
-     * помещаются в строку на телефоне. */
+     * От 4 букв: из трёх собирать нечего. Потолок в 14 букв — чтобы
+     * плитки помещались в строку на телефоне; из-за него во фразу
+     * проходят двусловные и короткие трёхсловные, чего и хватает. */
+    const MAX_LETTERS = 14;
     const pool = trainPool(6, ["t"], rec => {
       const w = rec.w.trim();
-      return !w.includes(" ") && w.length >= 4 && w.length <= 12;
+      const words = w.split(/\s+/);
+      const letters = w.replace(/\s+/g, "").length;
+      if (words.length > 3 || letters > MAX_LETTERS) return false;
+      // однобуквенные части («a», «to») собирать бессмысленно, но и
+      // выбрасывать фразу из-за них жалко — важна общая длина
+      return letters >= 4 && words.every(x => x.length >= 1);
     });
     if (!pool.length) {
-      exFinish(0, 0, "Тут собирают слово из букв, а среди выбранных "
-        + "слов от 4 до 12 букв не нашлось. Если это выражения — их "
-        + "собирают в «Собери выражение», раздел «Выражения».");
+      exFinish(0, 0, "Тут собирают из букв, а среди выбранных слов "
+        + "подходящих по длине (от 4 до 14 букв) не нашлось.");
       return;
     }
     let i = 0, score = 0;
     const next = () => {
       if (i >= pool.length) { exFinish(score, pool.length); return; }
       const p = pool[i];
-      const want = p.w.toLowerCase();
-      const letters = shuffled(want.split(""));
+      const want = p.w.toLowerCase().replace(/\s+/g, " ").trim();
+      const chunks = want.split(" ");              // длины слов — для зазоров
+      const phrase = chunks.length > 1;
+      const letters = shuffled(want.replace(/ /g, "").split(""));
       let picked = [];
       stage().innerHTML = `
         ${exProgress(i, pool.length)}
         <div class="card word-quiz-card">
-          <p class="quiz-label">Собери слово: «${esc(p.t)}»</p>
-          <div class="scramble-answer" id="scr-answer"></div>
+          <p class="quiz-label">${phrase ? "Собери фразу" : "Собери слово"}: «${esc(p.t)}»</p>
+          <div class="scramble-answer${phrase ? " phrase" : ""}" id="scr-answer"></div>
           <div class="scramble-tiles" id="scr-tiles"></div>
           <div class="quiz-buttons">
             <button class="btn btn-ghost" id="scr-clear">Сбросить</button>
@@ -1789,12 +1797,22 @@ const EX_RUNNERS = {
         </div>`;
       const tilesBox = document.getElementById("scr-tiles");
       const answerBox = document.getElementById("scr-answer");
+      /* Раскладываем набранные буквы по словам фразы: первые столько-то
+       * букв — первое слово, следующие — второе. Пустые места остаются
+       * видимыми, поэтому ученик с самого начала понимает, что слов
+       * два и сколько букв в каждом. */
+      const groups = () => {
+        const chars = picked.map(x => x.ch);
+        let at = 0;
+        return chunks.map(c => chars.slice(at, at += c.length).join(""));
+      };
       const renderAnswer = () => {
-        answerBox.textContent = picked.map(x => x.ch).join("") || "…";
+        if (!picked.length) { answerBox.textContent = "…"; return; }
+        answerBox.innerHTML = groups()
+          .map(g => `<span class="scr-word">${esc(g)}</span>`).join("");
       };
       const finishRound = () => {
-        const word = picked.map(x => x.ch).join("");
-        const ok = word === want;
+        const ok = groups().join(" ") === want;
         if (ok) { score++; award(15); }
         statUpdate(p.w, ok);
         const fb = document.getElementById("scr-feedback");

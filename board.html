@@ -7,7 +7,7 @@
   <meta name="robots" content="noindex, nofollow">
   <link rel="preload" href="css/fonts/nunito-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="css/fonts/inter-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="css/fonts.css?v=223">
+  <link rel="stylesheet" href="css/fonts.css?v=225">
   <script>
     try {
       var t = localStorage.getItem("savelyTheme");
@@ -16,9 +16,9 @@
       document.documentElement.dataset.theme = t;
     } catch (e) { /* приватный режим */ }
   </script>
-  <link rel="stylesheet" href="css/tokens.css?v=223">
-  <link rel="stylesheet" href="css/style.css?v=223">
-  <link rel="stylesheet" href="css/board.css?v=223">
+  <link rel="stylesheet" href="css/tokens.css?v=225">
+  <link rel="stylesheet" href="css/style.css?v=225">
+  <link rel="stylesheet" href="css/board.css?v=225">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
 </head>
 <body class="board-body">
@@ -164,6 +164,17 @@
   <p class="bd-call-state" id="call-state"></p>
 </div>
 
+<!-- Запуск задания, когда браузер зарезал открытие вкладки:
+     по настоящей ссылке, нажатой рукой, блокировщики не бьют. -->
+<div class="bd-ring" id="bd-task-go" hidden>
+  <p id="bd-task-go-name">Тренировка</p>
+  <div class="bd-ring-row">
+    <a class="bd-btn primary" id="bd-task-go-link" href="index.html"
+       target="_blank" rel="noopener">Открыть тренировку</a>
+    <button class="bd-btn" id="bd-task-go-close">Позже</button>
+  </div>
+</div>
+
 <!-- Входящий звонок -->
 <div class="bd-ring" id="bd-ring" hidden>
   <p id="bd-ring-text">Видеозвонок</p>
@@ -173,9 +184,9 @@
   </div>
 </div>
 
-<script defer src="js/icons.js?v=223"></script>
-<script defer src="js/util.js?v=223"></script>
-<script defer src="js/board.js?v=223"></script>
-<script defer src="js/call.js?v=223"></script>
+<script defer src="js/icons.js?v=225"></script>
+<script defer src="js/util.js?v=225"></script>
+<script defer src="js/board.js?v=225"></script>
+<script defer src="js/call.js?v=225"></script>
 </body>
 </html>

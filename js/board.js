@@ -612,10 +612,13 @@ canvas.addEventListener("pointerdown", e => {
         openEditor(hit);
         return;
       }
-      // Задание ученик запускает одним нажатием. В новой вкладке — чтобы
-      // звонок не оборвался: WebRTC живёт ровно столько, сколько страница.
+      // Задание ученик запускает одним нажатием. Но САМО открытие — не
+      // здесь: pointerdown для блокировщиков всплывашек не «настоящий
+      // клик», и window.open из него молча резался (у ахмата «жму —
+      // ничего»). Помечаем кандидата, открываем в обработчике click —
+      // он приходит после отпускания и считается доверенным жестом.
       if (hit.kind === "task" && BD.role === "student") {
-        openTaskCard(hit);
+        pendingTask = { task: hit, x: e.clientX, y: e.clientY };
         return;
       }
       moving = { id: hit.id, dx: w.x, dy: w.y, orig: { ...hit } };
@@ -712,6 +715,9 @@ canvas.addEventListener("pointermove", e => {
     return;
   }
 
+  if (pendingTask && Math.hypot(e.clientX - pendingTask.x, e.clientY - pendingTask.y) > 6) {
+    pendingTask = null;          // это перетаскивание, а не запуск задания
+  }
   if (moving) {
     const o = BD.objects.get(moving.id);
     if (!o) return;
@@ -1171,14 +1177,40 @@ const TASK_EXERCISES = [
   ["fillblank",  "Пропуск в фразе"],
 ];
 
-function openTaskCard(o) {
-  const id = (o.text2 || "").trim();
-  const url = "index.html#train=" + encodeURIComponent(id);
-  // Именованное окно: три нетерпеливых клика — всё равно ОДНА вкладка
-  // с тренировкой, а не три (на видео от ахмата их наплодилось).
-  window.open(url, "savelyTrain");
-  toast("Тренировка открылась в новой вкладке — доска и звонок остаются здесь.");
+let pendingTask = null;
+
+/** Адрес тренировки. Хвост t= делает адрес каждый раз новым: именованная
+ *  вкладка на ТОТ ЖЕ адрес с решёткой не перезагружается вовсе — второй
+ *  клик по той же карточке был бы мёртвым. */
+function taskURL(o) {
+  return "index.html#train=" + encodeURIComponent((o.text2 || "").trim())
+       + "&t=" + Date.now().toString(36);
 }
+
+canvas.addEventListener("click", () => {
+  if (!pendingTask) return;
+  const { task } = pendingTask;
+  pendingTask = null;
+  // Именованное окно: нетерпеливые клики попадают в ОДНУ вкладку.
+  const win = window.open(taskURL(task), "savelyTrain");
+  if (win) {
+    toast("Тренировка открылась в новой вкладке — доска и звонок остаются здесь.");
+    return;
+  }
+  // Блокировщик съел даже click. Настоящую ссылку, по которой человек
+  // нажимает сам, не режет никто — показываем её.
+  showTaskGo(task);
+});
+
+function showTaskGo(task) {
+  const box = $("bd-task-go");
+  $("bd-task-go-name").textContent = task.text || "Тренировка";
+  const a = $("bd-task-go-link");
+  a.href = taskURL(task);
+  box.hidden = false;
+}
+$("bd-task-go-link").addEventListener("click", () => { $("bd-task-go").hidden = true; });
+$("bd-task-go-close").addEventListener("click", () => { $("bd-task-go").hidden = true; });
 
 function renderTaskChips() {
   const box = $("bd-task-list");
@@ -1401,6 +1433,12 @@ async function boot() {
   await syncNow();
   // Доска готова — можно подключать то, что живёт поверх неё (звонок)
   dispatchEvent(new Event("board-ready"));
+  // Заодно подтолкнём обновление сервис-воркера: доска на уроке открыта
+  // часами, и без этого свежие правки ехали бы до учеников сутками.
+  try {
+    const reg = await navigator.serviceWorker.getRegistration();
+    if (reg) reg.update();
+  } catch (e) { /* без сервис-воркера тоже жизнь */ }
   // Два кадра ожидания: к этому моменту раскладка уже посчитана
   // и innerWidth настоящий, а не промежуточный.
   requestAnimationFrame(() => requestAnimationFrame(fitToContent));
