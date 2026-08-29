@@ -240,7 +240,21 @@ function adoptServerState(srv) {
   if (typeof srsInit === "function") state.dictionary.forEach(srsInit);
   saveStateQuiet();
   if (typeof updateChrome === "function") updateChrome();
-  if (typeof show === "function" && state.user && state.level) show("dashboard");
+  // Главную показываем, только если человек на «нейтральном» экране:
+  // приветствие, тест, сама главная. Тогда восстановление аккаунта
+  // и правда меняет то, что он видит (вход по коду, по паролю, Safari
+  // вычистил localStorage). Но pullProgress бежит и при КАЖДОМ обычном
+  // старте страницы — и этот же show("dashboard") выдёргивал ученика
+  // из упражнения через ~2 секунды после открытия: он запускал
+  // тренировку карточкой с доски, доезжал ответ /api/student/pull —
+  // и его выбрасывало на главную (заодно сбрасывая homeworkScope,
+  // то есть из домашки выбрасывало тоже). Синхронизация — фон,
+  // а не навигация: с чужих экранов она никого не уводит.
+  const neutral = ["welcome", "test", "dashboard"].some(n => {
+    const el = document.getElementById("screen-" + n);
+    return el && !el.classList.contains("hidden");
+  });
+  if (typeof show === "function" && state.user && state.level && neutral) show("dashboard");
 }
 
 async function tryPendingJoin() {
