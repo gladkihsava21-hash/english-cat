@@ -466,6 +466,7 @@ body {
    сразу, но строка не распадается на две. */
 .scr-word + .scr-word { margin-left: 14px; }
 .scr-word { display: inline-block; min-width: 4px; }
+.scr-gap { font-style: normal; color: var(--muted); opacity: .45; }
 .scramble-tiles { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
 .scr-tile {
   font-family: inherit; font-size: var(--text-body); font-weight: 900; color: var(--ink);

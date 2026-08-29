@@ -1806,10 +1806,18 @@ const EX_RUNNERS = {
         let at = 0;
         return chunks.map(c => chars.slice(at, at += c.length).join(""));
       };
+      /* Незанятые места показываем точками. Без них пустая строка ничего
+       * не сообщает, а во фразе это важно: ученик с первой буквы видит,
+       * что слов два и сколько букв в каждом. Границу он всё равно не
+       * ставит — её ставит упражнение, — так что подсказкой это не будет,
+       * зато перестанет выглядеть, будто собирается одно длинное слово. */
       const renderAnswer = () => {
-        if (!picked.length) { answerBox.textContent = "…"; return; }
-        answerBox.innerHTML = groups()
-          .map(g => `<span class="scr-word">${esc(g)}</span>`).join("");
+        answerBox.innerHTML = groups().map((g, k) => {
+          const left = chunks[k].length - g.length;
+          return `<span class="scr-word">${esc(g)}`
+               + (left > 0 ? `<i class="scr-gap">${"·".repeat(left)}</i>` : "")
+               + `</span>`;
+        }).join("");
       };
       const finishRound = () => {
         const ok = groups().join(" ") === want;
@@ -1856,18 +1864,37 @@ const EX_RUNNERS = {
     const scoped = !isTrainingWholeDict();
     let note = "Соедини слово с его определением (по-английски)";
     if (scoped && pool.length < 4) {
+      // Добор по старшинству близости к ученику (замечание владельца:
+      // сперва я добирал сразу из банка, и рядом с двумя словами папки
+      // вставали слова, которых ученик в глаза не видел):
+      //   1) выбранный набор — уже в пуле;
+      //   2) остальной СЛОВАРЬ ученика — это он тоже учит, повторить
+      //      к месту (порядок задаёт SRS: сперва то, что пора);
+      //   3) и только потом незнакомые слова уровня из банка.
       const own = pool.length;
       const have = new Set(pool.map(p => p.w.toLowerCase()));
-      const lvl = studyLevel();
-      const nextLvl = LEVELS[Math.min(LEVELS.indexOf(lvl) + 1, LEVELS.length - 1)];
-      const extra = shuffled([...WORDS[lvl], ...WORDS[nextLvl]]
-        .filter(x => x.def && !have.has(x.w.toLowerCase())));
-      pool = pool.concat(extra.slice(0, 4 - pool.length).map(x => ({ ...x, inDict: false })));
-      note = own
-        ? `Из твоих слов определения нашлись у ${own} — остальное добрал из уровня ${lvl}. `
-          + "Определения есть только у слов из базы."
-        : `У твоих слов нет английских определений в базе — взял слова уровня ${lvl}. `
-          + "Твои слова целиком тренируют остальные упражнения, Аудирование и Диктант.";
+      const rest = state.dictionary
+        .filter(d => !have.has(d.w.toLowerCase()))
+        .map(d => ({ ...(wordInfo(d.w) || {}), ...d, inDict: true }))
+        .filter(x => x.def);
+      const restOrdered = typeof srsQueue === "function" ? srsQueue(rest, rest.length) : shuffled(rest);
+      const fromDict = restOrdered.slice(0, 4 - pool.length);
+      fromDict.forEach(x => have.add(x.w.toLowerCase()));
+      pool = pool.concat(fromDict);
+      let fromBank = 0;
+      if (pool.length < 4) {
+        const lvl = studyLevel();
+        const nextLvl = LEVELS[Math.min(LEVELS.indexOf(lvl) + 1, LEVELS.length - 1)];
+        const extra = shuffled([...WORDS[lvl], ...WORDS[nextLvl]]
+          .filter(x => x.def && !have.has(x.w.toLowerCase())));
+        fromBank = Math.min(extra.length, 4 - pool.length);
+        pool = pool.concat(extra.slice(0, fromBank).map(x => ({ ...x, inDict: false })));
+      }
+      const parts = [];
+      if (own) parts.push(`из выбранных — ${own}`);
+      if (fromDict.length) parts.push(`из твоего словаря — ${fromDict.length}`);
+      if (fromBank) parts.push(`новых из уровня ${studyLevel()} — ${fromBank}`);
+      note = `Определения есть только у слов из базы: ${parts.join(", ")}.`;
     }
     if (!pool.length) {
       exFinish(0, 0, "В базе не нашлось слов с определениями для этого уровня.");
