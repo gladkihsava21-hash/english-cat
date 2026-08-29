@@ -72,16 +72,18 @@ async function initInvite() {
     box.textContent = `Тебя пригласил репетитор: ${info.tutorName}. Зарегистрируйся — и прогресс будет виден на его панели.`;
   }
 
-  // Почту у ребёнка не спрашиваем. Она нужна ровно для одного —
-  // вернуть доступ, если потерян личный код. У пришедшего по ссылке
-  // такой проблемы нет: код видит репетитор в своей панели и назовёт
-  // его на занятии. То есть поле не решало ученику никакой задачи,
-  // а адрес ребёнка мы собирали и хранили. Меньше персональных данных
-  // о детях — меньше того, что можно потерять.
-  const mail = document.getElementById("email-row");
-  if (mail) mail.classList.add("hidden");
+  // Почту и пароль у ребёнка не спрашиваем. Почта нужна ровно для
+  // одного — вернуть доступ, если потерян личный код; у пришедшего по
+  // ссылке код видит репетитор в своей панели и назовёт на занятии.
+  // Меньше персональных данных о детях — меньше того, что можно
+  // потерять. Какие поля прятать на какой вкладке, решает setAuthMode
+  // (app.js): раньше почта пряталась здесь один раз, поле пароля
+  // оставалось и требовало «почту», которой негде ввести, — тупик.
   const emailInput = document.getElementById("reg-email");
   if (emailInput) emailInput.value = "";
+  const passInput = document.getElementById("reg-password");
+  if (passInput) passInput.value = "";
+  if (typeof setAuthMode === "function") setAuthMode("register");
 }
 
 /** Регистрация БЕЗ ссылки репетитора — теперь тоже настоящий аккаунт.
@@ -89,19 +91,22 @@ async function initInvite() {
  *  личного кода не было, и на другом устройстве сайт встречал его именем
  *  и тестом заново. Возвращает true, если аккаунт создан на сервере. */
 async function registerStandalone(name, email, password) {
-  if (studentToken()) return true;   // уже есть аккаунт — не плодим
+  if (studentToken()) return { ok: true };   // уже есть аккаунт — не плодим
   try {
     const res = await api("/api/student/register",
       { name, email: email || "", password: password || "" });
-    if (!res.ok) return false;       // имя не прошло проверку и т.п. — живём локально
+    // Явный отказ (почта занята, пароль из одних цифр…) возвращаем
+    // наверх: раньше он глотался, ученик уезжал на тест без аккаунта
+    // и без личного кода, а введённые почта и пароль пропадали молча.
+    if (!res.ok) return { ok: false, error: res.error || "Не получилось создать аккаунт." };
     localStorage.setItem(STUDENT_TOKEN_KEY, res.token);
     localStorage.setItem(TUTOR_NAME_KEY, "");
     if (res.restoreCode) state.restoreCode = res.restoreCode;
     saveStateQuiet();
     pushProgress();
-    return true;
+    return { ok: true };
   } catch (e) {
-    return false;                    // офлайн — прогресс пока локальный
+    return { ok: true, offline: true };  // офлайн — прогресс пока локальный
   }
 }
 
@@ -110,12 +115,12 @@ const PENDING_JOIN_KEY = "savelyPendingJoin";
 
 async function joinTutor(name) {
   const inv = window.pendingInvite;
-  if (!inv || studentToken()) return;
+  if (!inv || studentToken()) return { ok: true };
 
   // Запоминаем намерение: если сервер сейчас недоступен, ученик иначе
   // навсегда остался бы вне кабинета репетитора и молча учился один.
   localStorage.setItem(PENDING_JOIN_KEY, JSON.stringify({ code: inv.code, name }));
-  await tryPendingJoin();
+  return tryPendingJoin();
 }
 
 /** Вход по почте и паролю — обычный вход, которого от сайта и ждут.
@@ -257,12 +262,21 @@ function adoptServerState(srv) {
   if (typeof show === "function" && state.user && state.level && neutral) show("dashboard");
 }
 
+/** Возвращает исход привязки: { ok } при успехе и офлайне (догоним),
+ *  { ok:false, shown:true } когда нарисован выбор «это я / другой»,
+ *  { ok:false, error } при явном отказе сервера. Раньше все отказы
+ *  глотались молча: сабмит уже увёл ученика на тест, ошибка «мест нет»
+ *  или «имя короткое» терялась, и человек был уверен, что подключился
+ *  к репетитору, хотя аккаунта на сервере не было вовсе. */
 async function tryPendingJoin() {
-  if (studentToken()) { localStorage.removeItem(PENDING_JOIN_KEY); return; }
+  if (studentToken()) { localStorage.removeItem(PENDING_JOIN_KEY); return { ok: true }; }
   const raw = localStorage.getItem(PENDING_JOIN_KEY);
-  if (!raw) return;
+  if (!raw) return { ok: true };
   let pending;
-  try { pending = JSON.parse(raw); } catch (e) { localStorage.removeItem(PENDING_JOIN_KEY); return; }
+  try { pending = JSON.parse(raw); } catch (e) {
+    localStorage.removeItem(PENDING_JOIN_KEY);
+    return { ok: true };
+  }
   try {
     const res = await api("/api/student/join", pending);
     if (res.ok) {
@@ -273,14 +287,24 @@ async function tryPendingJoin() {
       localStorage.removeItem(PENDING_JOIN_KEY);
       window.pendingInvite = null;
       pushProgress();
-    } else if (res.sameName) {
+      return { ok: true };
+    }
+    if (res.sameName) {
       // У репетитора уже есть ученик с этим именем — почти всегда это тот
       // же ребёнок с нового устройства. Даём выбор вместо тихого дубля.
       showSameNamePrompt(pending);
-    } else if (res.error && res.error.includes("не существует")) {
-      localStorage.removeItem(PENDING_JOIN_KEY);   // ссылка мертва, повторять нечего
+      return { ok: false, shown: true };
     }
-  } catch (e) { /* офлайн — попробуем при следующем запуске */ }
+    if (res.error && res.error.includes("не существует")) {
+      localStorage.removeItem(PENDING_JOIN_KEY);   // ссылка мертва, повторять нечего
+      return { ok: false, error: "Ссылка приглашения устарела. Попроси у репетитора новую." };
+    }
+    return { ok: false, error: res.error || "Не получилось привязаться к репетитору." };
+  } catch (e) {
+    // офлайн — намерение сохранено в PENDING_JOIN_KEY, догоним при
+    // следующем запуске или возврате сети; ученика не задерживаем
+    return { ok: true, offline: true };
+  }
 }
 
 /** «Такое имя уже есть»: вернись по коду или подтверди, что ты другой. */
@@ -302,15 +326,27 @@ function showSameNamePrompt(pending) {
   });
   document.getElementById("samename-force").addEventListener("click", async () => {
     const res = await api("/api/student/join", { ...pending, force: true });
-    if (res.ok) {
-      localStorage.setItem(STUDENT_TOKEN_KEY, res.token);
-      localStorage.setItem(TUTOR_NAME_KEY, res.tutorName || "");
-      if (res.restoreCode) state.restoreCode = res.restoreCode;
-      saveStateQuiet();
-      localStorage.removeItem(PENDING_JOIN_KEY);
-      box.innerHTML = ""; box.classList.add("hidden");
-      pushProgress();
+    if (!res.ok) {
+      box.insertAdjacentHTML("beforeend",
+        `<p class="type-feedback err">${esc(res.error || "Не получилось — попробуй ещё раз.")}</p>`);
+      return;
     }
+    localStorage.setItem(STUDENT_TOKEN_KEY, res.token);
+    localStorage.setItem(TUTOR_NAME_KEY, res.tutorName || "");
+    if (res.restoreCode) state.restoreCode = res.restoreCode;
+    // Регистрация теперь дожидается ответа сервера и при sameName
+    // откатывает state.user — здесь человек подтвердил «я другой»,
+    // так что заводим его заново и ведём дальше, а не бросаем на форме.
+    state.user = state.user || { name: pending.name, email: "" };
+    saveStateQuiet();
+    localStorage.removeItem(PENDING_JOIN_KEY);
+    window.pendingInvite = null;
+    box.innerHTML = ""; box.classList.add("hidden");
+    pushProgress();
+    if (typeof updateChrome === "function") updateChrome();
+    const hello = document.getElementById("test-hello");
+    if (hello) hello.textContent = `${pending.name}, посчитаем, сколько слов ты уже знаешь`;
+    if (typeof show === "function") show(state.level ? "dashboard" : "test");
   });
 }
 

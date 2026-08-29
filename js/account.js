@@ -427,10 +427,13 @@ function wireAccount(online) {
       const name = (state.user && state.user.name) || "Ученик";
       // Аккаунт создаётся на сервере, а pushProgress внутри отправляет
       // ВЕСЬ накопленный словарь — ничего не теряется.
-      const ok = await registerStandalone(name, email, password);
+      // registerStandalone теперь возвращает исход, а не голое да/нет —
+      // показываем настоящую причину отказа, а не гадаем за сервер.
+      const res = await registerStandalone(name, email, password);
       claim.disabled = false;
-      if (!ok) {
-        msg.textContent = "Не получилось. Возможно, на эту почту уже есть аккаунт — тогда войди на странице входа.";
+      if (!res || res.ok === false) {
+        msg.textContent = (res && res.error)
+          || "Не получилось. Возможно, на эту почту уже есть аккаунт — тогда войди на странице входа.";
         return;
       }
       // Перерисовка стирает это сообщение вместе со всей карточкой,

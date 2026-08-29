@@ -292,6 +292,20 @@ function setAuthMode(mode) {
   if (consent) consent.required = !login;
 
   document.getElementById("auth-submit").textContent = login ? "Войти" : "Создать аккаунт";
+
+  // Пришедшему по ссылке репетитора почту И ПАРОЛЬ при регистрации не
+  // показываем вовсе: вход у него по личному коду, который видит
+  // репетитор (см. initInvite в sync.js — меньше данных о детях).
+  // Раньше initInvite прятал только почту и только один раз: поле
+  // пароля оставалось и требовало почту, которой негде ввести, — тупик
+  // (скрин от Алёны); а вкладка «Вход» наследовала спрятанную почту
+  // и тоже становилась тупиком. Теперь правила применяются при каждом
+  // переключении вкладок: регистрация — имя и согласие, вход — как у всех.
+  if (window.pendingInvite) {
+    document.getElementById("email-row").classList.toggle("hidden", !login);
+    document.getElementById("password-row").classList.toggle("hidden", !login);
+  }
+
   const err = document.getElementById("auth-error");
   if (err) err.textContent = "";
 }
@@ -321,6 +335,28 @@ document.getElementById("auth-form").addEventListener("submit", async e => {
     btn.disabled = false;
     btn.textContent = "Войти";
     if (!ok) return;                 // текст ошибки поставил loginByPassword
+    // Пришёл по ссылке репетитора, но аккаунт уже был — привязываем его,
+    // а не теряем приглашение молча: раньше pendingInvite после входа
+    // никто не потреблял, и ученик оставался без репетитора, не зная
+    // об этом (нашлось при прогоне всех путей входа).
+    if (window.pendingInvite) {
+      try {
+        const res = await api("/api/student/adopt",
+          { token: localStorage.getItem("savelyStudentToken"), code: window.pendingInvite.code });
+        if (res.ok) {
+          localStorage.setItem("savelyTutorName", res.tutorName || "");
+        } else {
+          // Сообщение — на главную, куда человек сейчас попадёт
+          const note = document.getElementById("adopt-note");
+          if (note) {
+            note.classList.remove("hidden");
+            note.innerHTML = `<div class="card hw-card"><p class="muted-small">Войти вошёл, `
+              + `а привязать к репетитору не вышло: ${esc(res.error || "попробуй по ссылке ещё раз")}</p></div>`;
+          }
+        }
+      } catch (e) { /* сеть мигнула — привязка по ссылке сработает при следующем заходе */ }
+      window.pendingInvite = null;
+    }
     updateChrome();
     show(state.level ? "dashboard" : "test");
     return;
@@ -328,33 +364,62 @@ document.getElementById("auth-form").addEventListener("submit", async e => {
 
   // ---- РЕГИСТРАЦИЯ ----
   const name = document.getElementById("reg-name").value.trim();
-  if (!name) return;
+  // Сервер требует имя от двух букв — говорим это ЗДЕСЬ, пока форма
+  // на экране, а не глотаем отказ после ухода на тест.
+  if (name.length < 2) {
+    authError("Напиши имя — хотя бы две буквы. Можно просто «Ваня».");
+    return;
+  }
   // Браузер и сам не пропустит required, но форму отправляют и с
-  // клавиатуры, и скриптом — проверяем ещё раз здесь.
+  // клавиатуры, и скриптом — проверяем ещё раз здесь. Видимость
+  // смотрим у строки согласия: hidden прячет её, а не сам чекбокс.
   const consent = document.getElementById("reg-consent");
-  if (consent && !consent.classList.contains("hidden") && consent.required && !consent.checked) {
+  const consentRow = consent && consent.closest(".consent-row");
+  if (consent && consentRow && !consentRow.classList.contains("hidden")
+      && consent.required && !consent.checked) {
+    authError("Отметь согласие на обработку данных — без него никак.");
     consent.focus();
     return;
   }
+  // Пришедшему по ссылке поля почты и пароля не показываются — и что бы
+  // ни влило в скрытые поля автозаполнение браузера, держать регистрацию
+  // они не должны: у такого ученика вход по личному коду.
+  const invited = !!window.pendingInvite;
   // Пароль проверяем ДО создания аккаунта: короткий пароль сервер отвергнет,
   // а ученик к этому моменту уже уедет на тест и ошибки не увидит.
-  if (password && password.length < 8) {
+  if (!invited && password && password.length < 8) {
     authError("Пароль — хотя бы 8 символов. Или оставь поле пустым.");
     return;
   }
-  if (password && !email) {
+  if (!invited && password && !email) {
     authError("С паролем нужна и почта — по ней будешь входить.");
     return;
   }
   state.user = { name, email };
   saveState();
+  // ЖДЁМ ответа сервера, не уезжая с формы. Раньше сабмит уводил на тест
+  // сразу, а отказы («мест нет», «почта занята», «такое имя уже есть»)
+  // приходили в спрятанный экран и глотались: ученик был уверен, что
+  // зарегистрирован у репетитора, хотя на сервере его не было. Офлайн
+  // по-прежнему не задерживает: намерение сохранено и догонит фоном.
+  const btn = document.getElementById("auth-submit");
+  btn.disabled = true;
+  btn.textContent = "Создаю…";
+  let outcome = { ok: true };
   if (window.pendingInvite) {
-    // пришёл по ссылке репетитора — прежний путь
-    if (typeof joinTutor === "function") joinTutor(name);
+    if (typeof joinTutor === "function") outcome = (await joinTutor(name)) || { ok: true };
   } else if (typeof registerStandalone === "function") {
-    // одиночка: настоящий аккаунт с кодом и синхронизацией. Не ждём
-    // ответа — тест можно начинать, токен доедет фоном.
-    registerStandalone(name, email, password);
+    outcome = (await registerStandalone(name, email, password)) || { ok: true };
+  }
+  btn.disabled = false;
+  btn.textContent = "Создать аккаунт";
+  if (!outcome.ok) {
+    // Остаёмся на форме: ошибка перед глазами, её можно исправить.
+    // При sameName текст не нужен — под формой уже выбор «это я / другой».
+    if (!outcome.shown) authError(outcome.error || "Не получилось. Попробуй ещё раз.");
+    state.user = null;               // иначе перезагрузка увела бы с формы
+    saveState();
+    return;
   }
   updateChrome();
   if (state.level) {
