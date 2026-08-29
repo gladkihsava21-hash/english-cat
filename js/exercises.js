@@ -1749,38 +1749,38 @@ const EX_RUNNERS = {
   },
 
   scramble() {
-    // Слово собирается из букв, фраза — из слов. Раньше фразы просто
-    // выбрасывались, и папка, где одни выражения, не давала ни одного
-    // задания. Теперь любая папка тренируется целиком.
+    /* Только одиночные слова, и собираются они ИЗ БУКВ.
+     *
+     * Какое-то время сюда пускались и фразы — их выкладывали целыми
+     * словами, чтобы папка из одних выражений не осталась без задания.
+     * Выходило «Собери слово», где на плитках лежат out и bear: заголовок
+     * обещает буквы, а на экране слова, и владелец справедливо на это
+     * указал. Для фраз есть своё упражнение — «Собери выражение».
+     *
+     * От 4 букв: из трёх собирать нечего. До 12: длиннее плитки не
+     * помещаются в строку на телефоне. */
     const pool = trainPool(6, ["t"], rec => {
       const w = rec.w.trim();
-      if (w.includes(" ")) {
-        const k = w.split(/\s+/).length;
-        return k >= 2 && k <= 7;         // из одного слова нечего собирать
-      }
-      return w.length >= 4 && w.length <= 12;
+      return !w.includes(" ") && w.length >= 4 && w.length <= 12;
     });
     if (!pool.length) {
-      exFinish(0, 0, "Для сборки нужны слова от 4 букв или фразы из "
-        + "нескольких слов — среди выбранных таких не нашлось.");
+      exFinish(0, 0, "Тут собирают слово из букв, а среди выбранных "
+        + "слов от 4 до 12 букв не нашлось. Если это выражения — их "
+        + "собирают в «Собери выражение», раздел «Выражения».");
       return;
     }
     let i = 0, score = 0;
     const next = () => {
       if (i >= pool.length) { exFinish(score, pool.length); return; }
       const p = pool[i];
-      const phrase = p.w.includes(" ");
-      const want = phrase ? p.w.toLowerCase().split(/\s+/).join(" ")
-                          : p.w.toLowerCase();
-      const parts = phrase ? want.split(" ") : want.split("");
-      const sep = phrase ? " " : "";
-      const letters = shuffled(parts);
+      const want = p.w.toLowerCase();
+      const letters = shuffled(want.split(""));
       let picked = [];
       stage().innerHTML = `
         ${exProgress(i, pool.length)}
         <div class="card word-quiz-card">
-          <p class="quiz-label">${phrase ? "Собери фразу" : "Собери слово"}: «${esc(p.t)}»</p>
-          <div class="scramble-answer${phrase ? " phrase" : ""}" id="scr-answer"></div>
+          <p class="quiz-label">Собери слово: «${esc(p.t)}»</p>
+          <div class="scramble-answer" id="scr-answer"></div>
           <div class="scramble-tiles" id="scr-tiles"></div>
           <div class="quiz-buttons">
             <button class="btn btn-ghost" id="scr-clear">Сбросить</button>
@@ -1790,10 +1790,10 @@ const EX_RUNNERS = {
       const tilesBox = document.getElementById("scr-tiles");
       const answerBox = document.getElementById("scr-answer");
       const renderAnswer = () => {
-        answerBox.textContent = picked.map(x => x.ch).join(sep) || "…";
+        answerBox.textContent = picked.map(x => x.ch).join("") || "…";
       };
       const finishRound = () => {
-        const word = picked.map(x => x.ch).join(sep);
+        const word = picked.map(x => x.ch).join("");
         const ok = word === want;
         if (ok) { score++; award(15); }
         statUpdate(p.w, ok);
