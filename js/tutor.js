@@ -1332,7 +1332,6 @@ const HOMEWORK_GAMES = [
   { id: "matching",   name: "Сопоставление",   icon: "matching",   note: "соединить слово с переводом" },
   { id: "scramble",   name: "Собери слово",    icon: "scramble",   note: "буквы перемешаны" },
   { id: "listening",  name: "Аудирование",     icon: "listening",  note: "нужен звук на устройстве ученика" },
-  { id: "fillblank",  name: "Пропуск в фразе", icon: "fillblank",  note: "только для слов с примером" },
   { id: "wordsearch", name: "Поиск слов",      icon: "wordsearch", note: "найти слова в поле букв" },
   { id: "crossword",  name: "Кроссворд",       icon: "crossword",  note: "отгадать по переводам" },
   { id: "memory",     name: "Найди пару",      icon: "defmatch",   note: "открывать карточки парами" },

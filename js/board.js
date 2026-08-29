@@ -1174,7 +1174,6 @@ const TASK_EXERCISES = [
   ["scramble",   "Собери слово"],
   ["listening",  "Аудирование"],
   ["dictation",  "Диктант"],
-  ["fillblank",  "Пропуск в фразе"],
 ];
 
 let pendingTask = null;

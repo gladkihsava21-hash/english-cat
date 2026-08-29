@@ -649,7 +649,6 @@ const EXERCISES = [
   { id: "dictation", group: "audio", icon: "dictation", name: "Диктант", desc: "Услышь и напиши фразу", audio: true },
 
   // --- письмо и речь: слово внутри фразы ---
-  { id: "fillblank", group: "writing", icon: "fillblank", name: "Пропуск в фразе", desc: "Допиши слово в предложении" },
   { id: "translate", group: "writing", icon: "translate", name: "Перевод фразы", desc: "Переведи предложение на англ." },
   { id: "personal", group: "writing", icon: "personal", name: "Свои предложения", desc: "Составь фразы с новыми словами" },
   { id: "context", group: "writing", icon: "context", name: "Слово в контексте", desc: "Где слово использовано верно?" },
@@ -1754,27 +1753,6 @@ const EX_RUNNERS = {
       statWord: p.w,
       hint: p.w[0].toUpperCase() + "… (" + p.w.length + " " + lettersWord(p.w.length) + ")",
     })));
-  },
-
-  fillblank() {
-    const pool = trainPool(6, ["ex"]).filter(p =>
-      new RegExp("\\b" + p.w.slice(0, Math.max(3, p.w.length - 2)), "i").test(p.ex));
-    if (pool.length < 3) { EX_RUNNERS.spelling(); return; }
-    runType(pool.map(p => {
-      // прячем слово (учитывая форму: arrives, invited…)
-      const re = new RegExp("\\b" + p.w.slice(0, Math.max(3, p.w.length - 2)) + "[a-z]*", "i");
-      const m = p.ex.match(re);
-      const form = m ? m[0] : p.w;
-      return {
-        sub: "Допиши пропущенное слово (перевод: " + p.t + ")",
-        prompt: p.ex.replace(re, "_".repeat(form.length)),
-        answer: form,
-        check: v => normEn(v) === normEn(form) || normEn(v) === normEn(p.w),
-        statWord: p.w,
-        hint: form[0] + "…",
-        sample: form,
-      };
-    }));
   },
 
   oddone() {

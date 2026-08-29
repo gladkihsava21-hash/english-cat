@@ -23,7 +23,6 @@ const ICONS = {
   matching:   '<circle cx="5" cy="6" r="2"/><circle cx="5" cy="18" r="2"/><circle cx="19" cy="6" r="2"/><circle cx="19" cy="18" r="2"/><path d="M7 6h10M7 18c4 0 6-4 10-4"/>',
   mcq:        '<path d="M4 7l2 2 4-4"/><path d="M4 17l2 2 4-4"/><path d="M14 8h6M14 17h6"/>',
   spelling:   '<rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M8 14h8"/>',
-  fillblank:  '<path d="M3 12h4M17 12h4"/><rect x="8" y="6" width="8" height="12" rx="1.5" stroke-dasharray="3 2.5"/>',
   oddone:     '<circle cx="7" cy="7" r="3.2"/><circle cx="17" cy="7" r="3.2"/><circle cx="7" cy="17" r="3.2"/><path d="M13.8 13.8l6.4 6.4M20.2 13.8l-6.4 6.4"/>',
   scramble:   '<rect x="2.5" y="8.5" width="7" height="7" rx="1.5"/><rect x="14.5" y="8.5" width="7" height="7" rx="1.5"/><path d="M12 4.5v3M12 16.5v3"/>',
   defmatch:   '<path d="M4 5h7a2 2 0 0 1 2 2v12a2 2 0 0 0-2-2H4z"/><path d="M20 5h-7a2 2 0 0 0-2 2v12a2 2 0 0 1 2-2h7z"/>',
