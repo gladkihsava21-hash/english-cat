@@ -1902,19 +1902,38 @@ const EX_RUNNERS = {
   },
 
   synonyms() {
-    // Через pickFresh: банк из 60 пар, но раньше шесть случайных из
+    // Через pickFresh: банк из 226 пар, но раньше шесть случайных из
     // двадцати повторялись каждый второй подход — «одни и те же слова».
     // Синоним или антоним — жребий на каждом задании, поэтому за подход
     // встречается и то и другое. Перекос в сторону синонимов намеренный:
     // антоним школьник подбирает увереннее, синоним — то, чему учим.
-    const rounds = pickFresh("syn", SYNONYMS, 6, s => s.w).map(s => {
+    //
+    // Пары берём своего уровня и соседних. В банке рядом лежат «big —
+    // large» и «candid — frank»: без отбора шестикласснику доставалось
+    // второе, и он выбирал из четырёх незнакомых слов наугад. Отдельный
+    // ключ у pickFresh на каждый уровень — иначе журнал показанного
+    // общий, и после смены уровня половина пар считалась бы виденной.
+    const lvl = studyLevel();
+    const idx = LEVELS.indexOf(lvl);
+    const near = new Set([LEVELS[Math.max(0, idx - 1)], lvl,
+                          LEVELS[Math.min(LEVELS.length - 1, idx + 1)]]);
+    // Если на уровне пар мало (наверху их всегда меньше), добираем
+    // СНИЗУ, а не со всего банка: продвинутому ученику лучше достанется
+    // пара попроще, чем «big — large» вперемешку с его собственным
+    // уровнем. Четыре подхода без повторов — приличный запас.
+    let bank = SYNONYMS.filter(s => near.has(s.lvl));
+    for (let i = idx - 2; i >= 0 && bank.length < 24; i--) {
+      near.add(LEVELS[i]);
+      bank = SYNONYMS.filter(s => near.has(s.lvl));
+    }
+    const rounds = pickFresh("syn:" + lvl, bank, 6, s => s.w).map(s => {
       const askSyn = Math.random() < 0.6;
       const right = askSyn ? s.syn : s.ant;
       const trap = askSyn ? s.ant : s.syn;
       // В большом банке одно слово бывает и ответом здесь, и чужим
       // синонимом (noisy: антоним quiet и синоним loud). Дубль варианта —
       // это кнопка, за которую не засчитают, поэтому отсеиваем.
-      const others = shuffled([...new Set(SYNONYMS.filter(x => x.w !== s.w).map(x => x.syn))]
+      const others = shuffled([...new Set(bank.filter(x => x.w !== s.w).map(x => x.syn))]
         .filter(o => o !== right && o !== trap && o !== s.w)).slice(0, 2);
       const options = shuffled([right, trap, ...others]);
       return {
