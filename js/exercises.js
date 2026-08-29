@@ -1392,7 +1392,9 @@ const EX_RUNNERS = {
     const fit = all.filter(x => near.has(x.level) && (need || []).every(f => x[f]));
     // Если на своём уровне не набралось — расширяем, но не молча падаем
     const pool = fit.length >= n ? fit : all.filter(x => (need || []).every(f => x[f]));
-    const picked = shuffled(pool).slice(0, n);
+    // Тоже «сначала невиданное»: выражений на уровень немного, и без
+    // памяти о показанном в подходах крутились одни и те же фразы.
+    const picked = pickFresh("phr:" + kind + ":" + lvl, pool, n, x => x.w);
     // Запоминаем: в конце подхода предложим забрать эти выражения в словарь.
     // Раньше их было никак не сохранить из упражнения — только через
     // список в словаре, о котором ученик мог и не знать.
@@ -2114,7 +2116,23 @@ const EX_RUNNERS = {
   },
 
   collocations() {
-    const picks = shuffled(COLLOCATIONS).slice(0, 5);
+    // Через pickFresh: сначала то, чего ученик ещё не видел. Раньше брались
+    // пять случайных, и при банке в восемь штук каждый подход выглядел
+    // одинаково — упражнение переставало учить со второго захода.
+    //
+    // Правая часть в подходе не должна повторяться. В банке есть и «keep
+    // a promise», и «break a promise» — оба верны, но если они окажутся
+    // рядом, ученик соединит правильно, а проверка засчитает ошибку:
+    // пара-то ждёт другую половину. Такую подставу упражнение позволить
+    // себе не может.
+    const picks = [];
+    const rights = new Set();
+    for (const c of pickFresh("colloc", COLLOCATIONS, 14, c => c.h + " " + c.tl)) {
+      if (rights.has(c.tl)) continue;
+      rights.add(c.tl);
+      picks.push(c);
+      if (picks.length === 5) break;
+    }
     runPairs(picks.map(c => ({ l: c.h, r: c.tl })),
       { hint: "Соедини части устойчивых сочетаний", note: "Примеры: make a decision, do homework, take a photo…" });
   },
