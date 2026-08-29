@@ -790,70 +790,96 @@ function estimateLevelIndex(answers) {
   return best;
 }
 
-/* ── Проверочный раунд ────────────────────────────────────────────────
+/* ── Проверочная лесенка ──────────────────────────────────────────────
  *
  * «Знаю / не знаю» меряет узнавание, а не знание: слово может казаться
- * знакомым по виду. Методист попросила проверять по-настоящему —
- * переводом и по смыслу в предложении. Делать так ВЕСЬ тест нельзя:
- * тридцать шесть вопросов с вариантами — это семь минут, и ребёнок
- * бросит на середине.
+ * знакомым по виду. Поэтому после быстрой разведки идут НАСТОЯЩИЕ
+ * вопросы — но не тридцать подряд (семь минут, ребёнок бросит),
+ * а адаптивной лесенкой, как предложила методист.
  *
- * Поэтому проверяем точечно: шесть вопросов ровно на той границе, где
- * оценка неуверенна, — на предполагаемом уровне и на соседнем сверху.
- * Там ответ и решает, поставить уровень или опустить на ступень.
- * Половина вопросов — перевод, половина — слово в предложении: первое
- * проверяет значение, второе — умение узнать его в живой фразе.
+ * Как идёт. Начинаем с уровня, который назвала разведка. Блок — четыре
+ * вопроса уровня: два «выбери перевод» и два «какое слово подходит
+ * в предложении» (перевод проверяет значение, пропуск — умение узнать
+ * слово в живой фразе). Взял 3 из 4 — уровень пройден, поднимаемся;
+ * меньше — спускаемся. Останавливаемся, когда граница найдена: сверху
+ * уровень провален, снизу пройден. Обычно это 4–12 вопросов.
+ *
+ * Случайное тыканье лесенка режет сама: шанс пройти блок наугад — 5%,
+ * и каждый проваленный блок опускает результат.
+ *
+ * Каждый ответ запоминается пословно (слово, тип вопроса, верно ли):
+ * из промахов складывается «первые слова в словарь» на экране итога —
+ * тест не только меряет, но и сразу даёт, что учить.
  */
-const VERIFY_COUNT = 6;
-let verifyQs = [], verifyIndex = 0, verifyRight = 0, verifyBase = 0;
+const STAIR_BLOCK = 4;          // вопросов в блоке
+const STAIR_PASS = 3;           // сколько верных считается «уровень пройден»
+const STAIR_MAX_BLOCKS = 4;     // предохранитель: дальше решаем по тому, что есть
 
-function buildVerify(levelIdx) {
-  const qs = [];
-  const near = [LEVELS[levelIdx], LEVELS[Math.min(levelIdx + 1, LEVELS.length - 1)]];
-  const pool = near.flatMap(l => (WORDS[l] || []).map(w => ({ ...w, level: l })))
-    .filter(w => w.t && w.w);
+let stair = null;               // состояние лесенки на время теста
+
+function stairPool(lvl) {
+  return (WORDS[lvl] || []).filter(w => w.w && w.t).map(w => ({ ...w, level: lvl }));
+}
+
+/** Блок вопросов одного уровня: 2 перевода + 2 пропуска в предложении.
+ *  Пропуск требует пример с самим словом; не хватило — добираем переводом. */
+function buildStairBlock(lvl) {
+  const pool = stairPool(lvl);
   const withEx = pool.filter(w => w.ex && w.ex.toLowerCase().includes(w.w.toLowerCase()));
-
-  // Половина — «выбери перевод»
-  sample(pool, Math.ceil(VERIFY_COUNT / 2)).forEach(w => {
-    const wrong = sample(pool.filter(x => x.w !== w.w && x.t !== w.t), 3).map(x => x.t);
-    const options = shuffleArr([w.t, ...wrong]);
-    qs.push({ kind: "tr", prompt: w.w, options, right: options.indexOf(w.t) });
-  });
-  // Половина — «какое слово подходит по смыслу»
-  sample(withEx, VERIFY_COUNT - qs.length).forEach(w => {
+  const qs = [];
+  const used = new Set();
+  sample(withEx, 2).forEach(w => {
+    used.add(w.w);
     const re = new RegExp("\\b" + w.w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b", "i");
-    const sentence = w.ex.replace(re, "____");
     const wrong = sample(pool.filter(x => x.w !== w.w), 3).map(x => x.w);
     const options = shuffleArr([w.w, ...wrong]);
-    qs.push({ kind: "gap", prompt: sentence, options, right: options.indexOf(w.w) });
+    qs.push({ kind: "gap", word: w, prompt: w.ex.replace(re, "____"),
+              options, right: options.indexOf(w.w) });
   });
-  return shuffleArr(qs).slice(0, VERIFY_COUNT);
+  sample(pool.filter(w => !used.has(w.w)), STAIR_BLOCK - qs.length).forEach(w => {
+    const wrong = sample(pool.filter(x => x.w !== w.w && x.t !== w.t), 3).map(x => x.t);
+    const options = shuffleArr([w.t, ...wrong]);
+    qs.push({ kind: "tr", word: w, prompt: w.w, options, right: options.indexOf(w.t) });
+  });
+  return shuffleArr(qs);
 }
 
 function shuffleArr(a) { return [...a].sort(() => Math.random() - 0.5); }
 
-function startVerify(levelIdx) {
-  verifyBase = levelIdx;
-  verifyQs = buildVerify(levelIdx);
-  if (!verifyQs.length) { applyLevel(levelIdx); return; }
-  verifyIndex = 0;
-  verifyRight = 0;
+function startStaircase(levelIdx) {
+  stair = {
+    lvl: levelIdx,
+    passed: {}, failed: {},     // уровни, где блок взят / провален
+    best: -1,                   // высший пройденный
+    blocks: 0,
+    right: 0, total: 0,         // общий счёт для честного итога
+    log: [],                    // пословная диагностика
+    qs: [], qi: 0, blockRight: 0,
+  };
   document.getElementById("test-run").classList.add("hidden");
   document.getElementById("test-verify").classList.remove("hidden");
-  renderVerify();
+  stairNextBlock();
 }
 
-function renderVerify() {
-  const q = verifyQs[verifyIndex];
+function stairNextBlock() {
+  stair.qs = buildStairBlock(LEVELS[stair.lvl]);
+  if (!stair.qs.length) { stairFinish(stair.lvl); return; }
+  stair.blocks++;
+  stair.qi = 0;
+  stair.blockRight = 0;
+  renderStairQ();
+}
+
+function renderStairQ() {
+  const q = stair.qs[stair.qi];
   document.getElementById("verify-counter").textContent =
-    `${verifyIndex + 1} / ${verifyQs.length}`;
+    `вопрос ${stair.total + 1} · уровень ${LEVELS[stair.lvl]}`;
   document.getElementById("verify-label").textContent =
     q.kind === "tr" ? "Что это слово значит?" : "Какое слово подходит?";
   const prompt = document.getElementById("verify-prompt");
   prompt.textContent = q.prompt;
   prompt.classList.toggle("verify-sentence", q.kind === "gap");
-  prompt.lang = q.kind === "tr" ? "en" : "en";
+  prompt.lang = "en";
   const box = document.getElementById("verify-options");
   box.innerHTML = "";
   q.options.forEach((opt, i) => {
@@ -862,42 +888,53 @@ function renderVerify() {
     b.textContent = opt;
     if (q.kind === "gap") b.lang = "en";
     b.addEventListener("click", () => {
-      if (i === q.right) verifyRight++;
-      verifyIndex++;
-      if (verifyIndex < verifyQs.length) renderVerify();
-      else finishVerify();
+      const ok = i === q.right;
+      if (ok) { stair.blockRight++; stair.right++; }
+      stair.total++;
+      stair.log.push({ w: q.word.w, t: q.word.t, ex: q.word.ex || "",
+                       level: q.word.level, kind: q.kind, ok });
+      stair.qi++;
+      if (stair.qi < stair.qs.length) renderStairQ();
+      else stairDecide();
     }, { once: true });
     box.appendChild(b);
   });
 }
 
-function finishVerify() {
-  /* Насколько опустить оценку.
-   *
-   * Считаем по двум уликам сразу. Первая — сколько верных ответов
-   * в проверке: она про настоящее знание. Вторая — сколько раз человек
-   * сказал «знаю» о выдуманном слове: она про то, можно ли вообще
-   * верить первой части теста.
-   *
-   * Проверено на крайнем случае: если жать «знаю» на всё подряд, включая
-   * все шесть обманок, и провалить проверку — раньше выходил C1 с запасом
-   * в восемь тысяч слов. Такой ученик открыл бы тренировку и не понял
-   * ни одного слова.
-   */
-  const total = verifyQs.length;
-  let drop = 0;
-  if (verifyRight <= Math.floor(total / 6)) drop = 2;           // почти всё мимо
-  else if (verifyRight < Math.ceil(total * 0.6)) drop = 1;      // больше половины мимо
-  if (fakeYes >= 4) drop += 1;                                  // отвечал не глядя
-  const idx = Math.max(0, verifyBase - drop);
+function stairDecide() {
+  const L = stair.lvl;
+  if (stair.blockRight >= STAIR_PASS) {
+    stair.passed[L] = true;
+    stair.best = Math.max(stair.best, L);
+    // Выше некуда или выше уже провалено — граница найдена
+    if (L === LEVELS.length - 1 || stair.failed[L + 1]) { stairFinish(stair.best); return; }
+    stair.lvl = L + 1;
+  } else {
+    stair.failed[L] = true;
+    // Ниже некуда — остаёмся на первом уровне: учить с азов не стыдно
+    if (L === 0) { stairFinish(0); return; }
+    // Ниже уже пройдено — граница найдена
+    if (stair.passed[L - 1]) { stairFinish(L - 1); return; }
+    stair.lvl = L - 1;
+  }
+  if (stair.blocks >= STAIR_MAX_BLOCKS) {
+    // Предохранитель: берём высший пройденный, а если не пройден ни
+    // один — уровень ниже последнего проваленного
+    stairFinish(stair.best >= 0 ? stair.best : Math.max(0, stair.lvl - (stair.failed[stair.lvl] ? 1 : 0)));
+    return;
+  }
+  stairNextBlock();
+}
+
+function stairFinish(levelIdx) {
   document.getElementById("test-verify").classList.add("hidden");
-  applyLevel(idx, verifyRight, total);
+  applyLevel(Math.max(0, levelIdx), stair.right, stair.total);
 }
 
 function finishTest() {
-  // Сначала — быстрая оценка по «знаю / не знаю», потом короткая
-  // проверка на границе. Уровень ставится уже по её результату.
-  startVerify(estimateLevelIndex(testAnswers));
+  // Сначала — быстрая разведка по «знаю / не знаю», потом адаптивная
+  // лесенка настоящих вопросов. Уровень ставит лесенка.
+  startStaircase(estimateLevelIndex(testAnswers));
 }
 
 function applyLevel(levelIdx, right, total) {
@@ -935,28 +972,79 @@ function applyLevel(levelIdx, right, total) {
   document.getElementById("result-level-name").textContent = LEVEL_NAMES[level];
   document.getElementById("result-vocab").textContent = "~" + vocab;
 
-  const comments = {
-    A1: "Отличный старт! Начнём с самых нужных слов — скоро заговоришь, мяу!",
-    A2: "Хорошая база! Будем наращивать словарь каждый день, мур.",
-    B1: "Солидно! Ты понимаешь больше, чем средний кот. Идём к B2!",
-    B2: "Мур-мур, впечатляет! Осталось отполировать до продвинутого уровня.",
-    C1: "Ого! Ты почти как я. Будем добивать редкие и красивые слова.",
-    C2: "Мяу?! Может, это ТЫ будешь меня учить? Но пару слов я всё же найду.",
+  // Реплика кота — по структуре методиста: что понял, что НЕ буду
+  // заставлять учить, что буду подбирать и что запомню. Обещание
+  // «запомню, какие слова тебе даются труднее» — не фигура речи:
+  // промахи теста прямо под этой репликой предлагаются в словарь.
+  const next = LEVELS[Math.min(LEVELS.indexOf(level) + 1, LEVELS.length - 1)];
+  const opening = {
+    A1: "Начнём с самых нужных слов — их всего ничего, а разговор уже держится на них.",
+    A2: "База у тебя есть — простейшее пропускаем, идём наращивать словарь.",
+    B1: "Простые слова тебе уже неинтересны — не буду заставлять учить то, что ты и так знаешь.",
+    B2: "Ходовые слова ты знаешь — за них не сядем ни разу.",
+    C1: "Ты понимаешь почти всё — остались редкие и точные слова.",
+    C2: "Мяу?! Может, это ТЫ будешь меня учить? Но пару красивых слов я всё же найду.",
   };
-  document.getElementById("result-comment").textContent = comments[level];
-  // Итог проверки говорим честно: ученик отвечал на настоящие вопросы
-  // и заслуживает знать, как справился. Заодно это объясняет уровень,
-  // если он вышел ниже, чем человек ожидал.
+  document.getElementById("result-comment").textContent =
+    `Я тебя понял! ${opening[level]} Буду подбирать тебе слова ${level}` +
+    (next !== level ? `–${next}` : "") +
+    ", постепенно усложняя задания. А ещё я запоминаю, какие слова тебе даются труднее, " +
+    "и возвращаю их на повторение именно тогда, когда пора. Поехали!";
+  // Итог проверки — по уровням, а не общим счётом. «4 из 8» звучало бы
+  // как «еле-еле», хотя половина промахов у лесенки запланирована: она
+  // щупает СЛЕДУЮЩИЙ уровень, пока ученик не упрётся. Поэтому говорим,
+  // что именно нашли: этот уровень взят, следующий пока рано.
   const note = document.getElementById("result-verify");
-  if (note && typeof total === "number" && total > 0) {
+  if (note && stair && stair.log.length) {
+    const byLvl = {};
+    stair.log.forEach(x => {
+      byLvl[x.level] = byLvl[x.level] || { ok: 0, n: 0 };
+      byLvl[x.level].n++;
+      if (x.ok) byLvl[x.level].ok++;
+    });
+    const parts = [];
+    const mine = byLvl[level];
+    if (mine) parts.push(`вопросы уровня ${level} — ${mine.ok} из ${mine.n}`);
+    const up = LEVELS[LEVELS.indexOf(level) + 1];
+    if (up && byLvl[up]) parts.push(`${up} — пока рано (${byLvl[up].ok} из ${byLvl[up].n})`);
     note.hidden = false;
-    note.textContent = right === total
-      ? `Проверка: ${right} из ${total} — ни одной ошибки, уровень подтверждён.`
-      : right <= Math.floor(total / 3)
-        ? `Проверка: ${right} из ${total}. Начнём чуть пониже — так слова закрепятся, а не пролетят мимо.`
-        : `Проверка: ${right} из ${total}. Уровень подтверждён.`;
+    note.textContent = "Проверка настоящими вопросами: " + parts.join(", ") + ".";
   }
+  renderTestMissed();
   showResultCode();
+}
+
+/** Слова, на которых тест подловил, — забрать в словарь одним нажатием.
+ *  Это и есть обещанное «запомню, что тебе даётся труднее»: тест не
+ *  только ставит уровень, но и сразу даёт первый список на учёбу. */
+function renderTestMissed() {
+  const box = document.getElementById("result-missed");
+  if (!box) return;
+  const missed = [];
+  ((stair && stair.log) || []).forEach(x => {
+    if (x.ok) return;
+    if (state.dictionary.some(d => d.w.toLowerCase() === x.w.toLowerCase())) return;
+    if (!missed.some(m => m.w === x.w)) missed.push(x);
+  });
+  if (!missed.length) { box.hidden = true; return; }
+  box.hidden = false;
+  document.getElementById("result-missed-list").textContent =
+    missed.map(m => `${m.w} — ${m.t}`).join(" · ");
+  const btn = document.getElementById("result-missed-take");
+  btn.disabled = false;
+  btn.textContent = `Добавить ${missed.length} ${plural(missed.length, "слово", "слова", "слов")}`;
+  btn.onclick = () => {
+    missed.forEach(m => {
+      addToDictionary({ w: m.w, t: m.t, ex: m.ex, level: m.level });
+      // Слово пришло из промаха: помечаем это, чтобы повторения начались
+      // с коротких интервалов, а не как у «просто нового» слова
+      const rec = state.dictionary.find(d => d.w.toLowerCase() === m.w.toLowerCase());
+      if (rec) rec.forgot = 1;
+    });
+    saveState();
+    btn.disabled = true;
+    btn.textContent = "В словаре, мяу!";
+  };
 }
 
 /** Показать личный код на экране результата теста.

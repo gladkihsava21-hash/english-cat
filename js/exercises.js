@@ -2125,9 +2125,13 @@ const EX_RUNNERS = {
     // рядом, ученик соединит правильно, а проверка засчитает ошибку:
     // пара-то ждёт другую половину. Такую подставу упражнение позволить
     // себе не может.
+    // Берём восемь на пять мест: три запасных с лихвой покрывают
+    // случайное совпадение правых половин. Просить больше вредно —
+    // pickFresh считает показанным всё, что выдал, и невзятые пары
+    // ушли бы в «уже видел», ни разу не побывав на экране.
     const picks = [];
     const rights = new Set();
-    for (const c of pickFresh("colloc", COLLOCATIONS, 14, c => c.h + " " + c.tl)) {
+    for (const c of pickFresh("colloc", COLLOCATIONS, 8, c => c.h + " " + c.tl)) {
       if (rights.has(c.tl)) continue;
       rights.add(c.tl);
       picks.push(c);
