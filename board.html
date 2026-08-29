@@ -7,7 +7,7 @@
   <meta name="robots" content="noindex, nofollow">
   <link rel="preload" href="css/fonts/nunito-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="css/fonts/inter-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="css/fonts.css?v=205">
+  <link rel="stylesheet" href="css/fonts.css?v=206">
   <script>
     try {
       var t = localStorage.getItem("savelyTheme");
@@ -16,9 +16,9 @@
       document.documentElement.dataset.theme = t;
     } catch (e) { /* приватный режим */ }
   </script>
-  <link rel="stylesheet" href="css/tokens.css?v=205">
-  <link rel="stylesheet" href="css/style.css?v=205">
-  <link rel="stylesheet" href="css/board.css?v=205">
+  <link rel="stylesheet" href="css/tokens.css?v=206">
+  <link rel="stylesheet" href="css/style.css?v=206">
+  <link rel="stylesheet" href="css/board.css?v=206">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
 </head>
 <body class="board-body">
@@ -41,6 +41,8 @@
       <span data-icon="download" data-icon-size="18"></span> PNG</button>
     <button class="bd-btn" id="bd-clear" title="Очистить доску"
             data-icon="trash" data-icon-size="18"></button>
+    <button class="bd-btn" id="bd-bg" title="Фон: точки, клетка, линейка"
+            data-icon="categories" data-icon-size="18"></button>
     <button class="bd-btn" id="bd-theme" title="День и ночь"
             data-icon="moon" data-icon-size="18"></button>
   </div>
@@ -74,6 +76,8 @@
             data-icon="circle" data-icon-size="22"></button>
     <button class="bd-tool" data-tool="arrow" title="Стрелка (A)"
             data-icon="diagonal" data-icon-size="22"></button>
+    <button class="bd-tool" id="bd-img" title="Картинка: файл, Ctrl+V или перетащи"
+            data-icon="picture" data-icon-size="22"></button>
     <div class="bd-sep"></div>
     <button class="bd-tool bd-tool-words" id="bd-words" title="Слова ученика (W)"
             data-icon="words" data-icon-size="22"></button>
@@ -131,9 +135,10 @@
 </div>
 
 <p class="bd-toast" id="bd-toast" hidden></p>
+<input type="file" id="bd-img-file" accept="image/*" hidden>
 
-<script defer src="js/icons.js?v=205"></script>
-<script defer src="js/util.js?v=205"></script>
-<script defer src="js/board.js?v=205"></script>
+<script defer src="js/icons.js?v=206"></script>
+<script defer src="js/util.js?v=206"></script>
+<script defer src="js/board.js?v=206"></script>
 </body>
 </html>

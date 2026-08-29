@@ -2089,7 +2089,11 @@ SINGLE_CHECK_PRICE = 29  # разовая проверка без подписк
 # ---------- доски для урока ----------
 
 BOARD_MAX_OBJECTS = 3000      # больше на один урок не нарисовать
-BOARD_MAX_BYTES = 3_000_000   # 3 МБ на доску: рукописные линии — самое тяжёлое
+BOARD_MAX_BYTES = 8_000_000   # 8 МБ на доску: картинки тяжелее линий, но
+                              # полинг тянет только новое (since rev), так что
+                              # это разовая передача, а не постоянный трафик
+BOARD_MAX_IMAGE = 700_000     # одна картинка (data-URL) — до ~0,5 МБ бинарно;
+                              # клиент жмёт сильнее, это потолок от чужих рук
 BOARD_MAX_PER_TUTOR = 60
 
 
@@ -2169,7 +2173,7 @@ def _clean_board_object(o):
     oid = str(o.get("id", ""))[:40]
     kind = str(o.get("kind", ""))[:16]
     if not oid or kind not in ("pen", "line", "arrow", "rect", "ellipse",
-                               "note", "text", "word"):
+                               "note", "text", "word", "image", "ping", "bg"):
         return None
 
     def num(v, lo=-100000, hi=100000):
@@ -2196,6 +2200,26 @@ def _clean_board_object(o):
     if kind in ("note", "text", "word"):
         out["text"] = str(o.get("text", ""))[:600]
         out["text2"] = str(o.get("text2", ""))[:600]
+    if kind == "image":
+        # Картинка едет внутри объекта как data-URL. Никаких ссылок на
+        # чужие сайты: во-первых, это утечка (браузер второго участника
+        # ходил бы по адресу, который придумал первый), во-вторых, доска
+        # обязана открываться без интернета до внешних картинок.
+        src = str(o.get("src", ""))
+        if len(src) > BOARD_MAX_IMAGE:
+            return None
+        if not (src.startswith("data:image/jpeg;base64,")
+                or src.startswith("data:image/png;base64,")
+                or src.startswith("data:image/webp;base64,")):
+            return None
+        out["src"] = src
+    if kind == "bg":
+        # Фон доски — общий: у ученика урок выглядит так же, как у
+        # репетитора. Живёт одним объектом с фиксированным id.
+        if oid != "board-bg":
+            return None
+        mode = str(o.get("text", ""))
+        out["text"] = mode if mode in ("dots", "grid", "lines", "clean") else "dots"
     if kind == "pen":
         pts = o.get("pts")
         if not isinstance(pts, list) or len(pts) < 2:

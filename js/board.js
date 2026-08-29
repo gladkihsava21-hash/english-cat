@@ -113,23 +113,115 @@ function draw() {
   for (const o of list) drawObject(o);
   if (BD.selected && BD.objects.has(BD.selected)) drawSelection(BD.objects.get(BD.selected));
   ctx.restore();
+  // Указка анимируется по времени — доска перерисовывается, пока та жива
+  for (const o of BD.objects.values()) {
+    if (o.kind === "ping" && (performance.now() - (PING_SEEN.get(o.id) || performance.now())) < PING_MS) {
+      BD.needsPaint = true;
+      break;
+    }
+  }
+}
+
+function bgMode() {
+  // Фон — общий объект доски (id зашит): меняет один, видят оба.
+  const o = BD.objects.get("board-bg");
+  return (o && o.text) || "dots";
 }
 
 function drawGrid(w, h) {
-  // Точки, а не клетка: сетка нужна как чувство масштаба, а не как
-  // разлиновка — линии спорили бы с рисунком.
+  const mode = bgMode();
+  if (mode === "clean") return;
   const step = 40 * BD.view.k;
   if (step < 14) return;
   const x0 = BD.view.x % step, y0 = BD.view.y % step;
+  if (mode === "grid") {
+    // Клетка — как тетрадь по математике: удобно чертить и писать столбиком
+    ctx.strokeStyle = cssColor("grid");
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let x = x0; x < w; x += step) { ctx.moveTo(x, 0); ctx.lineTo(x, h); }
+    for (let y = y0; y < h; y += step) { ctx.moveTo(0, y); ctx.lineTo(w, y); }
+    ctx.stroke();
+    return;
+  }
+  if (mode === "lines") {
+    // Линейка — как тетрадь по английскому: письмо на строчках
+    ctx.strokeStyle = cssColor("grid");
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let y = y0; y < h; y += step) { ctx.moveTo(0, y); ctx.lineTo(w, y); }
+    ctx.stroke();
+    return;
+  }
+  // Точки (по умолчанию): сетка как чувство масштаба, а не разлиновка
   ctx.fillStyle = cssColor("grid");
   for (let x = x0; x < w; x += step)
     for (let y = y0; y < h; y += step) ctx.fillRect(x, y, 1.5, 1.5);
 }
 
+/* ---------- картинки ----------
+   Картинка живёт в объекте data-URL-ом и рисуется через кэш: Image
+   создаётся один раз на id, дальше drawImage как обычно. */
+const IMG_CACHE = new Map();
+function imgFor(o) {
+  let rec = IMG_CACHE.get(o.id);
+  if (rec && rec.src === o.src) return rec.img.complete ? rec.img : null;
+  const img = new Image();
+  img.onload = paint;
+  img.src = o.src;
+  IMG_CACHE.set(o.id, { src: o.src, img });
+  return img.complete ? img : null;
+}
+
+/* Указка «смотри сюда»: пульсирующее кольцо живёт пару секунд.
+   Время появления у каждого своё, локальное — в объекте времени нет. */
+const PING_SEEN = new Map();   // id -> когда увидели
+const PING_MS = 2600;
+
 function drawObject(o) {
+  if (o.kind === "bg") return;               // фон нарисован до объектов
   const color = cssColor(o.color || "ink");
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
+
+  if (o.kind === "image") {
+    const img = imgFor(o);
+    if (!img) {                              // ещё грузится — рамка-заглушка
+      ctx.strokeStyle = cssColor("grid");
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      roundRect(o.x, o.y, o.w, o.h, 8);
+      ctx.stroke();
+      return;
+    }
+    ctx.save();
+    ctx.beginPath();
+    roundRect(o.x, o.y, o.w, o.h, 8);
+    ctx.clip();
+    ctx.drawImage(img, o.x, o.y, o.w, o.h);
+    ctx.restore();
+    return;
+  }
+
+  if (o.kind === "ping") {
+    if (!PING_SEEN.has(o.id)) PING_SEEN.set(o.id, performance.now());
+    const t = (performance.now() - PING_SEEN.get(o.id)) / PING_MS;
+    if (t >= 1) return;
+    // Три расходящихся кольца со сдвигом по фазе — глаз ловит движение
+    // даже боковым зрением, ради этого указка и нужна.
+    for (let k = 0; k < 3; k++) {
+      const p = t * 1.4 - k * 0.18;
+      if (p < 0 || p > 1) continue;
+      ctx.strokeStyle = cssColor(o.color || "red");
+      ctx.globalAlpha = (1 - p) * 0.9;
+      ctx.lineWidth = 3 / BD.view.k;
+      ctx.beginPath();
+      ctx.arc(o.x, o.y, (8 + p * 46) / BD.view.k, 0, 7);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+    return;
+  }
 
   if (o.kind === "pen" || o.kind === "marker") {
     if (!o.pts || o.pts.length < 4) return;
@@ -254,6 +346,10 @@ function drawText(text, x, y, maxW, lh, color, weight) {
   if (line) ctx.fillText(line, x, ty);
 }
 
+/** У каких объектов есть смысл тянуть размер за уголок. Линии и штрихи
+ *  не растягиваем: у них «размер» — это сама геометрия. */
+const resizable = o => ["image", "rect", "ellipse", "note", "word"].includes(o.kind);
+
 function drawSelection(o) {
   const b = bounds(o);
   ctx.strokeStyle = cssColor("green");
@@ -261,6 +357,23 @@ function drawSelection(o) {
   ctx.setLineDash([6 / BD.view.k, 4 / BD.view.k]);
   ctx.strokeRect(b.x - 6, b.y - 6, b.w + 12, b.h + 12);
   ctx.setLineDash([]);
+  if (resizable(o)) {
+    // Уголок-ручка: квадратик в правом нижнем углу рамки
+    const r = 7 / BD.view.k;
+    ctx.fillStyle = cssColor("green");
+    ctx.fillRect(b.x + b.w + 6 - r, b.y + b.h + 6 - r, r * 2, r * 2);
+  }
+}
+
+/** Попал ли указатель в уголок-ручку выделенного объекта. */
+function hitResizeHandle(wx, wy) {
+  if (!BD.selected) return null;
+  const o = BD.objects.get(BD.selected);
+  if (!o || !resizable(o)) return null;
+  const b = bounds(o);
+  const r = 14 / BD.view.k;                  // зона больше рисунка: палец не мышь
+  if (Math.abs(wx - (b.x + b.w + 6)) < r && Math.abs(wy - (b.y + b.h + 6)) < r) return o;
+  return null;
 }
 
 function bounds(o) {
@@ -276,10 +389,14 @@ function bounds(o) {
   return { x, y, w: Math.abs(o.w) || 120, h: Math.abs(o.h) || 40 };
 }
 
+/** Служебные объекты: их нельзя выделить, стереть или двигать. */
+const isService = o => o.kind === "ping" || o.kind === "bg";
+
 function hitTest(wx, wy) {
   // Сверху вниз: последним нарисованное ловится первым — так и ожидают
   const list = [...BD.objects.values()].sort((a, b) => (b.rev || 0) - (a.rev || 0));
   for (const o of list) {
+    if (isService(o)) continue;
     if (o.kind === "pen" || o.kind === "marker") {
       const t = Math.max(8, o.size * 2);
       for (let i = 0; i < o.pts.length - 2; i += 2) {
@@ -406,7 +523,7 @@ function setState(text, bad) {
 }
 
 /* ---------- инструменты и указатель ---------- */
-let drawing = null, panning = null, moving = null;
+let drawing = null, panning = null, moving = null, resizing = null;
 
 canvas.addEventListener("pointerdown", e => {
   // Захват указателя — удобство: линия не рвётся, если палец уехал за
@@ -424,6 +541,13 @@ canvas.addEventListener("pointerdown", e => {
   }
 
   if (BD.tool === "select") {
+    // Уголок выделенного проверяем ДО хит-теста: ручка висит за рамкой
+    // объекта, и попадание по ней — это точно про размер, а не про выбор.
+    const rz = hitResizeHandle(w.x, w.y);
+    if (rz) {
+      resizing = { id: rz.id, orig: { ...rz }, b: bounds(rz) };
+      return;
+    }
     const hit = hitTest(w.x, w.y);
     BD.selected = hit ? hit.id : null;
     if (hit) {
@@ -434,6 +558,13 @@ canvas.addEventListener("pointerdown", e => {
       }
       moving = { id: hit.id, dx: w.x, dy: w.y, orig: { ...hit } };
     } else {
+      // Двойной тап по пустому месту — указка «смотри сюда»: у второго
+      // участника в этой точке пульсирует кольцо. Жест, а не инструмент:
+      // на уроке «сюда смотри» нужно мгновенно, без похода в панель.
+      if (e.detail === 2) {
+        sendPing(w.x, w.y);
+        return;
+      }
       panning = { x: e.clientX, y: e.clientY, vx: BD.view.x, vy: BD.view.y };
       canvas.classList.add("grabbing");
     }
@@ -487,6 +618,25 @@ canvas.addEventListener("pointermove", e => {
   }
   const w = toWorld(e.clientX, e.clientY);
 
+  if (resizing) {
+    const o = BD.objects.get(resizing.id);
+    if (!o) return;
+    const b = resizing.b;
+    const nw = Math.max(24, w.x - b.x - 6);
+    const nh = Math.max(24, w.y - b.y - 6);
+    if (o.kind === "image") {
+      // Картинку тянем с сохранением пропорций: перекошенное фото
+      // на доске никому не нужно, а два ползунка — лишняя возня.
+      const k = Math.max(nw / Math.max(1, b.w), nh / Math.max(1, b.h));
+      BD.objects.set(o.id, { ...o, x: b.x, y: b.y,
+                             w: Math.max(24, b.w * k), h: Math.max(24, b.h * k) });
+    } else {
+      BD.objects.set(o.id, { ...o, x: b.x, y: b.y, w: nw, h: nh });
+    }
+    paint();
+    return;
+  }
+
   if (moving) {
     const o = BD.objects.get(moving.id);
     if (!o) return;
@@ -528,6 +678,12 @@ canvas.addEventListener("pointermove", e => {
 canvas.addEventListener("pointerup", () => {
   canvas.classList.remove("grabbing");
   if (panning) { panning = null; return; }
+  if (resizing) {
+    const o = BD.objects.get(resizing.id);
+    if (o) { pushUndo({ type: "put", before: resizing.orig, id: o.id }); BD.dirty.set(o.id, o); scheduleSync(); }
+    resizing = null;
+    return;
+  }
   if (moving) {
     const o = BD.objects.get(moving.id);
     if (o) { pushUndo({ type: "put", before: moving.orig, id: o.id }); BD.dirty.set(o.id, o); scheduleSync(); }
@@ -729,7 +885,7 @@ $("bd-zoom").addEventListener("click", () => {
 $("bd-fit").addEventListener("click", fitToContent);
 
 function fitToContent() {
-  const list = [...BD.objects.values()];
+  const list = [...BD.objects.values()].filter(o => !isService(o));
   if (!list.length) return;
   let x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity;
   list.forEach(o => {
@@ -818,6 +974,103 @@ $("bd-png").addEventListener("click", () => {
     BD.view = saveView;
     paint();
   });
+});
+
+/* ---------- указка ---------- */
+function sendPing(x, y) {
+  const o = { id: "ping-" + uid(), kind: "ping", x, y, w: 0, h: 0,
+              color: "red", size: 3 };
+  put(o, false);                             // жест не попадает в отмену
+  // Убираем за собой: у второго участника кольцо погаснет само по
+  // времени, а надгробие не даст объекту скапливаться в базе.
+  setTimeout(() => remove(o.id, false), 4000);
+}
+
+/* ---------- картинки на доску ----------
+   Три пути один в один как в мессенджерах: кнопка в панели, Ctrl+V
+   из буфера, перетащить файл на полотно. На уроке это фотография
+   упражнения из учебника — ученик снял страницу, кинул на доску,
+   и разбираем прямо поверх неё.
+
+   Жмём на клиенте до ~тысячи точек по длинной стороне и в JPEG:
+   доска ограничена по весу (сервер: BOARD_MAX_BYTES), а для разбора
+   задания хватает и такого качества. */
+async function addImageFile(file, at) {
+  if (!file || !file.type.startsWith("image/")) return;
+  const url = await new Promise((ok, bad) => {
+    const r = new FileReader();
+    r.onload = () => ok(r.result);
+    r.onerror = bad;
+    r.readAsDataURL(file);
+  }).catch(() => null);
+  if (!url) { toast("Не смог прочитать файл."); return; }
+  const img = new Image();
+  const loaded = await new Promise(ok => {
+    img.onload = () => ok(true);
+    img.onerror = () => ok(false);
+    img.src = url;
+  });
+  if (!loaded) { toast("Это не похоже на картинку."); return; }
+
+  // Сжимаем итерациями: сначала мягко, и только если data-URL всё ещё
+  // толще лимита — жёстче. Обычной фотографии хватает первого захода.
+  let side = 1100, quality = 0.82, src = "";
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const k = Math.min(1, side / Math.max(img.width, img.height));
+    const c = document.createElement("canvas");
+    c.width = Math.max(1, Math.round(img.width * k));
+    c.height = Math.max(1, Math.round(img.height * k));
+    const cc = c.getContext("2d");
+    cc.fillStyle = "#fff";                   // JPEG не умеет прозрачность
+    cc.fillRect(0, 0, c.width, c.height);
+    cc.drawImage(img, 0, 0, c.width, c.height);
+    src = c.toDataURL("image/jpeg", quality);
+    if (src.length < 600000) break;
+    side *= 0.7; quality = Math.max(0.5, quality - 0.12);
+  }
+  if (src.length >= 700000) { toast("Картинка слишком тяжёлая даже после сжатия."); return; }
+
+  // Ставим по центру экрана (или в точку сброса), шириной ~420 мировых
+  const ratio = img.height / img.width;
+  const w = Math.min(420, img.width);
+  const point = at || toWorld(innerWidth / 2, innerHeight / 2);
+  const o = { id: uid(), kind: "image", x: point.x - w / 2, y: point.y - (w * ratio) / 2,
+              w, h: w * ratio, color: "ink", size: 3, src };
+  put(o);
+  // Сразу в режим выделения: картинку обычно тут же двигают и растягивают
+  BD.selected = o.id;
+  const sel = document.querySelector('.bd-tool[data-tool="select"]');
+  if (sel) sel.click(); else BD.tool = "select";
+  paint();
+}
+
+$("bd-img").addEventListener("click", () => $("bd-img-file").click());
+$("bd-img-file").addEventListener("change", e => {
+  addImageFile(e.target.files && e.target.files[0]);
+  e.target.value = "";                       // тот же файл можно выбрать снова
+});
+document.addEventListener("paste", e => {
+  if (!e.clipboardData) return;
+  if (editing) return;                       // в поле текста вставляется текст
+  const item = [...e.clipboardData.items].find(x => x.type.startsWith("image/"));
+  if (item) { e.preventDefault(); addImageFile(item.getAsFile()); }
+});
+canvas.addEventListener("dragover", e => e.preventDefault());
+canvas.addEventListener("drop", e => {
+  e.preventDefault();
+  const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+  if (f) addImageFile(f, toWorld(e.clientX, e.clientY));
+});
+
+/* ---------- фон доски ---------- */
+const BG_ORDER = ["dots", "grid", "lines", "clean"];
+const BG_NAMES = { dots: "точки", grid: "клетка", lines: "линейка", clean: "чистый" };
+$("bd-bg").addEventListener("click", () => {
+  const next = BG_ORDER[(BG_ORDER.indexOf(bgMode()) + 1) % BG_ORDER.length];
+  // Фиксированный id: у доски один фон, и меняется он на месте
+  put({ id: "board-bg", kind: "bg", x: 0, y: 0, w: 0, h: 0,
+        color: "ink", size: 3, text: next }, false);
+  toast("Фон: " + BG_NAMES[next]);
 });
 
 /* ---------- слова ученика ---------- */
