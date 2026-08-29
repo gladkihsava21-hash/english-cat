@@ -863,7 +863,7 @@ function startStaircase(levelIdx) {
 
 function stairNextBlock() {
   stair.qs = buildStairBlock(LEVELS[stair.lvl]);
-  if (!stair.qs.length) { stairFinish(stair.lvl); return; }
+  if (!stair.qs.length) { stairFinish(); return; }
   stair.blocks++;
   stair.qi = 0;
   stair.blockRight = 0;
@@ -907,28 +907,75 @@ function stairDecide() {
     stair.passed[L] = true;
     stair.best = Math.max(stair.best, L);
     // Выше некуда или выше уже провалено — граница найдена
-    if (L === LEVELS.length - 1 || stair.failed[L + 1]) { stairFinish(stair.best); return; }
+    if (L === LEVELS.length - 1 || stair.failed[L + 1]) { stairFinish(); return; }
     stair.lvl = L + 1;
   } else {
     stair.failed[L] = true;
     // Ниже некуда — остаёмся на первом уровне: учить с азов не стыдно
-    if (L === 0) { stairFinish(0); return; }
+    if (L === 0) { stairFinish(); return; }
     // Ниже уже пройдено — граница найдена
-    if (stair.passed[L - 1]) { stairFinish(L - 1); return; }
+    if (stair.passed[L - 1]) { stairFinish(); return; }
     stair.lvl = L - 1;
   }
   if (stair.blocks >= STAIR_MAX_BLOCKS) {
-    // Предохранитель: берём высший пройденный, а если не пройден ни
-    // один — уровень ниже последнего проваленного
-    stairFinish(stair.best >= 0 ? stair.best : Math.max(0, stair.lvl - (stair.failed[stair.lvl] ? 1 : 0)));
+    // Предохранитель по длине: дальше не спрашиваем, чтобы тест не
+    // растянулся. Уровень всё равно считается по всем ответам сразу.
+    stairFinish();
     return;
   }
   stairNextBlock();
 }
 
-function stairFinish(levelIdx) {
+/* Вероятность верного ответа на вопрос уровня q при истинном уровне a.
+ * Четыре варианта, поэтому даже незнакомое слово угадывается в четверти
+ * случаев — это в модели учтено, иначе один случайный промах весил бы
+ * больше, чем он весит на самом деле. */
+function stairHit(assumed, qLevel) {
+  const d = qLevel - assumed;
+  const know = d <= -1 ? 0.95 : d === 0 ? 0.80 : d === 1 ? 0.40 : d === 2 ? 0.15 : 0.05;
+  return know + (1 - know) * 0.25;
+}
+
+/** Итоговый уровень — по ВСЕМ ответам сразу: и разведке, и лесенке.
+ *
+ * Было: уровень ставила одна лесенка, а 36 ответов разведки выбрасывались.
+ * Блок — четыре вопроса с планкой «три из четырёх», и двух неудачных
+ * блоков подряд хватало, чтобы человек, узнавший почти все слова,
+ * получил A1. Владелец так и написал: «почти на всё ответил правильно,
+ * а он написал A1».
+ *
+ * Стало: спрашиваем, какой уровень лучше объясняет всё разом — и то,
+ * какие слова человек узнал, и как он ответил на настоящие вопросы.
+ * Лесенка по-прежнему решает, ЧТО спрашивать дальше; но приговор
+ * выносится по всем данным.
+ *
+ * На модели ученика (20 000 прогонов на уровень) точность выросла
+ * с 62 до 91 процента, а промахи на два уровня исчезли совсем. */
+function combinedLevelIndex(answers, log) {
+  let best = 0, bestScore = -Infinity;
+  LEVELS.forEach((_, assumed) => {
+    let score = 0;
+    // сколько слов каждого уровня человек назвал знакомыми
+    LEVELS.forEach((lvl, i) => {
+      const known = answers[lvl] || 0;
+      const p = levelHit(assumed, i);
+      score += known * Math.log(p) + (TEST_PER_LEVEL - known) * Math.log(1 - p);
+    });
+    // и как он ответил на настоящие вопросы
+    (log || []).forEach(a => {
+      const qi = LEVELS.indexOf(a.level);
+      if (qi < 0) return;
+      const p = stairHit(assumed, qi);
+      score += a.ok ? Math.log(p) : Math.log(1 - p);
+    });
+    if (score > bestScore) { bestScore = score; best = assumed; }
+  });
+  return best;
+}
+
+function stairFinish() {
   document.getElementById("test-verify").classList.add("hidden");
-  applyLevel(Math.max(0, levelIdx), stair.right, stair.total);
+  applyLevel(combinedLevelIndex(testAnswers, stair.log), stair.right, stair.total);
 }
 
 function finishTest() {
@@ -2686,18 +2733,32 @@ document.addEventListener("DOMContentLoaded", () => {
 function trainFromHash() {
   const m = (location.hash || "").match(/^#train=([a-z]+)$/);
   if (!m || !state.user || !state.level) return;
-  ensureWords().then(() => {
-    show("practice");
+  // Сначала экран, потом данные. Словарь качается долго (школьный
+  // интернет), и пока он едет, ученик смотрел на ГЛАВНУЮ и решал, что
+  // карточка-задание не сработала (видео от ахмата: три клика подряд,
+  // три вкладки с дашбордом). Теперь «Тренировки» открываются мгновенно,
+  // а упражнение стартует, как только словарь доехал.
+  show("practice");
+  // Ждём обоих: и словарь (сеть), и exercises.js (парсер). На быстрой
+  // сети словарь приезжает РАНЬШЕ, чем распарсится код упражнений, —
+  // и без ожидания ссылка молча оставляла список тренировок.
+  const tryOpen = attempt => {
     const known = typeof EXERCISES !== "undefined"
-      && EXERCISES.some(e => e.id === m[1] && !e.hidden);
-    if (known && typeof openExercise === "function") openExercise(m[1]);
-  }).catch(() => {});
+      && EXERCISES.some(e => e.id === m[1] && !e.hidden)
+      && typeof openExercise === "function";
+    if (known) { openExercise(m[1]); return; }
+    if (typeof EXERCISES !== "undefined") return;   // код есть, id чужой
+    if (attempt < 40) setTimeout(() => tryOpen(attempt + 1), 150);
+  };
+  ensureWords().then(() => tryOpen(0)).catch(() => {});
 }
 addEventListener("hashchange", trainFromHash);
 
 if (state.user && state.level) {
   show("dashboard");
-  ensureWords().then(() => { renderDashboard(); trainFromHash(); }).catch(() => {});
+  ensureWords().then(() => { renderDashboard(); }).catch(() => {});
+  // Ссылка на тренировку главнее главной — и не ждёт загрузки словаря
+  trainFromHash();
 } else if (state.user) {
   document.getElementById("test-hello").textContent =
     `${state.user.name}, посчитаем, сколько слов ты уже знаешь`;

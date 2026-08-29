@@ -143,6 +143,12 @@ def main():
                     return True
         return False
 
+    # Мат и взрослая лексика в тест не попадают никогда. Список общий
+    # на проект (tools/wordpipe/blocklist.py): раньше словарь чистили
+    # руками, а этот сборщик приносил «suck» и «kinky» обратно.
+    sys.path.insert(0, os.path.join(ROOT, "tools"))
+    from wordpipe.blocklist import is_blocked
+
     picked = {}
     for lvl in LEVELS:
         pool = []
@@ -165,6 +171,8 @@ def main():
             if token.endswith("ed") or token.endswith("ing"):
                 continue
             if is_loanword(token, w.get("t", "")):
+                continue
+            if is_blocked(token, in_test=True):
                 continue
             r = ranks.get(token)
             if r is None:

@@ -57,6 +57,30 @@ for i, t in enumerate(w):
     if key in seen: bad.append(f"{where}: дубль предложения с {seen[key]}")
     seen[key] = where
 
+# Мат и взрослая лексика — отдельной проверкой по общему списку.
+# Словарь чистили руками в v159, а генератор теста через полгода принёс
+# «suck» и «kinky» обратно: пока проверки нет, любая пересборка может
+# вернуть их снова, и увидит это уже ученик.
+#
+# Читаем файлы регулярным выражением, а не через node: словарь весит
+# 1,1 МБ, и передать его аргументом командной строки нельзя.
+sys.path.insert(0, os.path.join(ROOT, "tools"))
+from wordpipe.blocklist import is_blocked
+
+def scan_plain(path, pattern, in_test):
+    full = os.path.join(ROOT, path)
+    if not os.path.exists(full):
+        return
+    text = open(full, encoding="utf-8").read()
+    for token in re.findall(pattern, text):
+        if is_blocked(token, in_test=in_test):
+            bad.append(f"{path}: недопустимое слово «{token}»")
+
+import re
+scan_plain("js/leveltest.js", r'"([A-Za-z\'-]+)"', True)
+scan_plain("js/words.js", r'\{ w: "([^"]+)"', False)
+scan_plain("js/phrases.js", r'\{ w: "([^"]+)"', False)
+
 if bad:
     print("\n".join(bad))
     sys.exit(f"\nБанки не в порядке: {len(bad)} проблем")

@@ -1174,7 +1174,9 @@ const TASK_EXERCISES = [
 function openTaskCard(o) {
   const id = (o.text2 || "").trim();
   const url = "index.html#train=" + encodeURIComponent(id);
-  window.open(url, "_blank");
+  // Именованное окно: три нетерпеливых клика — всё равно ОДНА вкладка
+  // с тренировкой, а не три (на видео от ахмата их наплодилось).
+  window.open(url, "savelyTrain");
   toast("Тренировка открылась в новой вкладке — доска и звонок остаются здесь.");
 }
 
