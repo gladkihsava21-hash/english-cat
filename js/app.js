@@ -2757,8 +2757,13 @@ addEventListener("hashchange", trainFromHash);
 if (state.user && state.level) {
   show("dashboard");
   ensureWords().then(() => { renderDashboard(); }).catch(() => {});
-  // Ссылка на тренировку главнее главной — и не ждёт загрузки словаря
-  trainFromHash();
+  // Ссылка на тренировку главнее главной. Вызов — строго после
+  // DOMContentLoaded: этот блок исполняется при разборе app.js, когда
+  // exercises.js (там живёт отрисовка «Тренировок») ещё не распарсен,
+  // и немедленный show("practice") падал ReferenceError-ом, убивая
+  // заодно весь остаток загрузки. Словарь к DCL всё равно не готов,
+  // так что мгновенность экрана не страдает.
+  document.addEventListener("DOMContentLoaded", trainFromHash);
 } else if (state.user) {
   document.getElementById("test-hello").textContent =
     `${state.user.name}, посчитаем, сколько слов ты уже знаешь`;
