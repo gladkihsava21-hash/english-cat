@@ -35,7 +35,7 @@ import mailer
 # Теперь это видно одним curl /health: цифра совпала с ?v= на странице —
 # приложение перезапущено; не совпала или её нет вовсе — в памяти старый
 # код, надо нажать «Перезапустить приложение» в панели хостинга.
-ASSET_VERSION = 206
+ASSET_VERSION = 207
 
 PORT = int(os.environ.get("SAVELY_PORT", "4210"))
 # За nginx сервер слушает только localhost — снаружи он не должен быть виден
@@ -352,6 +352,9 @@ _HIT_LIMITS = {
     # поэтому лимит высокий: 240 обращений за минуту — это два человека,
     # которые рисуют одновременно, и ещё остаётся запас.
     "/api/board/sync": (240, 60),
+    # Звонок: опрос чаще при дозвоне, плюс всплеск ICE-кандидатов
+    "/api/call/send": (120, 60),
+    "/api/call/poll": (300, 60),
     "/api/board/create": (20, 600),
     "/api/board/update": (60, 600),
     # Вход по паролю — самая привлекательная цель для перебора: 10 попыток
@@ -1204,6 +1207,44 @@ class Api:
                     "rev": res["rev"]}
         return {"ok": True, "title": board["title"], "shared": bool(board["shared"]),
                 "me": author, **res}
+
+    @staticmethod
+    def _call_party(p):
+        """Кто стучится в сигналинг звонка и на какую доску.
+
+        Правила доступа ровно те же, что у рисования (board_sync):
+        репетитор — на свою доску всегда, ученик — на доску своего
+        репетитора и только пока она открыта. Отдельных прав у звонка
+        нет нарочно: звонок живёт на доске, и «доска закрыта» означает
+        «урока нет» для всего сразу."""
+        board = db.get_board(p.get("boardId"))
+        if not board:
+            return None, None
+        tutor = db.get_tutor_by_token(p.get("token"))
+        if tutor and tutor["id"] == board["tutor_id"]:
+            return board, "t" + str(tutor["id"])
+        stu = db.get_student_by_token(p.get("token"))
+        if stu and stu["tutor_id"] == board["tutor_id"] and board["shared"]:
+            return board, "s" + str(stu["id"])
+        return board, None
+
+    @staticmethod
+    def call_send(h, p):
+        """Сигналинг WebRTC: видео идёт напрямую между браузерами, сервер
+        только передаёт короткие сообщения, чтобы они друг друга нашли."""
+        board, me = Api._call_party(p)
+        if not me:
+            return {"ok": False, "error": "unauthorized"}
+        ok = db.call_send(board["id"], me, str(p.get("kind", "")), p.get("data"))
+        return {"ok": bool(ok)}
+
+    @staticmethod
+    def call_poll(h, p):
+        board, me = Api._call_party(p)
+        if not me:
+            return {"ok": False, "error": "unauthorized"}
+        msgs = db.call_poll(board["id"], me, p.get("since"))
+        return {"ok": True, "msgs": msgs, "me": me}
 
     @staticmethod
     def student_reset_send(h, p):
@@ -2297,6 +2338,8 @@ ROUTES = {
     "/api/board/create": Api.board_create,
     "/api/board/update": Api.board_update,
     "/api/board/sync": Api.board_sync,
+    "/api/call/send": Api.call_send,
+    "/api/call/poll": Api.call_poll,
     "/api/student/board": Api.student_board,
     "/api/student/login": Api.student_login,
     "/api/student/reset/send": Api.student_reset_send,

@@ -147,6 +147,21 @@ CREATE TABLE IF NOT EXISTS boards (
 );
 CREATE INDEX IF NOT EXISTS idx_boards_tutor ON boards(tutor_id);
 
+-- Сигналинг видеозвонка на доске. Само видео через сервер НЕ идёт:
+-- браузеры соединяются напрямую (WebRTC), а здесь лежат только короткие
+-- сообщения «сватовства» — предложение соединения, ответ и кандидаты
+-- адресов. Обе стороны опрашивают таблицу тем же полингом, что и доску;
+-- сообщения живут минуты и чистятся при каждой записи.
+CREATE TABLE IF NOT EXISTS call_msgs (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    board_id    INTEGER NOT NULL,
+    sender      TEXT NOT NULL,               -- t<id> или s<id>
+    kind        TEXT NOT NULL,               -- offer / answer / ice / bye
+    data        TEXT NOT NULL DEFAULT '{}',
+    created_at  TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_call_board ON call_msgs(board_id, id);
+
 -- Ограничение частоты запросов. Раньше счётчик был обычным словарём
 -- в памяти процесса — и на боевом хостинге не работал ВООБЩЕ.
 -- Запросы там обслуживает не один процесс, а сколько поднимет Apache,
@@ -2303,6 +2318,54 @@ def clear_board(board_id, tutor_id):
                    (json.dumps(gone, ensure_ascii=False), rev, now(), board_id))
     conn().commit()
     return get_board(board_id)
+
+
+# ---------- сигналинг звонка ----------
+CALL_TTL_SECONDS = 240        # сигналингу минуты за глаза: дальше это мусор
+CALL_MSG_MAX = 32_000         # SDP с полным списком кодеков — килобайт восемь
+
+def call_send(board_id, sender, kind, data):
+    """Положить сигнальное сообщение. Возвращает False, если не влезло."""
+    if kind not in ("offer", "answer", "ice", "bye"):
+        return False
+    blob = json.dumps(data or {}, ensure_ascii=False)
+    if len(blob) > CALL_MSG_MAX:
+        return False
+    c = conn()
+    # Чистим прошлое этой доски при каждой записи: отдельного крона на
+    # хостинге нет, а так таблица сама держится в размере одного урока.
+    cutoff = (datetime.now(timezone.utc) - timedelta(seconds=CALL_TTL_SECONDS))\
+        .isoformat(timespec="seconds")
+    c.execute("DELETE FROM call_msgs WHERE board_id=? AND created_at < ?",
+              (board_id, cutoff))
+    c.execute("INSERT INTO call_msgs(board_id, sender, kind, data, created_at) "
+              "VALUES(?,?,?,?,?)", (board_id, sender[:24], kind, blob, now()))
+    c.commit()
+    return True
+
+
+def call_poll(board_id, me, since):
+    """Сообщения ДРУГОЙ стороны после номера since."""
+    rows = conn().execute(
+        "SELECT id, sender, kind, data, created_at FROM call_msgs "
+        "WHERE board_id=? AND id>? AND sender<>? ORDER BY id LIMIT 50",
+        (board_id, int(since or 0), me[:24])).fetchall()
+    out = []
+    for r in rows:
+        try:
+            data = json.loads(r["data"])
+        except ValueError:
+            data = {}
+        # Возраст в секундах: первый опрос после открытия страницы находит
+        # и старые сообщения — по возрасту клиент отличает живой звонок
+        # от эха звонка десятиминутной давности.
+        try:
+            born = datetime.fromisoformat(r["created_at"])
+            age = int((datetime.now(timezone.utc) - born).total_seconds())
+        except ValueError:
+            age = 0
+        out.append({"id": r["id"], "kind": r["kind"], "data": data, "age": age})
+    return out
 
 
 def shared_board_for_student(student_row):

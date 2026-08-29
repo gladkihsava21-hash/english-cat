@@ -1268,6 +1268,8 @@ async function boot() {
   }
 
   await syncNow();
+  // Доска готова — можно подключать то, что живёт поверх неё (звонок)
+  dispatchEvent(new Event("board-ready"));
   // Два кадра ожидания: к этому моменту раскладка уже посчитана
   // и innerWidth настоящий, а не промежуточный.
   requestAnimationFrame(() => requestAnimationFrame(fitToContent));

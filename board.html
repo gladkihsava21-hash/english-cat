@@ -7,7 +7,7 @@
   <meta name="robots" content="noindex, nofollow">
   <link rel="preload" href="css/fonts/nunito-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="css/fonts/inter-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="css/fonts.css?v=206">
+  <link rel="stylesheet" href="css/fonts.css?v=207">
   <script>
     try {
       var t = localStorage.getItem("savelyTheme");
@@ -16,9 +16,9 @@
       document.documentElement.dataset.theme = t;
     } catch (e) { /* приватный режим */ }
   </script>
-  <link rel="stylesheet" href="css/tokens.css?v=206">
-  <link rel="stylesheet" href="css/style.css?v=206">
-  <link rel="stylesheet" href="css/board.css?v=206">
+  <link rel="stylesheet" href="css/tokens.css?v=207">
+  <link rel="stylesheet" href="css/style.css?v=207">
+  <link rel="stylesheet" href="css/board.css?v=207">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
 </head>
 <body class="board-body">
@@ -36,6 +36,8 @@
   </div>
   <div class="bd-top-right">
     <span class="bd-live" id="bd-live" hidden>ученик на доске</span>
+    <button class="bd-btn" id="bd-phone" title="Видеозвонок" hidden>
+      <span data-icon="phone" data-icon-size="18"></span> Звонок</button>
     <button class="bd-btn" id="bd-share" hidden>Открыть ученику</button>
     <button class="bd-btn" id="bd-png" title="Скачать картинкой">
       <span data-icon="download" data-icon-size="18"></span> PNG</button>
@@ -137,8 +139,35 @@
 <p class="bd-toast" id="bd-toast" hidden></p>
 <input type="file" id="bd-img-file" accept="image/*" hidden>
 
-<script defer src="js/icons.js?v=206"></script>
-<script defer src="js/util.js?v=206"></script>
-<script defer src="js/board.js?v=206"></script>
+<!-- Видеозвонок: два окошка в углу. Видео идёт напрямую между
+     браузерами, сервер только знакомит их (см. js/call.js). -->
+<div class="bd-call" id="bd-call" hidden>
+  <div class="bd-call-videos">
+    <video id="call-remote" autoplay playsinline></video>
+    <video id="call-local" autoplay playsinline muted></video>
+  </div>
+  <div class="bd-call-row">
+    <button class="bd-btn" id="call-mic" title="Микрофон"
+            data-icon="mic" data-icon-size="18"></button>
+    <button class="bd-btn" id="call-cam" title="Камера"
+            data-icon="camera" data-icon-size="18"></button>
+    <button class="bd-btn bd-call-end" id="call-end" title="Завершить">✕</button>
+  </div>
+  <p class="bd-call-state" id="call-state"></p>
+</div>
+
+<!-- Входящий звонок -->
+<div class="bd-ring" id="bd-ring" hidden>
+  <p id="bd-ring-text">Видеозвонок</p>
+  <div class="bd-ring-row">
+    <button class="bd-btn primary" id="ring-yes">Ответить</button>
+    <button class="bd-btn" id="ring-no">Отклонить</button>
+  </div>
+</div>
+
+<script defer src="js/icons.js?v=207"></script>
+<script defer src="js/util.js?v=207"></script>
+<script defer src="js/board.js?v=207"></script>
+<script defer src="js/call.js?v=207"></script>
 </body>
 </html>
