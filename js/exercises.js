@@ -211,6 +211,81 @@ function grammarPerRun(bankSize) {
                   Math.min(GRAMMAR_PER_RUN_MAX, Math.ceil(bankSize / 2)));
 }
 
+/* ===== Сверка перевода фразы =====
+ *
+ * Вариантов перевода много, поэтому дословное сравнение с образцом
+ * не годится. Но и прежняя проверка «половина ключевых слов на месте»
+ * никуда не годилась: «River is cold» и «the brave boy help» она
+ * засчитывала как верные — без артикля, без заглавной, с неверным
+ * временем. Владелец прислал оба случая.
+ *
+ * Теперь два вопроса подряд. Первый — про смысл: на месте ли заданное
+ * слово и содержательные слова образца. Второй — про грамматику: то,
+ * что видно правилами, без нейросети. Верно = смысл передан И замечаний
+ * нет; иначе показываем, что именно поправить.
+ */
+
+/** Служебные слова, пропуск которых — грамматическая ошибка, а не
+ *  «другой вариант перевода». Их отсутствие меняет не стиль, а строй. */
+const TR_FUNCTION = new Set(["a", "an", "the", "is", "are", "am", "was", "were",
+  "do", "does", "did", "have", "has", "had", "will", "would", "to", "of"]);
+
+/** Разные формы одного слова: help / helped / helping. */
+function sameStem(a, b) {
+  if (a === b) return true;
+  const cut = w => w.replace(/(ing|ed|es|s)$/, "");
+  const x = cut(a), y = cut(b);
+  return x.length >= 3 && (x === y || x === b || y === a);
+}
+
+function translateReview(value, sample, word) {
+  const notes = [];
+  const got = normEn(value).split(" ").filter(Boolean);
+  const want = normEn(sample).split(" ").filter(Boolean);
+
+  // 1. Смысл: заданное слово и содержательные слова образца
+  const stem = word.slice(0, Math.max(3, word.length - 2)).toLowerCase();
+  const hasWord = got.some(g => g.startsWith(stem));
+  const content = want.filter(w => w.length > 2 && !TR_FUNCTION.has(w));
+  const missing = content.filter(w => !got.some(g => sameStem(g, w)));
+  const meaning = hasWord && missing.length <= Math.floor(content.length * 0.3);
+  if (!hasWord) notes.push(`Нужно использовать слово «${word}».`);
+  else if (missing.length) notes.push("Потерялось: " + missing.join(", ") + ".");
+
+  // 2. Форма слова: слово есть, но в другой форме, чем в образце
+  want.forEach((w, i) => {
+    if (TR_FUNCTION.has(w) || w.length <= 2) return;
+    const exact = got.includes(w);
+    const near = got.find(g => !exact && sameStem(g, w) && g !== w);
+    if (near) notes.push(`«${near}» — нужна форма «${w}».`);
+  });
+
+  // 3. Служебные слова: артикли и связки, без которых фраза неверна.
+  //    Артикли считаем взаимозаменяемыми: «A brave boy helped» — такой же
+  //    правильный перевод, как «The brave boy helped», и придираться
+  //    к выбору артикля здесь значит придираться к верному ответу.
+  const ARTICLES = new Set(["a", "an", "the"]);
+  const wantArticles = want.filter(w => ARTICLES.has(w)).length;
+  const gotArticles = got.filter(w => ARTICLES.has(w)).length;
+  const lostFn = want.filter(w => TR_FUNCTION.has(w) && !ARTICLES.has(w) && !got.includes(w));
+  if (wantArticles && !gotArticles) lostFn.unshift("артикль (a / an / the)");
+  if (lostFn.length) {
+    notes.push(lostFn.length === 1
+      ? `Пропущено: ${lostFn[0]}.`
+      : "Пропущено: " + lostFn.join(", ") + ".");
+  }
+
+  // 4. Общие правила: заглавная, точка, a/an, окончание после he/she/it
+  if (typeof grammarCheck === "function") {
+    grammarCheck(value).forEach(n => notes.push(n.why));
+  }
+
+  // Дубли убираем: одну и ту же ошибку разные проверки описывают по-разному
+  const seen = new Set();
+  const uniq = notes.filter(n => !seen.has(n) && seen.add(n));
+  return { ok: meaning && uniq.length === 0, meaning, notes: uniq };
+}
+
 /* ===== Сверка диктанта =====
  *
  * Возвращает разметку по словам образца: каждое слово — «попал», «не так»
@@ -953,6 +1028,9 @@ function openExercise(id) {
     // «Свои предложения» живут в другой группе, но данные им тоже нужны
     // заранее: проверять грамматику имеет смысл сразу, а не со второго раза.
     personal: { ready: () => typeof grammarCheck !== "undefined", load: ensureGrammarCheck },
+    // «Перевод фразы» — тоже свободный ввод, и грамматика там важна
+    // не меньше: «River is cold» без артикля засчитывалось как верное.
+    translate: { ready: () => typeof grammarCheck !== "undefined", load: ensureGrammarCheck },
   };
   const need = EXAM_DATA[id];
   if (need && !need.ready()) {
@@ -2068,18 +2146,32 @@ const EX_RUNNERS = {
   },
 
   translate() {
-    const pool = trainPool(4, ["exr"]);
+    // Предложения не должны повторяться от подхода к подходу: пул широкий,
+    // а pickFresh следит, чтобы сначала шли ещё не переведённые.
+    const wide = trainPool(60, ["exr"]);
+    const lvl = studyLevel();
+    const seen = new Set(wide.map(p => p.exr));
+    const nextLvl = LEVELS[Math.min(LEVELS.indexOf(lvl) + 1, LEVELS.length - 1)];
+    const extra = [...WORDS[lvl], ...WORDS[nextLvl]].filter(x => x.exr && x.ex && !seen.has(x.exr));
+    const all = [...wide, ...extra];
+    if (!all.length) { exFinish(0, 0, "Нужны слова с примерами — добавь пару слов в словарь."); return; }
+    const pool = pickFresh("tr:" + lvl, all, 4, p => p.exr);
+
     runType(pool.map(p => ({
       sub: "Переведи предложение на английский",
       prompt: "«" + p.exr + "»",
       answer: p.ex,
-      check: v => {
-        const val = normEn(v);
-        const stem = p.w.slice(0, Math.max(3, p.w.length - 2)).toLowerCase();
-        if (!val.includes(stem)) return false;
-        const b = normEn(p.ex).split(" ").filter(w => w.length > 2);
-        const hits = b.filter(w => val.includes(w)).length;
-        return hits / b.length >= 0.5;
+      // Смысл И грамматика. Раньше хватало половины ключевых слов,
+      // и «River is cold» проходило как верное.
+      check: v => translateReview(v, p.ex, p.w).ok,
+      review: v => {
+        const r = translateReview(v, p.ex, p.w);
+        if (r.ok || !r.notes.length) return "";
+        const head = r.meaning
+          ? "Смысл передан, но по грамматике:"
+          : "Смысл пока не тот:";
+        return `<span class="dict-review">${esc(head)}</span>`
+             + `<ul class="self-hints">${r.notes.map(n => `<li>${esc(n)}</li>`).join("")}</ul>`;
       },
       statWord: p.w,
       hint: "используй слово «" + p.w + "»",
@@ -2087,7 +2179,7 @@ const EX_RUNNERS = {
     })), {
       textarea: true,
       placeholder: "Твой перевод…",
-      note: "Проверка по ключевым словам — вариантов перевода много, образец не единственный правильный.",
+      note: "Смотрю и смысл, и грамматику: артикли, время, заглавную букву.",
     });
   },
 
