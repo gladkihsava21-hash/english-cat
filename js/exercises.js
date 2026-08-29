@@ -355,6 +355,40 @@ function trainingDictionary() {
  * раньше делал trainPool(6).filter(без пробелов) — SRS выдавал шесть
  * первых по очереди слов, все шесть оказывались фразами, фильтр съедал
  * всё, и папка Ирины открывалась экраном «Готово! Верно 0 из 0». */
+/** Слова с темами: СВОИ ВПЕРЁД, потом слова уровня.
+ *
+ * «Найди лишнее» и «Категории» собирали задание из общего банка и
+ * словарь ученика не открывали вовсе. Получалась игра про чужие слова:
+ * ребёнок учит одно, а играет в другое, и повторения не происходит.
+ *
+ * Здесь на каждую тему возвращается два списка — свои слова и добор из
+ * банка. Игра берёт сначала своё и лишь потом добирает: со словарём из
+ * двадцати слов задание всё равно соберётся, но знакомое в нём будет.
+ *
+ * only — какие темы годятся (у «лишнего» они конкретные), capLevel —
+ * не брать слова выше уровня ученика плюс один.
+ */
+function catBags(only = null, capLevel = true) {
+  const fits = x => x && x.cat && (!only || only.includes(x.cat)) && !x.w.includes(" ");
+  const mine = {}, rest = {};
+  const own = new Set();
+  trainingDictionary().forEach(d => {
+    const x = { ...(typeof wordInfo === "function" ? wordInfo(d.w) || {} : {}), ...d };
+    own.add(x.w.toLowerCase());
+    if (fits(x)) (mine[x.cat] = mine[x.cat] || []).push(x);
+  });
+  const top = capLevel
+    ? Math.min(LEVELS.length - 1, LEVELS.indexOf(studyLevel()) + 1)
+    : LEVELS.length - 1;
+  LEVELS.slice(0, top + 1).forEach(l => WORDS[l].forEach(x => {
+    if (fits(x) && !own.has(x.w.toLowerCase())) (rest[x.cat] = rest[x.cat] || []).push(x);
+  }));
+  // сколько слов на тему всего — по этому игра решает, годится ли тема
+  const size = c => (mine[c] || []).length + (rest[c] || []).length;
+  const pick = (c, n) => [...shuffled(mine[c] || []), ...shuffled(rest[c] || [])].slice(0, n);
+  return { size, pick, cats: [...new Set([...Object.keys(mine), ...Object.keys(rest)])] };
+}
+
 function trainPool(n, need = [], fit = null) {
   const has = rec => rec && need.every(f => rec[f]) && (!fit || fit(rec));
   const source = trainingDictionary();
@@ -1682,21 +1716,17 @@ const EX_RUNNERS = {
                     home: "place", city: "place", travel: "place", school: "study",
                     work: "study", sports: "sports", tech: "tech", art: "art",
                     time: "time", money: "money" };
-    const maxLvl = Math.min(LEVELS.length - 1, LEVELS.indexOf(studyLevel()) + 1);
-    const byCat = {};
-    LEVELS.slice(0, maxLvl + 1).forEach(l => WORDS[l].forEach(x => {
-      if (CONCRETE.includes(x.cat) && !x.w.includes(" ")) {
-        (byCat[x.cat] = byCat[x.cat] || []).push(x);
-      }
-    }));
-    const cats = Object.keys(byCat).filter(c => byCat[c].length >= 3);
+    // Слова ученика идут первыми: играть интереснее теми, что учишь
+    const bags = catBags(CONCRETE);
+    const cats = bags.cats.filter(c => bags.size(c) >= 3);
     const rounds = [];
     let guard = 0;
     while (rounds.length < 6 && guard++ < 40 && cats.length >= 2) {
       const [catA, catB] = shuffled(cats).slice(0, 2);
       if (WORLD[catA] === WORLD[catB]) continue;   // соседние темы — не игра, а спор
-      const three = shuffled(byCat[catA]).slice(0, 3);
-      const odd = shuffled(byCat[catB])[0];
+      const three = bags.pick(catA, 3);
+      const odd = bags.pick(catB, 1)[0];
+      if (three.length < 3 || !odd) continue;
       const options = shuffled([...three.map(x => x.w), odd.w]);
       const nameA = (CATEGORY_NAMES[catA] || catA).toLowerCase();
       const nameB = (CATEGORY_NAMES[catB] || catB).toLowerCase();
@@ -2182,12 +2212,12 @@ const EX_RUNNERS = {
 
   categories() {
     // 2 категории × 4 слова, клик по слову → клик по категории
-    const byCat = {};
-    LEVELS.forEach(l => WORDS[l].forEach(x => {
-      (byCat[x.cat] = byCat[x.cat] || []).push(x);
-    }));
-    const cats = shuffled(Object.keys(byCat).filter(c => byCat[c].length >= 4)).slice(0, 2);
-    const words = shuffled(cats.flatMap(c => shuffled(byCat[c]).slice(0, 4)
+    // Тоже со своими словами вперёд. И с потолком по уровню: раньше темы
+    // собирались со ВСЕХ уровней сразу, и первокласснику в «еду» попадало
+    // что-нибудь из C2 — разложить по темам он это не мог даже теоретически.
+    const bags = catBags();
+    const cats = shuffled(bags.cats.filter(c => bags.size(c) >= 4)).slice(0, 2);
+    const words = shuffled(cats.flatMap(c => bags.pick(c, 4)
       .map(x => ({ ...x, catKey: c }))));
     let selWord = null, placed = 0, errors = 0;
     stage().innerHTML = `
