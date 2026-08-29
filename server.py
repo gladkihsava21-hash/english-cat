@@ -35,7 +35,7 @@ import mailer
 # Теперь это видно одним curl /health: цифра совпала с ?v= на странице —
 # приложение перезапущено; не совпала или её нет вовсе — в памяти старый
 # код, надо нажать «Перезапустить приложение» в панели хостинга.
-ASSET_VERSION = 212
+ASSET_VERSION = 213
 
 PORT = int(os.environ.get("SAVELY_PORT", "4210"))
 # За nginx сервер слушает только localhost — снаружи он не должен быть виден
@@ -1205,8 +1205,19 @@ class Api:
         if res.get("error") == "board_full":
             return {"ok": False, "error": "Доска переполнена — очистите или заведите новую.",
                     "rev": res["rev"]}
+        # Присутствие: ученик каждым опросом отмечается («я тут, вкладка
+        # видна/свёрнута»), репетитору отдаём вывод — рядом ли ученик.
+        # Нужно на живом уроке: репетитор отправил тренировать задание
+        # и видит по плашке, что ученик правда ушёл в тренировку, а не
+        # закрыл сайт (просьба совладельца после первого теста звонка).
+        extra = {}
+        if author.startswith("s"):
+            db.board_touch_presence(board["id"], bool(p.get("hidden")))
+        else:
+            fresh = db.get_board(board["id"])
+            extra["student"] = db.board_presence(fresh)
         return {"ok": True, "title": board["title"], "shared": bool(board["shared"]),
-                "me": author, **res}
+                "me": author, **extra, **res}
 
     @staticmethod
     def _call_party(p):

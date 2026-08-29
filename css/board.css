@@ -351,6 +351,9 @@
 /* Бейдж присутствия ученика: в узкой шапке он ломался на три строки
    и распирал панель. */
 .bd-live { white-space: nowrap; }
+.bd-live.away { color: var(--bd-orange, #b8860b); background: rgba(215, 160, 30, .14); }
+.bd-live.gone { color: var(--text-muted, #888); background: rgba(128, 128, 128, .12); }
+.bd-panel-tasks { border-top: 1px solid var(--border); margin-top: 10px; padding-top: 10px; }
 
 /* Взведённая кнопка очистки: цвет вместо подписи — она теперь с иконкой */
 .bd-btn.armed { color: var(--red); border-color: var(--red); }
@@ -376,6 +379,7 @@
    лица — рядом, как книжка на столе, а не поверх тетради. */
 .bd-call {
   position: fixed; right: 14px; bottom: 76px; z-index: 40;
+  touch-action: none; cursor: grab;   /* окно таскается за видео */
   display: flex; flex-direction: column; gap: 8px;
   background: var(--bd-panel, var(--surface));
   border: 1px solid var(--border); border-radius: 16px;
@@ -392,7 +396,7 @@
   object-fit: cover; border: 2px solid var(--surface);
 }
 #call-local.novideo { opacity: 0; }
-.bd-call-row { display: flex; gap: 8px; justify-content: center; }
+.bd-call-row { display: flex; gap: 8px; justify-content: center; cursor: default; }
 .bd-call-row .bd-btn.off { opacity: .45; text-decoration: line-through; }
 .bd-call-end { color: #fff; background: var(--bd-red, #c4453c); border-color: transparent; }
 .bd-call-state {

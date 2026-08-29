@@ -29,6 +29,9 @@ const CALL = {
   pendingIce: [],       // кандидаты, пришедшие раньше ответа на оффер
   offer: null,          // входящий оффер, пока человек решает
   timer: 0,             // таймер дозвона
+  isCaller: false,      // кто строил соединение — тот его и чинит
+  repairs: 0,           // сколько раз подряд чинили, не дождавшись связи
+  fixTimer: 0,
 };
 
 const ICE_SERVERS = [
@@ -85,6 +88,10 @@ function handleCallMsg(m) {
   if (m.kind === "answer") return onAnswer(m);
   if (m.kind === "ice") return onIce(m);
   if (m.kind === "bye") return onBye();
+  // Вторая сторона просит перезапустить соединение (у неё сменилась
+  // сеть). Чинит всегда позвонивший — у двух одновременных починок
+  // офферы сталкиваются лбами.
+  if (m.kind === "needfix" && CALL.state === "live" && CALL.isCaller) return tryRepair();
 }
 
 /* ---------- медиа ----------
@@ -120,11 +127,23 @@ function buildPeer() {
   pc.onconnectionstatechange = () => {
     if (!CALL.pc) return;
     const st = pc.connectionState;
-    if (st === "connected") setCallState("соединено");
-    if (st === "disconnected") setCallState("связь прерывается…");
+    if (st === "connected") {
+      setCallState("соединено");
+      CALL.repairs = 0;
+      clearTimeout(CALL.fixTimer);
+    }
+    if (st === "disconnected") {
+      // Обрыв на живом уроке — чаще всего смена сети у ученика (ушёл
+      // с Wi-Fi, телефон переполз на LTE). Не хороним звонок, а чиним:
+      // пересобираем маршруты (перезапуск ICE) и соединяемся заново.
+      setCallState("связь прерывается — чиню…");
+      clearTimeout(CALL.fixTimer);
+      CALL.fixTimer = setTimeout(tryRepair, 3000);
+    }
     if (st === "failed") {
-      // Прямое соединение не собралось или развалилось. Это тот самый
-      // случай «оба за жёстким NAT» — говорим словами, а не тишиной.
+      if (CALL.state === "live" && CALL.repairs < 3) { tryRepair(); return; }
+      // Трижды не собралось — это уже не мигнувшая сеть, а жёсткие NAT
+      // с обеих сторон. Говорим словами, а не тишиной.
       toast("Не удалось соединиться напрямую. Попробуйте ещё раз; "
         + "если не выходит — смените сеть (Wi-Fi вместо мобильного).", 6000);
       endCall(false);
@@ -141,10 +160,28 @@ function buildPeer() {
   return pc;
 }
 
+/* ---------- починка соединения ---------- */
+async function tryRepair() {
+  if (!CALL.pc || CALL.state !== "live") return;
+  CALL.repairs++;
+  setCallState("восстанавливаю связь…");
+  if (!CALL.isCaller) {
+    // Не мы строили — просим строителя пересобрать
+    callSend("needfix", {});
+    return;
+  }
+  try {
+    const offer = await CALL.pc.createOffer({ iceRestart: true });
+    await CALL.pc.setLocalDescription(offer);
+    await callSend("offer", { sdp: offer.sdp, type: offer.type });
+  } catch (e) { /* соединение уже закрыто */ }
+}
+
 /* ---------- исходящий ---------- */
 async function startCall() {
   if (CALL.state !== "idle") return;
   CALL.state = "calling";
+  CALL.isCaller = true;
   CALL.stream = await getCallMedia();
   showCallPanel();
   setCallState("зовём…");
@@ -164,8 +201,22 @@ async function startCall() {
 }
 
 /* ---------- входящий ---------- */
+async function renegotiate(offer) {
+  // Пересборка на живом звонке: строитель прислал новый оффер после
+  // перезапуска ICE (см. tryRepair) — отвечаем, не трогая панель.
+  try {
+    await CALL.pc.setRemoteDescription(offer);
+    const answer = await CALL.pc.createAnswer();
+    await CALL.pc.setLocalDescription(answer);
+    await callSend("answer", { sdp: answer.sdp, type: answer.type });
+  } catch (e) { /* пересборка не удалась — statechange разберётся */ }
+}
+
 function onOffer(m) {
-  if (CALL.state === "live") return;   // уже разговариваем — эхо не слушаем
+  if (CALL.state === "live") {
+    if (CALL.pc && !CALL.isCaller) renegotiate(m.data);
+    return;
+  }
   if (CALL.state === "calling") {
     // Оба нажали «позвонить» одновременно. Репетитор своего оффера
     // держится, ученик уступает и отвечает на встречный — иначе оба
@@ -188,6 +239,7 @@ async function answerCall() {
   $("bd-ring").hidden = true;
   if (!CALL.offer) { CALL.state = "idle"; return; }
   CALL.state = "calling";
+  CALL.isCaller = false;
   if (!CALL.stream) CALL.stream = await getCallMedia();
   showCallPanel();
   setCallState("соединяем…");
@@ -205,7 +257,13 @@ async function answerCall() {
 }
 
 async function onAnswer(m) {
-  if (CALL.state !== "calling" || !CALL.pc) return;
+  if (!CALL.pc) return;
+  if (CALL.state === "live") {
+    // Ответ на пересборку: просто применяем
+    if (CALL.isCaller) { try { await CALL.pc.setRemoteDescription(m.data); } catch (e) { /* уже не ждём */ } }
+    return;
+  }
+  if (CALL.state !== "calling") return;
   clearTimeout(CALL.timer);
   try {
     await CALL.pc.setRemoteDescription(m.data);
@@ -282,6 +340,56 @@ function toggleTrack(kindName, btn) {
   if (kindName === "video") $("call-local").classList.toggle("novideo", !on);
 }
 
+/* ---------- перетаскивание панели ----------
+   Окно звонка закрывало то место доски, где шёл разбор, — теперь его
+   можно оттащить за видео в любой угол. Позицию помним между уроками. */
+function makeCallDraggable() {
+  const box = $("bd-call");
+  let drag = null;
+  const clamp = (l, t) => {
+    const r = box.getBoundingClientRect();
+    return {
+      l: Math.max(4, Math.min(innerWidth - r.width - 4, l)),
+      t: Math.max(4, Math.min(innerHeight - r.height - 4, t)),
+    };
+  };
+  const place = (l, t) => {
+    const p = clamp(l, t);
+    box.style.left = p.l + "px";
+    box.style.top = p.t + "px";
+    box.style.right = "auto";
+    box.style.bottom = "auto";
+  };
+  box.addEventListener("pointerdown", e => {
+    if (e.target.closest("button")) return;   // кнопки — не ручка
+    const r = box.getBoundingClientRect();
+    drag = { dx: e.clientX - r.left, dy: e.clientY - r.top };
+    try { box.setPointerCapture(e.pointerId); } catch (err) { /* не беда */ }
+    e.preventDefault();
+  });
+  box.addEventListener("pointermove", e => {
+    if (!drag) return;
+    place(e.clientX - drag.dx, e.clientY - drag.dy);
+  });
+  box.addEventListener("pointerup", () => {
+    if (!drag) return;
+    drag = null;
+    try {
+      localStorage.setItem("savelyCallPos", JSON.stringify({
+        l: parseInt(box.style.left, 10), t: parseInt(box.style.top, 10) }));
+    } catch (e) { /* приватный режим */ }
+  });
+  // Вернуть сохранённое место (и не дать окну спрятаться за краем)
+  try {
+    const p = JSON.parse(localStorage.getItem("savelyCallPos"));
+    if (p && Number.isFinite(p.l)) requestAnimationFrame(() => place(p.l, p.t));
+  } catch (e) { /* не было */ }
+  addEventListener("resize", () => {
+    if (box.style.left) place(parseInt(box.style.left, 10) || 4,
+                              parseInt(box.style.top, 10) || 4);
+  });
+}
+
 /* ---------- запуск ---------- */
 function callBoot() {
   // Кнопка появляется только когда доска настоящая (id есть и роль ясна)
@@ -310,6 +418,41 @@ function callBoot() {
         { token: BD.token, boardId: BD.boardId, kind: "bye", data: {} }));
     }
   });
+  // А чтобы не закрыть её СЛУЧАЙНО — браузер переспросит, пока идёт звонок
+  addEventListener("beforeunload", e => {
+    if (CALL.state === "idle") return;
+    e.preventDefault();
+    e.returnValue = "";
+  });
+  // Стрелка «выйти с доски» во время звонка не убивает его: страница
+  // откроется рядом, звонок останется здесь. Совладелец: «учитель сказал
+  // потренировать задания — а звонок прерывается».
+  $("bd-back").addEventListener("click", e => {
+    if (CALL.state === "idle") return;
+    e.preventDefault();
+    window.open($("bd-back").href, "_blank");
+    toast("Звонок остаётся на доске — страница открылась в новой вкладке.");
+  });
+  // Телефон вернулся из фона: если связь за это время расползлась,
+  // чиним сразу, не дожидаясь таймера.
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden || CALL.state !== "live" || !CALL.pc) return;
+    const st = CALL.pc.connectionState;
+    if (st === "disconnected" || st === "failed") tryRepair();
+  });
+  // Вынести лицо собеседника поверх всех окон: тренируешься в другой
+  // вкладке — репетитор остаётся на глазах.
+  const pip = $("call-pip");
+  if (pip) {
+    if (!document.pictureInPictureEnabled) pip.hidden = true;
+    else pip.addEventListener("click", async () => {
+      try {
+        if (document.pictureInPictureElement) await document.exitPictureInPicture();
+        else await $("call-remote").requestPictureInPicture();
+      } catch (e) { toast("Видео пока нечего выносить."); }
+    });
+  }
+  makeCallDraggable();
   callPollLoop();
 }
 

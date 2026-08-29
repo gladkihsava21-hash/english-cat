@@ -2678,9 +2678,26 @@ document.addEventListener("DOMContentLoaded", () => {
 // значит ждём. Новый видит экран приветствия: ни аккаунта, ни уровня,
 // ни единого слова на экране, и качать ему словарь не за что. Он приедет,
 // когда ученик нажмёт «Поехали, 36 слов» (обработчик кнопки ниже).
+/* Тренировка по ссылке: index.html#train=scramble открывает упражнение
+ * сразу. Появилось ради доски: репетитор кладёт на неё карточку-задание,
+ * ученик нажимает — и тренировка стартует в новой вкладке, не обрывая
+ * видеозвонок на доске. Неизвестный id просто открывает список
+ * тренировок: страница не должна падать из-за кривой ссылки. */
+function trainFromHash() {
+  const m = (location.hash || "").match(/^#train=([a-z]+)$/);
+  if (!m || !state.user || !state.level) return;
+  ensureWords().then(() => {
+    show("practice");
+    const known = typeof EXERCISES !== "undefined"
+      && EXERCISES.some(e => e.id === m[1] && !e.hidden);
+    if (known && typeof openExercise === "function") openExercise(m[1]);
+  }).catch(() => {});
+}
+addEventListener("hashchange", trainFromHash);
+
 if (state.user && state.level) {
   show("dashboard");
-  ensureWords().then(() => { renderDashboard(); }).catch(() => {});
+  ensureWords().then(() => { renderDashboard(); trainFromHash(); }).catch(() => {});
 } else if (state.user) {
   document.getElementById("test-hello").textContent =
     `${state.user.name}, посчитаем, сколько слов ты уже знаешь`;

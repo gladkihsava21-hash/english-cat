@@ -291,6 +291,30 @@ function drawObject(o) {
     return;
   }
 
+  if (o.kind === "task") {
+    // Задание: репетитор кладёт на доску, ученик нажимает — тренировка
+    // открывается в НОВОЙ вкладке, звонок и доска остаются жить здесь.
+    ctx.fillStyle = cssColor("paper");
+    ctx.strokeStyle = cssColor("blue");
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    roundRect(o.x, o.y, o.w, o.h, 14);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = cssColor("blue");
+    ctx.font = '800 13px Inter, system-ui, sans-serif';
+    ctx.textBaseline = "top";
+    ctx.fillText("ЗАДАНИЕ", o.x + 16, o.y + 12);
+    ctx.fillStyle = cssColor("ink");
+    ctx.font = '700 21px Nunito, system-ui, sans-serif';
+    ctx.fillText(o.text || "", o.x + 16, o.y + 30);
+    ctx.fillStyle = cssColor("grid");
+    ctx.font = '400 13px Inter, system-ui, sans-serif';
+    ctx.fillText(BD.role === "student" ? "нажми — откроется в новой вкладке"
+                                       : "ученик нажмёт и начнёт", o.x + 16, o.y + 60);
+    return;
+  }
+
   if (o.kind === "word") {
     // Карточка со словом: перевод закрыт, пока по ней не нажали, —
     // на доске это готовое упражнение, а не просто подпись.
@@ -477,6 +501,9 @@ async function syncNow() {
     const res = await api("/api/board/sync", {
       token: BD.token, boardId: BD.boardId, since: BD.rev,
       changes, deletes,
+      // Ученик каждым опросом говорит «я тут» и видна ли вкладка —
+      // из этого складывается плашка присутствия у репетитора.
+      hidden: document.hidden,
     });
     if (!res.ok) {
       // Отправленное не подтвердилось — возвращаем в очередь, иначе
@@ -506,7 +533,7 @@ async function syncNow() {
     if (BD.role === "tutor") {
       $("bd-share").textContent = res.shared ? "Закрыть доступ" : "Открыть ученику";
       $("bd-share").classList.toggle("on", !!res.shared);
-      $("bd-live").hidden = !res.shared;
+      renderPresence(!!res.shared, res.student);
     }
   } catch (e) {
     changes.forEach(o => BD.dirty.set(o.id, o));
@@ -514,6 +541,27 @@ async function syncNow() {
     setState("нет связи — рисунок сохранится, когда сеть вернётся", true);
   }
   syncBusy = false;
+}
+
+/* Плашка присутствия. Раньше она врала: «ученик на доске» горело от
+ * самого «Открыть ученику», даже если никто не заходил. Теперь по факту:
+ * на доске / в другой вкладке (пошёл тренировать задание) / ушёл.
+ * Совладелец попросил именно это после первого урока со звонком —
+ * репетитор должен видеть, что замёрзшее видео значит «ученик
+ * тренируется», а не «связь умерла». */
+const PRESENCE = {
+  here: ["ученик на доске", ""],
+  away: ["ученик в другой вкладке", "away"],
+  gone: ["ученик ушёл с доски", "gone"],
+  no:   ["ждём ученика", "gone"],
+};
+function renderPresence(shared, st) {
+  const el = $("bd-live");
+  el.hidden = !shared;
+  if (!shared) return;
+  const [text, cls] = PRESENCE[st] || PRESENCE.no;
+  el.textContent = text;
+  el.className = "bd-live" + (cls ? " " + cls : "");
 }
 
 function setState(text, bad) {
@@ -556,6 +604,20 @@ canvas.addEventListener("pointerdown", e => {
         put({ ...hit, h: hit.h > 70 ? 62 : 96 });
         return;
       }
+      // Дабл-клик по заметке или тексту — дописать. Раньше текст можно
+      // было ввести ровно один раз при создании, и всё: повторного входа
+      // в редактор не существовало (жалоба владельца).
+      if ((hit.kind === "note" || hit.kind === "text") && e.detail === 2) {
+        e.preventDefault();
+        openEditor(hit);
+        return;
+      }
+      // Задание ученик запускает одним нажатием. В новой вкладке — чтобы
+      // звонок не оборвался: WebRTC живёт ровно столько, сколько страница.
+      if (hit.kind === "task" && BD.role === "student") {
+        openTaskCard(hit);
+        return;
+      }
       moving = { id: hit.id, dx: w.x, dy: w.y, orig: { ...hit } };
     } else {
       // Двойной тап по пустому месту — указка «смотри сюда»: у второго
@@ -585,6 +647,19 @@ canvas.addEventListener("pointerdown", e => {
       pts: [w.x, w.y], x: 0, y: 0, w: 0, h: 0,
     };
     return;
+  }
+
+  if (BD.tool === "note" || BD.tool === "text") {
+    // Клик по УЖЕ существующей заметке или тексту — редактирование, а не
+    // новая запись поверх: «дописать» — самое частое, что делают дальше.
+    const hit = hitTest(w.x, w.y);
+    if (hit && (hit.kind === "note" || hit.kind === "text")) {
+      e.preventDefault();
+      BD.selected = hit.id;
+      openEditor(hit);
+      paint();
+      return;
+    }
   }
 
   if (BD.tool === "note") {
@@ -754,8 +829,11 @@ function openEditor(o) {
   const box = $("bd-editor"), input = $("bd-editor-input");
   box.hidden = false;
   input.value = o.text || "";
-  input.focus();
-  input.select();
+  // Фокус — после того, как браузер закончит обрабатывать нажатие:
+  // синхронный focus() внутри pointerdown он тут же и отбирает
+  // (нажатие-то пришло по полотну), поле выглядело открытым, а печать
+  // уходила в никуда.
+  setTimeout(() => { input.focus(); input.select(); }, 0);
 }
 $("bd-editor-ok").addEventListener("click", () => {
   if (!editing) return;
@@ -976,6 +1054,10 @@ $("bd-png").addEventListener("click", () => {
   });
 });
 
+document.addEventListener("visibilitychange", () => {
+  if (BD.boardId) syncNow();
+});
+
 /* ---------- указка ---------- */
 function sendPing(x, y) {
   const o = { id: "ping-" + uid(), kind: "ping", x, y, w: 0, h: 0,
@@ -1073,11 +1155,58 @@ $("bd-bg").addEventListener("click", () => {
   toast("Фон: " + BG_NAMES[next]);
 });
 
+/* ---------- задания на доску ----------
+   Ид совпадают с js/exercises.js (EXERCISES): доска не грузит все
+   упражнения ради восьми названий, поэтому короткий список здесь.
+   Если id разойдутся, у ученика откроется просто список тренировок —
+   страница на неизвестный id не падает (см. trainFromHash в app.js). */
+const TASK_EXERCISES = [
+  ["flashcards", "Карточки"],
+  ["matching",   "Сопоставление"],
+  ["mcq",        "Выбор варианта"],
+  ["spelling",   "Ввод слова"],
+  ["scramble",   "Собери слово"],
+  ["listening",  "Аудирование"],
+  ["dictation",  "Диктант"],
+  ["fillblank",  "Пропуск в фразе"],
+];
+
+function openTaskCard(o) {
+  const id = (o.text2 || "").trim();
+  const url = "index.html#train=" + encodeURIComponent(id);
+  window.open(url, "_blank");
+  toast("Тренировка открылась в новой вкладке — доска и звонок остаются здесь.");
+}
+
+function renderTaskChips() {
+  const box = $("bd-task-list");
+  if (!box) return;
+  box.innerHTML = "";
+  TASK_EXERCISES.forEach(([id, name]) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "bd-word";
+    b.textContent = name;
+    b.addEventListener("click", () => {
+      const at = toWorld(innerWidth / 2, innerHeight / 2);
+      put({ id: uid(), kind: "task", x: at.x - 130, y: at.y - 45,
+            w: 260, h: 90, color: "blue", size: 3, text: name, text2: id });
+      toast("Задание легло на доску — ученик нажмёт и начнёт.");
+    });
+    box.appendChild(b);
+  });
+}
+
 /* ---------- слова ученика ---------- */
 $("bd-words").addEventListener("click", () => {
   const panel = $("bd-panel");
   panel.hidden = !panel.hidden;
   if (!panel.hidden && !BD.students.length) loadStudents();
+  // Задания выдаёт репетитор; ученику в панели — только его слова
+  if (!panel.hidden && BD.role === "tutor" && $("bd-tasks")) {
+    $("bd-tasks").hidden = false;
+    if (!$("bd-task-list").childElementCount) renderTaskChips();
+  }
 });
 $("bd-panel-close").addEventListener("click", () => { $("bd-panel").hidden = true; });
 $("bd-search").addEventListener("input", renderWords);

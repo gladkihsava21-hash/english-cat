@@ -7,7 +7,7 @@
   <meta name="robots" content="noindex, nofollow">
   <link rel="preload" href="css/fonts/nunito-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="css/fonts/inter-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="css/fonts.css?v=212">
+  <link rel="stylesheet" href="css/fonts.css?v=213">
   <script>
     try {
       var t = localStorage.getItem("savelyTheme");
@@ -16,9 +16,9 @@
       document.documentElement.dataset.theme = t;
     } catch (e) { /* приватный режим */ }
   </script>
-  <link rel="stylesheet" href="css/tokens.css?v=212">
-  <link rel="stylesheet" href="css/style.css?v=212">
-  <link rel="stylesheet" href="css/board.css?v=212">
+  <link rel="stylesheet" href="css/tokens.css?v=213">
+  <link rel="stylesheet" href="css/style.css?v=213">
+  <link rel="stylesheet" href="css/board.css?v=213">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
 </head>
 <body class="board-body">
@@ -124,6 +124,12 @@
   <p class="bd-hint" id="bd-words-hint">Нажми на слово — карточка ляжет на доску.
     Перевод у карточки скрыт: нажми на неё на доске, чтобы открыть.</p>
   <div class="bd-word-list" id="bd-word-list"></div>
+  <div class="bd-panel-tasks" id="bd-tasks" hidden>
+    <div class="bd-panel-head"><b>Задание на доску</b></div>
+    <p class="bd-hint">Карточка ляжет на доску. Ученик нажмёт — тренировка
+      откроется у него в новой вкладке, звонок не прервётся.</p>
+    <div class="bd-word-list" id="bd-task-list"></div>
+  </div>
 </aside>
 
 <!-- Ввод текста поверх доски: системные prompt() на сайте запрещены
@@ -151,6 +157,8 @@
             data-icon="mic" data-icon-size="18"></button>
     <button class="bd-btn" id="call-cam" title="Камера"
             data-icon="camera" data-icon-size="18"></button>
+    <button class="bd-btn" id="call-pip" title="Вынести видео поверх всех окон"
+            data-icon="fit" data-icon-size="18"></button>
     <button class="bd-btn bd-call-end" id="call-end" title="Завершить">✕</button>
   </div>
   <p class="bd-call-state" id="call-state"></p>
@@ -165,9 +173,9 @@
   </div>
 </div>
 
-<script defer src="js/icons.js?v=212"></script>
-<script defer src="js/util.js?v=212"></script>
-<script defer src="js/board.js?v=212"></script>
-<script defer src="js/call.js?v=212"></script>
+<script defer src="js/icons.js?v=213"></script>
+<script defer src="js/util.js?v=213"></script>
+<script defer src="js/board.js?v=213"></script>
+<script defer src="js/call.js?v=213"></script>
 </body>
 </html>

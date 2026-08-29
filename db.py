@@ -208,6 +208,10 @@ CREATE INDEX IF NOT EXISTS idx_groups_tutor ON groups(tutor_id);
 # Колонки, добавленные после первого релиза. База репетитора с живыми
 # учениками должна переживать обновление, поэтому не пересоздаём таблицы.
 MIGRATIONS = [
+    # Присутствие ученика на доске: когда его видели и была ли вкладка
+    # свёрнута. Пишется при каждом опросе доски, читается репетитором.
+    ("boards", "student_seen_at", "INTEGER DEFAULT 0"),
+    ("boards", "student_hidden", "INTEGER DEFAULT 0"),
     ("students", "restore_code", "TEXT"),
     ("students", "group_id", "INTEGER REFERENCES groups(id)"),
     ("students", "achievements", "TEXT DEFAULT '[]'"),
@@ -2188,7 +2192,8 @@ def _clean_board_object(o):
     oid = str(o.get("id", ""))[:40]
     kind = str(o.get("kind", ""))[:16]
     if not oid or kind not in ("pen", "line", "arrow", "rect", "ellipse",
-                               "note", "text", "word", "image", "ping", "bg"):
+                               "note", "text", "word", "image", "ping", "bg",
+                               "task"):
         return None
 
     def num(v, lo=-100000, hi=100000):
@@ -2212,7 +2217,7 @@ def _clean_board_object(o):
         "rev": int(num(o.get("rev", 0), 0, 10**9)),
         "by": str(o.get("by", ""))[:24],
     }
-    if kind in ("note", "text", "word"):
+    if kind in ("note", "text", "word", "task"):
         out["text"] = str(o.get("text", ""))[:600]
         out["text2"] = str(o.get("text2", ""))[:600]
     if kind == "image":
@@ -2245,6 +2250,30 @@ def _clean_board_object(o):
         if len(out["pts"]) % 2:
             out["pts"].pop()
     return out
+
+
+def board_touch_presence(board_id, hidden):
+    """Ученик на доске: отметить «жив и видно ли вкладку».
+
+    Отдельным лёгким апдейтом при каждом опросе: репетитор по этим двум
+    числам видит, рядом ли ученик или ушёл в другую вкладку тренировать
+    задания. Точность в секунду достаточна."""
+    conn().execute("UPDATE boards SET student_seen_at=?, student_hidden=? WHERE id=?",
+                   (int(time.time()), 1 if hidden else 0, board_id))
+    conn().commit()
+
+
+def board_presence(row):
+    """Что показать репетитору: no | here | away | gone."""
+    seen = int(row["student_seen_at"] or 0)
+    if not seen:
+        return "no"
+    ago = int(time.time()) - seen
+    if int(row["student_hidden"] or 0):
+        # Свёрнутую вкладку браузер опрашивает всё реже, вплоть до раза
+        # в минуту, — поэтому «в другой вкладке» живёт долго и без опросов.
+        return "away" if ago <= 180 else "gone"
+    return "here" if ago <= 6 else "gone"
 
 
 def board_sync(board_id, changes, deletes, since, author):
