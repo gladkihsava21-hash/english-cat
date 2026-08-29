@@ -368,18 +368,38 @@ function trainPool(n, need = [], fit = null) {
       return { ...base, ...d, ex: d.ex || base.ex, t: d.t || base.t, inDict: true };
     })
     .filter(has);
-  const picked = fromDict.slice(0, n);
-  // Добор словами уровня — ТОЛЬКО когда тренируем весь словарь. Если ученик
-  // выбрал «к контрольной», подсунуть ему туда посторонние слова значит
-  // молча отменить его выбор: он просил конкретные слова, а не «примерно
-  // столько же слов». Пусть лучше тренировка будет короче.
+  /* Часть подхода — слова уровня, которых у ученика ещё нет.
+   *
+   * Раньше добор включался, только если своих слов не хватало на подход.
+   * У кого в словаре двадцать четыре слова, тот и видел ровно эти
+   * двадцать четыре — во всех упражнениях, всегда. Хотя на экране
+   * тренировок написано «твой словарь + слова уровня B1», и владелец
+   * справедливо спросил, где же обещанные слова уровня.
+   *
+   * Четверть мест хватает: подход остаётся своим словарём, но каждый раз
+   * приносит что-то новое. Ошибся на чужом слове — оно попадёт в
+   * «добавить в словарь» после подхода (см. statUpdate), то есть добор
+   * не просто разбавляет, а показывает, чего ученик ещё не знает.
+   *
+   * Короткие подходы не трогаем: в «Своих предложениях» их три, и одно
+   * незнакомое слово из трёх — это уже не тренировка своего словаря.
+   * Выбранные папки и домашка не разбавляются вовсе: там ученик просил
+   * конкретные слова, а не «примерно столько же». */
+  const quota = n >= 4 && isTrainingWholeDict() && !homeworkScope
+    ? Math.round(n * 0.25) : 0;
+  const picked = fromDict.slice(0, Math.max(0, n - quota));
   if (picked.length < n && isTrainingWholeDict() && !homeworkScope) {
     const inPool = new Set(picked.map(p => p.w.toLowerCase()));
+    const own = new Set(source.map(d => d.w.toLowerCase()));
     const lvl = studyLevel();
     const nextLvl = LEVELS[Math.min(LEVELS.indexOf(lvl) + 1, LEVELS.length - 1)];
     const extra = shuffled([...WORDS[lvl], ...WORDS[nextLvl]].filter(
-      x => has(x) && !inPool.has(x.w.toLowerCase())));
+      x => has(x) && !inPool.has(x.w.toLowerCase()) && !own.has(x.w.toLowerCase())));
     picked.push(...extra.slice(0, n - picked.length).map(x => ({ ...x, inDict: false })));
+    // Слов уровня с нужными полями может не хватить (примеры есть не у
+    // всех) — тогда дозабираем своими, чтобы подход не стал короче.
+    if (picked.length < n) picked.push(...fromDict.slice(picked.length, n)
+      .filter(d => !picked.some(p => p.w === d.w)));
   }
   return shuffled(picked);
 }
