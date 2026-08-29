@@ -1318,8 +1318,12 @@ function runType(rounds, opts = {}) {
             </div>
           </div>` : ""}
         ${opts.textarea
-          ? `<textarea class="type-input type-area" id="type-input" rows="3" placeholder="${opts.placeholder || "Напиши по-английски…"}"></textarea>`
-          : `<input class="type-input" id="type-input" autocomplete="off" placeholder="${opts.placeholder || "Введи слово…"}">`}
+          ? `<textarea class="type-input type-area" id="type-input" rows="3"
+               autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+               placeholder="${opts.placeholder || "Напиши по-английски…"}"></textarea>`
+          : `<input class="type-input" id="type-input"
+               autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+               placeholder="${opts.placeholder || "Введи слово…"}">`}
         <div class="quiz-buttons">
           ${r.hint ? `<button class="btn btn-ghost" id="type-hint">${esc(opts.hintLabel || "Подсказка")}</button>` : ""}
           <button class="btn btn-primary" id="type-check">Проверить</button>
@@ -2034,7 +2038,9 @@ const EX_RUNNERS = {
         <p class="quiz-label">Напиши 1–3 предложения о себе, используя все три слова:</p>
         <div class="quiz-word quiz-word-small">${words.map(esc).join(" · ")}</div>
         <p class="muted-small">${pool.map(p => `${esc(p.w)} — ${esc(p.t)}`).join(" · ")}</p>
-        <textarea class="type-input type-area" id="pers-input" rows="4" placeholder="My day was..."></textarea>
+        <textarea class="type-input type-area" id="pers-input" rows="4"
+          autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+          placeholder="My day was..."></textarea>
         <div class="quiz-buttons">
           <button class="btn btn-primary" id="pers-check">Проверить</button>
         </div>
