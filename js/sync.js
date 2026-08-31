@@ -483,7 +483,6 @@ async function pushProgress() {
     }
     if (res.ok && Array.isArray(res.homework)) applyHomework(res.homework);
     if (res.ok && res.lesson) applyLesson(res.lesson);
-    pollBoard();
     if (res.ok && Array.isArray(res.messages)) {
       const changed = JSON.stringify(state.messages) !== JSON.stringify(res.messages);
       state.messages = res.messages;
@@ -773,6 +772,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (studentToken()) {
     await pullProgress();         // сначала забрать, потом отправлять
     pushProgress();
+    pollBoard();                  // не через pushProgress: у новичка тот выходит сразу
   } else {
     tryPendingJoin();             // догоняем привязку, сорванную офлайном
   }
@@ -784,6 +784,7 @@ window.addEventListener("online", async () => {
   if (studentToken()) {
     await pullProgress();
     pushProgress();
+    pollBoard();
   }
 });
 
@@ -827,15 +828,51 @@ function renderBoardBox(board) {
   if (typeof paintCats === "function") paintCats(box);
 }
 
-/** Спрашиваем про доску вместе с обычной синхронизацией — отдельного
- *  опроса не заводим, лишний запрос раз в несколько секунд ни к чему. */
+/* Опрос доски идёт СВОИМ кругом, а не хвостом отправки прогресса.
+ *
+ * Владелец: «не приходит уведомление, когда зову ученика на доску».
+ * Причин оказалось две, и обе ловятся замером.
+ *
+ * Первая. Вызов стоял внутри pushProgress(), а тот выходит в самом
+ * начале, если у ученика пустой словарь и ноль очков: пустое состояние
+ * на сервер не шлём, оно затрёт репетитору настоящий прогресс. То есть
+ * НОВЫЙ ученик — ровно тот, кого зовут на доску на первом же уроке, —
+ * приглашения не видел вообще, даже после перезагрузки. Проверено:
+ * сервер отдавал доску, а блок на главной оставался скрытым.
+ *
+ * Вторая. Отдельного круга не было вовсе, а pushProgress зовут по
+ * событиям: вход, возврат связи, изменение состояния. Ученик, который
+ * сидит на главной и ждёт урока, не делает ничего — значит и не
+ * спрашивает. Замер: ноль обращений к ручке доски за двадцать секунд
+ * простоя, блок появлялся только после перезагрузки страницы.
+ *
+ * Десять секунд — одна строка из базы, зато «доска появится сама»
+ * перестаёт быть обещанием (на самой доске такой круг уже есть,
+ * см. waitForBoard в board.js). Спрашиваем, только когда ученик правда
+ * смотрит на главную: в упражнении блока всё равно нет на экране,
+ * а при переходе на главную опрос делается сразу (см. showScreen). */
+const BOARD_POLL_MS = 10000;
+
+function boardScreenVisible() {
+  if (document.hidden) return false;
+  const d = document.getElementById("screen-dashboard");
+  return !!d && !d.classList.contains("hidden");
+}
+
 async function pollBoard() {
-  if (!studentToken()) return;
+  if (!studentToken() || syncStopped) return;
   try {
     const res = await api("/api/student/board", { token: studentToken() });
     if (res.ok) renderBoardBox(res.board);
   } catch (e) { /* нет связи — блок просто не появится */ }
 }
+
+setInterval(() => { if (boardScreenVisible()) pollBoard(); }, BOARD_POLL_MS);
+// Вкладку сворачивают на время звонка и возвращаются — спрашиваем сразу,
+// не дожидаясь своего круга.
+document.addEventListener("visibilitychange", () => {
+  if (boardScreenVisible()) pollBoard();
+});
 
 function renderLessonBox() {
   const box = document.getElementById("lesson-box");

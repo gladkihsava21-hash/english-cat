@@ -195,6 +195,10 @@ function show(screen) {
   if (screen === "test") resetTestScreen();
   if (screen === "dashboard") renderDashboard();
   if (screen === "dashboard" && typeof renderLessonBox === "function") renderLessonBox();
+  // Пока ученик был в упражнении, репетитор мог позвать его на доску:
+  // спрашиваем на входе, а не через круг опроса — иначе главная десять
+  // секунд показывает вчерашнюю картину.
+  if (screen === "dashboard" && typeof pollBoard === "function") pollBoard();
   if (screen === "dictionary") renderDictionary();
   if (screen === "trainer") startTraining();
   if (screen === "practice") renderPracticeHub();
