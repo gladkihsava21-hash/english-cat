@@ -1228,6 +1228,21 @@ function exFinish(correct, total, note = "") {
   // ученик должен знать, что его увидят, — и что можно перепройти.
   const fromHomework = !!(homeworkContext && total > 0);
   if (fromHomework) recordTaskResult(correct, total, { rushed, secs });
+  // Запуск с доски (card=… в адресе): итог уезжает прямо в карточку
+  // задания — у репетитора она обновится через секунду, ещё на уроке, —
+  // а вкладка закрывается сама, возвращая ученика на доску. Закрыть
+  // можно без вопросов: её открыла доска (window.open), таким браузер
+  // разрешает window.close().
+  const boardCard = (typeof window !== "undefined" && window.boardTaskCard && total > 0)
+    ? window.boardTaskCard : null;
+  if (boardCard) {
+    const when = new Date();
+    const hhmm = String(when.getHours()).padStart(2, "0") + ":"
+               + String(when.getMinutes()).padStart(2, "0");
+    const resText = `Верно ${correct} из ${total}${rushed ? " · слишком быстро" : ""} · ${hhmm}`;
+    if (typeof reportBoardResult === "function") reportBoardResult(boardCard, resText);
+    setTimeout(() => { try { window.close(); } catch (e) { /* открыли напрямую */ } }, 3200);
+  }
   const perAnswer = exRound.answered ? (exRound.thinkMs / exRound.answered / 1000) : 0;
   // Упражнение, которому не из чего собрать ни одного задания, — не
   // «Готово! Верно 0 из 0. Ничего, повторение — мать учения» (Ирина
@@ -1247,6 +1262,8 @@ function exFinish(correct, total, note = "") {
         : exSessionXP ? `<p class="xp-earned">+${exSessionXP} ${iconInline("star", 16)}</p>` : ""}
       ${fromHomework && !rushed ? `<p class="muted-small">${iconInline("personal", 15)} Результат по домашке «${
         esc(homeworkContext.title || "")}» записан — репетитор его увидит. Можно пройти ещё раз, засчитается лучший.</p>` : ""}
+      ${boardCard ? `<p class="muted-small">${iconInline("check", 15)} Результат уже на доске у репетитора.
+        Возвращаю на доску… <a href="board.html">Если вкладка не закрылась сама — сюда</a>.</p>` : ""}
       ${exSeenPhrases.length ? `
         <div class="card missed-card phrase-take">
           <p class="missed-head">${iconInline("book", 16)} Выражения из этого подхода — в словарь?</p>
@@ -2507,10 +2524,24 @@ const EX_RUNNERS = {
     // ушли бы в «уже видел», ни разу не побывав на экране.
     // Папка сужает и этот банк: спрашиваем про её слова, а не про любые
     const scope = trainingScope();
+    // Без папки — только пары своего уровня и соседних, с добором СНИЗУ,
+    // когда наверху мало (как в «Синонимах»). Банк вырос до 235 пар без
+    // этого отбора, и ученику A1 доставались сочетания из B2 — жалоба
+    // «упражнения не подстраиваются под уровень». В папке уровень не
+    // важен: раз слово в папке, ученик его учит.
+    const lvl = studyLevel();
+    const idx = LEVELS.indexOf(lvl);
+    const near = new Set([LEVELS[Math.max(0, idx - 1)], lvl,
+                          LEVELS[Math.min(LEVELS.length - 1, idx + 1)]]);
+    let leveled = COLLOCATIONS.filter(c => near.has(c.lvl));
+    for (let i = idx - 2; i >= 0 && leveled.length < 24; i--) {
+      near.add(LEVELS[i]);
+      leveled = COLLOCATIONS.filter(c => near.has(c.lvl));
+    }
     const bank = scope
       ? COLLOCATIONS.filter(c => scope.has(c.h.toLowerCase())
                               || scope.has((c.h + " " + c.tl).toLowerCase()))
-      : COLLOCATIONS;
+      : leveled;
     if (scope && bank.length < 5) {
       exOutOfScope("Со словами этой папки у нас пока не набирается пяти "
         + "устойчивых сочетаний. Они есть к частым глаголам — make, do, take, have.");
@@ -2518,7 +2549,9 @@ const EX_RUNNERS = {
     }
     const picks = [];
     const rights = new Set();
-    for (const c of pickFresh("colloc", bank, 8, c => c.h + " " + c.tl)) {
+    // Ключ с уровнем: журнал показанного у каждого уровня свой, иначе
+    // после смены уровня половина пар считалась бы уже виденной.
+    for (const c of pickFresh("colloc:" + lvl, bank, 8, c => c.h + " " + c.tl)) {
       if (rights.has(c.tl)) continue;
       rights.add(c.tl);
       picks.push(c);

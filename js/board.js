@@ -308,10 +308,17 @@ function drawObject(o) {
     ctx.fillStyle = cssColor("ink");
     ctx.font = '700 21px Nunito, system-ui, sans-serif';
     ctx.fillText(o.text || "", o.x + 16, o.y + 30);
-    ctx.fillStyle = cssColor("grid");
-    ctx.font = '400 13px Inter, system-ui, sans-serif';
-    ctx.fillText(BD.role === "student" ? "нажми — откроется в новой вкладке"
-                                       : "ученик нажмёт и начнёт", o.x + 16, o.y + 60);
+    if (o.result) {
+      // Ученик прошёл: карточка сама показывает итог обоим участникам
+      ctx.fillStyle = cssColor("green");
+      ctx.font = '700 14px Inter, system-ui, sans-serif';
+      ctx.fillText(o.result, o.x + 16, o.y + 60);
+    } else {
+      ctx.fillStyle = cssColor("grid");
+      ctx.font = '400 13px Inter, system-ui, sans-serif';
+      ctx.fillText(BD.role === "student" ? "нажми — откроется в новой вкладке"
+                                         : "ученик нажмёт и начнёт", o.x + 16, o.y + 60);
+    }
     return;
   }
 
@@ -1182,7 +1189,10 @@ let pendingTask = null;
  *  вкладка на ТОТ ЖЕ адрес с решёткой не перезагружается вовсе — второй
  *  клик по той же карточке был бы мёртвым. */
 function taskURL(o) {
+  // card=… — обратный адрес: тренировка знает, в какую карточку
+  // положить результат и что после финиша можно закрыть вкладку.
   return "index.html#train=" + encodeURIComponent((o.text2 || "").trim())
+       + "&card=" + encodeURIComponent(o.id)
        + "&t=" + Date.now().toString(36);
 }
 

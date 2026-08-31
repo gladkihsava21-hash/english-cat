@@ -350,6 +350,34 @@ function showSameNamePrompt(pending) {
   });
 }
 
+/** Результат тренировки — в карточку задания на доске.
+ *
+ *  Ученик запускал упражнение с доски (в адресе было card=…). Закончив,
+ *  кладём итог прямо в эту карточку: у репетитора она перерисуется
+ *  полингом через секунду, ещё во время урока. Права те же, что у
+ *  рисования: доска открыта — можно, закрыта — сервер не пустит. */
+async function reportBoardResult(cardId, text) {
+  const token = studentToken();
+  if (!token || !cardId) return false;
+  try {
+    const b = await api("/api/student/board", { token });
+    if (!b.ok || !b.board) return false;
+    // Забираем текущее состояние карточки: слать нужно её целиком,
+    // слияние на сервере пообъектное («последний побеждает»).
+    const s0 = await api("/api/board/sync",
+      { token, boardId: b.board.id, since: 0, changes: [], deletes: [] });
+    if (!s0.ok) return false;
+    const card = (s0.objects || []).find(o => o.id === cardId && o.kind === "task");
+    if (!card) return false;
+    const res = await api("/api/board/sync",
+      { token, boardId: b.board.id, since: s0.rev,
+        changes: [{ ...card, result: text }], deletes: [] });
+    return !!res.ok;
+  } catch (e) {
+    return false;                    // сеть мигнула — итог виден в панели
+  }
+}
+
 /** Забираем прогресс с сервера.
  *
  *  Без этого ученик, у которого опустел localStorage (Safari на телефоне
