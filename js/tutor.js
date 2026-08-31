@@ -519,7 +519,8 @@ async function openStudent(id) {
       </div>` : ""}
 
     <div class="stats-grid">
-      <div class="card stat-card"><p class="stat-label">Уровень</p>
+      <div class="card stat-card"><p class="stat-label">Уровень
+          <button type="button" class="level-edit-hint" id="stu-level-hint">изменить ▾</button></p>
         <select id="stu-level" class="type-input stu-level-select"
                 title="Назначить уровень вручную">
           <option value="">${esc(s.level && !s.levelForced ? "по тесту — " + s.level : "по тесту")}</option>
@@ -575,6 +576,14 @@ async function openStudent(id) {
   // Уровень вручную: селект сохраняет сразу, ученик получит его при
   // следующей синхронизации (просьба совладельца — тест иногда врёт,
   // а слова для тренировок предлагаются от уровня).
+  // Плитка выглядела как обычная статистика, и репетитор не догадывался,
+  // что уровень здесь МЕНЯЕТСЯ (спрашивали, где это делается). Подпись-
+  // кнопка «изменить» раскрывает тот же список.
+  $("stu-level-hint").addEventListener("click", () => {
+    const sel = $("stu-level");
+    if (typeof sel.showPicker === "function") { try { sel.showPicker(); return; } catch (e) { /* без жеста нельзя — сфокусируем */ } }
+    sel.focus();
+  });
   $("stu-level").addEventListener("change", async () => {
     const level = $("stu-level").value;
     const note = $("stu-level-note");

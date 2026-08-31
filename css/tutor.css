@@ -712,4 +712,14 @@
 .stu-level-select {
   font-weight: 800; font-size: var(--text-body-lg, 18px);
   padding: 4px 8px; margin: 2px 0 4px; width: auto; min-width: 130px;
+  cursor: pointer;
 }
+.stu-level-select:hover { border-color: var(--accent); }
+/* Подпись-кнопка у плитки уровня: без неё селект читался как цифра
+   статистики, и было непонятно, что уровень здесь назначается */
+.level-edit-hint {
+  border: 0; background: none; padding: 0 2px; margin-left: 6px;
+  font: inherit; font-size: var(--text-caption); font-weight: 700;
+  color: var(--accent); cursor: pointer; text-decoration: underline dotted;
+}
+.level-edit-hint:hover { text-decoration-style: solid; }
