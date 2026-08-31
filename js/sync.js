@@ -350,28 +350,50 @@ function showSameNamePrompt(pending) {
   });
 }
 
-/** Результат тренировки — в карточку задания на доске.
+/** Результат тренировки — на доску: в карточку задания И отдельной
+ *  плашкой-стикером рядом с ней.
  *
  *  Ученик запускал упражнение с доски (в адресе было card=…). Закончив,
- *  кладём итог прямо в эту карточку: у репетитора она перерисуется
- *  полингом через секунду, ещё во время урока. Права те же, что у
- *  рисования: доска открыта — можно, закрыта — сервер не пустит. */
-async function reportBoardResult(cardId, text) {
+ *  кладём итог в саму карточку (короткая строка) и вешаем справа стикер
+ *  с полным результатом: имя, задание, счёт, время. Стикер — обычный
+ *  note: репетитор может его подвинуть, дописать или стереть, а цвет
+ *  бумаги сразу говорит, как прошло (зелёный/жёлтый/розовый). Повторные
+ *  прохождения ложатся лесенкой, не накрывая друг друга.
+ *
+ *  Права те же, что у рисования: доска открыта — можно, закрыта —
+ *  сервер не пустит. */
+async function reportBoardResult(cardId, info) {
   const token = studentToken();
-  if (!token || !cardId) return false;
+  if (!token || !cardId || !info) return false;
   try {
     const b = await api("/api/student/board", { token });
     if (!b.ok || !b.board) return false;
-    // Забираем текущее состояние карточки: слать нужно её целиком,
-    // слияние на сервере пообъектное («последний побеждает»).
+    // Забираем текущее состояние доски: карточку нужно слать целиком
+    // (слияние на сервере пообъектное, «последний побеждает»), а по
+    // прежним плашкам этой карточки считаем сдвиг лесенки.
     const s0 = await api("/api/board/sync",
       { token, boardId: b.board.id, since: 0, changes: [], deletes: [] });
     if (!s0.ok) return false;
     const card = (s0.objects || []).find(o => o.id === cardId && o.kind === "task");
     if (!card) return false;
+
+    const n = (s0.objects || []).filter(o => o.id.indexOf("res-" + cardId) === 0).length;
+    const pct = info.total ? info.correct / info.total : 0;
+    const paper = info.rushed ? "note3" : pct >= 0.8 ? "note2" : pct >= 0.5 ? "note" : "note3";
+    const who = (state && state.user && state.user.name) ? state.user.name : "Ученик";
+    const note = {
+      id: "res-" + cardId + "-" + Date.now().toString(36),
+      kind: "note",
+      x: card.x + (card.w || 240) + 26 + (n % 3) * 14,
+      y: card.y + n * 36,
+      w: 200, h: 118, color: paper, size: 3,
+      text: who + " · " + info.when + "\n" + (card.text || "Тренировка") + "\n"
+        + (info.scoreLine || ("Верно " + info.correct + " из " + info.total))
+        + (info.rushed ? "\nслишком быстро" : ""),
+    };
     const res = await api("/api/board/sync",
       { token, boardId: b.board.id, since: s0.rev,
-        changes: [{ ...card, result: text }], deletes: [] });
+        changes: [{ ...card, result: info.text }, note], deletes: [] });
     return !!res.ok;
   } catch (e) {
     return false;                    // сеть мигнула — итог виден в панели

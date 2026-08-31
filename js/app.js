@@ -2460,12 +2460,57 @@ function answerFlash(knew) {
         : "Ничего, повторение — мать учения. Мяу!";
     document.getElementById("trainer-score").textContent =
       `Помнишь ${trainScore} из ${trainQueue.length}. ${phrases}`;
+
+    // Карточки запустили с доски (card=… в адресе): у остальных
+    // упражнений это делает exFinish, но карточки — отдельный тренажёр,
+    // и без этого блока репетитор не видел их итог, а ученик оставался
+    // в вкладке. Итог — на доску (в карточку задания и плашкой),
+    // ученика — назад на доску: сам через пару секунд или кнопкой.
+    const bc = window.boardTaskCard;
+    if (bc && trainQueue.length) {
+      const when = new Date();
+      const hhmm = String(when.getHours()).padStart(2, "0") + ":"
+                 + String(when.getMinutes()).padStart(2, "0");
+      const line = `Помнит ${trainScore} из ${trainQueue.length} · самооценка`;
+      if (typeof reportBoardResult === "function") {
+        reportBoardResult(bc, {
+          text: line + " · " + hhmm,
+          correct: trainScore, total: trainQueue.length,
+          rushed: false, when: hhmm, scoreLine: line,
+        });
+      }
+      const done = document.getElementById("trainer-done");
+      if (done && !document.getElementById("tr-to-board")) {
+        const note = document.createElement("p");
+        note.className = "muted-small";
+        note.textContent = "Результат уже на доске — сейчас вернёшься на неё сам, или жми кнопку.";
+        const btn = document.createElement("button");
+        btn.className = "btn btn-primary";
+        btn.id = "tr-to-board";
+        btn.textContent = "Вернуться на доску";
+        btn.addEventListener("click", () => {
+          try { window.close(); } catch (e) { /* открыли напрямую */ }
+          setTimeout(() => location.replace("board.html"), 250);
+        });
+        done.appendChild(note);
+        done.appendChild(btn);
+      }
+      window.__exBoardBack = setTimeout(() => {
+        try { window.close(); } catch (e) { /* открыли напрямую */ }
+        setTimeout(() => location.replace("board.html"), 400);
+      }, 3600);
+    }
   }
 }
 
 document.getElementById("flash-knew").addEventListener("click", () => answerFlash(true));
 document.getElementById("flash-forgot").addEventListener("click", () => answerFlash(false));
-document.getElementById("train-again-btn").addEventListener("click", startTraining);
+document.getElementById("train-again-btn").addEventListener("click", () => {
+  // «Ещё раз» отменяет авто-возврат на доску — иначе повторный подход
+  // обрывался бы закрытием вкладки на середине карточки.
+  clearTimeout(window.__exBoardBack);
+  startTraining();
+});
 
 // ===== Чат с Савелием =====
 // Основной мозг: Claude через локальный сервер (/api/chat, работает от подписки).

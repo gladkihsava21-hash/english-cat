@@ -1240,8 +1240,21 @@ function exFinish(correct, total, note = "") {
     const hhmm = String(when.getHours()).padStart(2, "0") + ":"
                + String(when.getMinutes()).padStart(2, "0");
     const resText = `Верно ${correct} из ${total}${rushed ? " · слишком быстро" : ""} · ${hhmm}`;
-    if (typeof reportBoardResult === "function") reportBoardResult(boardCard, resText);
-    setTimeout(() => { try { window.close(); } catch (e) { /* открыли напрямую */ } }, 3200);
+    if (typeof reportBoardResult === "function") {
+      reportBoardResult(boardCard, {
+        text: resText, correct, total, rushed, when: hhmm,
+      });
+    }
+    // Возврат на доску — сам, но с запасным ходом: window.close()
+    // работает только у вкладки, которую открыла доска. Открыли по
+    // прямой ссылке (мессенджер-браузер, showTaskGo) — close молча
+    // не сработает, тогда через мгновение уводим в доску навигацией.
+    // Таймер запоминаем: «Ещё раз» должен его снимать, иначе повторный
+    // подход обрывался бы возвратом на доску на середине вопроса.
+    window.__exBoardBack = setTimeout(() => {
+      try { window.close(); } catch (e) { /* открыли напрямую */ }
+      setTimeout(() => location.replace("board.html"), 400);
+    }, 3600);
   }
   const perAnswer = exRound.answered ? (exRound.thinkMs / exRound.answered / 1000) : 0;
   // Упражнение, которому не из чего собрать ни одного задания, — не
@@ -1262,8 +1275,9 @@ function exFinish(correct, total, note = "") {
         : exSessionXP ? `<p class="xp-earned">+${exSessionXP} ${iconInline("star", 16)}</p>` : ""}
       ${fromHomework && !rushed ? `<p class="muted-small">${iconInline("personal", 15)} Результат по домашке «${
         esc(homeworkContext.title || "")}» записан — репетитор его увидит. Можно пройти ещё раз, засчитается лучший.</p>` : ""}
-      ${boardCard ? `<p class="muted-small">${iconInline("check", 15)} Результат уже на доске у репетитора.
-        Возвращаю на доску… <a href="board.html">Если вкладка не закрылась сама — сюда</a>.</p>` : ""}
+      ${boardCard ? `<p class="muted-small">${iconInline("check", 15)} Результат уже на доске —
+        репетитор видит его плашкой рядом с заданием. Сейчас вернёшься на доску сам,
+        или жми кнопку ниже.</p>` : ""}
       ${exSeenPhrases.length ? `
         <div class="card missed-card phrase-take">
           <p class="missed-head">${iconInline("book", 16)} Выражения из этого подхода — в словарь?</p>
@@ -1304,12 +1318,24 @@ function exFinish(correct, total, note = "") {
           <p class="type-feedback" id="ex-take-msg" role="status" aria-live="polite"></p>
         </div>` : ""}
       <div class="quiz-buttons">
-        ${fromHomework
-          ? `<button class="btn btn-ghost" data-nav="dashboard">На главную</button>`
-          : `<button class="btn btn-ghost" data-nav="practice">К тренировкам</button>`}
-        ${empty ? "" : `<button class="btn btn-primary" id="ex-again">Ещё раз</button>`}
+        ${boardCard
+          ? `<button class="btn btn-primary" id="ex-to-board">Вернуться на доску</button>`
+          : fromHomework
+            ? `<button class="btn btn-ghost" data-nav="dashboard">На главную</button>`
+            : `<button class="btn btn-ghost" data-nav="practice">К тренировкам</button>`}
+        ${empty ? "" : `<button class="btn ${boardCard ? "btn-ghost" : "btn-primary"}" id="ex-again">Ещё раз</button>`}
       </div>
     </div>`;
+
+  // Возврат на доску: если вкладку открыла сама доска — закрываем её,
+  // и браузер показывает соседнюю вкладку с доской; если открыли по
+  // прямой ссылке (встроенный браузер мессенджера) — close молча не
+  // сработает, тогда уходим на доску навигацией в этой же вкладке.
+  const toBoard = document.getElementById("ex-to-board");
+  if (toBoard) toBoard.addEventListener("click", () => {
+    try { window.close(); } catch (e) { /* открыли напрямую */ }
+    setTimeout(() => location.replace("board.html"), 250);
+  });
 
   // Слова, на которых ошибся, — в словарь одним нажатием. Раньше их
   // нельзя было забрать вообще: они приходили из добора по уровню и
@@ -1340,7 +1366,10 @@ function exFinish(correct, total, note = "") {
   // Экран нарисован после загрузки страницы — cat.js сам сюда не придёт.
   if (typeof paintCats === "function") paintCats(stage());
   const again = document.getElementById("ex-again");
-  if (again) again.addEventListener("click", () => openExercise(currentExId));
+  if (again) again.addEventListener("click", () => {
+    clearTimeout(window.__exBoardBack);
+    openExercise(currentExId);
+  });
 }
 
 function exProgress(i, total) {
