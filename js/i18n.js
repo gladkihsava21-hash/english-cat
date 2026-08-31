@@ -453,6 +453,7 @@ const I18N_RX = [
     () => "Tick the words you want to drill, then press \"Practise the marked ones\"."],
   [/^Только отмеченные в словаре слова — (\d+) сло(?:во|ва|в)$/, m => `Only the words you marked — ${m[1]} ${i18nPlural(m[1], "word", "words")}`],
   [/^Тренируем твой словарь \((\d+) слов\) \+ слова уровня ([ABC][12])$/, m => `Practising your dictionary (${m[1]} words) + level ${m[2]} words`],
+  [/^Тренируем твой словарь — (\d+) сло(?:во|ва|в)$/, m => `Practising your dictionary — ${m[1]} ${i18nPlural(m[1], "word", "words")}`],
   [/^Словарь пуст — тренируем слова уровня ([ABC][12])$/, m => `Dictionary is empty — practising level ${m[1]} words`],
   [/^(\d+) слов уровня ([ABC][12]) — карточки с картинкой и звуком\. Завтра они сами ждут тебя на главной\.$/,
     m => `${m[1]} level-${m[2]} words — flashcards with pictures and audio. Tomorrow they'll be waiting for you on the home screen.`],

@@ -1918,3 +1918,16 @@ h2[tabindex="-1"]:focus-visible { outline: none; box-shadow: none; }
 }
 .train-level-select:focus { border-color: var(--accent); }
 .train-level .muted-small { flex-basis: 100%; }
+
+/* Подмешивать ли новые слова уровня — тем же рядом, что и выбор уровня */
+.train-mix {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-8) var(--space-12);
+  margin: calc(-1 * var(--space-8)) 0 var(--space-16);
+}
+.train-mix-label {
+  display: inline-flex; align-items: center; gap: var(--space-8);
+  font-size: var(--text-caption); font-weight: 500; color: var(--ink); cursor: pointer;
+}
+/* Область нажатия во весь ряд: на телефоне в чекбокс 16×16 не попасть */
+.train-mix-label input { width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; }
+.train-mix .muted-small { flex-basis: 100%; }
