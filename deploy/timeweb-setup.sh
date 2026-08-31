@@ -92,7 +92,17 @@ for f in backup.sh restore.sh; do
     chmod 700 "$HOME/savely-$f"
   fi
 done
+# Вторая ротация (семь файлов по дням недели) лежит в tools/, а tools/
+# ниже вычищается из public_html целиком. Без этой строки скрипт на
+# хостинге не появлялся вовсе, а его собственная инструкция звала cron
+# по пути public_html/tools/daily-backup.sh — то есть задача молча не
+# срабатывала бы никогда.
+if [[ -f "$SRC/tools/daily-backup.sh" ]]; then
+  cp "$SRC/tools/daily-backup.sh" "$HOME/savely-daily-backup.sh"
+  chmod 700 "$HOME/savely-daily-backup.sh"
+fi
 echo "    $HOME/savely-backup.sh"
+echo "    $HOME/savely-daily-backup.sh"
 
 # В публичной папке остаётся только сам сайт. Всё остальное отсюда убираем:
 # статику nginx отдаёт ДО Apache, то есть любой .py и .tsv в public_html
