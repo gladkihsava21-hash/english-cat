@@ -73,8 +73,36 @@ if [[ "$(date +%u)" == "7" && -d "$DATA/photos" ]]; then
   chmod 600 "$DEST/photos-$STAMP.tar.gz" 2>/dev/null || true
 fi
 
-find "$DEST" -name "savely-*.db.gz" -mtime +$KEEP_DAYS -delete 2>/dev/null || true
-find "$DEST" -name "photos-*.tar.gz" -mtime +$KEEP_DAYS -delete 2>/dev/null || true
+# Ротация старых копий. Всё, что старше KEEP_DAYS, удаляем.
+#
+# Маска здесь раньше была одна — «savely-*.db.gz», — и шапка скрипта
+# честно обещала «хранит копии за 30 дней». На деле копии копились
+# бессрочно: под маску не попадал ни один pre-deploy-*.db, а такую
+# копию кладёт руками каждый деплой, и набралось их полсотни. То есть
+# вся база — имена, почты, прогресс — лежала без срока в двух кучах.
+# Не только тот сигналинг, ради которого всё затевалось.
+#
+# Маски перечислены поимённо, и это принципиально. Соблазн написать
+# «savely*.db» велик, но такая маска задела бы саму savely.db: живую
+# базу не должен трогать никакой find. По той же причине -maxdepth 1 —
+# внутрь photos/ ротации лезть незачем.
+rotate_old() {
+  local dir="$1"; shift
+  [[ -d "$dir" ]] || return 0
+  local pat
+  for pat in "$@"; do
+    find "$dir" -maxdepth 1 -name "$pat" -mtime +$KEEP_DAYS -delete 2>/dev/null || true
+  done
+}
+
+rotate_old "$DEST" "savely-*.db.gz" "photos-*.tar.gz" \
+                   "pre-deploy-*.db" "pre-design-*.db" "savely-pre-*.db"
+
+# Вторая куча — рядом с живой базой. Её не убирал вообще никто: ротация
+# смотрела только в свою папку. daily-?.db не трогаем даже по возрасту:
+# у той ротации свой механизм (семь файлов с перезаписью по дню недели),
+# и удалять их отсюда значило бы драться с ним.
+rotate_old "$DATA" "pre-deploy-*.db" "backup-*.db"
 
 COUNT=$(find "$DEST" -name "savely-*.db.gz" | wc -l | tr -d ' ')
 echo "Копия готова: $OUT.gz (всего копий: $COUNT)"
