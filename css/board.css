@@ -420,3 +420,38 @@
   #call-remote { width: 168px; height: 126px; }
   #call-local { width: 56px; height: 42px; }
 }
+
+/* Меню «кого позвать на доску» — выпадает из кнопки доступа */
+.bd-share-wrap { position: relative; }
+.bd-share-menu {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 55;
+  min-width: 210px; display: flex; flex-direction: column; gap: 2px;
+  background: var(--bd-panel, var(--surface));
+  border: 1px solid var(--border); border-radius: 12px;
+  padding: 6px; box-shadow: 0 14px 34px rgba(0, 0, 0, .18);
+}
+.bd-share-menu button {
+  border: 0; background: none; text-align: left; cursor: pointer;
+  font: inherit; color: inherit; padding: 9px 10px; border-radius: 8px;
+}
+.bd-share-menu button:hover { background: var(--accent-soft); }
+.bd-share-menu button.on { background: var(--accent-soft); color: var(--accent); font-weight: 700; }
+.bd-share-menu button.danger { color: var(--bd-red, #c4453c); }
+.bd-share-menu .bd-hint { margin: 4px 8px; }
+
+/* Книжки в панели */
+.bd-book-row { display: flex; gap: 6px; align-items: stretch; }
+.bd-book-row .bd-book-add { flex: 1; min-width: 0; }
+.bd-book-del { flex: 0 0 auto; align-self: center; }
+.bd-book-upload { width: 100%; margin-top: 8px; }
+
+/* Листалка выделенной книги — плашка над нижней панелью */
+.bd-bookbar {
+  position: fixed; left: 50%; bottom: 84px; transform: translateX(-50%);
+  z-index: 50; display: flex; gap: 10px; align-items: center;
+  background: var(--bd-panel, var(--surface));
+  border: 1px solid var(--border); border-radius: 999px;
+  padding: 6px 12px; box-shadow: 0 10px 26px rgba(0, 0, 0, .16);
+  font-weight: 700; white-space: nowrap;
+}
+.bd-bookbar[hidden] { display: none; }

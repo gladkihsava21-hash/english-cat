@@ -35,7 +35,7 @@ import mailer
 # Теперь это видно одним curl /health: цифра совпала с ?v= на странице —
 # приложение перезапущено; не совпала или её нет вовсе — в памяти старый
 # код, надо нажать «Перезапустить приложение» в панели хостинга.
-ASSET_VERSION = 238
+ASSET_VERSION = 239
 
 PORT = int(os.environ.get("SAVELY_PORT", "4210"))
 # За nginx сервер слушает только localhost — снаружи он не должен быть виден
@@ -357,6 +357,11 @@ _HIT_LIMITS = {
     "/api/call/poll": (300, 60),
     "/api/board/create": (20, 600),
     "/api/board/update": (60, 600),
+    # Книжки: заливка тяжёлая и редкая; страницы ученики листают часто,
+    # но каждая после первого рендера — файл из кэша
+    "/api/book/upload": (6, 600),
+    "/api/book/page": (120, 60),
+    "/api/book/delete": (20, 600),
     # Вход по паролю — самая привлекательная цель для перебора: 10 попыток
     # с адреса за 10 минут. Честному человеку хватает двух.
     "/api/student/login": (10, 600),
@@ -831,6 +836,68 @@ def ask_claude_cli(payload):
     }
 
 
+# ---------- PDF-книжки: рендер страниц ----------
+# Книга хранится исходным PDF, страницы превращаются в JPEG по требованию
+# и кэшируются на диске. Рендерит poppler (pdftoppm/pdftocairo) — на
+# хостинге Timeweb он есть; на машине без него загрузка книги честно
+# отказывает, а уже отрендеренные страницы продолжают отдаваться.
+
+BOOK_RENDER_DPI = "130"       # страница A4 ≈ 1100 px по ширине: текст читается,
+                              # JPEG ~100–200 КБ — терпимо для телефона ученика
+
+
+def _pdf_tool(*names):
+    for n in names:
+        path = shutil.which(n)
+        if path:
+            return path
+    return None
+
+
+def pdf_page_count(path):
+    """Сколько страниц в PDF (через pdfinfo). None — узнать нечем."""
+    tool = _pdf_tool("pdfinfo")
+    if not tool:
+        return None
+    try:
+        out = subprocess.run([tool, path], capture_output=True, text=True,
+                             timeout=30)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    m = re.search(r"^Pages:\s+(\d+)", out.stdout or "", re.M)
+    return int(m.group(1)) if m else None
+
+
+def render_book_page(book_id, page):
+    """Путь к JPEG страницы; рендерит и кэширует при первом обращении."""
+    cached = db.book_page_path(book_id, page)
+    if os.path.isfile(cached):
+        return cached
+    pdf = db.book_pdf_path(book_id)
+    if not os.path.isfile(pdf):
+        return None
+    tool = _pdf_tool("pdftoppm", "pdftocairo")
+    if not tool:
+        return None
+    db.book_page_path(book_id, page, make_dirs=True)
+    # -singlefile: инструмент пишет ровно <prefix>.jpg, без своей нумерации
+    try:
+        subprocess.run(
+            [tool, "-jpeg", "-r", BOOK_RENDER_DPI,
+             "-f", str(int(page)), "-l", str(int(page)),
+             "-singlefile", pdf, cached[:-4]],
+            capture_output=True, timeout=90)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if not os.path.isfile(cached):
+        return None
+    try:
+        os.chmod(cached, 0o600)
+    except OSError:
+        pass
+    return cached
+
+
 # ---------- API ----------
 
 class Api:
@@ -1175,12 +1242,21 @@ class Api:
             db.rename_board(board["id"], tutor["id"], p.get("title"))
         elif action == "share":
             # Открыта всегда ОДНА доска: ученик не выбирает, он видит ту,
-            # которую репетитор открыл на этот урок.
+            # которую репетитор открыл на этот урок. studentId сужает
+            # приглашение до одного ученика; пусто — зовём всех.
+            invited = None
+            if p.get("studentId"):
+                stu = db.get_student_by_id(int(p.get("studentId")))
+                if stu and stu["tutor_id"] == tutor["id"]:
+                    invited = stu["id"]
+                else:
+                    return {"ok": False, "error": "Это не ваш ученик."}
             if p.get("shared"):
                 for b in db.list_boards(tutor["id"]):
                     if b["shared"] and b["id"] != board["id"]:
                         db.set_board_shared(b["id"], tutor["id"], False)
-            db.set_board_shared(board["id"], tutor["id"], bool(p.get("shared")))
+            db.set_board_shared(board["id"], tutor["id"],
+                                bool(p.get("shared")), invited)
         elif action == "delete":
             db.delete_board(board["id"], tutor["id"])
         elif action == "clear":
@@ -1205,9 +1281,10 @@ class Api:
             author, can_write = "t" + str(tutor["id"]), True
         else:
             stu = db.get_student_by_token(p.get("token"))
-            # Ученик пишет только на доску СВОЕГО репетитора и только
-            # пока она открыта: закрыл — доска сразу становится чужой.
-            if stu and stu["tutor_id"] == board["tutor_id"] and board["shared"]:
+            # Ученик пишет только на доску СВОЕГО репетитора, пока она
+            # открыта И зовут его (или всех): закрыл или позвал другого —
+            # доска сразу становится чужой.
+            if db.board_lets_student(board, stu):
                 author, can_write = "s" + str(stu["id"]), True
         if not author:
             return {"ok": False, "error": "unauthorized"}
@@ -1233,7 +1310,115 @@ class Api:
             fresh = db.get_board(board["id"])
             extra["student"] = db.board_presence(fresh)
         return {"ok": True, "title": board["title"], "shared": bool(board["shared"]),
+                "invited": (board["invited_student_id"]
+                            if "invited_student_id" in board.keys() else None),
                 "me": author, **extra, **res}
+
+    # ---------- PDF-книжки ----------
+
+    @staticmethod
+    def book_upload(h, p):
+        """Загрузка PDF репетитором. Файл едет base64-строкой в JSON — тем
+        же способом, что фото тетрадей: других каналов у обоих входов
+        (server.py и wsgi.py) нет, а до 20 МБ этот переваривает."""
+        tutor, err = verified_tutor(p)
+        if err:
+            return err
+        if db.book_count(tutor["id"]) >= db.BOOKS_MAX_PER_TUTOR:
+            return {"ok": False, "error": "Книг уже %d — удалите ненужные."
+                    % db.BOOKS_MAX_PER_TUTOR}
+        raw = str(p.get("data") or "")
+        if "," in raw and raw.startswith("data:"):
+            raw = raw.split(",", 1)[1]
+        try:
+            blob = base64.b64decode(raw, validate=True)
+        except Exception:
+            return {"ok": False, "error": "Файл не распознан — попробуйте ещё раз."}
+        if not blob.startswith(b"%PDF-"):
+            return {"ok": False, "error": "Это не PDF. Нужен файл .pdf."}
+        if not 1024 <= len(blob) <= db.BOOK_MAX_BYTES:
+            return {"ok": False, "error": "PDF должен быть до %d МБ. Большую "
+                    "книгу сожмите или разрежьте на части."
+                    % (db.BOOK_MAX_BYTES // 1_000_000)}
+
+        # Число страниц считаем ДО записи в опись: без него не работает
+        # листание, а без poppler на машине книга не работает вовсе —
+        # лучше честный отказ сразу, чем битая книга на доске.
+        db.book_pdf_path(0, make_dirs=True)
+        tmp = os.path.join(db.BOOK_DIR, "upload-%s.pdf" % os.urandom(8).hex())
+        with open(tmp, "wb") as f:
+            f.write(blob)
+        try:
+            pages = pdf_page_count(tmp)
+            if not pages:
+                return {"ok": False, "error": "Не удалось прочитать PDF "
+                        "(нет счётчика страниц на сервере или файл битый)."}
+            if pages > db.BOOK_MAX_PAGES:
+                return {"ok": False, "error": "В книге %d страниц — это "
+                        "слишком много, потолок %d." % (pages, db.BOOK_MAX_PAGES)}
+            row = db.create_book(tutor["id"], p.get("title"), pages, len(blob))
+            os.replace(tmp, db.book_pdf_path(row["id"], make_dirs=True))
+            tmp = None
+            try:
+                os.chmod(db.book_pdf_path(row["id"]), 0o600)
+            except OSError:
+                pass
+        finally:
+            if tmp:
+                try:
+                    os.remove(tmp)
+                except OSError:
+                    pass
+        return {"ok": True, "book": db._book_row(row),
+                "books": db.list_books(tutor["id"])}
+
+    @staticmethod
+    def tutor_books(h, p):
+        tutor, err = verified_tutor(p)
+        if err:
+            return err
+        return {"ok": True, "books": db.list_books(tutor["id"])}
+
+    @staticmethod
+    def book_delete(h, p):
+        tutor, err = verified_tutor(p)
+        if err:
+            return err
+        ok = db.delete_book(int(p.get("bookId") or 0), tutor["id"])
+        return {"ok": ok, "books": db.list_books(tutor["id"])}
+
+    @staticmethod
+    def book_page(h, p):
+        """Картинка страницы. Репетитору — свои книги всегда; ученику —
+        книги его репетитора, пока для него открыта доска (правило то же,
+        что у рисования: доска закрыта — урока нет)."""
+        book = db.get_book(p.get("bookId") or 0)
+        if not book:
+            return {"ok": False, "error": "Книга не найдена."}
+        allowed = False
+        tutor = db.get_tutor_by_token(p.get("token"))
+        if tutor and tutor["id"] == book["tutor_id"]:
+            allowed = True
+        else:
+            stu = db.get_student_by_token(p.get("token"))
+            if (stu and stu["tutor_id"] == book["tutor_id"]
+                    and db.shared_board_for_student(stu)):
+                allowed = True
+        if not allowed:
+            return {"ok": False, "error": "unauthorized"}
+        try:
+            page = max(1, min(int(p.get("page") or 1), int(book["pages"])))
+        except (TypeError, ValueError):
+            page = 1
+        path = render_book_page(book["id"], page)
+        if not path:
+            return {"ok": False, "error": "Страница не отрисовалась. "
+                    "Попробуйте ещё раз или перезалейте PDF."}
+        with open(path, "rb") as f:
+            blob = f.read()
+        return {"ok": True, "page": page,
+                "src": "data:image/jpeg;base64,%s"
+                       % base64.b64encode(blob).decode("ascii")}
 
     @staticmethod
     def _call_party(p):
@@ -1251,7 +1436,7 @@ class Api:
         if tutor and tutor["id"] == board["tutor_id"]:
             return board, "t" + str(tutor["id"])
         stu = db.get_student_by_token(p.get("token"))
-        if stu and stu["tutor_id"] == board["tutor_id"] and board["shared"]:
+        if db.board_lets_student(board, stu):
             return board, "s" + str(stu["id"])
         return board, None
 
@@ -2374,6 +2559,10 @@ ROUTES = {
     "/api/board/create": Api.board_create,
     "/api/board/update": Api.board_update,
     "/api/board/sync": Api.board_sync,
+    "/api/book/upload": Api.book_upload,
+    "/api/tutor/books": Api.tutor_books,
+    "/api/book/delete": Api.book_delete,
+    "/api/book/page": Api.book_page,
     "/api/call/send": Api.call_send,
     "/api/call/poll": Api.call_poll,
     "/api/student/board": Api.student_board,

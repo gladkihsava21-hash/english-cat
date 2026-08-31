@@ -147,6 +147,20 @@ CREATE TABLE IF NOT EXISTS boards (
 );
 CREATE INDEX IF NOT EXISTS idx_boards_tutor ON boards(tutor_id);
 
+-- PDF-книжки репетитора для доски. Сам PDF и картинки страниц лежат
+-- файлами вне public_html (savely-data/books/), тут только опись.
+-- Страницы рендерятся по требованию и кэшируются: заливка книги при
+-- этом мгновенная, а долгий рендер размазан по листанию.
+CREATE TABLE IF NOT EXISTS books (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    tutor_id    INTEGER NOT NULL REFERENCES tutors(id),
+    title       TEXT NOT NULL,
+    pages       INTEGER NOT NULL DEFAULT 0,
+    bytes       INTEGER NOT NULL DEFAULT 0,
+    created_at  TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_books_tutor ON books(tutor_id);
+
 -- Сигналинг видеозвонка на доске. Само видео через сервер НЕ идёт:
 -- браузеры соединяются напрямую (WebRTC), а здесь лежат только короткие
 -- сообщения «сватовства» — предложение соединения, ответ и кандидаты
@@ -212,6 +226,10 @@ MIGRATIONS = [
     # свёрнута. Пишется при каждом опросе доски, читается репетитором.
     ("boards", "student_seen_at", "INTEGER DEFAULT 0"),
     ("boards", "student_hidden", "INTEGER DEFAULT 0"),
+    # Кого репетитор позвал на доску. NULL — доска открыта всем ученикам
+    # (прежнее поведение shared); число — только этому ученику: остальные
+    # не видят кнопку на главной и не проходят авторизацию рисования.
+    ("boards", "invited_student_id", "INTEGER REFERENCES students(id)"),
     ("students", "restore_code", "TEXT"),
     ("students", "group_id", "INTEGER REFERENCES groups(id)"),
     ("students", "achievements", "TEXT DEFAULT '[]'"),
@@ -2155,6 +2173,8 @@ def _board_row(row):
         "title": row["title"],
         "rev": row["rev"],
         "shared": bool(row["shared"]),
+        "invited": (row["invited_student_id"]
+                    if "invited_student_id" in row.keys() else None),
         "objects": len(data),
         "createdAt": row["created_at"],
         "updatedAt": row["updated_at"],
@@ -2195,11 +2215,34 @@ def rename_board(board_id, tutor_id, title):
     return get_board(board_id)
 
 
-def set_board_shared(board_id, tutor_id, shared):
-    conn().execute("UPDATE boards SET shared=?, updated_at=? WHERE id=? AND tutor_id=?",
-                   (1 if shared else 0, now(), board_id, tutor_id))
+def set_board_shared(board_id, tutor_id, shared, invited_student_id=None):
+    """Открыть/закрыть доску и выбрать, кого на неё зовём.
+
+    invited_student_id: None — всем ученикам (как раньше), число — только
+    этому. Чужого ученика сюда не пропускает server (сверяет tutor_id),
+    но на всякий случай затираем приглашение при закрытии: закрытая
+    доска не должна тащить за собой старый выбор."""
+    conn().execute(
+        "UPDATE boards SET shared=?, invited_student_id=?, updated_at=?"
+        " WHERE id=? AND tutor_id=?",
+        (1 if shared else 0,
+         int(invited_student_id) if (shared and invited_student_id) else None,
+         now(), board_id, tutor_id))
     conn().commit()
     return get_board(board_id)
+
+
+def board_lets_student(board, student_row):
+    """Пускает ли доска этого ученика: открыта, репетитор его, и либо
+    зовут всех, либо зовут именно его. Одно место правды для рисования,
+    звонка и книжных страниц."""
+    if not board or not student_row:
+        return False
+    if not board["shared"] or student_row["tutor_id"] != board["tutor_id"]:
+        return False
+    keys = board.keys()
+    invited = board["invited_student_id"] if "invited_student_id" in keys else None
+    return not invited or int(invited) == int(student_row["id"])
 
 
 def delete_board(board_id, tutor_id):
@@ -2223,7 +2266,7 @@ def _clean_board_object(o):
     kind = str(o.get("kind", ""))[:16]
     if not oid or kind not in ("pen", "line", "arrow", "rect", "ellipse",
                                "note", "text", "word", "image", "ping", "bg",
-                               "task"):
+                               "task", "book"):
         return None
 
     def num(v, lo=-100000, hi=100000):
@@ -2254,6 +2297,17 @@ def _clean_board_object(o):
         # Результат прохождения («Верно 5 из 6 · 14:32») — его пишет
         # ученик, закончив тренировку, прямо в карточку задания.
         out["result"] = str(o.get("result", ""))[:120]
+    if kind == "book":
+        # Страница PDF-книжки. Сама картинка НЕ едет в объекте — только
+        # ссылка на книгу и номер страницы, картинку каждый клиент берёт
+        # у сервера сам (/api/book/page) и кэширует. Так листание — это
+        # апдейт трёх чисел, а не полмегабайта на каждый опрос.
+        out["bookId"] = int(num(o.get("bookId", 0), 0, 10**9))
+        out["page"] = max(1, int(num(o.get("page", 1), 1, 10000)))
+        out["pages"] = max(1, int(num(o.get("pages", 1), 1, 10000)))
+        out["text"] = str(o.get("text", ""))[:120]   # название для подписи
+        if not out["bookId"]:
+            return None
     if kind == "image":
         # Картинка едет внутри объекта как data-URL. Никаких ссылок на
         # чужие сайты: во-первых, это утечка (браузер второго участника
@@ -2431,14 +2485,103 @@ def call_poll(board_id, me, since):
     return out
 
 
+# ---------- PDF-книжки для доски ----------
+
+BOOK_MAX_BYTES = 20_000_000   # один PDF до 20 МБ: скан урока, не библиотека.
+                              # Едет base64-JSON, как фото, — больше рискованно
+                              # для памяти процесса на хостинге
+BOOK_MAX_PAGES = 400
+BOOKS_MAX_PER_TUTOR = 24
+
+BOOK_DIR = os.path.join(os.path.dirname(os.path.abspath(DB_PATH)), "books")
+
+
+def book_pdf_path(book_id, make_dirs=False):
+    if make_dirs:
+        os.makedirs(BOOK_DIR, exist_ok=True)
+        try:
+            os.chmod(BOOK_DIR, 0o700)
+        except OSError:
+            pass
+    return os.path.join(BOOK_DIR, "%d.pdf" % int(book_id))
+
+
+def book_page_path(book_id, page, make_dirs=False):
+    """Кэш отрендеренной страницы. Номер страницы приводим к int здесь же:
+    имя файла не должно собираться из чужой строки."""
+    d = os.path.join(BOOK_DIR, "pages", str(int(book_id)))
+    if make_dirs:
+        os.makedirs(d, exist_ok=True)
+    return os.path.join(d, "p%d.jpg" % int(page))
+
+
+def _book_row(row):
+    return {"id": row["id"], "title": row["title"], "pages": row["pages"],
+            "bytes": row["bytes"], "createdAt": row["created_at"]}
+
+
+def list_books(tutor_id):
+    rows = conn().execute(
+        "SELECT * FROM books WHERE tutor_id=? ORDER BY id DESC",
+        (tutor_id,)).fetchall()
+    return [_book_row(r) for r in rows]
+
+
+def book_count(tutor_id):
+    return conn().execute("SELECT COUNT(*) n FROM books WHERE tutor_id=?",
+                          (tutor_id,)).fetchone()["n"]
+
+
+def create_book(tutor_id, title, pages, size):
+    cur = conn().execute(
+        "INSERT INTO books (tutor_id, title, pages, bytes, created_at)"
+        " VALUES (?,?,?,?,?)",
+        (tutor_id, (title or "Книга").strip()[:80] or "Книга",
+         int(pages), int(size), now()))
+    conn().commit()
+    return get_book(cur.lastrowid)
+
+
+def get_book(book_id):
+    return conn().execute("SELECT * FROM books WHERE id=?",
+                          (int(book_id),)).fetchone()
+
+
+def delete_book(book_id, tutor_id):
+    """Строку — из базы, файлы — с диска. Файлы вторыми: если упадём на
+    полпути, останется мусор на диске, а не битая запись в описи."""
+    row = conn().execute("SELECT * FROM books WHERE id=? AND tutor_id=?",
+                         (int(book_id), tutor_id)).fetchone()
+    if not row:
+        return False
+    conn().execute("DELETE FROM books WHERE id=?", (row["id"],))
+    conn().commit()
+    try:
+        os.remove(book_pdf_path(row["id"]))
+    except OSError:
+        pass
+    pages_dir = os.path.join(BOOK_DIR, "pages", str(row["id"]))
+    try:
+        for name in os.listdir(pages_dir):
+            os.remove(os.path.join(pages_dir, name))
+        os.rmdir(pages_dir)
+    except OSError:
+        pass
+    return True
+
+
 def shared_board_for_student(student_row):
     """Какая доска открыта ученику прямо сейчас. Ученик не выбирает доску
-    сам: он видит ровно ту, которую репетитор открыл на урок."""
+    сам: он видит ровно ту, которую репетитор открыл на урок. Если
+    репетитор позвал конкретного ученика — остальные доску не видят
+    вовсе, для них урока просто нет."""
     if not student_row or not student_row["tutor_id"]:
         return None
     row = conn().execute(
         "SELECT * FROM boards WHERE tutor_id=? AND shared=1 AND COALESCE(archived,0)=0"
-        " ORDER BY updated_at DESC LIMIT 1", (student_row["tutor_id"],)).fetchone()
+        " AND (invited_student_id IS NULL OR invited_student_id=?)"
+        " ORDER BY updated_at DESC LIMIT 1",
+        (student_row["tutor_id"], student_row["id"])).fetchone()
     return _board_row(row) if row else None
 
 

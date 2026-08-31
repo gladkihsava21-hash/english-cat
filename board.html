@@ -7,7 +7,7 @@
   <meta name="robots" content="noindex, nofollow">
   <link rel="preload" href="css/fonts/nunito-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="css/fonts/inter-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="css/fonts.css?v=238">
+  <link rel="stylesheet" href="css/fonts.css?v=239">
   <script>
     try {
       var t = localStorage.getItem("savelyTheme");
@@ -16,9 +16,9 @@
       document.documentElement.dataset.theme = t;
     } catch (e) { /* приватный режим */ }
   </script>
-  <link rel="stylesheet" href="css/tokens.css?v=238">
-  <link rel="stylesheet" href="css/style.css?v=238">
-  <link rel="stylesheet" href="css/board.css?v=238">
+  <link rel="stylesheet" href="css/tokens.css?v=239">
+  <link rel="stylesheet" href="css/style.css?v=239">
+  <link rel="stylesheet" href="css/board.css?v=239">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
 </head>
 <body class="board-body">
@@ -38,7 +38,13 @@
     <span class="bd-live" id="bd-live" hidden>ученик на доске</span>
     <button class="bd-btn" id="bd-phone" title="Видеозвонок" hidden>
       <span data-icon="phone" data-icon-size="18"></span> Звонок</button>
-    <button class="bd-btn" id="bd-share" hidden>Открыть ученику</button>
+    <!-- Доступ: кнопка открывает меню «кого зовём». Раньше был тумблер
+         на всех учеников сразу; теперь репетитор зовёт либо всех,
+         либо одного — остальные доску даже не видят. -->
+    <div class="bd-share-wrap">
+      <button class="bd-btn" id="bd-share" hidden>Открыть ученику</button>
+      <div class="bd-share-menu" id="bd-share-menu" hidden></div>
+    </div>
     <button class="bd-btn" id="bd-png" title="Скачать картинкой">
       <span data-icon="download" data-icon-size="18"></span> PNG</button>
     <button class="bd-btn" id="bd-clear" title="Очистить доску"
@@ -130,6 +136,14 @@
       откроется у него в новой вкладке, звонок не прервётся.</p>
     <div class="bd-word-list" id="bd-task-list"></div>
   </div>
+  <div class="bd-panel-tasks" id="bd-books" hidden>
+    <div class="bd-panel-head"><b>Книжки (PDF)</b></div>
+    <p class="bd-hint">Страница ляжет на доску картинкой, листается
+      стрелками под ней — ученик видит ту же страницу.</p>
+    <div class="bd-word-list" id="bd-book-list"></div>
+    <button class="bd-btn bd-book-upload" id="bd-book-upload">Загрузить PDF…</button>
+    <p class="bd-hint" id="bd-book-note" hidden></p>
+  </div>
 </aside>
 
 <!-- Ввод текста поверх доски: системные prompt() на сайте запрещены
@@ -144,6 +158,15 @@
 
 <p class="bd-toast" id="bd-toast" hidden></p>
 <input type="file" id="bd-img-file" accept="image/*" hidden>
+<input type="file" id="bd-book-file" accept="application/pdf,.pdf" hidden>
+
+<!-- Листалка выделенной книги. HTML поверх полотна, а не кнопки на
+     канвасе: попадать пальцем в нарисованные стрелки — мучение. -->
+<div class="bd-bookbar" id="bd-bookbar" hidden>
+  <button class="bd-btn" id="bd-book-prev" aria-label="Предыдущая страница">‹</button>
+  <span id="bd-book-page">стр. 1 / 1</span>
+  <button class="bd-btn" id="bd-book-next" aria-label="Следующая страница">›</button>
+</div>
 
 <!-- Видеозвонок: два окошка в углу. Видео идёт напрямую между
      браузерами, сервер только знакомит их (см. js/call.js). -->
@@ -157,6 +180,8 @@
             data-icon="mic" data-icon-size="18"></button>
     <button class="bd-btn" id="call-cam" title="Камера"
             data-icon="camera" data-icon-size="18"></button>
+    <button class="bd-btn" id="call-screen" title="Показать экран" hidden
+            data-icon="screen" data-icon-size="18"></button>
     <button class="bd-btn" id="call-pip" title="Вынести видео поверх всех окон"
             data-icon="fit" data-icon-size="18"></button>
     <button class="bd-btn bd-call-end" id="call-end" title="Завершить">✕</button>
@@ -184,9 +209,9 @@
   </div>
 </div>
 
-<script defer src="js/icons.js?v=238"></script>
-<script defer src="js/util.js?v=238"></script>
-<script defer src="js/board.js?v=238"></script>
-<script defer src="js/call.js?v=238"></script>
+<script defer src="js/icons.js?v=239"></script>
+<script defer src="js/util.js?v=239"></script>
+<script defer src="js/board.js?v=239"></script>
+<script defer src="js/call.js?v=239"></script>
 </body>
 </html>

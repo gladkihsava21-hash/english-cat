@@ -120,6 +120,7 @@ function draw() {
       break;
     }
   }
+  updateBookBar();
 }
 
 function bgMode() {
@@ -173,6 +174,34 @@ function imgFor(o) {
   return img.complete ? img : null;
 }
 
+/* ---------- страницы книжек ----------
+   В объекте книги нет картинки — только bookId и номер страницы.
+   Каждый клиент просит страницу у сервера сам и держит в кэше: листание
+   для доски — это апдейт двух чисел, а JPEG едет один раз. */
+const BOOK_CACHE = new Map();   // "bookId:page" -> { img | null (грузится) }
+function bookPageFor(o) {
+  const key = o.bookId + ":" + o.page;
+  const rec = BOOK_CACHE.get(key);
+  if (rec) return rec.img && rec.img.complete ? rec.img : null;
+  BOOK_CACHE.set(key, { img: null });
+  api("/api/book/page", { token: BD.token, bookId: o.bookId, page: o.page })
+    .then(res => {
+      if (!res.ok) { BOOK_CACHE.delete(key); return; }
+      const img = new Image();
+      img.onload = paint;
+      img.src = res.src;
+      BOOK_CACHE.set(key, { img });
+      // Пока читают эту, тихо попросим следующую: листание вперёд —
+      // обычный ход урока, и страница уже будет тёплой.
+      if (o.page < (o.pages || 1) && !BOOK_CACHE.has(o.bookId + ":" + (o.page + 1))) {
+        const ahead = { ...o, page: o.page + 1 };
+        setTimeout(() => bookPageFor(ahead), 800);
+      }
+    })
+    .catch(() => BOOK_CACHE.delete(key));
+  return null;
+}
+
 /* Указка «смотри сюда»: пульсирующее кольцо живёт пару секунд.
    Время появления у каждого своё, локальное — в объекте времени нет. */
 const PING_SEEN = new Map();   // id -> когда увидели
@@ -200,6 +229,41 @@ function drawObject(o) {
     ctx.clip();
     ctx.drawImage(img, o.x, o.y, o.w, o.h);
     ctx.restore();
+    return;
+  }
+
+  if (o.kind === "book") {
+    ctx.save();
+    ctx.fillStyle = cssColor("paper");
+    ctx.strokeStyle = cssColor("grid");
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    roundRect(o.x, o.y, o.w, o.h, 8);
+    ctx.fill();
+    ctx.stroke();
+    const img = bookPageFor(o);
+    if (img) {
+      ctx.beginPath();
+      roundRect(o.x, o.y, o.w, o.h, 8);
+      ctx.clip();
+      // Вписываем страницу целиком, без растяжения: поля лучше
+      // обрезанной строчки задания.
+      const k = Math.min(o.w / img.width, o.h / img.height);
+      const dw = img.width * k, dh = img.height * k;
+      ctx.drawImage(img, o.x + (o.w - dw) / 2, o.y + (o.h - dh) / 2, dw, dh);
+    } else {
+      ctx.fillStyle = cssColor("grid");
+      ctx.font = "400 14px Inter, system-ui, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("страница грузится…", o.x + o.w / 2, o.y + o.h / 2);
+      ctx.textAlign = "start";
+    }
+    ctx.restore();
+    // Подпись под страницей: что за книга и где мы в ней
+    ctx.fillStyle = cssColor("grid");
+    ctx.font = "400 12px Inter, system-ui, sans-serif";
+    ctx.fillText((o.text ? o.text + " · " : "") + "стр. " + o.page + " / " + (o.pages || 1),
+                 o.x + 4, o.y + o.h + 16);
     return;
   }
 
@@ -379,7 +443,7 @@ function drawText(text, x, y, maxW, lh, color, weight) {
 
 /** У каких объектов есть смысл тянуть размер за уголок. Линии и штрихи
  *  не растягиваем: у них «размер» — это сама геометрия. */
-const resizable = o => ["image", "rect", "ellipse", "note", "word"].includes(o.kind);
+const resizable = o => ["image", "rect", "ellipse", "note", "word", "book"].includes(o.kind);
 
 function drawSelection(o) {
   const b = bounds(o);
@@ -538,8 +602,7 @@ async function syncNow() {
     if (res.title) $("bd-name").textContent = res.title;
     setState(BD.dirty.size ? "сохраняю…" : "сохранено");
     if (BD.role === "tutor") {
-      $("bd-share").textContent = res.shared ? "Закрыть доступ" : "Открыть ученику";
-      $("bd-share").classList.toggle("on", !!res.shared);
+      renderShareState(res.shared, res.invited);
       renderPresence(!!res.shared, res.student);
     }
   } catch (e) {
@@ -1278,6 +1341,10 @@ $("bd-words").addEventListener("click", () => {
     $("bd-tasks").hidden = false;
     if (!$("bd-task-list").childElementCount) renderTaskChips();
   }
+  if (!panel.hidden && BD.role === "tutor" && $("bd-books")) {
+    $("bd-books").hidden = false;
+    if (!BOOKS.length) loadBooks();
+  }
 });
 $("bd-panel-close").addEventListener("click", () => { $("bd-panel").hidden = true; });
 $("bd-search").addEventListener("input", renderWords);
@@ -1355,18 +1422,194 @@ function dropWordCard(x) {
   toast("«" + x.w + "» на доске. Двойное нажатие — открыть перевод.");
 }
 
-/* ---------- доступ ученику ---------- */
-$("bd-share").addEventListener("click", async () => {
-  const on = !$("bd-share").classList.contains("on");
+/* ---------- доступ ученику: кого зовём на доску ----------
+   Кнопка открывает меню: позвать всех, позвать одного, закрыть. Раньше
+   был тумблер «всем сразу» — репетитор с группой не мог провести
+   индивидуальный урок, не показав доску остальным. */
+
+async function ensureStudents() {
+  if (BD.students.length) return BD.students;
+  try {
+    const res = await api("/api/tutor/students", { token: BD.token });
+    if (res.ok) BD.students = res.students || [];
+  } catch (e) { /* меню покажет, что загрузить не вышло */ }
+  return BD.students;
+}
+
+function shareLabel(shared, invited) {
+  if (!shared) return "Открыть ученику";
+  if (!invited) return "Доска: все ученики";
+  const s = BD.students.find(x => x.id === invited);
+  return "Доска: " + (s ? s.name : "один ученик");
+}
+
+let shareState = { shared: false, invited: null };
+function renderShareState(shared, invited) {
+  shareState = { shared: !!shared, invited: invited || null };
+  $("bd-share").textContent = shareLabel(shareState.shared, shareState.invited);
+  $("bd-share").classList.toggle("on", shareState.shared);
+}
+
+async function setShare(shared, studentId) {
   const res = await api("/api/board/update", {
-    token: BD.token, boardId: BD.boardId, action: "share", shared: on,
+    token: BD.token, boardId: BD.boardId, action: "share",
+    shared, studentId: studentId || null,
   });
   if (!res.ok) { toast(res.error || "Не получилось."); return; }
-  $("bd-share").classList.toggle("on", on);
-  $("bd-share").textContent = on ? "Закрыть доступ" : "Открыть ученику";
-  $("bd-live").hidden = !on;
-  toast(on ? "Ученики видят доску и могут рисовать." : "Доступ закрыт.");
+  renderShareState(shared, studentId);
+  $("bd-live").hidden = !shared;
+  if (!shared) toast("Доступ закрыт.");
+  else if (studentId) {
+    const s = BD.students.find(x => x.id === studentId);
+    toast("Доска открыта: " + (s ? s.name : "ученик") + " увидит её на главной.");
+  } else toast("Доска открыта всем вашим ученикам.");
+  $("bd-share-menu").hidden = true;
+}
+
+$("bd-share").addEventListener("click", async () => {
+  const menu = $("bd-share-menu");
+  if (!menu.hidden) { menu.hidden = true; return; }
+  await ensureStudents();
+  const rows = [];
+  rows.push(`<button data-share="all" class="${shareState.shared && !shareState.invited ? "on" : ""}">Позвать всех</button>`);
+  BD.students.forEach(s => {
+    rows.push(`<button data-share="${s.id}" class="${shareState.invited === s.id ? "on" : ""}">${esc(s.name)}</button>`);
+  });
+  if (!BD.students.length) rows.push(`<p class="bd-hint">Учеников пока нет.</p>`);
+  if (shareState.shared) rows.push(`<button data-share="off" class="danger">Закрыть доску</button>`);
+  menu.innerHTML = rows.join("");
+  menu.hidden = false;
+  menu.querySelectorAll("[data-share]").forEach(b => {
+    b.addEventListener("click", () => {
+      const v = b.dataset.share;
+      if (v === "off") setShare(false, null);
+      else if (v === "all") setShare(true, null);
+      else setShare(true, Number(v));
+    });
+  });
 });
+document.addEventListener("pointerdown", e => {
+  const menu = $("bd-share-menu");
+  if (!menu.hidden && !menu.contains(e.target) && e.target !== $("bd-share")) {
+    menu.hidden = true;
+  }
+});
+
+/* ---------- книжки (PDF) ---------- */
+
+let BOOKS = [];
+async function loadBooks() {
+  try {
+    const res = await api("/api/tutor/books", { token: BD.token });
+    if (res.ok) { BOOKS = res.books || []; renderBooks(); }
+  } catch (e) { /* панель просто останется пустой */ }
+}
+
+function renderBooks() {
+  const box = $("bd-book-list");
+  if (!box) return;
+  box.innerHTML = BOOKS.length
+    ? BOOKS.map(b => `
+      <div class="bd-book-row" data-id="${b.id}">
+        <button class="bd-word bd-book-add" data-add="${b.id}">
+          <b>${esc(b.title)}</b><span>${b.pages} стр.</span></button>
+        <button class="bd-btn bd-book-del" data-del="${b.id}" title="Удалить книгу">✕</button>
+      </div>`).join("")
+    : `<p class="bd-hint">Пока пусто. Загрузите PDF — он останется в вашей
+       библиотеке и для следующих уроков.</p>`;
+  box.querySelectorAll("[data-add]").forEach(b => {
+    b.addEventListener("click", () => {
+      const book = BOOKS.find(x => x.id === Number(b.dataset.add));
+      if (book) dropBookCard(book);
+    });
+  });
+  box.querySelectorAll("[data-del]").forEach(b => {
+    let armed = false, timer = 0;
+    b.addEventListener("click", async () => {
+      if (!armed) {
+        armed = true; b.textContent = "точно?";
+        timer = setTimeout(() => { armed = false; b.textContent = "✕"; }, 3500);
+        return;
+      }
+      clearTimeout(timer);
+      const res = await api("/api/book/delete", {
+        token: BD.token, bookId: Number(b.dataset.del) });
+      if (res.ok) { BOOKS = res.books || []; renderBooks(); }
+      else toast(res.error || "Не получилось удалить.");
+    });
+  });
+}
+
+function dropBookCard(book) {
+  const c = toWorld(innerWidth / 2, innerHeight / 2);
+  // Пропорции A4 портретом; репетитор растянет за уголок, если надо
+  const w = 460, h = 640;
+  put({
+    id: uid(), kind: "book",
+    x: c.x - w / 2, y: c.y - h / 2, w, h,
+    color: "ink", size: 3,
+    bookId: book.id, page: 1, pages: book.pages, text: book.title,
+  });
+  BD.selected = null;
+  toast("«" + book.title + "» на доске. Выделите страницу — появятся стрелки листания.");
+}
+
+$("bd-book-upload").addEventListener("click", () => $("bd-book-file").click());
+$("bd-book-file").addEventListener("change", e => {
+  const f = e.target.files && e.target.files[0];
+  e.target.value = "";
+  if (!f) return;
+  if (f.size > 20 * 1024 * 1024) {
+    toast("PDF до 20 МБ. Большую книгу сожмите или разрежьте на части.", 4200);
+    return;
+  }
+  const note = $("bd-book-note");
+  note.hidden = false;
+  note.textContent = "Загружаю «" + f.name + "»…";
+  const reader = new FileReader();
+  reader.onload = async () => {
+    try {
+      const res = await api("/api/book/upload", {
+        token: BD.token,
+        title: f.name.replace(/\.pdf$/i, ""),
+        data: String(reader.result),
+      });
+      if (!res.ok) { note.textContent = res.error || "Не получилось загрузить."; return; }
+      BOOKS = res.books || [];
+      renderBooks();
+      note.hidden = true;
+      dropBookCard(res.book);
+    } catch (err) {
+      note.textContent = "Сеть оборвалась — попробуйте ещё раз.";
+    }
+  };
+  reader.readAsDataURL(f);
+});
+
+/* Листалка выделенной книги. Стрелки видит только репетитор: на уроке
+   страницами управляет он, у ученика книга просто листается сама. */
+let bookbarFor = "";
+function updateBookBar() {
+  const bar = $("bd-bookbar");
+  if (!bar) return;
+  const o = BD.selected ? BD.objects.get(BD.selected) : null;
+  const show = !!(o && o.kind === "book" && BD.role === "tutor");
+  const key = show ? o.id + ":" + o.page + ":" + o.pages : "";
+  if (key === bookbarFor) return;
+  bookbarFor = key;
+  bar.hidden = !show;
+  if (show) $("bd-book-page").textContent = "стр. " + o.page + " / " + (o.pages || 1);
+}
+
+function flipBook(delta) {
+  const o = BD.selected ? BD.objects.get(BD.selected) : null;
+  if (!o || o.kind !== "book") return;
+  const page = Math.max(1, Math.min((o.pages || 1), (o.page || 1) + delta));
+  if (page === o.page) return;
+  put({ ...o, page });
+}
+$("bd-book-prev").addEventListener("click", () => flipBook(-1));
+$("bd-book-next").addEventListener("click", () => flipBook(1));
 
 /** Объяснение вместо пустого полотна: когда доски нет, ученик должен
  *  понимать почему, а не смотреть в серую сетку. */
@@ -1468,6 +1711,11 @@ async function boot() {
   }
 
   await syncNow();
+  // Имена учеников нужны кнопке доступа уже при загрузке: без них
+  // «Доска: Ира» рисовалась бы как безликое «один ученик».
+  if (BD.role === "tutor") {
+    ensureStudents().then(() => renderShareState(shareState.shared, shareState.invited));
+  }
   // Доска готова — можно подключать то, что живёт поверх неё (звонок)
   dispatchEvent(new Event("board-ready"));
   // Заодно подтолкнём обновление сервис-воркера: доска на уроке открыта

@@ -214,7 +214,11 @@ async function renegotiate(offer) {
 
 function onOffer(m) {
   if (CALL.state === "live") {
-    if (CALL.pc && !CALL.isCaller) renegotiate(m.data);
+    // На живом звонке новый оффер шлют двое: строитель после починки ICE
+    // и репетитор, включающий показ экрана. Ученик отвечает на оффер
+    // всегда (правило «репетитор побеждает» уже действует при дозвоне),
+    // репетитор — только если соединение строил не он.
+    if (CALL.pc && (BD.role === "student" || !CALL.isCaller)) renegotiate(m.data);
     return;
   }
   if (CALL.state === "calling") {
@@ -302,6 +306,7 @@ function teardownPeer() {
 function endCall(sendBye) {
   clearTimeout(CALL.timer);
   if (sendBye) callSend("bye", {});
+  stopScreenShare(true);
   teardownPeer();
   if (CALL.stream) CALL.stream.getTracks().forEach(t => t.stop());
   CALL.stream = null;
@@ -311,6 +316,93 @@ function endCall(sendBye) {
   $("bd-ring").hidden = true;
   $("call-remote").srcObject = null;
   $("call-local").srcObject = null;
+}
+
+/* ---------- показ экрана ----------
+   Репетитор вместо камеры отправляет экран: подменяем видеодорожку в
+   ТОМ ЖЕ соединении (replaceTrack) — у ученика картинка меняется сама,
+   без нового звонка. Сервер видео по-прежнему не видит: и камера, и
+   экран идут напрямую между браузерами, ничего не записывается. */
+const SCREEN = { track: null };
+
+function screenSupported() {
+  return !!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia);
+}
+
+async function videoSender() {
+  const pc = CALL.pc;
+  if (!pc) return null;
+  let sender = pc.getSenders().find(s => s.track && s.track.kind === "video");
+  if (sender) return sender;
+  // Камеры не было — соединение строилось «только приём». Разворачиваем
+  // видеотрансивер на отправку; это меняет договор — нужен новый оффер.
+  const tr = pc.getTransceivers().find(t =>
+    (t.receiver.track && t.receiver.track.kind === "video"));
+  if (!tr) return null;
+  tr.direction = "sendrecv";
+  await sendFreshOffer();
+  return tr.sender;
+}
+
+async function sendFreshOffer() {
+  try {
+    const offer = await CALL.pc.createOffer();
+    await CALL.pc.setLocalDescription(offer);
+    await callSend("offer", { sdp: offer.sdp, type: offer.type });
+  } catch (e) { /* соединение уже закрыто */ }
+}
+
+async function startScreenShare() {
+  if (!CALL.pc || CALL.state !== "live") {
+    toast("Сначала созвонитесь — экран показывается внутри звонка.");
+    return;
+  }
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getDisplayMedia({
+      video: { frameRate: { ideal: 12 } }, audio: false,
+    });
+  } catch (e) { return; }               // передумал в системном окне — не ошибка
+  const track = stream.getVideoTracks()[0];
+  if (!track) return;
+  const sender = await videoSender();
+  if (!sender) {
+    track.stop();
+    toast("Не получилось начать показ. Попробуйте перезвонить.");
+    return;
+  }
+  SCREEN.track = track;
+  await sender.replaceTrack(track);
+  $("call-local").srcObject = new MediaStream([track]);
+  $("call-local").classList.remove("novideo");
+  $("call-screen").classList.add("on");
+  setCallState("вы показываете экран");
+  // «Прекратить показ» в плашке браузера должен работать как наша кнопка
+  track.onended = () => stopScreenShare(false);
+}
+
+async function stopScreenShare(silent) {
+  if (!SCREEN.track) return;
+  const track = SCREEN.track;
+  SCREEN.track = null;
+  track.onended = null;
+  try { track.stop(); } catch (e) { /* уже остановлен */ }
+  $("call-screen").classList.remove("on");
+  if (!CALL.pc) return;
+  const sender = CALL.pc.getSenders().find(s => s.track === track)
+    || CALL.pc.getSenders().find(s => s.track && s.track.kind === "video");
+  const cam = CALL.stream && CALL.stream.getVideoTracks()[0];
+  if (sender) {
+    try { await sender.replaceTrack(cam || null); } catch (e) { /* конец звонка */ }
+  }
+  $("call-local").srcObject = CALL.stream;
+  $("call-local").classList.toggle("novideo", !cam);
+  if (!silent) setCallState("соединено");
+}
+
+function toggleScreenShare() {
+  if (SCREEN.track) stopScreenShare(false);
+  else startScreenShare();
 }
 
 /* ---------- панель ---------- */
@@ -403,6 +495,20 @@ function callBoot() {
   $("call-end").addEventListener("click", () => endCall(true));
   $("call-mic").addEventListener("click", e => toggleTrack("audio", e.currentTarget));
   $("call-cam").addEventListener("click", e => toggleTrack("video", e.currentTarget));
+  // Показ экрана — репетитору: на уроке материал показывает учитель.
+  // Телефон ученика чужой экран и так развернёт двойным нажатием.
+  if (BD.role === "tutor" && screenSupported() && $("call-screen")) {
+    $("call-screen").hidden = false;
+    $("call-screen").addEventListener("click", toggleScreenShare);
+  }
+  // Двойное нажатие по видео собеседника — на весь экран: страница
+  // задания или демонстрация в маленьком окошке не читается.
+  $("call-remote").addEventListener("dblclick", () => {
+    const v = $("call-remote");
+    if (document.fullscreenElement) document.exitFullscreen();
+    else if (v.requestFullscreen) v.requestFullscreen();
+    else if (v.webkitEnterFullscreen) v.webkitEnterFullscreen();  // iPhone
+  });
   $("ring-yes").addEventListener("click", answerCall);
   $("ring-no").addEventListener("click", () => {
     $("bd-ring").hidden = true;

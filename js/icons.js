@@ -91,6 +91,7 @@ const ICONS = {
   fit:        '<path d="M4 9V4h5"/><path d="M20 9V4h-5"/><path d="M4 15v5h5"/><path d="M20 15v5h-5"/>',
   download:   '<path d="M12 3v12"/><path d="M7.5 10.5L12 15l4.5-4.5"/><path d="M4 18v2h16v-2"/>',
   moon:       '<path d="M20 13.5A8 8 0 0 1 10.5 4a8 8 0 1 0 9.5 9.5z"/>',
+  screen:     '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M9 20h6M12 16v4"/>',
   words:      '<path d="M3 18l4-11 4 11"/><path d="M4.2 14.5h5.6"/><path d="M14 18l3.5-9 3.5 9"/><path d="M15 15.5h5"/>',
 };
 
