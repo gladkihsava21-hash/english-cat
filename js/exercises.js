@@ -452,16 +452,57 @@ function catBags(only = null, capLevel = true) {
     own.add(x.w.toLowerCase());
     if (fits(x)) (mine[x.cat] = mine[x.cat] || []).push(x);
   });
+  // Выбрана папка — добора из банка нет вовсе: игра идёт по её словам
+  // или честно говорит, что не получается (просьба методиста).
   const top = capLevel
     ? Math.min(LEVELS.length - 1, LEVELS.indexOf(studyLevel()) + 1)
     : LEVELS.length - 1;
-  LEVELS.slice(0, top + 1).forEach(l => WORDS[l].forEach(x => {
-    if (fits(x) && !own.has(x.w.toLowerCase())) (rest[x.cat] = rest[x.cat] || []).push(x);
-  }));
+  if (!trainingScope()) {
+    LEVELS.slice(0, top + 1).forEach(l => WORDS[l].forEach(x => {
+      if (fits(x) && !own.has(x.w.toLowerCase())) (rest[x.cat] = rest[x.cat] || []).push(x);
+    }));
+  }
   // сколько слов на тему всего — по этому игра решает, годится ли тема
   const size = c => (mine[c] || []).length + (rest[c] || []).length;
   const pick = (c, n) => [...shuffled(mine[c] || []), ...shuffled(rest[c] || [])].slice(0, n);
   return { size, pick, cats: [...new Set([...Object.keys(mine), ...Object.keys(rest)])] };
+}
+
+/** Слова, которыми ученик ограничил тренировку, — или null, если не ограничивал.
+ *
+ * Выбрал папку или отметил слова галочками — тренируем ТОЛЬКО их. Это
+ * просьба методиста: «при выборе папки слова должны выпадать конкретно
+ * из неё». Раньше рамка действовала лишь на упражнения, которые берут
+ * слова из словаря напрямую; игры, картинки, синонимы, сочетания и весь
+ * раздел «Выражения» её не видели и показывали что придётся. Ученица
+ * открывала папку «Фразовые глаголы» и получала в «Не буквально» чужие
+ * идиомы — папка выглядела сломанной.
+ *
+ * Возвращаем именно множество слов, а не список папок: сравнивать удобно
+ * всем, а знать про папки упражнениям незачем. */
+function trainingScope() {
+  if (isTrainingWholeDict() && !homeworkScope) return null;
+  return new Set(trainingDictionary().map(d => d.w.toLowerCase()));
+}
+
+/** Экран «в этой папке такого нет». Врать нельзя, подменять — тем более:
+ *  ученик выбрал папку осознанно и должен понимать, почему пусто. */
+function exOutOfScope(why) {
+  const where = trainingFolders().length
+    ? "папке «" + trainingFolders().join("», «") + "»"
+    : "отмеченных словах";
+  stage().innerHTML = `
+    <div class="empty-state">
+      <div class="cat-avatar cat-mid" data-cat="think"></div>
+      <h2>Для этого упражнения в ${esc(where)} нет подходящих слов</h2>
+      <p>${esc(why)}</p>
+      <p class="muted-small">Можно вернуться к тренировкам и переключить
+        «Тренируем» на весь словарь — тогда упражнение возьмёт слова оттуда.</p>
+      <div class="quiz-buttons">
+        <button class="btn btn-primary" data-nav="practice">К тренировкам</button>
+      </div>
+    </div>`;
+  if (typeof paintCats === "function") paintCats(stage());
 }
 
 function trainPool(n, need = [], fit = null) {
@@ -490,11 +531,16 @@ function trainPool(n, need = [], fit = null) {
    * «добавить в словарь» после подхода (см. statUpdate), то есть добор
    * не просто разбавляет, а показывает, чего ученик ещё не знает.
    *
-   * Короткие подходы не трогаем: в «Своих предложениях» их три, и одно
-   * незнакомое слово из трёх — это уже не тренировка своего словаря.
-   * Выбранные папки и домашка не разбавляются вовсе: там ученик просил
-   * конкретные слова, а не «примерно столько же». */
-  const quota = n >= 4 && isTrainingWholeDict() && !homeworkScope
+   * Короткие подходы не трогаем: одно незнакомое слово из трёх — это уже
+   * не тренировка своего словаря. Выбранные папки и домашка не
+   * разбавляются вовсе: там ученик просил конкретные слова, а не
+   * «примерно столько же».
+   *
+   * По схеме методиста (Ирина, 31.08.2026) «По словам» и «Игры» — это
+   * ровно свой словарь, поэтому добор выключен по умолчанию и включается
+   * переключателем в тренировках (state.trainMixNew). Владелец просил
+   * оставить эту возможность: словарь из двадцати слов приедается. */
+  const quota = state.trainMixNew && n >= 4 && isTrainingWholeDict() && !homeworkScope
     ? Math.round(n * 0.25) : 0;
   const picked = fromDict.slice(0, Math.max(0, n - quota));
   if (picked.length < n && isTrainingWholeDict() && !homeworkScope) {
@@ -511,6 +557,39 @@ function trainPool(n, need = [], fit = null) {
       .filter(d => !picked.some(p => p.w === d.w)));
   }
   return shuffled(picked);
+}
+
+/** Пул для разделов, которые наполняет система, а не ученик.
+ *
+ * Схема методиста (Ирина, встреча 31.08.2026): свой словарь ученик
+ * тренирует в «По словам» и «Играх». Остальные разделы — «На слух»,
+ * «Выражения», «Письмо и речь» — система наполняет сама, словами и
+ * выражениями под уровень ученика или под тот уровень, который ученик
+ * выбрал себе в тренировках.
+ *
+ * Назначенное репетитором главнее схемы. Домашка, выбранная папка и
+ * отмеченные галочками слова тренируются везде ровно так, как назначены:
+ * иначе вернётся «диктант не подстраивается под назначенные слова», о чём
+ * та же Ирина писала месяцем раньше.
+ *
+ * Пустой словарь ничего не ломает: здесь его и не спрашивают.
+ */
+function levelPool(n, need = [], fit = null) {
+  trainingDictionary();               // нормализует homeworkScope
+  if ((homeworkScope && homeworkScope.length) || !isTrainingWholeDict())
+    return trainPool(n, need, fit);
+  const has = rec => rec && need.every(f => rec[f]) && (!fit || fit(rec));
+  const own = new Set(state.dictionary.map(d => d.w.toLowerCase()));
+  const lvl = studyLevel();
+  const nextLvl = LEVELS[Math.min(LEVELS.indexOf(lvl) + 1, LEVELS.length - 1)];
+  const pool = shuffled([...WORDS[lvl], ...WORDS[nextLvl]].filter(has))
+    .map(x => ({ ...x, inDict: own.has(x.w.toLowerCase()) }));
+  if (pool.length >= n) return pool.slice(0, n);
+  // Слов уровня с нужными полями бывает мало (пример есть не у каждого) —
+  // добираем своими, чтобы подход не оборвался на середине.
+  const inPool = new Set(pool.map(p => p.w.toLowerCase()));
+  return pool.concat(trainPool(n - pool.length, need, fit)
+    .filter(p => !inPool.has(p.w.toLowerCase())));
 }
 
 // неверные варианты: переводы/слова/определения других слов близкого уровня
@@ -800,6 +879,35 @@ function renderTrainLevel() {
   }
 }
 
+/** Подмешивать ли новые слова уровня в «По словам» и «Игры».
+ *
+ * По схеме методиста эти два раздела — ровно свой словарь ученика, и по
+ * умолчанию так и есть. Но словарь из двадцати слов приедается за неделю,
+ * поэтому выбор оставлен ученику: галочка добавляет к подходу четверть
+ * слов уровня, которых у него ещё нет (см. quota в trainPool).
+ */
+function renderTrainMix() {
+  const box = document.getElementById("train-mix");
+  const cb = document.getElementById("train-mix-new");
+  if (!box || !cb) return;
+  // Папки, отмеченные слова и домашка не разбавляются никогда: там
+  // назначены конкретные слова. Галочку, которая ни на что не влияет,
+  // честнее спрятать, чем показать.
+  box.classList.toggle("hidden", !isTrainingWholeDict());
+  cb.checked = !!state.trainMixNew;
+  document.getElementById("train-mix-note").textContent = state.trainMixNew
+    ? `Четверть подхода — слова уровня ${studyLevel()}, которых у тебя ещё нет.`
+    : "Сейчас в «По словам» и «Играх» только твои слова.";
+  if (!cb.dataset.bound) {
+    cb.dataset.bound = "1";
+    cb.addEventListener("change", () => {
+      state.trainMixNew = cb.checked;
+      saveState();
+      renderPracticeHub();
+    });
+  }
+}
+
 /** Подсказка сменить уровень — когда точность на текущем уровне говорит
  *  сама за себя. Пороги консервативные: от 25 проверенных ответов,
  *  ≥85 % верных — предложить на ступень выше, ≤45 % — на ступень ниже.
@@ -889,6 +997,7 @@ function wireAudioHelp(root) {
 function renderPracticeHub() {
   const host = document.getElementById("practice-grid");
   renderTrainLevel();
+  renderTrainMix();
   renderLevelNudge();
   renderTrainScope();
   const picked = trainingFolders();
@@ -902,16 +1011,31 @@ function renderPracticeHub() {
           ? `Только из ${picked.length === 1 ? "папки" : "папок"} «${picked.join("», «")}» — ${inScope} ${wordsWord(inScope)}`
           : `В ${picked.length === 1 ? "выбранной папке" : "выбранных папках"} пока нет слов — добавь их в словаре`)
       : state.dictionary.length
-        ? `Тренируем твой словарь (${state.dictionary.length} слов) + слова уровня ${studyLevel()}`
+        ? (state.trainMixNew
+            ? `Тренируем твой словарь (${state.dictionary.length} слов) + слова уровня ${studyLevel()}`
+            : `Тренируем твой словарь — ${state.dictionary.length} ${wordsWord(state.dictionary.length)}`)
         : `Словарь пуст — тренируем слова уровня ${studyLevel()}`;
-  // Когда выбран свой набор, говорим честно, где он тренируется целиком,
-  // а где нет, — иначе «Определения» с двумя словами из 28 выглядят
-  // поломкой (просьба Ирины «прописать этот момент»).
+  /* Что происходит с выбранной папкой — одной строкой.
+   *
+   * Раньше здесь стояло «Выражения и игры живут своей программой»: это было
+   * правдой и это же было претензией методиста — папка выбрана, а половина
+   * упражнений её игнорирует. Теперь рамка действует везде, и текст говорит
+   * именно это. Про ОГЭ сказано отдельно: грамматика и словообразование
+   * идут по банку заданий, слов ученика там нет в принципе. */
   const scopeNote = (chosenN || (picked.length && inScope))
-    ? `<br><span class="pool-note-extra">Эти слова целиком идут в «По словам», Аудирование и Диктант. `
-      + `«Определениям» нужны определения из базы, а «Выражения» и игры живут своей программой.</span>`
+    ? `<br><span class="pool-note-extra">Все упражнения возьмут слова только отсюда. `
+      + `Если для какого-то из них подходящих слов нет — оно так и скажет, `
+      + `а не подставит чужие. Кроме «Подготовки к ОГЭ»: грамматика и `
+      + `словообразование идут по своему банку заданий.</span>`
     : "";
-  document.getElementById("practice-pool-note").innerHTML = esc(scopeLine) + scopeNote;
+  // Куда идёт свой словарь, а куда — слова уровня. Схема методиста:
+  // словарь тренируется в «По словам» и «Играх», остальные разделы система
+  // наполняет сама под уровень. Без этой строки ученик ждёт свои слова
+  // в диктанте и считает поломкой то, что задумано.
+  const whereNote = (chosenN || picked.length || !state.dictionary.length) ? ""
+    : `<br><span class="pool-note-extra">Свой словарь идёт в «По словам» и «Игры». `
+      + `«На слух», «Выражения» и «Письмо и речь» система наполняет словами уровня ${esc(studyLevel())}.</span>`;
+  document.getElementById("practice-pool-note").innerHTML = esc(scopeLine) + scopeNote + whereNote;
   host.innerHTML = "";
   EX_GROUPS.forEach(g => {
     const list = EXERCISES.filter(ex => ex.group === g.id && !ex.hidden);
@@ -1526,7 +1650,23 @@ const EX_RUNNERS = {
               : [...(PHRASES.phrasal || []), ...(PHRASES.idioms || [])];
     const fit = all.filter(x => near.has(x.level) && (need || []).every(f => x[f]));
     // Если на своём уровне не набралось — расширяем, но не молча падаем
-    const pool = fit.length >= n ? fit : all.filter(x => (need || []).every(f => x[f]));
+    let pool = fit.length >= n ? fit : all.filter(x => (need || []).every(f => x[f]));
+    /* Выбрана папка — берём из банка только её выражения.
+     *
+     * Ученица кладёт в папку двенадцать фразовых глаголов и открывает
+     * «Не буквально», а там чужие идиомы: банк выражений про папку не знал
+     * вовсе. Теперь знает. Полей вроде «буквального перевода» у слова из
+     * словаря нет, поэтому берём не саму запись ученика, а её двойника из
+     * банка — со всей начинкой.
+     *
+     * Своих выражений в папке не оказалось — возвращаем пусто, и упражнение
+     * скажет об этом прямо (см. exOutOfScope). Подменять папку банком нельзя:
+     * это ровно та подмена, на которую жаловались. */
+    const scope = trainingScope();
+    if (scope) {
+      pool = pool.filter(x => scope.has(x.w.toLowerCase()));
+      if (!pool.length) return [];
+    }
     // Тоже «сначала невиданное»: выражений на уровень немного, и без
     // памяти о показанном в подходах крутились одни и те же фразы.
     const picked = pickFresh("phr:" + kind + ":" + lvl, pool, n, x => x.w);
@@ -1664,6 +1804,14 @@ const EX_RUNNERS = {
   /** Общий экран, когда база выражений не загрузилась. Молчаливый пустой
    *  экран здесь хуже честной надписи: ученик решит, что сломался он. */
   _noPhrases() {
+    // Пусто по двум разным причинам, и путать их нельзя: банк не доехал
+    // (чинится обновлением страницы) или в выбранной папке нет выражений
+    // (обновление не поможет — надо снять рамку или взять другую папку).
+    if (typeof PHRASES !== "undefined" && trainingScope()) {
+      exOutOfScope("Здесь тренируются устойчивые выражения — фразовые глаголы "
+        + "и идиомы. Обычные слова для них не подходят.");
+      return;
+    }
     stage().innerHTML = `
       <div class="empty-state">
         <div class="cat-avatar cat-mid" data-cat="sad"></div>
@@ -1692,11 +1840,19 @@ const EX_RUNNERS = {
     // спросила, работает ли оно вообще выше B1. Теперь добираем
     // картинчатые слова с любых уровней: узнавание по картинке полезно
     // и как быстрый повтор простого слова.
-    if (pool.length < 8) {
+    // Добор картинчатыми словами со стороны — только когда тренируем весь
+    // словарь. Выбрана папка — либо её слова с картинками, либо честный
+    // ответ: подменять папку чужими картинками нельзя.
+    if (pool.length < 8 && !trainingScope()) {
       const have = new Set(pool.map(p => p.w.toLowerCase()));
       const extra = shuffled(LEVELS.flatMap(l => WORDS[l])
         .filter(x => named.has(x.w.toLowerCase()) && !have.has(x.w.toLowerCase())));
       pool = [...pool, ...extra.slice(0, 8 - pool.length)];
+    }
+    if (pool.length < 4 && trainingScope()) {
+      exOutOfScope("К словам этой папки у нас пока нет фотографий. Картинки "
+        + "есть примерно к пятистам самым «предметным» словам — стол, мост, яблоко.");
+      return;
     }
     if (pool.length < 4) { EX_RUNNERS.mcq(); return; }
     runMCQ(pool.map(p => {
@@ -1779,6 +1935,11 @@ const EX_RUNNERS = {
     // Слова ученика идут первыми: играть интереснее теми, что учишь
     const bags = catBags(CONCRETE);
     const cats = bags.cats.filter(c => bags.size(c) >= 3);
+    if (cats.length < 2 && trainingScope()) {
+      exOutOfScope("Чтобы искать лишнее, нужны слова хотя бы из двух разных "
+        + "тем — по три на тему. Выражения и слова без темы для этого не годятся.");
+      return;
+    }
     const rounds = [];
     let guard = 0;
     while (rounds.length < 6 && guard++ < 40 && cats.length >= 2) {
@@ -1960,7 +2121,8 @@ const EX_RUNNERS = {
   },
 
   listening() {
-    const pool = trainPool(6);
+    // Слова предлагает система — раздел уровневый (схема методиста).
+    const pool = levelPool(6);
     runMCQ(pool.map(p => {
       // Варианты с переводом: услышать слово мало, надо ещё понять его.
       // Раньше стояли голые английские слова, и ученик, разобравший звук,
@@ -1996,6 +2158,8 @@ const EX_RUNNERS = {
     // у кого в базе есть пример, целым предложением, у остальных само
     // слово. Раньше сюда всё равно подмешивались предложения уровня,
     // и Ирина писала «диктант не подстраивается под назначенные слова».
+    //
+    // Без назначения раздел уровневый: предложения выбирает система.
     trainingDictionary();               // нормализует homeworkScope
     const scoped = (homeworkScope && homeworkScope.length > 0) || !isTrainingWholeDict();
     let pool;
@@ -2004,14 +2168,9 @@ const EX_RUNNERS = {
       if (!own.length) { exFinish(0, 0, "В выбранных папках пока пусто — добавь слова в словаре."); return; }
       pool = pickFresh("dict:scope", own, 5, p => p.ex || p.w);
     } else {
-      const wide = trainPool(60, ["ex"]);
-      const seen = new Set(wide.map(p => p.ex));
       const lvl = studyLevel();
-      const nextLvl = LEVELS[Math.min(LEVELS.indexOf(lvl) + 1, LEVELS.length - 1)];
-      const extra = [...WORDS[lvl], ...WORDS[nextLvl]]
-        .filter(x => x.ex && !seen.has(x.ex));
-      const all = [...wide, ...extra];
-      if (!all.length) { exFinish(0, 0, "Нужны слова с примерами — добавь пару слов в словарь."); return; }
+      const all = levelPool(60, ["ex"]);
+      if (!all.length) { exFinish(0, 0, "Пока нет подходящих предложений — загляни в другое упражнение."); return; }
       pool = pickFresh("dict:" + lvl, all, 5, p => p.ex);
     }
     runType(pool.map(p => {
@@ -2047,7 +2206,7 @@ const EX_RUNNERS = {
   },
 
   context() {
-    const pool = trainPool(5, ["ex"]);
+    const pool = levelPool(5, ["ex"]);
     const rounds = [];
     pool.forEach(p => {
       // неправильные варианты: чужие примеры с подставленным словом
@@ -2097,6 +2256,18 @@ const EX_RUNNERS = {
       near.add(LEVELS[i]);
       bank = SYNONYMS.filter(s => near.has(s.lvl));
     }
+    // Выбрана папка — спрашиваем только про её слова. Уровень при этом
+    // не важен: раз слово в папке, ученик его учит.
+    const scope = trainingScope();
+    if (scope) {
+      const mine = SYNONYMS.filter(s => scope.has(s.w.toLowerCase()));
+      if (!mine.length) {
+        exOutOfScope("У слов этой папки в нашей базе нет пар «синоним — антоним». "
+          + "Такие пары есть примерно к двумстам частым словам.");
+        return;
+      }
+      bank = mine;
+    }
     const rounds = pickFresh("syn:" + lvl, bank, 6, s => s.w).map(s => {
       const askSyn = Math.random() < 0.6;
       const right = askSyn ? s.syn : s.ant;
@@ -2126,13 +2297,11 @@ const EX_RUNNERS = {
   translate() {
     // Предложения не должны повторяться от подхода к подходу: пул широкий,
     // а pickFresh следит, чтобы сначала шли ещё не переведённые.
-    const wide = trainPool(60, ["exr"]);
+    // Раздел уровневый: предложения даёт система (схема методиста), кроме
+    // домашки и папок — там levelPool отдаёт назначенные слова.
     const lvl = studyLevel();
-    const seen = new Set(wide.map(p => p.exr));
-    const nextLvl = LEVELS[Math.min(LEVELS.indexOf(lvl) + 1, LEVELS.length - 1)];
-    const extra = [...WORDS[lvl], ...WORDS[nextLvl]].filter(x => x.exr && x.ex && !seen.has(x.exr));
-    const all = [...wide, ...extra];
-    if (!all.length) { exFinish(0, 0, "Нужны слова с примерами — добавь пару слов в словарь."); return; }
+    const all = levelPool(60, ["exr", "ex"]);
+    if (!all.length) { exFinish(0, 0, "Пока нет подходящих предложений — загляни в другое упражнение."); return; }
     const pool = pickFresh("tr:" + lvl, all, 4, p => p.exr);
 
     runType(pool.map(p => ({
@@ -2162,7 +2331,8 @@ const EX_RUNNERS = {
   },
 
   personal() {
-    const pool = trainPool(3);
+    // Три слова уровня, а не из словаря: раздел уровневый (схема методиста).
+    const pool = levelPool(3);
     const words = pool.map(p => p.w);
     stage().innerHTML = `
       <div class="card word-quiz-card">
@@ -2335,9 +2505,20 @@ const EX_RUNNERS = {
     // случайное совпадение правых половин. Просить больше вредно —
     // pickFresh считает показанным всё, что выдал, и невзятые пары
     // ушли бы в «уже видел», ни разу не побывав на экране.
+    // Папка сужает и этот банк: спрашиваем про её слова, а не про любые
+    const scope = trainingScope();
+    const bank = scope
+      ? COLLOCATIONS.filter(c => scope.has(c.h.toLowerCase())
+                              || scope.has((c.h + " " + c.tl).toLowerCase()))
+      : COLLOCATIONS;
+    if (scope && bank.length < 5) {
+      exOutOfScope("Со словами этой папки у нас пока не набирается пяти "
+        + "устойчивых сочетаний. Они есть к частым глаголам — make, do, take, have.");
+      return;
+    }
     const picks = [];
     const rights = new Set();
-    for (const c of pickFresh("colloc", COLLOCATIONS, 8, c => c.h + " " + c.tl)) {
+    for (const c of pickFresh("colloc", bank, 8, c => c.h + " " + c.tl)) {
       if (rights.has(c.tl)) continue;
       rights.add(c.tl);
       picks.push(c);
@@ -2354,6 +2535,11 @@ const EX_RUNNERS = {
     // что-нибудь из C2 — разложить по темам он это не мог даже теоретически.
     const bags = catBags();
     const cats = shuffled(bags.cats.filter(c => bags.size(c) >= 4)).slice(0, 2);
+    if (cats.length < 2 && trainingScope()) {
+      exOutOfScope("Чтобы раскладывать по темам, нужны слова хотя бы из двух "
+        + "разных тем — по четыре на тему.");
+      return;
+    }
     const words = shuffled(cats.flatMap(c => bags.pick(c, 4)
       .map(x => ({ ...x, catKey: c }))));
     let selWord = null, placed = 0, errors = 0;
