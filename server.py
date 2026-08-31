@@ -35,7 +35,7 @@ import mailer
 # Теперь это видно одним curl /health: цифра совпала с ?v= на странице —
 # приложение перезапущено; не совпала или её нет вовсе — в памяти старый
 # код, надо нажать «Перезапустить приложение» в панели хостинга.
-ASSET_VERSION = 239
+ASSET_VERSION = 241
 
 PORT = int(os.environ.get("SAVELY_PORT", "4210"))
 # За nginx сервер слушает только localhost — снаружи он не должен быть виден
@@ -543,6 +543,14 @@ def housekeeping():
     _NEXT_HOUSEKEEP = time.time() + HOUSEKEEP_EVERY
     try:
         send_due_reminders()
+    except Exception as e:
+        report_error("housekeeping", e)
+    # Сигналинг звонка чистит сам себя при каждой записи, но если звонков
+    # больше нет вовсе, чистить некому — а в тех строках IP-адреса
+    # участников. Поэтому добиваем ещё и отсюда: этот проход не зависит
+    # от того, звонит ли кто-нибудь.
+    try:
+        db.sweep_call_msgs()
     except Exception as e:
         report_error("housekeeping", e)
 

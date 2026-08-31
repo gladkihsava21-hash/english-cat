@@ -2449,16 +2449,43 @@ def call_send(board_id, sender, kind, data):
     if len(blob) > CALL_MSG_MAX:
         return False
     c = conn()
-    # Чистим прошлое этой доски при каждой записи: отдельного крона на
-    # хостинге нет, а так таблица сама держится в размере одного урока.
-    cutoff = (datetime.now(timezone.utc) - timedelta(seconds=CALL_TTL_SECONDS))\
-        .isoformat(timespec="seconds")
-    c.execute("DELETE FROM call_msgs WHERE board_id=? AND created_at < ?",
-              (board_id, cutoff))
+    # Чистим протухшее ВЕЗДЕ, а не только в этой доске.
+    #
+    # Раньше здесь стояло WHERE board_id=? — и это оставляло хвост:
+    # чистка срабатывала только при следующей записи В ТУ ЖЕ доску.
+    # Урок кончился, на доску больше не звонили — последняя пачка
+    # сигналинга оставалась лежать. А в ней offer/answer/ice, то есть
+    # IP-адреса обеих сторон, привязанные к конкретному человеку полем
+    # sender. Хранить их бессрочно нельзя: цель живёт четыре минуты,
+    # а 152-ФЗ разрешает хранение не дольше, чем требуется цели.
+    # Удаление досок делу не помогало — delete_board только помечает
+    # архивной, строк не стирает.
+    #
+    # Таблица маленькая (сигналинг одного урока), поэтому глобальный
+    # проход дешевле, чем звучит: он и на живом уроке держит её в
+    # размере, и добивает хвосты чужих заброшенных досок.
+    sweep_call_msgs(c)
     c.execute("INSERT INTO call_msgs(board_id, sender, kind, data, created_at) "
               "VALUES(?,?,?,?,?)", (board_id, sender[:24], kind, blob, now()))
     c.commit()
     return True
+
+
+def sweep_call_msgs(c=None):
+    """Стереть сигналинг старше CALL_TTL_SECONDS во всех досках.
+
+    Зовётся из двух мест: при каждой записи сигналинга (любой звонок
+    убирает и чужой мусор) и из housekeeping в server.py (на случай,
+    когда звонков нет вовсе, а хвост остался). Возвращает число строк —
+    по нему видно в тестах, что чистка действительно работает."""
+    own = c is None
+    c = c or conn()
+    cutoff = (datetime.now(timezone.utc) - timedelta(seconds=CALL_TTL_SECONDS))\
+        .isoformat(timespec="seconds")
+    cur = c.execute("DELETE FROM call_msgs WHERE created_at < ?", (cutoff,))
+    if own:
+        c.commit()
+    return cur.rowcount
 
 
 def call_poll(board_id, me, since):
