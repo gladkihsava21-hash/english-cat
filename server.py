@@ -398,6 +398,11 @@ _HIT_LIMITS = {
     # Лимита не было вовсе, а хостинг однопроцессный: этого хватает,
     # чтобы положить сайт для живых репетиторов.
     "/api/photo": (120, 300),
+    # Вход в админку. Записи здесь не было вовсе, а rate_ok при отсутствии
+    # записи пропускает запрос без проверки — то есть самая привилегированная
+    # ручка сайта была единственной без ограничения частоты. За ней все
+    # репетиторы, все дети и их личные коды.
+    "/api/admin/login": (10, 600),
 }
 
 
@@ -1888,7 +1893,7 @@ class Api:
 
     @staticmethod
     def admin_login(h, p):
-        token, err = db.admin_login(p.get("password"))
+        token, err = db.admin_login(p.get("password"), p.get("_ip"))
         if not token:
             return {"ok": False, "error": err}
         return {"ok": True, "token": token}

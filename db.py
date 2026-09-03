@@ -3024,7 +3024,42 @@ def raise_student_limit(tutor_id, extra=1):
 # Пароль админа лежит файлом рядом с базой, а не в коде и не в git:
 # админка видит всех репетиторов, всех детей и всю переписку.
 ADMIN_SESSION_TTL = 8 * 3600
-_ADMIN_FAILS = {"count": 0, "until": None}
+
+# Неудачные попытки входа считаем В БАЗЕ, а не в памяти процесса.
+#
+# Здесь стоял словарь _ADMIN_FAILS = {"count": 0, "until": None} — ровно
+# та грабля, из-за которой в этом же файле лимит частоты давно переехал
+# в таблицу rate_hits (см. комментарий у rate_hit). На хостинге mod_wsgi
+# держит НЕСКОЛЬКО процессов: у каждого свой пустой счётчик, и «три
+# неудачи — закрыто на 15 минут» срабатывало максимум в одном из них.
+# Перезапуск или ротация воркера обнуляли и его. При этом ручка
+# /api/admin/login не была вписана и в _HIT_LIMITS, то есть второго
+# заслона не было вовсе — а за админкой все репетиторы, все дети и их
+# личные коды.
+#
+# Считаем ПО АДРЕСУ, а не глобально. Общий счётчик выглядит строже, но
+# им же любой прохожий тремя запросами закрывал бы вход владельцу на
+# 15 минут. Складываем в ту же таблицу rate_hits: механизм уже есть,
+# чистится сам, переживает перезапуск.
+ADMIN_FAIL_LIMIT = 5
+ADMIN_FAIL_WINDOW = 900          # 15 минут
+_ADMIN_FAIL_KEY = "admin-login-fail|"
+
+
+def _admin_fail_key(who):
+    return _ADMIN_FAIL_KEY + (str(who or "?")[:64])
+
+
+def admin_fail_note(who):
+    """Записать неудачную попытку входа в админку."""
+    conn().execute("INSERT INTO rate_hits (k, ts) VALUES (?, ?)",
+                   (_admin_fail_key(who), time.time()))
+    conn().commit()
+
+
+def admin_fail_clear(who):
+    conn().execute("DELETE FROM rate_hits WHERE k=?", (_admin_fail_key(who),))
+    conn().commit()
 
 
 def admin_password():
@@ -3036,34 +3071,42 @@ def admin_password():
         return ""
 
 
-def admin_lock_left():
-    until = _ADMIN_FAILS.get("until")
-    if not until:
+def admin_lock_left(who=""):
+    """Сколько секунд вход закрыт для этого адреса. 0 — открыт."""
+    c = conn()
+    key = _admin_fail_key(who)
+    edge = time.time() - ADMIN_FAIL_WINDOW
+    c.execute("DELETE FROM rate_hits WHERE k=? AND ts<?", (key, edge))
+    c.commit()
+    rows = c.execute("SELECT COUNT(*) n, MIN(ts) oldest FROM rate_hits WHERE k=?",
+                     (key,)).fetchone()
+    if (rows["n"] or 0) < ADMIN_FAIL_LIMIT:
         return 0
-    left = (until - datetime.now(timezone.utc)).total_seconds()
+    left = ADMIN_FAIL_WINDOW - (time.time() - (rows["oldest"] or 0))
     return int(left) if left > 0 else 0
 
 
-def admin_login(password):
+def admin_login(password, who=""):
     """(токен, ошибка). Перебор пароля админки блокируется жёстче, чем у
-    репетитора: тут одна попытка стоит доступа ко всей базе."""
+    репетитора: тут одна попытка стоит доступа ко всей базе.
+
+    who — адрес клиента, приходит из server.py. Пустой означает «локальный
+    запуск»: там процесс один и считать по адресу нечего."""
     real = admin_password()
     if not real:
         return None, "Админка не настроена: нет файла admin.txt."
-    left = admin_lock_left()
+    left = admin_lock_left(who)
     if left:
         return None, "Вход закрыт. Попробуй через %d сек." % left
     # Сравниваем байты, а не строки: compare_digest на строке с кириллицей
     # бросает TypeError, и пароль на русском просто не работал бы
     if not secrets.compare_digest(str(password or "").encode("utf-8"), real.encode("utf-8")):
-        _ADMIN_FAILS["count"] += 1
-        if _ADMIN_FAILS["count"] >= 3:
-            _ADMIN_FAILS["until"] = datetime.now(timezone.utc) + timedelta(minutes=15)
-            _ADMIN_FAILS["count"] = 0
-            return None, "Три неудачи. Вход закрыт на 15 минут."
+        admin_fail_note(who)
+        left = admin_lock_left(who)
+        if left:
+            return None, "Слишком много попыток. Вход закрыт на %d сек." % left
         return None, "Неверный пароль."
-    _ADMIN_FAILS["count"] = 0
-    _ADMIN_FAILS["until"] = None
+    admin_fail_clear(who)
     token = new_token()
     conn().execute("INSERT INTO admin_sessions (token, created_at) VALUES (?,?)",
                    (token, now()))
