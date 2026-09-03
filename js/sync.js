@@ -7,7 +7,15 @@ const TUTOR_NAME_KEY = "savelyTutorName";
 
 let syncTimer = null;
 let syncFailed = false;
+// Синхронизация выключена НАСОВСЕМ — только выходом из аккаунта.
 let syncStopped = false;
+// Сервер не ответил при загрузке. Это ВРЕМЕННОЕ состояние, и его надо
+// уметь снимать: сайт — PWA, страница открывается из офлайн-кэша, и
+// одна неудачная проверка на старте (отвалился вайфай, сервер моргнул)
+// раньше убивала синхронизацию до перезагрузки. Ученик проходил урок,
+// видел прогресс у себя, а на сервер не уезжало ничего.
+let apiDown = false;
+let apiRetryTimer = null;
 
 function studentToken() {
   return localStorage.getItem(STUDENT_TOKEN_KEY) || "";
@@ -408,7 +416,7 @@ async function reportBoardResult(cardId, info) {
  *  Мержим, а не заменяем: то, что успели наработать локально, тоже ценно. */
 async function pullProgress() {
   const token = studentToken();
-  if (!token || syncStopped) return false;
+  if (!token || syncStopped || apiDown) return false;
   try {
     const res = await api("/api/student/pull", { token });
     if (!res.ok || !res.state) return false;
@@ -468,7 +476,7 @@ function snapshot() {
 
 async function pushProgress() {
   const token = studentToken();
-  if (!token || syncStopped) return;
+  if (!token || syncStopped || apiDown) return;
   // пустое состояние на сервер не отправляем: это почти всегда признак
   // сброса или сбоя, а UPDATE затрёт репетитору реальный прогресс
   if (!state.user || (!state.dictionary.length && !state.xp)) return;
@@ -536,7 +544,7 @@ async function pushProgress() {
 
 // прогресс копится и уходит пачкой — не дёргаем сервер на каждый клик
 function scheduleSync() {
-  if (syncStopped || !studentToken()) return;
+  if (syncStopped || apiDown || !studentToken()) return;
   clearTimeout(syncTimer);
   syncTimer = setTimeout(pushProgress, 3000);
 }
@@ -796,9 +804,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   // на витрине без сервера не дёргаем API вовсе — иначе каждая
   // синхронизация упиралась бы в 404 хостинга
   if (!(await apiAlive())) {
-    syncStopped = true;
+    apiDown = true;
     const note = document.getElementById("demo-note");
     if (note) note.classList.remove("hidden");
+    scheduleApiRetry();          // не навсегда: сервер может вернуться
     return;
   }
   initInvite();
@@ -811,8 +820,46 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 });
 
+/** Периодически проверяем, не вернулся ли сервер.
+ *
+ *  Событие "online" ловит только возврат СЕТИ. А отвалиться мог сервер
+ *  при живой сети — тогда события не будет вовсе, и без этого таймера
+ *  ученик сидел бы в витринном режиме до перезагрузки страницы. */
+function scheduleApiRetry() {
+  clearTimeout(apiRetryTimer);
+  apiRetryTimer = setTimeout(async () => {
+    if (!apiDown) return;
+    if (await resumeIfBack()) return;
+    scheduleApiRetry();
+  }, 30000);
+}
+
+/** Сервер снова отвечает — возвращаемся к нормальной работе.
+ *  Возвращает true, если получилось. */
+async function resumeIfBack() {
+  if (!apiDown || syncStopped) return false;
+  if (!(await apiAlive())) return false;
+  apiDown = false;
+  clearTimeout(apiRetryTimer);
+  const note = document.getElementById("demo-note");
+  if (note) note.classList.add("hidden");
+  initInvite();
+  if (studentToken()) {
+    await pullProgress();
+    pushProgress();
+    pollBoard();
+  } else {
+    tryPendingJoin();
+  }
+  return true;
+}
+
 // связь вернулась — повторяем то, что не удалось отправить
 window.addEventListener("online", async () => {
+  // Сначала снимаем витринный режим, иначе весь обработчик ниже
+  // бесполезен: pullProgress и pushProgress выходят на первой строке.
+  // Именно так и было — обработчик существовал и не делал ничего.
+  if (apiDown) { await resumeIfBack(); return; }
   tryPendingJoin();
   if (studentToken()) {
     await pullProgress();
@@ -893,7 +940,7 @@ function boardScreenVisible() {
 }
 
 async function pollBoard() {
-  if (!studentToken() || syncStopped) return;
+  if (!studentToken() || syncStopped || apiDown) return;
   try {
     const res = await api("/api/student/board", { token: studentToken() });
     if (res.ok) renderBoardBox(res.board);

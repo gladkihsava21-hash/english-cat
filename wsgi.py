@@ -148,6 +148,14 @@ def _handle(environ, start_response):
             return _json(start_response, {"ok": False, "error": "not_found"}, "404 Not Found")
         try:
             length = int(environ.get("CONTENT_LENGTH") or 0)
+            # Тот же потолок, что и в server.py, и здесь он важнее: под
+            # mod_wsgi работает боевой сайт. Потолка не было — сколько
+            # байт обещал Content-Length, столько и читали в память, а
+            # лимит частоты считается ПОСЛЕ чтения тела и не помогает.
+            if length > server.MAX_BODY_BYTES:
+                return _json(start_response,
+                             {"ok": False, "error": "Слишком большой запрос."},
+                             "413 Payload Too Large")
             payload = json.loads(environ["wsgi.input"].read(length) or b"{}")
         except Exception:
             return _json(start_response, {"ok": False, "error": "bad_json"}, "400 Bad Request")

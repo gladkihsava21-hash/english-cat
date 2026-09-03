@@ -1648,6 +1648,13 @@ def tutor_public(row):
         "plan": plan_id,
         "planName": plan["name"],
         "planPrice": plan["price"],
+        # Сколько выйдет НА САМОМ ДЕЛЕ: тариф плюс доплата за места сверх
+        # лимита. Кабинет показывал planPrice, то есть голую цену тарифа,
+        # а счёт владелец выставлял по admin_tutors, где доплата учтена.
+        # Репетитор с двумя лишними местами видел «799 ₽», а получал счёт
+        # на 1037 ₽ — сумму, которой не было ни на одном экране.
+        # Функция расчёта тут же рядом и уже используется админкой.
+        "monthlyTotal": plan_cost(plan, limit),
         "studentLimit": limit,
         "studentCount": student_count(row["id"]),
         "extraPrice": EXTRA_STUDENT_PRICE,
@@ -2088,8 +2095,22 @@ def student_by_email_any(email):
     входа. Для сброса нужен любой, кто оставил адрес, — иначе тот, кто
     пришёл по ссылке репетитора и потерял личный код, не может ничего.
     """
+    # Сортировка не случайная. Раньше стояло просто ORDER BY id DESC —
+    # то есть брали САМУЮ СВЕЖУЮ строку с этим адресом. А регистрация
+    # «имя + почта, без пароля» занятость адреса не проверяла вовсе, так
+    # что второй аккаунт на ту же почту заводился свободно. Дальше сброс
+    # пароля уводил человека в этот новый пустой кабинет: код приходил на
+    # настоящий ящик, но менял пароль не тому аккаунту. Ученик видел
+    # нулевой прогресс и в свой кабинет по почте попасть уже не мог —
+    # только личным кодом, который обычно и потерян, раз он сбрасывает
+    # пароль.
+    #
+    # Теперь первым идёт аккаунт, у которого пароль УЖЕ задан: именно им
+    # человек и пользовался. Занятость адреса при регистрации тоже
+    # проверяется теперь всегда (server.py, student_register).
     return conn().execute(
-        "SELECT * FROM students WHERE lower(email)=? ORDER BY id DESC LIMIT 1",
+        "SELECT * FROM students WHERE lower(email)=? "
+        "ORDER BY (pass_hash IS NOT NULL AND pass_hash <> '') DESC, id DESC LIMIT 1",
         ((email or "").strip().lower(),)).fetchone()
 
 
@@ -2312,7 +2333,12 @@ def _clean_board_object(o):
         return None
     oid = str(o.get("id", ""))[:40]
     kind = str(o.get("kind", ""))[:16]
-    if not oid or kind not in ("pen", "line", "arrow", "rect", "ellipse",
+    # "marker" — полупрозрачная подсветка. Его в списке не было, хотя
+    # js/board.js его рисует, хранит и шлёт наравне с "pen": сервер
+    # молча выбрасывал такой объект, и репетитор подсвечивал слово,
+    # которое видел только он сам. Форма у него ровно как у "pen"
+    # (точки, цвет, толщина), отдельной обработки не требует.
+    if not oid or kind not in ("pen", "marker", "line", "arrow", "rect", "ellipse",
                                "note", "text", "word", "image", "ping", "bg",
                                "task", "book"):
         return None
@@ -2797,9 +2823,24 @@ def use_check(student_id):
                            "или подожди 1-го числа, лимит обновится.")
 
     over = st["used"] >= st["limit"]   # уходим за лимит — это платная проверка
+    # Считаем ОТ ТЕКУЩЕГО значения в базе, а не от прочитанного выше.
+    #
+    # Раньше писали st["used"] + 1 — то есть «прочитал, посчитал,
+    # записал». Два запроса, пришедшие одновременно (ученик нажал дважды,
+    # или две вкладки), читают одно и то же число и оба пишут одно и то
+    # же: одна проверка уходит бесплатно. Это ровно то, из-за чего в
+    # этом же файле лимит частоты живёт в базе, а не в памяти.
+    #
+    # CASE — про смену месяца: если период в базе другой, счётчик
+    # начинается заново. Одним запросом, чтобы между чтением периода и
+    # записью счётчика ничего не влезло.
+    period = _period()
     conn().execute(
-        "UPDATE students SET checks_used=?, checks_extra=?, checks_period=? WHERE id=?",
-        (st["used"] + 1, st["extra"] + (1 if over else 0), _period(), student_id))
+        "UPDATE students SET "
+        " checks_used  = CASE WHEN checks_period=? THEN COALESCE(checks_used,0)+1 ELSE 1 END,"
+        " checks_extra = CASE WHEN checks_period=? THEN COALESCE(checks_extra,0)+? ELSE ? END,"
+        " checks_period = ? WHERE id=?",
+        (period, period, 1 if over else 0, 1 if over else 0, period, student_id))
     conn().commit()
     return True, check_state(student_id), None
 
@@ -2836,9 +2877,15 @@ def use_chat(student_id):
         return False, None
     if st["left"] <= 0:
         return False, st
+    # То же самое, что и в use_check: считаем от значения в базе,
+    # а не от прочитанного выше, иначе два одновременных сообщения
+    # списывают одно.
+    period = _period()
     conn().execute(
-        "UPDATE students SET chat_used=?, chat_period=? WHERE id=?",
-        (st["used"] + 1, _period(), student_id))
+        "UPDATE students SET "
+        " chat_used = CASE WHEN chat_period=? THEN COALESCE(chat_used,0)+1 ELSE 1 END,"
+        " chat_period = ? WHERE id=?",
+        (period, period, student_id))
     conn().commit()
     return True, chat_state(student_id)
 
@@ -3157,7 +3204,12 @@ def admin_overview():
 
     base_revenue, checks_revenue = 0, 0
     for r in c.execute("SELECT id, plan, student_limit, paid_until FROM tutors"):
-        if not r["paid_until"]:
+        # Считаем только ДЕЙСТВУЮЩИЕ подписки. Здесь проверялось лишь
+        # «paid_until не пусто», то есть репетитор, оплативший один месяц
+        # в июне и больше не вернувшийся, до конца времён добавлял свои
+        # 799 ₽ в «Выручку». По этой цифре владелец принимает решения
+        # о ценах — а она показывала деньги, которых никто не платил.
+        if not r["paid_until"] or paid_left(r) <= 0:
             continue
         plan = plan_by_id(r["plan"] or "trial")
         limit = r["student_limit"] or plan["limit"]

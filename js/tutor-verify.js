@@ -190,7 +190,7 @@ function renderPlan() {
       <div class="plan-head">
         <div>
           <p class="plan-name">${esc(t.planName)}</p>
-          <p class="muted-note">${t.planPrice ? t.planPrice + " ₽ в месяц" : "оплата не начисляется"}</p>
+          <p class="muted-note">${t.monthlyTotal ? t.monthlyTotal + " ₽ в месяц" : "оплата не начисляется"}</p>
         </div>
         <p class="plan-count">${used} <span>из ${limit}</span></p>
       </div>
@@ -239,7 +239,9 @@ function renderPlan() {
   const askFor = n => () => {
     const wordSlot = n === 1 ? "место" : "мест";
     const extraCost = planData.extraPrice * n;
-    const now = t.planPrice || 0;
+    // Считаем от ПОЛНОЙ суммы, а не от цены тарифа: иначе обещали
+    // «станет 918 ₽», а счёт приходил на 1156 ₽.
+    const now = t.monthlyTotal || t.planPrice || 0;
     text.textContent =
       `${n} ${wordSlot} сверх тарифа — плюс ${extraCost} ₽ в месяц. `
       + `Всего станет ${now + extraCost} ₽ в месяц вместо ${now} ₽. `
@@ -316,7 +318,7 @@ function accessBanner(t) {
       ? `${d} ${plural(d, "день", "дня", "дней")}`
       : `${h} ${plural(h, "час", "часа", "часов")}`;
     return `<div class="access-bar">Пробный период: осталось ${text}.
-      Дальше — «${esc(t.planName)}», ${t.planPrice} ₽ в месяц; ученики не платят ничего.</div>`;
+      Дальше — «${esc(t.planName)}», ${t.monthlyTotal} ₽ в месяц; ученики не платят ничего.</div>`;
   }
   return `<div class="access-bar stop">Оформите подписку, чтобы вернуть панель —
     пробный период закончился. Ученики всё это время занимаются как обычно.</div>`;
@@ -333,7 +335,7 @@ function showPaywall(t) {
   const box = document.getElementById("paywall-plan");
   if (box && t) {
     box.innerHTML = `
-      <p class="plan-name">${esc(t.planName)} — ${t.planPrice} ₽/мес</p>
+      <p class="plan-name">${esc(t.planName)} — ${t.monthlyTotal} ₽/мес</p>
       <p class="muted-note">до ${t.studentLimit} учеников · сейчас занимается ${t.studentCount}</p>
       <p class="muted-note">Это вся сумма: с учеников не берём ничего.</p>`;
   }

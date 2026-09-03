@@ -555,6 +555,11 @@ function doLogout() {
   localStorage.removeItem(STORAGE_KEY);
   localStorage.removeItem("savelyStudentToken");
   localStorage.removeItem("savelyTutorName");
+  // Отложенное приглашение по ссылке репетитора. Его тут не стирали, и
+  // на общем компьютере — а это школа, продлёнка, домашний ноутбук на
+  // двоих — следующий человек после регистрации молча привязывался к
+  // ЧУЖОМУ репетитору по ссылке, которую открывал не он.
+  localStorage.removeItem("savelyPendingJoin");
   location.reload();
 }
 

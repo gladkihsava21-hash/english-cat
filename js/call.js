@@ -245,6 +245,17 @@ async function answerCall() {
   CALL.state = "calling";
   CALL.isCaller = false;
   if (!CALL.stream) CALL.stream = await getCallMedia();
+  // Пока браузер спрашивал разрешение на камеру, звонок мог кончиться:
+  // ребёнок ищет кнопку «разрешить», репетитор не дожидается и кладёт
+  // трубку. endCall в этот момент останавливает CALL.stream, которого
+  // ещё нет, — а он появляется здесь, секундой позже, и уже никем не
+  // останавливается. У ученика оставалась гореть камера и висело
+  // мёртвое соединение. Проверяем состояние ПОСЛЕ ожидания.
+  if (CALL.state !== "calling") {
+    if (CALL.stream) CALL.stream.getTracks().forEach(t => t.stop());
+    CALL.stream = null;
+    return;
+  }
   showCallPanel();
   setCallState("соединяем…");
   CALL.pc = buildPeer();

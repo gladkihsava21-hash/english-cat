@@ -35,7 +35,7 @@ import mailer
 # Теперь это видно одним curl /health: цифра совпала с ?v= на странице —
 # приложение перезапущено; не совпала или её нет вовсе — в памяти старый
 # код, надо нажать «Перезапустить приложение» в панели хостинга.
-ASSET_VERSION = 249
+ASSET_VERSION = 250
 
 PORT = int(os.environ.get("SAVELY_PORT", "4210"))
 # За nginx сервер слушает только localhost — снаружи он не должен быть виден
@@ -404,6 +404,9 @@ _HIT_LIMITS = {
     # репетиторы, все дети и их личные коды.
     "/api/admin/login": (10, 600),
 }
+
+# Потолок на тело запроса — см. do_POST и wsgi.py.
+MAX_BODY_BYTES = 12 * 1024 * 1024
 
 
 def rate_ok(path, who):
@@ -1552,15 +1555,22 @@ class Api:
         # Пароль необязателен, но если задан — почта обязательна: без неё
         # входить будет нечем, пароль сам по себе никого не опознаёт.
         password = str(p.get("password", ""))
+        # Занятость адреса проверяем ДО и НЕЗАВИСИМО от пароля.
+        #
+        # Проверка стояла внутри `if password:` — то есть регистрация
+        # «имя + почта, без пароля» заводила второй аккаунт на уже занятый
+        # адрес молча. Дальше «Забыли пароль» уводило человека в этот новый
+        # пустой кабинет: письмо приходило на настоящий ящик, а пароль
+        # менялся не тому аккаунту.
+        if email and db.email_taken_by_student(email):
+            return {"ok": False, "emailTaken": True,
+                    "error": "На эту почту уже есть аккаунт. Войди — вкладка «Вход»."}
         if password:
             if not email:
                 return {"ok": False, "error": "С паролем нужна и почта — по ней будешь входить."}
             problem = db.password_problem(password)
             if problem:
                 return {"ok": False, "error": problem}
-            if db.email_taken_by_student(email):
-                return {"ok": False, "emailTaken": True,
-                        "error": "На эту почту уже есть аккаунт. Войди — вкладка «Вход»."}
         row = db.create_student_standalone(name, email, password or None)
         return {"ok": True, "token": row["token"], "restoreCode": row["restore_code"],
                 "hasPassword": bool(password)}
@@ -2673,6 +2683,18 @@ class Handler(SimpleHTTPRequestHandler):
             return
         try:
             length = int(self.headers.get("Content-Length") or 0)
+            # Потолок на размер тела. Его не было вовсе: сколько байт
+            # обещал Content-Length, столько и читали в память. На общем
+            # хостинге пары параллельных запросов по десятку мегабайт
+            # хватает, чтобы положить сайт живым ученикам, а лимит частоты
+            # тут не спасает — он считается ПОСЛЕ чтения тела.
+            #
+            # 12 МБ, потому что фотография тетради приезжает в base64
+            # (см. /api/photo), а base64 крупнее оригинала примерно на треть.
+            if length > MAX_BODY_BYTES:
+                self._send_json({"ok": False,
+                                 "error": "Слишком большой запрос."}, 413)
+                return
             payload = json.loads(self.rfile.read(length) or b"{}")
         except Exception:
             self._send_json({"ok": False, "error": "bad_json"}, 400)
