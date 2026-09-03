@@ -7,7 +7,7 @@
   <meta name="robots" content="noindex, nofollow">
   <link rel="preload" href="css/fonts/nunito-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="css/fonts/inter-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="css/fonts.css?v=246">
+  <link rel="stylesheet" href="css/fonts.css?v=247">
   <script>
     try {
       var t = localStorage.getItem("savelyTheme");
@@ -16,9 +16,9 @@
       document.documentElement.dataset.theme = t;
     } catch (e) { /* приватный режим */ }
   </script>
-  <link rel="stylesheet" href="css/tokens.css?v=246">
-  <link rel="stylesheet" href="css/style.css?v=246">
-  <link rel="stylesheet" href="css/board.css?v=246">
+  <link rel="stylesheet" href="css/tokens.css?v=247">
+  <link rel="stylesheet" href="css/style.css?v=247">
+  <link rel="stylesheet" href="css/board.css?v=247">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
 </head>
 <body class="board-body">
@@ -37,7 +37,7 @@
   <div class="bd-top-right">
     <span class="bd-live" id="bd-live" hidden>ученик на доске</span>
     <button class="bd-btn" id="bd-phone" title="Видеозвонок" hidden>
-      <span data-icon="phone" data-icon-size="18"></span> Звонок</button>
+      <span data-icon="phone" data-icon-size="18"></span><span class="bd-btn-label"> Звонок</span></button>
     <!-- Доступ: кнопка открывает меню «кого зовём». Раньше был тумблер
          на всех учеников сразу; теперь репетитор зовёт либо всех,
          либо одного — остальные доску даже не видят. -->
@@ -46,7 +46,7 @@
       <div class="bd-share-menu" id="bd-share-menu" hidden></div>
     </div>
     <button class="bd-btn" id="bd-png" title="Скачать картинкой">
-      <span data-icon="download" data-icon-size="18"></span> PNG</button>
+      <span data-icon="download" data-icon-size="18"></span><span class="bd-btn-label"> PNG</span></button>
     <button class="bd-btn" id="bd-clear" title="Очистить доску"
             data-icon="trash" data-icon-size="18"></button>
     <button class="bd-btn" id="bd-bg" title="Фон: точки, клетка, линейка"
@@ -209,13 +209,13 @@
   </div>
 </div>
 
-<script defer src="js/icons.js?v=246"></script>
-<script defer src="js/util.js?v=246"></script>
+<script defer src="js/icons.js?v=247"></script>
+<script defer src="js/util.js?v=247"></script>
 <!-- Образы слов: фотография или эмодзи-заглушка — те же файлы,
      что у ученика, панель слов показывает их превью. -->
-<script defer src="js/images.js?v=246"></script>
-<script defer src="js/word-photos.js?v=246"></script>
-<script defer src="js/board.js?v=246"></script>
-<script defer src="js/call.js?v=246"></script>
+<script defer src="js/images.js?v=247"></script>
+<script defer src="js/word-photos.js?v=247"></script>
+<script defer src="js/board.js?v=247"></script>
+<script defer src="js/call.js?v=247"></script>
 </body>
 </html>

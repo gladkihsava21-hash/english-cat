@@ -133,7 +133,12 @@ def main():
     text = re.sub(r"const ASSETS = \[.*?\];",
                   'const ASSETS = [\n  "./",\n  "./index.html",\n'
                   + listing
-                  + '\n  "./manifest.json",\n  "./icon-192.png",\n];',
+                  # Корневые файлы assets_from_pages() не видит — она
+                  # ищет только css/ и js/. Значок вкладки нужен и офлайн:
+                  # без него установленное приложение показывает пустой
+                  # квадрат вместо кота.
+                  + '\n  "./manifest.json",\n  "./icon-192.png",'
+                    '\n  "./favicon.svg",\n];',
                   text, flags=re.S)
     sw.write_text(text, encoding="utf-8")
 

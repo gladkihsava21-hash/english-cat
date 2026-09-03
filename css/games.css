@@ -104,8 +104,7 @@
   font-weight: 800;
   font-size: var(--text-body-sm);
 }
-/* Без этого display:inline-block перебивает браузерное [hidden] */
-.wheel-answer[hidden] { display: none; }
+
 
 .wheel-panel .btn-wide { width: min(280px, 100%); }
 

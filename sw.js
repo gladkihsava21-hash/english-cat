@@ -13,7 +13,7 @@
 //
 // Список собирается из самих страниц, поэтому новый css или js попадает
 // в офлайн-кэш сам — про него не нужно помнить отдельно.
-const CACHE = "savely-v246";
+const CACHE = "savely-v247";
 const ASSETS = [
   "./",
   "./index.html",
@@ -70,6 +70,7 @@ const ASSETS = [
   "./js/leveltest.js",
   "./manifest.json",
   "./icon-192.png",
+  "./favicon.svg",
 ];
 
 self.addEventListener("install", e => {
