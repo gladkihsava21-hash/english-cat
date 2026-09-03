@@ -20,7 +20,7 @@ import os
 import smtplib
 import subprocess
 from email.message import EmailMessage
-from email.utils import formataddr
+from email.utils import formataddr, formatdate, make_msgid, parseaddr
 
 import db
 
@@ -48,6 +48,24 @@ def _build(to_addr, subject, body, sender):
     msg["Subject"] = subject
     msg["From"] = sender
     msg["To"] = to_addr
+
+    # Date и Message-ID добавляем руками — без них письма уходили в спам.
+    #
+    # Ни EmailMessage, ни smtplib.send_message их не проставляют, а Date по
+    # RFC 5322 обязателен, и отсутствие обоих — учебниковый признак
+    # спам-рассылки. Особенно строг Gmail, а именно туда пишет большинство
+    # репетиторов. То есть письмо могло честно уйти, пройти SPF и всё равно
+    # не попасться человеку на глаза.
+    #
+    # Домен для Message-ID берём из адреса отправителя, а не из константы:
+    # он задаётся в mail.conf и на другой площадке будет другим, а
+    # Message-ID с чужим доменом хуже, чем никакого.
+    domain = (parseaddr(sender)[1].rsplit("@", 1) + ["wordcat.ru"])[1] or "wordcat.ru"
+    msg["Date"] = formatdate(localtime=True)
+    msg["Message-ID"] = make_msgid(domain=domain)
+    # Транзакционное письмо: не надо ни автоответов, ни «вас нет на месте».
+    msg["Auto-Submitted"] = "auto-generated"
+
     msg.set_content(body)
     return msg
 
