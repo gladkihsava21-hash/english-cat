@@ -690,6 +690,15 @@ def delete_group(tutor_id, group_id):
     # учеников не трогаем — они просто остаются без группы
     conn().execute("UPDATE students SET group_id=NULL WHERE group_id=? AND tutor_id=?",
                    (group_id, tutor_id))
+    # Домашку группы АРХИВИРУЕМ, а не обнуляем ей группу.
+    #
+    # Раньше стояло group_id=NULL — и такая домашка становилась «ничьей»:
+    # в homework_for_student ветка «ни ученика, ни группы» означает «всем»,
+    # поэтому задание для 9 класса после удаления группы прилетало ВСЕМ
+    # ученикам репетитора, включая пятиклассников. Репетитор при этом
+    # просто убирал ненужную группу и ничего такого не ожидал.
+    conn().execute("UPDATE homework SET archived=1 WHERE group_id=? AND tutor_id=?",
+                   (group_id, tutor_id))
     conn().execute("UPDATE homework SET group_id=NULL WHERE group_id=? AND tutor_id=?",
                    (group_id, tutor_id))
     conn().execute("DELETE FROM groups WHERE id=? AND tutor_id=?", (group_id, tutor_id))
@@ -1134,6 +1143,17 @@ def _purge_student_rows(student_id):
     conn().execute("DELETE FROM photo_homework WHERE student_id=?", (student_id,))
     conn().execute("DELETE FROM notes_to_students WHERE student_id=?", (student_id,))
     conn().execute("DELETE FROM homework WHERE student_id=?", (student_id,))
+    # Приглашение на доску. Появилось позже остальных ссылок (кнопка
+    # «кого зовём»), и в этот список его добавить забыли — а значит
+    # DELETE FROM students падал на внешнем ключе У ВСЕХ, кого хоть раз
+    # звали на доску. Падал ПОСЛЕ трёх строк выше: фотографии тетрадей
+    # уже стёрты с диска, домашка удалена, а ученик на месте.
+    # Проверено запуском на копии боевой базы.
+    #
+    # Доску не удаляем — она принадлежит репетитору и переживает ученика;
+    # снимаем только приглашение, и она становится «для всех».
+    conn().execute("UPDATE boards SET invited_student_id=NULL WHERE invited_student_id=?",
+                   (student_id,))
 
 
 def delete_student(tutor_id, student_id):
@@ -1143,9 +1163,18 @@ def delete_student(tutor_id, student_id):
     row = get_student_by_id(student_id)
     if not row or row["tutor_id"] != tutor_id:
         return False
-    _purge_student_rows(student_id)
-    conn().execute("DELETE FROM students WHERE id=?", (student_id,))
-    conn().commit()
+    # Всё удаление — одной транзакцией. Список связанных таблиц ручной,
+    # значит рано или поздно снова отстанет от схемы; пусть в этом случае
+    # откатывается целиком, а не оставляет ученика без домашек и фотографий.
+    c = conn()
+    try:
+        c.execute("BEGIN IMMEDIATE")
+        _purge_student_rows(student_id)
+        c.execute("DELETE FROM students WHERE id=?", (student_id,))
+        c.commit()
+    except Exception:
+        c.rollback()
+        raise
     return True
 
 
@@ -3207,12 +3236,24 @@ def admin_delete_tutor(tutor_id):
                 os.remove(full)
             except OSError:
                 pass
-    # tasksets — после homework: домашка ссылается на набор (foreign_keys=ON)
-    for table in ("photo_homework", "homework", "notes_to_students", "students", "groups",
-                  "tasksets"):
-        c.execute("DELETE FROM %s WHERE tutor_id=?" % table, (tutor_id,))
-    c.execute("DELETE FROM tutors WHERE id=?", (tutor_id,))
-    c.commit()
+    # Порядок важен и держится на внешних ключах (foreign_keys=ON):
+    #   tasksets — после homework: домашка ссылается на набор;
+    #   boards и books — ДО students: доска ссылается на приглашённого
+    #     ученика, и без этого DELETE FROM students падал, успев стереть
+    #     фотографии и домашку. Репетитор при этом оставался в базе —
+    #     то есть кабинет «удалялся» ровно наполовину.
+    # Всё одной транзакцией: список ручной и однажды снова отстанет от
+    # схемы, но тогда откатится целиком.
+    try:
+        c.execute("BEGIN IMMEDIATE")
+        for table in ("photo_homework", "homework", "notes_to_students", "boards", "books",
+                      "students", "groups", "tasksets"):
+            c.execute("DELETE FROM %s WHERE tutor_id=?" % table, (tutor_id,))
+        c.execute("DELETE FROM tutors WHERE id=?", (tutor_id,))
+        c.commit()
+    except Exception:
+        c.rollback()
+        raise
 
 
 def create_reading_result(tutor_id, student_id, homework_id, score, result):
