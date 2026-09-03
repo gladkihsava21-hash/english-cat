@@ -954,7 +954,16 @@ class Api:
         # и лишний шаг «нажмите отправить» тут только раздражает
         sent, send_error = True, None
         try:
-            mailer.send_verify_code(row["email"], row["name"], db.set_verify_code(row["id"]))
+            how = mailer.send_verify_code(row["email"], row["name"],
+                                          db.set_verify_code(row["id"]))
+            if how == "fallback":
+                # SMTP отказал, письмо ушло в sendmail — а он на хостинге
+                # рапортует успех всегда. Обещать доставку в этом случае
+                # нельзя: экран подтверждения умеет показывать неудачу и
+                # подсвечивать «Отправить ещё раз», надо просто сказать
+                # ему правду.
+                sent = False
+                send_error = "Письмо могло не дойти: почта сейчас барахлит."
         except Exception as e:
             report_error("mail/verify", e, {"token": row["token"], "_ip": ip})
             # Только факт, без совета: что делать дальше, говорит экран
@@ -1984,6 +1993,15 @@ class Api:
             report_error("mail/verify", e, p)
             return {"ok": False,
                     "error": "Письмо не ушло. Проверьте адрес или напишите @KOTSAVELII — подтвердим вручную."}
+        if how == "fallback":
+            # Тот же случай, что и при регистрации: отказ SMTP молча
+            # подменяется sendmail. Второе нажатие «ещё раз» упрётся в тот
+            # же отказ, поэтому сразу говорим про ручное подтверждение —
+            # оно в админке есть.
+            return {"ok": False, "sentVia": how,
+                    "error": "Письмо могло не дойти: почта сейчас барахлит. "
+                             "Проверьте папку «Спам», а если письма нет — "
+                             "напишите @KOTSAVELII, подтвердим вручную."}
         return {"ok": True, "sentVia": how}
 
     @staticmethod
