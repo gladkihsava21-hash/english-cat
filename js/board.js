@@ -1356,7 +1356,7 @@ async function loadStudents() {
     $("bd-student").hidden = true;
     try {
       const st = JSON.parse(localStorage.getItem("savelyState") || "{}");
-      BD.words = (st.dictionary || []).map(d => ({ w: d.w, t: d.t }));
+      BD.words = (st.dictionary || []).map(d => ({ w: d.w, t: d.t, cat: d.cat }));
     } catch (e) { BD.words = []; }
     renderWords();
     return;
@@ -1377,7 +1377,7 @@ async function loadStudents() {
 async function loadWords(studentId) {
   const res = await api("/api/tutor/student", { token: BD.token, studentId: Number(studentId) });
   if (!res.ok) { BD.words = []; renderWords(); return; }
-  BD.words = (res.student.dictionary || []).map(d => ({ w: d.w, t: d.t }));
+  BD.words = (res.student.dictionary || []).map(d => ({ w: d.w, t: d.t, cat: d.cat }));
   renderWords();
 }
 
@@ -1387,7 +1387,10 @@ function renderWords() {
     !q || x.w.toLowerCase().includes(q) || (x.t || "").toLowerCase().includes(q)).slice(0, 300);
   const box = $("bd-word-list");
   box.innerHTML = list.length
-    ? list.map((x, i) => `<button class="bd-word" data-i="${i}"><b>${esc(x.w)}</b><span>${esc(x.t || "")}</span></button>`).join("")
+    ? list.map((x, i) => `<button class="bd-word" data-i="${i}">${
+        typeof wordArtHTML === "function"
+          ? `<span class="bd-word-art">${wordArtHTML(x.w, x.cat)}</span>` : ""
+      }<span class="bd-word-txt"><b>${esc(x.w)}</b><span>${esc(x.t || "")}</span></span></button>`).join("")
     : `<p class="bd-hint">Ничего не нашлось.</p>`;
   box.querySelectorAll("[data-i]").forEach(b => {
     b.addEventListener("click", () => {
