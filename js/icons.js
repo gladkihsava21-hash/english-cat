@@ -157,6 +157,17 @@ const EMOJI_RE = new RegExp(EMOJI_SRC, "g");
 
 const SKIP = new Set(["SCRIPT", "STYLE", "TEXTAREA", "SVG"]);
 
+// Своё экранирование, а не esc() из util.js: icons.js подключается
+// раньше него, и полагаться на порядок загрузки в такой функции нельзя.
+function escapeText(s) {
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 function swapEmoji(root) {
   const start = root || document.body;
   if (!start) return;
@@ -175,7 +186,24 @@ function swapEmoji(root) {
 
   hits.forEach(node => {
     EMOJI_RE.lastIndex = 0;
-    const html = node.nodeValue.replace(EMOJI_RE, m => {
+    // Экранируем ТЕКСТ, прежде чем собирать из него разметку.
+    //
+    // Здесь была дыра, и опасная: node.nodeValue — это уже РАЗОБРАННЫЙ
+    // текст. Если сайт честно пропустил сообщение через esc(), браузер
+    // при разборе вернул «&lt;img&gt;» обратно в «<img>», и в текстовом
+    // узле лежат настоящие угловые скобки. Присваивая такую строку в
+    // innerHTML ниже, мы разбирали её как разметку заново — то есть
+    // сами отменяли экранирование.
+    //
+    // Воспроизводится: репетитор пишет ученикам сообщение
+    // «Молодцы 🎉<img src=x onerror=...>» — эмодзи нужна, иначе узел
+    // сюда не попадает, — и скрипт выполняется у КАЖДОГО ученика,
+    // который откроет сообщение. Проверено: утекает
+    // localStorage.savelyStudentToken, то есть доступ к его кабинету.
+    //
+    // Сама подмена эмодзи на значок разметку требует, поэтому просто
+    // отказаться от innerHTML нельзя — экранируем всё, кроме неё.
+    const html = escapeText(node.nodeValue).replace(EMOJI_RE, m => {
       const svg = icon(EMOJI_TO_ICON[m], 16);
       return svg ? `<span class="ic-inline">${svg}</span>` : m;
     });
