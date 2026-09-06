@@ -1025,7 +1025,15 @@ $("hw-custom").addEventListener("submit", e => {
   const en = $("hw-own-en").value.trim();
   const ru = $("hw-own-ru").value.trim();
   if (!en || !ru) return;
-  togglePick({ w: en, t: ru, ex: "", level: $("hw-level").value });
+  // Добавляем, а не переключаем.
+  //
+  // Здесь стоял togglePick, и он СНИМАЕТ слово, если оно уже выбрано:
+  // репетитор вводил своё слово, не помнил, что уже добавлял его, жал
+  // «добавить» — и слово молча пропадало из выборки. Выглядело как
+  // «кнопка не работает», а на деле работала наоборот.
+  if (!picked.some(x => (x.w || "").toLowerCase() === en.toLowerCase())) {
+    togglePick({ w: en, t: ru, ex: "", level: $("hw-level").value });
+  }
   $("hw-own-en").value = "";
   $("hw-own-ru").value = "";
 });

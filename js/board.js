@@ -182,11 +182,31 @@ const BOOK_CACHE = new Map();   // "bookId:page" -> { img | null (грузитс
 function bookPageFor(o) {
   const key = o.bookId + ":" + o.page;
   const rec = BOOK_CACHE.get(key);
-  if (rec) return rec.img && rec.img.complete ? rec.img : null;
+  if (rec) {
+    // Неудачную попытку повторяем не раньше чем через полминуты.
+    if (rec.failedAt && performance.now() - rec.failedAt > 30000) {
+      BOOK_CACHE.delete(key);
+    } else {
+      return rec.img && rec.img.complete ? rec.img : null;
+    }
+  }
   BOOK_CACHE.set(key, { img: null });
   api("/api/book/page", { token: BD.token, bookId: o.bookId, page: o.page })
     .then(res => {
-      if (!res.ok) { BOOK_CACHE.delete(key); return; }
+      if (!res.ok) {
+        // Помечаем неудачу и НЕ стираем запись.
+        //
+        // Раньше тут стоял BOOK_CACHE.delete(key), и это устраивало
+        // лавину: paint() зовёт bookPageFor на каждой отрисовке, запись
+        // исчезла — значит запрос уходит заново, и так по кругу десятки
+        // раз в секунду. Достаточно было моргнуть сети или получить одну
+        // ошибку от сервера, чтобы доска начала долбить его без остановки.
+        //
+        // Через полминуты пробуем ещё раз: страница могла не отдаться
+        // из-за временного сбоя, и запирать книгу навсегда тоже нельзя.
+        BOOK_CACHE.set(key, { img: null, failedAt: performance.now() });
+        return;
+      }
       const img = new Image();
       img.onload = paint;
       img.src = res.src;

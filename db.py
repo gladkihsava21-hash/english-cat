@@ -2273,6 +2273,7 @@ SINGLE_CHECK_PRICE = 29  # разовая проверка без подписк
 # ---------- доски для урока ----------
 
 BOARD_MAX_OBJECTS = 3000      # больше на один урок не нарисовать
+BOARD_MAX_TOMBS = 1000        # надгробий удалённых объектов — см. apply_board_changes
 BOARD_MAX_BYTES = 8_000_000   # 8 МБ на доску: картинки тяжелее линий, но
                               # полинг тянет только новое (since rev), так что
                               # это разовая передача, а не постоянный трафик
@@ -2506,13 +2507,32 @@ def board_sync(board_id, changes, deletes, since, author):
         o = _clean_board_object(raw)
         if not o:
             continue
-        if len(data) >= BOARD_MAX_OBJECTS and o["id"] not in data:
-            break
+        # Лимит считаем по ЖИВЫМ объектам, а не по всем записям.
+        #
+        # Удалённое не исчезает: остаётся надгробие kind="gone", по нему
+        # второй участник узнаёт, что штрих стёрли. Но в len(data) они
+        # попадали наравне с живыми, и доска, на которой час рисовали и
+        # стирали, упиралась в потолок из одних надгробий — и МОЛЧА
+        # переставала принимать новое. Ни ошибки, ни подсказки: репетитор
+        # ведёт по доске, а линия не появляется.
+        if o["id"] not in data:
+            alive = sum(1 for v in data.values() if v.get("kind") != "gone")
+            if alive >= BOARD_MAX_OBJECTS:
+                break
         rev += 1
         o["rev"] = rev
         o["by"] = author[:24]
         data[o["id"]] = o
         touched = True
+
+    # Надгробий тоже не должно копиться без края: держим последние
+    # BOARD_MAX_TOMBS, самые старые по rev выбрасываем. Тот, кто был
+    # офлайн дольше этого, всё равно перечитывает доску целиком.
+    tombs = [(v.get("rev", 0), k) for k, v in data.items() if v.get("kind") == "gone"]
+    if len(tombs) > BOARD_MAX_TOMBS:
+        tombs.sort()
+        for _, k in tombs[:len(tombs) - BOARD_MAX_TOMBS]:
+            data.pop(k, None)
 
     for oid in (deletes or [])[:400]:
         key = str(oid)[:40]

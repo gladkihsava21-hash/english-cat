@@ -2603,8 +2603,20 @@ const EX_RUNNERS = {
     const rights = new Set();
     // Ключ с уровнем: журнал показанного у каждого уровня свой, иначе
     // после смены уровня половина пар считалась бы уже виденной.
-    for (const c of pickFresh("colloc:" + lvl, bank, 8, c => c.h + " " + c.tl)) {
+    // Пара не должна конфликтовать с уже выбранными.
+    //
+    // Конфликт — это когда глагол одной пары ТОЖЕ подходит к хвосту
+    // другой: «tell» и «a secret» из разных пар дают верное сочетание,
+    // но игра считает верной только банковскую «keep a secret», и
+    // ученик, ответивший правильно, получал ошибку. Список таких
+    // случаев — COLLOC_ALSO в js/levels.js.
+    const also = typeof COLLOC_ALSO === "object" ? COLLOC_ALSO : {};
+    const conflicts = c => picks.some(p =>
+      (also[p.tl] || []).includes(c.h) || (also[c.tl] || []).includes(p.h));
+
+    for (const c of pickFresh("colloc:" + lvl, bank, 24, c => c.h + " " + c.tl)) {
       if (rights.has(c.tl)) continue;
+      if (conflicts(c)) continue;
       rights.add(c.tl);
       picks.push(c);
       if (picks.length === 5) break;

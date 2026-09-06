@@ -37,6 +37,33 @@ const CATEGORY_NAMES = {
 
 // Устойчивые сочетания (Collocation Matching) — пары подобраны так,
 // чтобы перекрёстные комбинации были ошибочными
+/* Перекрёстно ВЕРНЫЕ сочетания.
+ *
+ * Банк собран так, чтобы перекрёстные комбинации были ошибочными, но
+ * семнадцать пар это правило нарушают: «tell a secret», «take a decision»,
+ * «have a shower» — правильный английский, хотя в банке у этих хвостов
+ * стоят другие глаголы. Попади такая пара в один подход с «keep a secret»,
+ * и ученик, ответивший верно, получал ошибку.
+ *
+ * Здесь: хвост → глаголы, которые к нему ТОЖЕ подходят. Игра разводит
+ * такие пары по разным подходам (см. exercises.js, collocations).
+ * Убирать сами сочетания из банка нельзя — они частотные и нужны. */
+const COLLOC_ALSO = {
+  "a photo": ["make"],
+  "a promise": ["make", "give"],
+  "notes": ["make"],
+  "a call": ["make"],
+  "a favour": ["do"],
+  "a decision": ["take"],
+  "a rest": ["take"],
+  "time": ["take", "have", "give"],
+  "a seat": ["take", "have"],
+  "a shower": ["have"],
+  "a break": ["have"],
+  "a secret": ["tell"],
+  "a party": ["give"],
+};
+
 const COLLOCATIONS = [
   { h: "make", tl: "a decision" , lvl: "B1" },
   { h: "do", tl: "homework" , lvl: "A1" },
