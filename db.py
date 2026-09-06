@@ -1779,6 +1779,17 @@ def photo_path(file_name: str):
     return full
 
 
+def photos_for_homework(homework_id):
+    """Сколько снимков уже приложено к этой домашке.
+
+    По этому числу server.py держит правило PHOTOS_PER_CHECK. Правило
+    было объявлено и даже отдавалось клиенту как maxPhotos, но нигде не
+    проверялось: клиент мог его и не спросить."""
+    return conn().execute(
+        "SELECT COUNT(*) FROM photo_homework WHERE homework_id=? AND archived=0",
+        (homework_id,)).fetchone()[0]
+
+
 def photo_count_for_student(student_id):
     """Сколько снимков ученика ещё не разобрал репетитор.
 

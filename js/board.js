@@ -873,11 +873,23 @@ canvas.addEventListener("pointerup", () => {
     moving = null;
     return;
   }
+  finishStroke();
+});
+
+/** Завершить начатый штрих: короткий выбросить, нормальный сохранить.
+ *
+ *  Вынесено из pointerup, потому что штрих обрывается не только пальцем,
+ *  который подняли. Второй палец (начало щипка для масштаба) раньше делал
+ *  просто `drawing = null` — а объект к этому моменту уже лежит в
+ *  BD.objects, иначе его не было бы видно во время рисования. В BD.dirty
+ *  он при этом не попадал: штрих оставался призраком — автор его видит,
+ *  ученик нет, и после перезагрузки он исчезает. */
+function finishStroke() {
   if (!drawing) return;
   if (drawing.erase) { drawing = null; return; }
   const o = drawing;
   drawing = null;
-  if ((o.kind === "pen" || o.kind === "marker") && o.pts.length < 4) {
+  if ((o.kind === "pen" || o.kind === "marker") && (o.pts || []).length < 4) {
     BD.objects.delete(o.id); paint(); return;      // случайный тычок
   }
   if (["rect", "ellipse", "arrow", "line"].includes(o.kind)
@@ -885,7 +897,7 @@ canvas.addEventListener("pointerup", () => {
     BD.objects.delete(o.id); paint(); return;
   }
   put(o);
-});
+}
 
 /* Колесо: зум к курсору, а не к центру — иначе нужное место убегает. */
 canvas.addEventListener("wheel", e => {
@@ -910,7 +922,11 @@ function zoomAt(sx, sy, factor) {
 let pinch = null;
 canvas.addEventListener("touchstart", e => {
   if (e.touches.length === 2) {
-    drawing = null;
+    // Второй палец — это щипок для масштаба. Начатый штрих доводим до
+    // конца по общему правилу, а не бросаем: короткий отбросится сам,
+    // нормальный уедет ученику. Раньше здесь стояло `drawing = null`,
+    // и штрих оставался призраком на экране рисующего.
+    finishStroke();
     const [a, b] = e.touches;
     pinch = { d: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY),
               x: (a.clientX + b.clientX) / 2, y: (a.clientY + b.clientY) / 2 };

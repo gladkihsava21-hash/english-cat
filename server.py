@@ -35,7 +35,7 @@ import mailer
 # Теперь это видно одним curl /health: цифра совпала с ?v= на странице —
 # приложение перезапущено; не совпала или её нет вовсе — в памяти старый
 # код, надо нажать «Перезапустить приложение» в панели хостинга.
-ASSET_VERSION = 256
+ASSET_VERSION = 257
 
 PORT = int(os.environ.get("SAVELY_PORT", "4210"))
 # За nginx сервер слушает только localhost — снаружи он не должен быть виден
@@ -2125,6 +2125,13 @@ class Api:
                     "Фото тетради смотрит репетитор, а у тебя его пока нет. "
                     "Попроси у своего репетитора ссылку-приглашение."}
 
+        # id домашки читаем заранее — он нужен для проверки предела ниже.
+        # Полная сверка владельца остаётся там, где была.
+        try:
+            hw_id_early = int(p.get("homeworkId")) if p.get("homeworkId") else None
+        except (TypeError, ValueError):
+            hw_id_early = None
+
         raw = str(p.get("image") or "")
         if "," in raw and raw.startswith("data:"):
             head, raw = raw.split(",", 1)
@@ -2152,6 +2159,14 @@ class Api:
         # и тогда место освобождается. Шестьдесят — это заметно больше,
         # чем накапливается между занятиями, так что честный ученик в
         # предел не упрётся.
+        # «Не больше пяти снимков на одну домашку» — правило объявлено в
+        # db.PHOTOS_PER_CHECK и отдаётся клиенту как maxPhotos, но на
+        # сервере не проверялось нигде. Клиент может и не спросить.
+        if hw_id_early and db.photos_for_homework(int(hw_id_early)) >= db.PHOTOS_PER_CHECK:
+            return {"ok": False, "error":
+                    "К одной домашке можно приложить не больше %d снимков. "
+                    "Пришли остальные отдельным сообщением." % db.PHOTOS_PER_CHECK}
+
         if db.photo_count_for_student(row["id"]) >= PHOTO_KEEP_PER_STUDENT:
             return {"ok": False, "error":
                     "Слишком много неразобранных фото. Подожди, пока "

@@ -90,11 +90,23 @@ document.addEventListener("DOMContentLoaded", () => {
     e.preventDefault();
     const err = $$("reset-error");
     err.textContent = "";
-    const res = await api("/api/tutor/password/reset", {
-      recoveryCode: $$("r-code").value.trim().toUpperCase(),
-      newPassword: $$("r-pass").value,
-    });
-    if (!res.ok) { err.textContent = res.error || "Не получилось."; return; }
+    // Ловим обрыв связи. api() делает fetch и res.json() без защиты, то
+    // есть при отсутствии сети (или 502 от хостинга с html вместо json)
+    // ЗДЕСЬ БРОСАЕТСЯ исключение — и строка с сообщением ниже просто не
+    // выполняется. Репетитор жал «Сменить пароль» и не видел ровно
+    // ничего: ни успеха, ни ошибки, а обещанный код уже потрачен.
+    let res;
+    try {
+      res = await api("/api/tutor/password/reset", {
+        recoveryCode: $$("r-code").value.trim().toUpperCase(),
+        newPassword: $$("r-pass").value,
+      });
+    } catch (e) {
+      err.textContent = "Нет связи с сервером. Проверьте интернет и попробуйте ещё раз — "
+                      + "код восстановления при этом не потрачен.";
+      return;
+    }
+    if (!res || !res.ok) { err.textContent = (res && res.error) || "Не получилось."; return; }
     localStorage.setItem("savelyTutorToken", res.token);
     location.reload();
   });

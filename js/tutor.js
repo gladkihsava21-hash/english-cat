@@ -489,7 +489,23 @@ function activityStrip(activity) {
 
 async function openStudent(id) {
   const res = await api("/api/tutor/student", { token: token(), studentId: id });
-  if (!res.ok) return;
+  if (!res.ok) {
+    // Молчать нельзя. Отказ здесь означает одно из двух: ученика уже
+    // удалили (с другого устройства или из админки) либо отвалилась сеть.
+    // Раньше был голый return: репетитор жал «открыть карточку», не
+    // происходило РОВНО НИЧЕГО, и понять, сломалась кнопка или сайт,
+    // было невозможно.
+    // Показываем прямо в окне, которое репетитор и открывал: своего
+    // тостера в панели нет, а alert запрещён конвенцией проекта.
+    const body = $("modal-body");
+    if (body) {
+      body.innerHTML = `<p class="muted-note">${esc(res.error === "unknown_student"
+        ? "Этого ученика больше нет — карточку не открыть. Обновите список."
+        : "Не получилось открыть карточку. Проверьте связь и попробуйте ещё раз.")}</p>`;
+      openModal("stu-modal");
+    }
+    return;
+  }
   const s = res.student;
   const w = s.words || {};
   const grp = groupById(s.groupId);
