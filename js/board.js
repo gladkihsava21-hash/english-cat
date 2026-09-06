@@ -666,18 +666,30 @@ canvas.addEventListener("pointerdown", e => {
       resizing = { id: rz.id, orig: { ...rz }, b: bounds(rz) };
       return;
     }
+    // Двойное нажатие: своё, а не e.detail.
+    //
+    // e.detail считает браузер, и для КАСАНИЙ он его не заполняет —
+    // приходит 0. То есть перевернуть карточку со словом или открыть
+    // заметку двойным тапом на планшете и телефоне было нельзя вовсе,
+    // а именно iPad назван в css/board.css основным устройством урока.
+    // Мышью работало, поэтому и не замечали.
+    const now = performance.now();
+    const near = BD._tapAt && Math.hypot(w.x - BD._tapAt.x, w.y - BD._tapAt.y) < 24;
+    const isDouble = near && (now - BD._tapAt.t) < 350;
+    BD._tapAt = { x: w.x, y: w.y, t: now };
+
     const hit = hitTest(w.x, w.y);
     BD.selected = hit ? hit.id : null;
     if (hit) {
       // Карточка со словом переворачивается по нажатию — это её смысл
-      if (hit.kind === "word" && e.detail === 2) {
+      if (hit.kind === "word" && (e.detail === 2 || isDouble)) {
         put({ ...hit, h: hit.h > 70 ? 62 : 96 });
         return;
       }
       // Дабл-клик по заметке или тексту — дописать. Раньше текст можно
       // было ввести ровно один раз при создании, и всё: повторного входа
       // в редактор не существовало (жалоба владельца).
-      if ((hit.kind === "note" || hit.kind === "text") && e.detail === 2) {
+      if ((hit.kind === "note" || hit.kind === "text") && (e.detail === 2 || isDouble)) {
         e.preventDefault();
         openEditor(hit);
         return;

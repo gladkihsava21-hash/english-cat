@@ -1077,8 +1077,15 @@ $("hw-send").addEventListener("click", async () => {
     : game === "wordform" ? "Словообразование"
     : readingText && !taskText ? "Чтение вслух" : "Задание";
   msg.textContent = `Готово! ${what} — отправлено: ${who}. Результат появится на вкладке «Домашки».`;
+  // Чистим ВСЮ форму, а не только слова и заголовок.
+  //
+  // Текст задания, текст для чтения и срок оставались лежать после
+  // отправки. Репетитор выдавал следующую домашку другому ученику — и
+  // к ней молча прицеплялся текст от предыдущей: ребёнок получал чужое
+  // задание, а Ирина об этом не знала.
   picked = [];
-  $("hw-title").value = "";
+  ["hw-title", "hw-task", "hw-reading", "hw-due", "hw-own-en", "hw-own-ru"]
+    .forEach(id => { const el = $(id); if (el) el.value = ""; });
   renderWordPicker();
   renderPicked();
   loadStudents();

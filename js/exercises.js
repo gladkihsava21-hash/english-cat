@@ -192,6 +192,10 @@ function shuffled(arr) {
  * её при смене устройства не жалко. */
 const EX_SEEN_KEY = "savelyExSeen";
 
+// Секундный отсчёт «Блица». Снаружи игры, чтобы новая партия могла
+// погасить таймер предыдущей — см. blitz().
+let blitzTimer = null;
+
 /* Сколько грамматических заданий выдаём за один подход.
  *
  * Не фиксированное число, а половина банка темы — и вот почему. Методист
@@ -2479,6 +2483,15 @@ const EX_RUNNERS = {
 
   blitz() {
     const DURATION = 60;
+    // Гасим таймер прошлой игры, если он ещё тикает.
+    //
+    // Секундный отсчёт живёт в замыкании и убирает себя сам — но только
+    // когда не находит своего элемента на странице. Ученик, бросивший
+    // «Блиц» и вернувшийся в него быстрее, чем через секунду, получал
+    // старый элемент обратно: два отсчёта писали в одно и то же поле,
+    // новая игра шла с чужим временем и обрывалась раньше срока.
+    // Ссылка на таймер лежит снаружи именно для этого.
+    if (blitzTimer) { clearInterval(blitzTimer); blitzTimer = null; }
     let score = 0, streak = 0, timeLeft = DURATION, timer = null;
     const asked = new Set();
     const nextWord = () => {
@@ -2514,13 +2527,14 @@ const EX_RUNNERS = {
         <p class="muted-small">3 верных подряд — очки ×2!</p>
       </div>`;
     nextWord();
-    timer = setInterval(() => {
+    timer = blitzTimer = setInterval(() => {
       timeLeft--;
       const el = document.getElementById("blitz-time");
-      if (!el) { clearInterval(timer); return; }
+      if (!el) { clearInterval(timer); if (blitzTimer === timer) blitzTimer = null; return; }
       el.textContent = timeLeft;
       if (timeLeft <= 0) {
         clearInterval(timer);
+        if (blitzTimer === timer) blitzTimer = null;
         const best = Math.max(score, state.blitzBest || 0);
         const isRecord = score > 0 && score >= best && score > (state.blitzBest || 0);
         state.blitzBest = best;

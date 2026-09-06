@@ -131,7 +131,12 @@ def main():
     text = sw.read_text(encoding="utf-8")
     text = re.sub(r'const CACHE = "savely-v\d+";', f'const CACHE = "savely-v{ver}";', text)
     text = re.sub(r"const ASSETS = \[.*?\];",
-                  'const ASSETS = [\n  "./",\n  "./index.html",\n'
+                  # ВСЕ страницы, а не только index.html. Раньше в кэш
+                  # попадала одна главная, и sw.js на любой офлайн-переход
+                  # отдавал её же: репетитор открывал панель без сети и
+                  # видел детский сайт вместо своего кабинета.
+                  'const ASSETS = [\n  "./",\n'
+                  + "".join('  "./%s",\n' % pg for pg in PAGES)
                   + listing
                   # Корневые файлы assets_from_pages() не видит — она
                   # ищет только css/ и js/. Значок вкладки нужен и офлайн:

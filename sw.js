@@ -13,10 +13,13 @@
 //
 // Список собирается из самих страниц, поэтому новый css или js попадает
 // в офлайн-кэш сам — про него не нужно помнить отдельно.
-const CACHE = "savely-v253";
+const CACHE = "savely-v254";
 const ASSETS = [
   "./",
   "./index.html",
+  "./tutor.html",
+  "./admin.html",
+  "./board.html",
   "./css/fonts/nunito-cyrillic.woff2",
   "./css/fonts/inter-cyrillic.woff2",
   "./css/fonts.css",
@@ -142,11 +145,21 @@ self.addEventListener("fetch", e => {
           // SyntaxError на каждом файле, а страница остаётся пустой.
           // Ровно это и происходило, пока обе строчки были одной.
           if (e.request.mode === "navigate") {
+            // Отдаём ЗАПРОШЕННУЮ страницу, а уже потом главную.
+            //
+            // Здесь стояло caches.match("./index.html") без вариантов, и
+            // офлайн любая страница подменялась детским сайтом: репетитор
+            // открывал tutor.html без сети и попадал на страницу ученика,
+            // с доски — туда же. Понять, что это офлайн, а не поломка,
+            // было невозможно.
+            //
             // caches.match может вернуть undefined — например, если первая
             // же загрузка сайта случилась без сети и класть в кэш было
-            // нечего. respondWith(undefined) роняет обработчик, и ученик
+            // нечего. respondWith(undefined) роняет обработчик, и человек
             // видит служебную страницу браузера «сайт недоступен».
-            return caches.match("./index.html").then(page => page || OFFLINE_PAGE());
+            return caches.match(e.request)
+              .then(page => page || caches.match("./index.html"))
+              .then(page => page || OFFLINE_PAGE());
           }
           return new Response("", { status: 504, statusText: "Offline" });
         })

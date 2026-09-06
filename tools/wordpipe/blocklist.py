@@ -36,6 +36,9 @@ intercourse kinky lust masturbate masturbation nipple orgasm orgy penis
 pimp porn porno pornography prostitute prostitution pubic scrotum semen
 sexual sexuality sexy sperm striptease stripper testicle threesome tit
 tits vagina viagra vulva wank
+bukkake blowjob bdsm cumshot deepthroat dominatrix fellatio fetish
+gangbang hentai libido nudity nymph orgasmic paedophile pedophile
+promiscuous seduce seduction sodomy strapon voyeur
 """
 
 # Наркотики и одурманивание
