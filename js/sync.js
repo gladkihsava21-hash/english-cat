@@ -222,6 +222,41 @@ function mergeTaskResults(theirs) {
   if (changed) { saveStateQuiet(); if (typeof renderHomework === "function") renderHomework(); }
 }
 
+/** Слить две версии одного слова — серверную и здешнюю.
+ *
+ *  Правило простое и его стоит держать в голове:
+ *    - счётчики (knew, forgot, reps, checked) только растут, поэтому
+ *      берём больший: так ни одна честная попытка не пропадает;
+ *    - расписание повторений (due, interval, ease, status) берём у той
+ *      записи, где повторяли ПОЗЖЕ, — оно целостное, смешивать его
+ *      по частям нельзя, иначе слово получит чужой интервал;
+ *    - папки объединяем, как и общий список папок выше: потерять
+ *      раскладку по темам при переезде — та самая беда, ради которой
+ *      всё это и переделывалось;
+ *    - seen — просто «или»: увидел на одном устройстве, значит увидел.
+ *
+ *  lastReview лежит датой вида 2026-09-06, поэтому сравнение строк
+ *  работает как сравнение дат. Если дат нет ни у одной записи, свежей
+ *  считаем ту, где больше повторов. */
+function mergeWord(a, b) {
+  if (!a) return b;
+  if (!b) return a;
+  const big = (x, y) => Math.max(Number(x) || 0, Number(y) || 0);
+  const da = String(a.lastReview || ""), db_ = String(b.lastReview || "");
+  const newer = da === db_
+    ? ((Number(b.reps) || 0) > (Number(a.reps) || 0) ? b : a)
+    : (db_ > da ? b : a);
+  return Object.assign({}, a, newer, {
+    knew: big(a.knew, b.knew),
+    forgot: big(a.forgot, b.forgot),
+    reps: big(a.reps, b.reps),
+    checked: big(a.checked, b.checked),
+    seen: !!(a.seen || b.seen),
+    t: newer.t || a.t || b.t,
+    folders: [...new Set([...(a.folders || []), ...(b.folders || [])])],
+  });
+}
+
 /** Переносит прогресс с сервера в текущий браузер. */
 function adoptServerState(srv) {
   if (srv.restoreCode) state.restoreCode = srv.restoreCode;
@@ -246,9 +281,26 @@ function adoptServerState(srv) {
   }
   // Результаты заданий по домашкам — тем же правилом, что при синхронизации
   mergeTaskResults(srv.taskResults);
-  // слова с сервера дополняем локальными, не теряя ни те, ни другие
+  // Слова сливаем ПОСЛОВНО, а не «локальное побеждает».
+  //
+  // Здесь стояло byWord.set(...) без разбора: локальная запись слова
+  // молча затирала серверную. Всё остальное в этой функции сливается
+  // честно — очки по максимуму, награды и папки объединением, — а
+  // словарь был единственным местом, где свежий прогресс терялся.
+  //
+  // Ломалось это на самом обычном сценарии: ученик позанимался на
+  // телефоне, потом открыл сайт на компьютере, где в браузере лежала
+  // вчерашняя копия. Локальные записи затирали серверные, и сразу за
+  // pullProgress идёт pushProgress — то есть откат уезжал на сервер
+  // НАСОВСЕМ: sync_student пишет словарь целиком, пословного слияния
+  // там нет. Среди затираемых полей checked, по которому репетитор
+  // видит сданную домашку: у Ирины «10 из 10» превращалось обратно
+  // в «0 из 10».
   const byWord = new Map((srv.dictionary || []).map(d => [d.w.toLowerCase(), d]));
-  (state.dictionary || []).forEach(d => byWord.set(d.w.toLowerCase(), d));
+  (state.dictionary || []).forEach(d => {
+    const key = d.w.toLowerCase();
+    byWord.set(key, mergeWord(byWord.get(key), d));
+  });
   state.dictionary = [...byWord.values()];
   if (typeof srsInit === "function") state.dictionary.forEach(srsInit);
   saveStateQuiet();
@@ -752,9 +804,22 @@ function renderHomework() {
             ${v.problems.length ? `<p class="stat-note">Повтори: ${
               v.problems.map(x => esc(x.word)).join(", ")}</p>` : ""}`;
           if (studentToken()) {
+            // Отправляли и не смотрели, что вернулось. Сеть моргнула —
+            // результат чтения не доехал до репетитора, а ученик об этом
+            // не узнавал: у него на экране те же проценты. Плюс сорванный
+            // промис уходил в консоль необработанным.
             api("/api/student/reading", {
               token: studentToken(), homeworkId: task.id, score: v.score,
               total: v.total, problems: v.problems,
+            }).then(r => {
+              if (r && r.ok) return;
+              res.insertAdjacentHTML("beforeend",
+                '<p class="stat-note">Результат пока не ушёл репетитору — '
+                + 'нет связи. Он долетит, когда появится интернет.</p>');
+            }).catch(() => {
+              res.insertAdjacentHTML("beforeend",
+                '<p class="stat-note">Результат пока не ушёл репетитору — '
+                + 'нет связи. Он долетит, когда появится интернет.</p>');
             });
           }
         },

@@ -452,8 +452,24 @@ def _allow_standalone_students(c):
         defs.append(d)
     col_list = ", ".join(cols)
     # foreign_keys выключаем на время перестановки — иначе DROP старой
-    # таблицы под ссылками падает; в конце возвращаем как было
+    # таблицы под ссылками падает; в конце возвращаем как было.
+    #
+    # commit() перед прагмой ОБЯЗАТЕЛЕН и это не перестраховка: внутри
+    # открытой транзакции PRAGMA foreign_keys молча не срабатывает —
+    # SQLite её просто игнорирует, без ошибки. А транзакция к этому
+    # моменту почти наверняка открыта: модуль sqlite3 начинает её сам
+    # перед первым INSERT/UPDATE, а миграции выше по коду пишут в базу.
+    # Проверено: PRAGMA внутри транзакции оставляет значение 1.
+    #
+    # Без этого перестановка таблицы учеников падала бы на DROP под
+    # ссылками — то есть ровно там, где чинить уже нечем: на старой
+    # базе, у живого репетитора, при первом же запуске новой версии.
+    c.commit()
     c.execute("PRAGMA foreign_keys=OFF")
+    if c.execute("PRAGMA foreign_keys").fetchone()[0]:
+        # Не пытаемся перестраивать таблицу с включёнными ключами:
+        # лучше оставить базу как есть, чем уронить её на середине.
+        raise RuntimeError("не удалось выключить foreign_keys — перестановку не начинаю")
     try:
         c.execute("DROP TABLE IF EXISTS students_rebuild")
         c.execute("CREATE TABLE students_rebuild (%s)" % ", ".join(defs))
@@ -1740,6 +1756,17 @@ def photo_path(file_name: str):
     if not full.startswith(PHOTO_DIR + os.sep) or not os.path.isfile(full):
         return None
     return full
+
+
+def photo_count_for_student(student_id):
+    """Сколько снимков ученика ещё не разобрал репетитор.
+
+    Архивные не считаем: репетитор посмотрел работу и убрал её — значит
+    место можно занимать снова. По этому числу server.py решает, принимать
+    ли новое фото (см. PHOTO_KEEP_PER_STUDENT)."""
+    return conn().execute(
+        "SELECT COUNT(*) FROM photo_homework WHERE student_id=? AND archived=0",
+        (student_id,)).fetchone()[0]
 
 
 def create_photo_homework(tutor_id, student_id, file_name, homework_id=None, comment=""):

@@ -331,10 +331,19 @@ function dictationDiff(value, sample) {
     if (found >= 0) { used[found] = true; return "moved"; }
     return "miss";
   });
+  // Лишние слова тоже считаются ошибкой.
+  //
+  // Проверялось только, что все нужные слова на месте, — а сколько
+  // ещё написано сверху, никого не волновало. «The cat sits» против
+  // «The cat sits happily forever» давало «Верно, мяу!»: все три слова
+  // найдены, лишние два не смотрел никто. Ученик приписывал что угодно
+  // и получал зачёт.
+  const extra = got.filter((_, k) => !used[k]);
   return {
     marks,
     want,
-    ok: marks.every(m => m === "hit"),
+    extra,
+    ok: marks.every(m => m === "hit") && extra.length === 0,
     missed: want.filter((_, i) => marks[i] !== "hit"),
   };
 }

@@ -2026,9 +2026,17 @@ function openFolderPicker(wordOrList) {
     const input = document.getElementById("folder-new-name");
     const name = input.value.trim().slice(0, 30);
     if (!name) return;
-    createFolder(name);                 // заводим папку и сразу кладём слово
-    word.folders = word.folders || [];
-    if (!word.folders.includes(name)) word.folders.push(name);
+    createFolder(name);                 // заводим папку и сразу кладём слова
+    // Здесь оставалась переменная word от старой версии функции: её
+    // переделали на список (wordOrList → words), а этот обработчик не
+    // тронули. Слова в области видимости нет — создание новой папки из
+    // окна падало с ReferenceError, папка появлялась пустой, а слово в
+    // неё не попадало. Молча: ученик жал кнопку и не понимал, почему
+    // ничего не произошло.
+    words.forEach(w => {
+      w.folders = w.folders || [];
+      if (!w.folders.includes(name)) w.folders.push(name);
+    });
     input.value = "";
     saveState();
     draw();
