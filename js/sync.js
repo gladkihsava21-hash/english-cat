@@ -266,7 +266,20 @@ function adoptServerState(srv) {
   state.blitzBest = Math.max(state.blitzBest || 0, srv.blitzBest || 0);
   state.goal = srv.goal || state.goal;
   state.achievements = [...new Set([...(state.achievements || []), ...(srv.achievements || [])])];
-  state.activity = Object.assign({}, srv.activity || {}, state.activity || {});
+  // Активность по дням сливаем ПО МАКСИМУМУ, а не «локальное побеждает».
+  //
+  // Здесь стоял Object.assign(srv, local): значение дня из этого браузера
+  // затирало серверное. Ученик позанимался на телефоне (сегодня 40 очков),
+  // открыл сайт на компьютере, где за сегодня записано 5 — и полоска
+  // ударности за день откатывалась к пяти, а вместе с ней рвалась серия
+  // (streakDays считает по этому же объекту). Числа тут только растут,
+  // поэтому берём большее — как xp и blitzBest двумя строками выше.
+  const act = Object.assign({}, srv.activity || {});
+  for (const [day, v] of Object.entries(state.activity || {})) {
+    const a = Number(v) || 0, b = Number(act[day]) || 0;
+    act[day] = Math.max(a, b);
+  }
+  state.activity = act;
   // Папки объединяем, как награды: у пришедшего с сервера и у здешнего
   // списка нет старшинства, а потерять папку при переезде — это ровно та
   // беда, ради которой выход и переделывали.
@@ -523,15 +536,28 @@ function snapshot() {
     // в панели; без этой строки они жили бы только в браузере ученика.
     taskResults: state.taskResults || {},
     activity: state.activity,
+    // «Словарю в этом снимке можно верить». Ставим, только если человек
+    // уже прошёл тест — то есть состояние точно не свежесброшенное.
+    // Сервер по этому признаку отличает «ученик удалил всё сам» от
+    // «клиент сломался и прислал пустоту» (см. sync_student в db.py).
+    dictOk: !!(state.user && state.level),
   };
 }
 
 async function pushProgress() {
   const token = studentToken();
   if (!token || syncStopped || apiDown) return;
-  // пустое состояние на сервер не отправляем: это почти всегда признак
-  // сброса или сбоя, а UPDATE затрёт репетитору реальный прогресс
-  if (!state.user || (!state.dictionary.length && !state.xp)) return;
+  // Пустое состояние на сервер не отправляем: это почти всегда признак
+  // сброса или сбоя, а UPDATE затёр бы репетитору реальный прогресс.
+  //
+  // НО: если человек есть и он сам удалил последнее слово — это не сбой,
+  // а осознанное действие, и оно должно доехать. Раньше не доезжало
+  // ничем: при пустом словаре и нуле очков push не уходил вовсе, а при
+  // очках больше нуля уходил, и сервер подменял пустой словарь прежним.
+  // Слово возвращалось после перезагрузки, и выглядело это как «сайт не
+  // даёт мне удалять».
+  if (!state.user) return;
+  if (!state.dictionary.length && !state.xp && !state.level) return;
   try {
     const res = await api("/api/student/sync", { token, state: snapshot() });
     syncFailed = false;

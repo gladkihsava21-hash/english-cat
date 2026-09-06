@@ -722,9 +722,23 @@ def delete_group(tutor_id, group_id):
 
 
 def set_student_group(tutor_id, student_id, group_id):
+    """Посадить ученика в группу. Возвращает False, если группа чужая.
+
+    Ученика проверяем через AND tutor_id=? в самом UPDATE, а вот ГРУППУ
+    раньше не проверял никто: id приходит из тела запроса, и репетитор,
+    подставив чужой, сажал своего ученика в группу другого репетитора.
+    Дальше эта группа раздаёт домашку (homework_for_student смотрит на
+    group_id), то есть ребёнок начинал получать задания постороннего
+    человека."""
+    if group_id:
+        own = conn().execute("SELECT 1 FROM groups WHERE id=? AND tutor_id=?",
+                             (group_id, tutor_id)).fetchone()
+        if not own:
+            return False
     conn().execute("UPDATE students SET group_id=? WHERE id=? AND tutor_id=?",
                    (group_id or None, student_id, tutor_id))
     conn().commit()
+    return True
 
 
 # ---------- ученики ----------
@@ -999,7 +1013,14 @@ def sync_student(token, state):
     # такая синхронизация СТИРАЛА словарь ученика на сервере — то есть
     # последнюю копию его прогресса. Пустым данным не верим.
     prev_dict = json.loads(row["dictionary"] or "[]")
-    if not clean_dict and prev_dict:
+    # Исключение: клиент явно говорит, что словарь пуст НАМЕРЕННО.
+    #
+    # Без этого удаление последнего слова не сохранялось никогда: пустой
+    # словарь подменялся прежним, и слово возвращалось после перезагрузки.
+    # Признак ставит только клиент с пройденным тестом (см. snapshot в
+    # js/sync.js), то есть состояние заведомо не свежесброшенное; старые
+    # версии клиента его не шлют и работают как раньше.
+    if not clean_dict and prev_dict and not state.get("dictOk"):
         clean_dict = prev_dict
 
     prev_ach = json.loads(row["achievements"] or "[]") if "achievements" in row.keys() else []
@@ -3415,8 +3436,21 @@ def notify_due(tutor_id):
         " AND archived=0", (tutor_id,)).fetchone()[0]
     if not unseen:
         return False, 0
-    conn().execute("UPDATE tutors SET notified_at=? WHERE id=?", (now(), tutor_id))
-    conn().commit()
+    # Право на письмо берём одним условным UPDATE через _claim.
+    #
+    # Здесь стояло «прочитал дату — сравнил — записал», а это ровно тот
+    # шаблон, который AGENTS.md запрещает («грабля третья»): на хостинге
+    # процессов несколько, и между чтением и записью второй успевает
+    # прочитать ту же старую дату. Двое учеников присылают фото почти
+    # одновременно — репетитор получает два одинаковых письма. Докстрока
+    # выше обещала атомарность, которой не было; остальные три отметки
+    # (remind_checked_at, remind_sent_at, trial_warned_at) через _claim
+    # уже ходят, notified_at был единственным исключением.
+    #
+    # Порядок важен: _claim ТОЛЬКО после проверки unseen. Захватить право
+    # раньше — значит сжечь час молчания в момент, когда слать было нечего.
+    if not _claim("notified_at", tutor_id, NOTIFY_GAP):
+        return False, 0
     return True, unseen
 
 

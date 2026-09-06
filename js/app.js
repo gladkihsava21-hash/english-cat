@@ -243,6 +243,15 @@ function resetTestScreen() {
   document.getElementById("test-intro").classList.remove("hidden");
   document.getElementById("test-run").classList.add("hidden");
   document.getElementById("test-result").classList.add("hidden");
+  // Лесенку (уточняющий блок теста) тоже гасим и обнуляем.
+  //
+  // Её тут не прятали, и брошенный на середине тест продолжал жить:
+  // экран возвращался к началу, а test-verify оставался поверх со
+  // старым состоянием stair. Ученик дотыкивал чужой недопройденный
+  // блок — и stairFinish записывал уровень и оценку словарного запаса
+  // по обрывкам двух разных попыток.
+  document.getElementById("test-verify").classList.add("hidden");
+  stair = null;
   if (state.user) {
     document.getElementById("test-hello").textContent =
       `${state.user.name}, посчитаем, сколько слов ты уже знаешь`;
@@ -947,6 +956,9 @@ function stairNextBlock() {
 }
 
 function renderStairQ() {
+  // Страховка на случай, если лесенку успели сбросить (resetTestScreen
+  // ставит stair = null): без неё обращение к stair.qs упало бы.
+  if (!stair) return;
   const q = stair.qs[stair.qi];
   document.getElementById("verify-counter").textContent =
     `вопрос ${stair.total + 1} · уровень ${LEVELS[stair.lvl]}`;
@@ -964,6 +976,7 @@ function renderStairQ() {
     b.textContent = opt;
     if (q.kind === "gap") b.lang = "en";
     b.addEventListener("click", () => {
+      if (!stair) return;              // тест бросили — этот блок уже не в счёт
       const ok = i === q.right;
       if (ok) { stair.blockRight++; stair.right++; }
       stair.total++;
@@ -1051,6 +1064,7 @@ function combinedLevelIndex(answers, log) {
 
 function stairFinish() {
   document.getElementById("test-verify").classList.add("hidden");
+  if (!stair) return;                  // сброшена — записывать нечего
   applyLevel(combinedLevelIndex(testAnswers, stair.log), stair.right, stair.total);
 }
 

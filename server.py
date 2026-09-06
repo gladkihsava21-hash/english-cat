@@ -35,7 +35,7 @@ import mailer
 # Теперь это видно одним curl /health: цифра совпала с ?v= на странице —
 # приложение перезапущено; не совпала или её нет вовсе — в памяти старый
 # код, надо нажать «Перезапустить приложение» в панели хостинга.
-ASSET_VERSION = 251
+ASSET_VERSION = 252
 
 PORT = int(os.environ.get("SAVELY_PORT", "4210"))
 # За nginx сервер слушает только localhost — снаружи он не должен быть виден
@@ -1118,8 +1118,9 @@ class Api:
         if err:
             return err
         gid = p.get("groupId")
-        db.set_student_group(tutor["id"], int(p.get("studentId") or 0),
-                             int(gid) if gid else None)
+        if not db.set_student_group(tutor["id"], int(p.get("studentId") or 0),
+                                    int(gid) if gid else None):
+            return {"ok": False, "error": "Такой группы у вас нет."}
         return {"ok": True}
 
     @staticmethod
