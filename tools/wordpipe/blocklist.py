@@ -20,6 +20,13 @@ enemy, weapon, fight, blood, kill, murder, prison — они встречают�
 из словаря: ученик, который сам добавил слово, вправе его учить.
 """
 
+# Нацистская и экстремистская лексика. Отдельно от брани: это не грубость,
+# а то, чему на детском сайте не место ни в каком виде. «heil» приехал в
+# словарь из общего частотного списка и лежал там как обычное слово.
+EXTREMIST = """
+heil nazi swastika fuhrer gestapo genocide jihad
+"""
+
 # Брань и оскорбления
 PROFANITY = """
 arse arsehole ass asshole bastard bitch bollocks bugger bullshit crap cunt
@@ -39,6 +46,7 @@ tits vagina viagra vulva wank
 bukkake blowjob bdsm cumshot deepthroat dominatrix fellatio fetish
 gangbang hentai libido nudity nymph orgasmic paedophile pedophile
 promiscuous seduce seduction sodomy strapon voyeur
+cameltoe shag booty milf twerk sugardaddy
 """
 
 # Наркотики и одурманивание
@@ -58,7 +66,7 @@ TEST_ONLY = """
 suck sucks blow screw balls sex erotic escort climax virgin nude naked
 """
 
-BLOCKED = {w for w in (PROFANITY + SEXUAL + DRUGS).split()}
+BLOCKED = {w for w in (PROFANITY + SEXUAL + DRUGS + EXTREMIST).split()}
 BLOCKED_IN_TEST = BLOCKED | {w for w in TEST_ONLY.split()}
 
 
