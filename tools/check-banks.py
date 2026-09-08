@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Проверка банков заданий: грамматика и словообразование.
+"""Проверка банков заданий: грамматика, словообразование, неправильные глаголы.
 
 Запускается руками и из tools/bump.py. Ловит то, что ломает ученику
 занятие молча: ответ, которого нет среди вариантов; предложение без
@@ -57,6 +57,43 @@ for i, t in enumerate(w):
     if key in seen: bad.append(f"{where}: дубль предложения с {seen[key]}")
     seen[key] = where
 
+# Неправильные глаголы. Тут ошибка стоит дороже прочих: ученик учит
+# таблицу наизусть, и неверная форма запомнится ровно так же прочно, как
+# верная. Поэтому сверяем и структуру, и заявленную группу — группа
+# обязана совпадать с тем, как формы на самом деле повторяются.
+irr = load("({IRREGULAR_VERBS, IRREGULAR_GROUPS})", ["js/irregular.js"])
+irr_groups = {g_["id"] for g_ in irr["IRREGULAR_GROUPS"]}
+seen = {}
+for i, t in enumerate(irr["IRREGULAR_VERBS"]):
+    where = f"irregular[{i}] {t.get('v', '?')}"
+    for f in ("v", "p", "pp", "t", "lvl", "grp"):
+        if not str(t.get(f, "")).strip(): bad.append(f"{where}: пустое поле {f}")
+    if t.get("lvl") not in LEVELS: bad.append(f"{where}: странный уровень {t.get('lvl')}")
+    if t.get("grp") not in irr_groups:
+        bad.append(f"{where}: группа {t.get('grp')} не объявлена в IRREGULAR_GROUPS")
+    key = str(t.get("v", "")).strip().lower()
+    if key in seen: bad.append(f"{where}: дубль глагола с {seen[key]}")
+    seen[key] = where
+    v, pst, pp = (str(t.get(x, "")).strip().lower() for x in ("v", "p", "pp"))
+    if v == pst == pp: real = "aaa"
+    elif pst == pp:    real = "abb"
+    elif v == pp:      real = "aba"
+    elif v == pst:     real = "aab"
+    else:              real = "abc"
+    # spec — как раз для тех, кто не лезет в четыре группы (be, read, beat)
+    if t.get("grp") not in ("spec",) and real != t.get("grp"):
+        bad.append(f"{where}: {v} — {pst} — {pp} это {real}, а записан в {t.get('grp')}")
+    for f in ("pAlt", "ppAlt"):
+        alt = t.get(f) or []
+        if not isinstance(alt, list): bad.append(f"{where}: {f} должно быть списком")
+        main = pst if f == "pAlt" else pp
+        for a in alt:
+            if str(a).strip().lower() == main:
+                bad.append(f"{where}: {f} повторяет основную форму «{a}»")
+    # Ученик увидит примечание после ответа — пустая строка там ни к чему
+    if "note" in t and not str(t["note"]).strip():
+        bad.append(f"{where}: пустое примечание note")
+
 # Мат и взрослая лексика — отдельной проверкой по общему списку.
 # Словарь чистили руками в v159, а генератор теста через полгода принёс
 # «suck» и «kinky» обратно: пока проверки нет, любая пересборка может
@@ -87,4 +124,5 @@ if bad:
 counts = {tid: len(tasks) for tid, tasks in g["GRAMMAR"].items()}
 print(f"Грамматика: {sum(counts.values())} заданий по {len(counts)} темам "
       f"(мин. {min(counts.values())}, макс. {max(counts.values())}); "
-      f"словообразование: {len(w)}. Всё чисто.")
+      f"словообразование: {len(w)}; "
+      f"неправильные глаголы: {len(irr['IRREGULAR_VERBS'])}. Всё чисто.")

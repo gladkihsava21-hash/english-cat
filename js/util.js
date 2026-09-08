@@ -259,6 +259,13 @@ function ensureWordForms() {
   return loadScriptOnce("js/wordform.js");
 }
 
+/** Неправильные глаголы — три формы. Нужны одному упражнению в разделе
+ *  ОГЭ, поэтому лежат своим файлом и едут по требованию. */
+function ensureIrregular() {
+  if (typeof IRREGULAR_VERBS !== "undefined") return Promise.resolve(true);
+  return loadScriptOnce("js/irregular.js");
+}
+
 /** Грамматика по темам. */
 function ensureGrammar() {
   if (typeof GRAMMAR !== "undefined") return Promise.resolve(true);

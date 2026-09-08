@@ -1,0 +1,187 @@
+// Неправильные глаголы — три формы, как в таблице на форзаце учебника.
+//
+// Отдельным файлом и по той же причине, что грамматика и словообразование:
+// нужен он одному упражнению («Неправильные глаголы» в разделе ОГЭ),
+// и качать его всем незачем (ensureIrregular в js/util.js).
+//
+// Поля записи:
+//   v     первая форма (инфинитив)
+//   p     вторая форма — Past Simple
+//   pp    третья форма — Participle II
+//   t     перевод
+//   lvl   A1 | A2 | B1 | B2 — до какого класса глагол обычно доходит
+//   grp   тип по совпадению форм, см. IRREGULAR_GROUPS
+//   pAlt  / ppAlt — другие принимаемые формы (learnt / learned)
+//   note  примечание к глаголу, показывается после ответа
+//
+// ПРО ВАРИАНТЫ. Британская школа учит learnt/burnt/dreamt, американская —
+// learned/burned/dreamed; в ОГЭ засчитывают оба. Поэтому второй вариант
+// лежит в pAlt/ppAlt и принимается молча, а в таблице показывается
+// основной. Спорить с учеником, у которого в учебнике другой вариант, —
+// худшее, что тут можно сделать.
+
+const IRREGULAR_GROUPS = [
+  { id: "abb",  name: "Вторая и третья одинаковые",
+    hint: "buy — bought — bought. Самая большая группа: выучил вторую форму — знаешь и третью." },
+  { id: "abc",  name: "Все три разные",
+    hint: "go — went — gone. Самая коварная группа: третью форму приходится помнить отдельно." },
+  { id: "aaa",  name: "Все три одинаковые",
+    hint: "put — put — put. Форма одна, но именно поэтому её и не замечают в прошедшем времени." },
+  { id: "aba",  name: "Первая и третья одинаковые",
+    hint: "come — came — come. Их всего несколько, зато встречаются на каждом шагу." },
+  { id: "spec", name: "Особые случаи",
+    hint: "Глаголы, которые не помещаются ни в одну группу." },
+];
+
+const IRREGULAR_VERBS = [
+
+  // ---------- вторая и третья одинаковые ----------
+  { v: "buy", p: "bought", pp: "bought", t: "покупать", lvl: "A1", grp: "abb" },
+  { v: "bring", p: "brought", pp: "brought", t: "приносить", lvl: "A2", grp: "abb" },
+  { v: "think", p: "thought", pp: "thought", t: "думать", lvl: "A1", grp: "abb" },
+  { v: "fight", p: "fought", pp: "fought", t: "драться, бороться", lvl: "B1", grp: "abb" },
+  { v: "catch", p: "caught", pp: "caught", t: "ловить, поймать", lvl: "A2", grp: "abb" },
+  { v: "teach", p: "taught", pp: "taught", t: "учить (кого-то), преподавать", lvl: "A2", grp: "abb" },
+  { v: "seek", p: "sought", pp: "sought", t: "искать, добиваться", lvl: "B2", grp: "abb" },
+  { v: "build", p: "built", pp: "built", t: "строить", lvl: "A2", grp: "abb" },
+  { v: "send", p: "sent", pp: "sent", t: "посылать, отправлять", lvl: "A2", grp: "abb" },
+  { v: "spend", p: "spent", pp: "spent", t: "тратить, проводить (время)", lvl: "A2", grp: "abb" },
+  { v: "lend", p: "lent", pp: "lent", t: "давать взаймы", lvl: "B1", grp: "abb",
+    note: "lend — дать в долг, borrow — взять в долг. Их путают чаще всего." },
+  { v: "bend", p: "bent", pp: "bent", t: "гнуть, сгибать", lvl: "B1", grp: "abb" },
+  { v: "feel", p: "felt", pp: "felt", t: "чувствовать", lvl: "A2", grp: "abb" },
+  { v: "keep", p: "kept", pp: "kept", t: "держать, хранить", lvl: "A2", grp: "abb" },
+  { v: "sleep", p: "slept", pp: "slept", t: "спать", lvl: "A1", grp: "abb" },
+  { v: "sweep", p: "swept", pp: "swept", t: "подметать", lvl: "B1", grp: "abb" },
+  { v: "creep", p: "crept", pp: "crept", t: "ползти, красться", lvl: "B2", grp: "abb" },
+  { v: "weep", p: "wept", pp: "wept", t: "плакать, рыдать", lvl: "B2", grp: "abb" },
+  { v: "leave", p: "left", pp: "left", t: "уезжать, оставлять", lvl: "A2", grp: "abb" },
+  { v: "mean", p: "meant", pp: "meant", t: "значить, иметь в виду", lvl: "A2", grp: "abb",
+    note: "Пишется meant, а читается [ment] — как обычное «мент»." },
+  { v: "deal", p: "dealt", pp: "dealt", t: "иметь дело, разбираться", lvl: "B1", grp: "abb" },
+  { v: "dream", p: "dreamt", pp: "dreamt", t: "мечтать, видеть сон", lvl: "B1", grp: "abb",
+    pAlt: ["dreamed"], ppAlt: ["dreamed"], note: "Годится и dreamed — обе формы верны." },
+  { v: "learn", p: "learnt", pp: "learnt", t: "учить(ся), узнавать", lvl: "A1", grp: "abb",
+    pAlt: ["learned"], ppAlt: ["learned"], note: "Годится и learned — обе формы верны." },
+  { v: "burn", p: "burnt", pp: "burnt", t: "гореть, жечь", lvl: "B1", grp: "abb",
+    pAlt: ["burned"], ppAlt: ["burned"], note: "Годится и burned — обе формы верны." },
+  { v: "smell", p: "smelt", pp: "smelt", t: "пахнуть, нюхать", lvl: "B1", grp: "abb",
+    pAlt: ["smelled"], ppAlt: ["smelled"], note: "Годится и smelled — обе формы верны." },
+  { v: "spell", p: "spelt", pp: "spelt", t: "писать по буквам", lvl: "B1", grp: "abb",
+    pAlt: ["spelled"], ppAlt: ["spelled"], note: "Годится и spelled — обе формы верны." },
+  { v: "spill", p: "spilt", pp: "spilt", t: "проливать", lvl: "B2", grp: "abb",
+    pAlt: ["spilled"], ppAlt: ["spilled"], note: "Годится и spilled — обе формы верны." },
+  { v: "find", p: "found", pp: "found", t: "находить", lvl: "A1", grp: "abb",
+    note: "Не путай с found — «основывать» (found — founded — founded)." },
+  { v: "have", p: "had", pp: "had", t: "иметь, есть (у меня)", lvl: "A1", grp: "abb" },
+  { v: "hear", p: "heard", pp: "heard", t: "слышать", lvl: "A1", grp: "abb",
+    note: "heard читается [hɜːd] — как bird, а не как «хеард»." },
+  { v: "hold", p: "held", pp: "held", t: "держать, проводить (встречу)", lvl: "A2", grp: "abb" },
+  { v: "lay", p: "laid", pp: "laid", t: "класть, положить", lvl: "B1", grp: "abb",
+    note: "lay кладут что-то, lie ложатся сами: lie — lay — lain." },
+  { v: "pay", p: "paid", pp: "paid", t: "платить", lvl: "A2", grp: "abb" },
+  { v: "say", p: "said", pp: "said", t: "сказать, говорить", lvl: "A1", grp: "abb",
+    note: "said читается [sed], а не «сэйд»." },
+  { v: "lose", p: "lost", pp: "lost", t: "терять, проигрывать", lvl: "A2", grp: "abb" },
+  { v: "make", p: "made", pp: "made", t: "делать, создавать", lvl: "A1", grp: "abb" },
+  { v: "meet", p: "met", pp: "met", t: "встречать(ся), знакомиться", lvl: "A1", grp: "abb" },
+  { v: "feed", p: "fed", pp: "fed", t: "кормить", lvl: "B1", grp: "abb" },
+  { v: "lead", p: "led", pp: "led", t: "вести, возглавлять", lvl: "B1", grp: "abb" },
+  { v: "sit", p: "sat", pp: "sat", t: "сидеть, садиться", lvl: "A1", grp: "abb" },
+  { v: "stand", p: "stood", pp: "stood", t: "стоять", lvl: "A2", grp: "abb" },
+  { v: "understand", p: "understood", pp: "understood", t: "понимать", lvl: "A2", grp: "abb" },
+  { v: "tell", p: "told", pp: "told", t: "рассказывать, сообщать", lvl: "A1", grp: "abb" },
+  { v: "sell", p: "sold", pp: "sold", t: "продавать", lvl: "A2", grp: "abb" },
+  { v: "get", p: "got", pp: "got", t: "получать, становиться", lvl: "A1", grp: "abb",
+    ppAlt: ["gotten"], note: "В американском варианте третья форма gotten — её тоже засчитывают." },
+  { v: "win", p: "won", pp: "won", t: "выигрывать, побеждать", lvl: "A2", grp: "abb",
+    note: "won читается [wʌn] — как one." },
+  { v: "shoot", p: "shot", pp: "shot", t: "стрелять, снимать (кино)", lvl: "B1", grp: "abb" },
+  { v: "dig", p: "dug", pp: "dug", t: "копать", lvl: "B1", grp: "abb" },
+  { v: "hang", p: "hung", pp: "hung", t: "висеть, вешать", lvl: "B1", grp: "abb",
+    note: "hung — про вещи. О казни говорят hanged — правильная форма." },
+  { v: "stick", p: "stuck", pp: "stuck", t: "приклеивать, застревать", lvl: "B1", grp: "abb" },
+  { v: "sting", p: "stung", pp: "stung", t: "жалить", lvl: "B2", grp: "abb" },
+  { v: "swing", p: "swung", pp: "swung", t: "качаться, размахивать", lvl: "B2", grp: "abb" },
+  { v: "shine", p: "shone", pp: "shone", t: "светить, сиять", lvl: "B1", grp: "abb" },
+  { v: "light", p: "lit", pp: "lit", t: "зажигать, освещать", lvl: "B1", grp: "abb",
+    pAlt: ["lighted"], ppAlt: ["lighted"], note: "Годится и lighted, но lit встречается чаще." },
+
+  // ---------- все три разные ----------
+  { v: "go", p: "went", pp: "gone", t: "идти, ехать", lvl: "A1", grp: "abc",
+    note: "went — вообще от другого глагола (старого wend), поэтому и не похоже на go." },
+  { v: "do", p: "did", pp: "done", t: "делать", lvl: "A1", grp: "abc" },
+  { v: "see", p: "saw", pp: "seen", t: "видеть", lvl: "A1", grp: "abc",
+    note: "saw — ещё и «пила». По предложению видно, что имеется в виду." },
+  { v: "give", p: "gave", pp: "given", t: "давать", lvl: "A1", grp: "abc" },
+  { v: "take", p: "took", pp: "taken", t: "брать, взять", lvl: "A1", grp: "abc" },
+  { v: "know", p: "knew", pp: "known", t: "знать", lvl: "A1", grp: "abc" },
+  { v: "write", p: "wrote", pp: "written", t: "писать", lvl: "A1", grp: "abc",
+    note: "В третьей форме два t: writ-ten." },
+  { v: "speak", p: "spoke", pp: "spoken", t: "говорить, разговаривать", lvl: "A1", grp: "abc" },
+  { v: "eat", p: "ate", pp: "eaten", t: "есть, кушать", lvl: "A1", grp: "abc" },
+  { v: "drink", p: "drank", pp: "drunk", t: "пить", lvl: "A1", grp: "abc" },
+  { v: "sing", p: "sang", pp: "sung", t: "петь", lvl: "A1", grp: "abc" },
+  { v: "swim", p: "swam", pp: "swum", t: "плавать", lvl: "A1", grp: "abc" },
+  { v: "begin", p: "began", pp: "begun", t: "начинать(ся)", lvl: "A2", grp: "abc" },
+  { v: "break", p: "broke", pp: "broken", t: "ломать, разбивать", lvl: "A2", grp: "abc" },
+  { v: "choose", p: "chose", pp: "chosen", t: "выбирать", lvl: "A2", grp: "abc" },
+  { v: "draw", p: "drew", pp: "drawn", t: "рисовать, тянуть", lvl: "A2", grp: "abc" },
+  { v: "drive", p: "drove", pp: "driven", t: "водить машину, везти", lvl: "A2", grp: "abc" },
+  { v: "fall", p: "fell", pp: "fallen", t: "падать", lvl: "A2", grp: "abc" },
+  { v: "fly", p: "flew", pp: "flown", t: "летать", lvl: "A2", grp: "abc" },
+  { v: "forget", p: "forgot", pp: "forgotten", t: "забывать", lvl: "A2", grp: "abc" },
+  { v: "grow", p: "grew", pp: "grown", t: "расти, выращивать", lvl: "A2", grp: "abc" },
+  { v: "ride", p: "rode", pp: "ridden", t: "ездить верхом, кататься", lvl: "A2", grp: "abc" },
+  { v: "ring", p: "rang", pp: "rung", t: "звонить, звенеть", lvl: "A2", grp: "abc" },
+  { v: "show", p: "showed", pp: "shown", t: "показывать", lvl: "A2", grp: "abc",
+    ppAlt: ["showed"], note: "Вторая форма правильная — showed, а третья особая: shown." },
+  { v: "throw", p: "threw", pp: "thrown", t: "бросать, кидать", lvl: "A2", grp: "abc" },
+  { v: "wake", p: "woke", pp: "woken", t: "просыпаться, будить", lvl: "A2", grp: "abc" },
+  { v: "wear", p: "wore", pp: "worn", t: "носить (одежду)", lvl: "A2", grp: "abc" },
+  { v: "blow", p: "blew", pp: "blown", t: "дуть", lvl: "B1", grp: "abc" },
+  { v: "bite", p: "bit", pp: "bitten", t: "кусать", lvl: "B1", grp: "abc" },
+  { v: "forgive", p: "forgave", pp: "forgiven", t: "прощать", lvl: "B1", grp: "abc" },
+  { v: "freeze", p: "froze", pp: "frozen", t: "замерзать, замораживать", lvl: "B1", grp: "abc" },
+  { v: "hide", p: "hid", pp: "hidden", t: "прятать(ся)", lvl: "B1", grp: "abc" },
+  { v: "rise", p: "rose", pp: "risen", t: "подниматься, вставать", lvl: "B1", grp: "abc",
+    note: "rise поднимается сам, raise поднимают что-то (raise — raised — raised)." },
+  { v: "shake", p: "shook", pp: "shaken", t: "трясти, дрожать", lvl: "B1", grp: "abc" },
+  { v: "steal", p: "stole", pp: "stolen", t: "красть, воровать", lvl: "B1", grp: "abc" },
+  { v: "tear", p: "tore", pp: "torn", t: "рвать, разрывать", lvl: "B1", grp: "abc",
+    note: "Глагол tear читается [teə], а существительное tear («слеза») — [tɪə]." },
+  { v: "sink", p: "sank", pp: "sunk", t: "тонуть, погружаться", lvl: "B2", grp: "abc" },
+  { v: "swear", p: "swore", pp: "sworn", t: "клясться, ругаться", lvl: "B2", grp: "abc" },
+  { v: "mistake", p: "mistook", pp: "mistaken", t: "ошибаться, принимать за другого", lvl: "B2", grp: "abc" },
+
+  // ---------- все три одинаковые ----------
+  { v: "put", p: "put", pp: "put", t: "класть, ставить", lvl: "A1", grp: "aaa" },
+  { v: "cut", p: "cut", pp: "cut", t: "резать, стричь", lvl: "A2", grp: "aaa" },
+  { v: "let", p: "let", pp: "let", t: "позволять, разрешать", lvl: "A2", grp: "aaa" },
+  { v: "hit", p: "hit", pp: "hit", t: "ударять, попадать", lvl: "A2", grp: "aaa" },
+  { v: "cost", p: "cost", pp: "cost", t: "стоить (о цене)", lvl: "A2", grp: "aaa" },
+  { v: "hurt", p: "hurt", pp: "hurt", t: "болеть, ранить", lvl: "A2", grp: "aaa" },
+  { v: "shut", p: "shut", pp: "shut", t: "закрывать", lvl: "B1", grp: "aaa" },
+  { v: "set", p: "set", pp: "set", t: "ставить, устанавливать", lvl: "B1", grp: "aaa" },
+  { v: "spread", p: "spread", pp: "spread", t: "распространять(ся), намазывать", lvl: "B1", grp: "aaa",
+    note: "Пишется одинаково, но во второй и третьей форме читается [spred] — коротко." },
+  { v: "quit", p: "quit", pp: "quit", t: "бросать (дело), увольняться", lvl: "B1", grp: "aaa",
+    pAlt: ["quitted"], ppAlt: ["quitted"] },
+  { v: "split", p: "split", pp: "split", t: "раскалывать, делить", lvl: "B2", grp: "aaa" },
+  { v: "burst", p: "burst", pp: "burst", t: "лопаться, взрываться", lvl: "B2", grp: "aaa" },
+  { v: "bet", p: "bet", pp: "bet", t: "спорить, держать пари", lvl: "B2", grp: "aaa" },
+
+  // ---------- первая и третья одинаковые ----------
+  { v: "come", p: "came", pp: "come", t: "приходить, приезжать", lvl: "A1", grp: "aba" },
+  { v: "become", p: "became", pp: "become", t: "становиться", lvl: "A2", grp: "aba" },
+  { v: "run", p: "ran", pp: "run", t: "бегать, управлять (делом)", lvl: "A1", grp: "aba" },
+  { v: "overcome", p: "overcame", pp: "overcome", t: "преодолевать", lvl: "B2", grp: "aba" },
+
+  // ---------- особые ----------
+  { v: "be", p: "was, were", pp: "been", t: "быть, являться", lvl: "A1", grp: "spec",
+    note: "Единственный глагол с двумя формами прошедшего: I/he/she/it was, но we/you/they were." },
+  { v: "read", p: "read", pp: "read", t: "читать", lvl: "A1", grp: "spec",
+    note: "Пишутся одинаково, а читаются по-разному: read [riːd] — read [red] — read [red]." },
+  { v: "beat", p: "beat", pp: "beaten", t: "бить, побеждать", lvl: "B1", grp: "spec",
+    note: "Первая и вторая совпадают, а третья с -en: единственный такой глагол в школьном списке." },
+];

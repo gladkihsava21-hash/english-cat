@@ -763,6 +763,8 @@ const EXERCISES = [
     desc: "Поставь слово в нужную форму — как в ОГЭ" },
   { id: "grammar", group: "exam", icon: "book", name: "Грамматика",
     desc: "Времена, артикли, предлоги — с разбором" },
+  { id: "irregular", group: "exam", icon: "spelling", name: "Неправильные глаголы",
+    desc: "Три формы — по группам и вперемешку" },
   // Задание из конструктора репетитора. В общем списке не показывается
   // (hidden): у него нет содержимого без конкретной домашки — вопросы
   // приезжают вместе с ней (task.taskset) и открываются с её карточки.
@@ -771,6 +773,29 @@ const EXERCISES = [
 ];
 
 let currentExId = null;
+/** Номер захода в упражнение. Файлы с заданиями (грамматика, выражения,
+ *  словарь) едут по сети, и их .then() приходит когда угодно — в том числе
+ *  когда ученик уже ушёл на другой экран или открыл другое упражнение.
+ *  Проверять по наличию #ex-stage было бесполезно: он создаётся один раз
+ *  и живёт всегда. Отвечать имеет право только тот заход, который сейчас
+ *  последний и чей экран на виду. */
+let exLaunch = 0;
+/** setTimeout, который молчит, если ученик уже ушёл из этого захода.
+ *  Почти каждое упражнение доигрывает раунд по таймеру (0,5–1,8 с показываем
+ *  ответ, потом next() или exFinish). Ученик за это время успевает нажать
+ *  «← Тренировки» и открыть другое упражнение — и чужой таймер дорисовывал
+ *  свой экран поверх нового, начислял очки и записывал результат подхода,
+ *  из которого ушли. */
+function exLater(fn, ms) {
+  const token = exLaunch;
+  return setTimeout(() => { if (token === exLaunch) fn(); }, ms);
+}
+
+function exStillHere(token) {
+  if (token !== exLaunch) return false;
+  const scr = document.getElementById("screen-exercise");
+  return !!stage() && !!scr && !scr.classList.contains("hidden");
+}
 
 /** Домашка, из которой открыто упражнение: { id, title }. Пока стоит,
  *  результат подхода (exFinish) записывается в state.taskResults[id]
@@ -1083,6 +1108,7 @@ function renderPracticeHub() {
 }
 
 function openExercise(id) {
+  const token = ++exLaunch;
   if (typeof markMode === "function") markMode(id);
   if (id === "flashcards") { show("trainer"); return; }
   currentExId = id;
@@ -1142,9 +1168,9 @@ function openExercise(id) {
       </div>`;
     if (typeof paintCats === "function") paintCats(stage());
     ensureWords()
-      .then(() => { if (stage()) openExercise(id); })
+      .then(() => { if (exStillHere(token)) openExercise(id); })
       .catch(() => {
-        if (!stage()) return;
+        if (!exStillHere(token)) return;
         stage().innerHTML = `
           <div class="empty-state">
             <div class="cat-avatar cat-mid" data-cat="oops"></div>
@@ -1161,6 +1187,7 @@ function openExercise(id) {
   const EXAM_DATA = {
     wordform: { ready: () => typeof WORD_FORMS !== "undefined", load: ensureWordForms },
     grammar:  { ready: () => typeof GRAMMAR !== "undefined",    load: ensureGrammar },
+    irregular: { ready: () => typeof IRREGULAR_VERBS !== "undefined", load: ensureIrregular },
     // «Свои предложения» живут в другой группе, но данные им тоже нужны
     // заранее: проверять грамматику имеет смысл сразу, а не со второго раза.
     personal: { ready: () => typeof grammarCheck !== "undefined", load: ensureGrammarCheck },
@@ -1177,9 +1204,9 @@ function openExercise(id) {
       </div>`;
     if (typeof paintCats === "function") paintCats(stage());
     need.load()
-      .then(() => { if (stage()) openExercise(id); })
+      .then(() => { if (exStillHere(token)) openExercise(id); })
       .catch(() => {
-        if (!stage()) return;
+        if (!exStillHere(token)) return;
         stage().innerHTML = `
           <div class="empty-state">
             <div class="cat-avatar cat-mid" data-cat="oops"></div>
@@ -1214,8 +1241,8 @@ function openExercise(id) {
       </div>`;
     if (typeof paintCats === "function") paintCats(stage());
     ensurePhrases()
-      .then(() => { if (stage()) EX_RUNNERS[id](); })
-      .catch(() => { if (stage()) EX_RUNNERS._noPhrases(); });
+      .then(() => { if (exStillHere(token)) EX_RUNNERS[id](); })
+      .catch(() => { if (exStillHere(token)) EX_RUNNERS._noPhrases(); });
     return;
   }
 
@@ -1473,7 +1500,7 @@ function runMCQ(rounds, opts = {}) {
         // увидеть. Получалась обратная полярность: ошибку кот
         // комментирует, верный ответ — нет. Для школьника это ровно
         // наоборот тому, что нужно.
-        if (ok) { setTimeout(next, 1100); return; }
+        if (ok) { exLater(next, 1100); return; }
 
         // Ошибка: правильный ответ висит, пока ученик сам не нажмёт «Дальше».
         // Был автопереход через 2800 мс — экран угоняло ровно в тот момент,
@@ -1553,7 +1580,7 @@ function runPairs(pairs, opts = {}) {
         selL.el.classList.remove("sel");
         selL = null;
         if (matched === pairs.length) {
-          setTimeout(() => exFinish(Math.max(0, pairs.length - errors), pairs.length, opts.note), 500);
+          exLater(() => exFinish(Math.max(0, pairs.length - errors), pairs.length, opts.note), 500);
         }
       } else {
         errors++;
@@ -1659,7 +1686,7 @@ function runType(rounds, opts = {}) {
       // от 80% слов, то есть «верно» бывает с опечатками, и их надо увидеть.
       // Из-за этого экран вёл себя по-разному на разных ответах, и методист
       // написала «некоторые работают через Дальше, некоторые нет».
-      if (ok && !opts.textarea) { setTimeout(next, 900); return; }
+      if (ok && !opts.textarea) { exLater(next, 900); return; }
 
       // Дальше — только по кнопке. Сравнить свой ответ с правильным это
       // тоже разбор, и в диктанте, где предложение целиком, на него
@@ -1822,7 +1849,7 @@ const EX_RUNNERS = {
             msg.className = "type-feedback ok";
             msg.textContent = "Верно! " + p.w + " — " + p.t;
             if (typeof catReact === "function") catReact("happy");
-            i++; setTimeout(next, 1100);
+            i++; exLater(next, 1100);
             return;
           }
           msg.className = "type-feedback err";
@@ -2106,7 +2133,15 @@ const EX_RUNNERS = {
                + `</span>`;
         }).join("");
       };
+      let roundDone = false;
       const finishRound = () => {
+        // Раунд закрывается один раз. Пока висит пауза перед следующим
+        // словом (0,8–1,8 с), «Сбросить» оставалось живым: ученик мог
+        // разобрать ответ и собрать заново — forgot превращался в knew,
+        // одно слово пропускалось, а на последнем exFinish звался дважды
+        // («Верно 7 из 6», два ухода на доску, две записи результата).
+        if (roundDone) return;
+        roundDone = true;
         const ok = groups().join(" ") === want;
         if (ok) { score++; award(15); }
         statUpdate(p.w, ok);
@@ -2114,14 +2149,14 @@ const EX_RUNNERS = {
         fb.className = "type-feedback " + (ok ? "ok" : "err");
         fb.textContent = ok ? "Верно, мяу!" : "Правильно: " + p.w;
         i++;
-        setTimeout(next, ok ? 800 : 1800);
+        exLater(next, ok ? 800 : 1800);
       };
       letters.forEach((ch, idx) => {
         const b = document.createElement("button");
         b.className = "scr-tile";
         b.textContent = ch;
         b.addEventListener("click", () => {
-          if (b.disabled) return;
+          if (b.disabled || roundDone) return;
           b.disabled = true;
           picked.push({ ch, idx, el: b });
           renderAnswer();
@@ -2130,6 +2165,7 @@ const EX_RUNNERS = {
         tilesBox.appendChild(b);
       });
       document.getElementById("scr-clear").addEventListener("click", () => {
+        if (roundDone) return;   // ответ уже засчитан — пересобирать нечего
         picked.forEach(x => x.el.disabled = false);
         picked = [];
         renderAnswer();
@@ -2417,12 +2453,12 @@ const EX_RUNNERS = {
         </div>
         <p class="type-feedback" id="pers-feedback" role="status" aria-live="polite"></p>
       </div>`;
+    let scored = false;   // за подход считаем один раз
     document.getElementById("pers-check").addEventListener("click", () => {
       const raw = document.getElementById("pers-input").value.trim();
       const val = normEn(raw);
       if (!val) return;
       const used = pool.filter(p => val.includes(p.w.slice(0, Math.max(3, p.w.length - 2)).toLowerCase()));
-      used.forEach(p => statUpdate(p.w, true));
       const missing = pool.filter(p => !used.includes(p));
       const fb = document.getElementById("pers-feedback");
       if (missing.length) {
@@ -2430,6 +2466,25 @@ const EX_RUNNERS = {
         fb.textContent = "Не хватает: " + missing.map(p => p.w).join(", ");
         return;
       }
+      // Три слова есть — но предложение ли это? «cat, dog, run» через
+      // запятую формально проходит проверку выше, а задание тут другое.
+      // Считаем слова: три заданных плюс хотя бы подлежащее, глагол и
+      // артикль — меньше шести слов в честном ответе не бывает.
+      const wordCount = (raw.match(/[A-Za-z']+/g) || []).length;
+      if (wordCount < pool.length + 3) {
+        fb.className = "type-feedback err";
+        fb.textContent = "Пока это список слов. Составь из них предложения — "
+          + "кто что делает.";
+        return;
+      }
+      // Слова засчитываем ТОЛЬКО дойдя сюда. Раньше statUpdate стоял выше
+      // проверки «не хватает» — и одно написанное слово отмечало его как
+      // вспомненное, заново на каждое нажатие. А так как домашка по словам
+      // закрывается по checked >= 1, её можно было сдать, не написав ни
+      // одного предложения.
+      if (scored) return;
+      scored = true;
+      used.forEach(p => statUpdate(p.w, true));
       // Грамматику смотрим сами — набором правил на частые школьные
       // ошибки (js/grammarcheck.js). Это не полный разбор языка, поэтому
       // «замечаний нет» мы формулируем как «явных ошибок не вижу»,
@@ -2690,7 +2745,7 @@ const EX_RUNNERS = {
           selWord.el.classList.remove("sel");
           selWord = null;
           if (placed === words.length) {
-            setTimeout(() => exFinish(Math.max(0, words.length - errors), words.length), 500);
+            exLater(() => exFinish(Math.max(0, words.length - errors), words.length), 500);
           }
         } else {
           errors++;
@@ -2810,7 +2865,7 @@ const EX_RUNNERS = {
               const tgt = document.getElementById("ws-t-" + encodeURIComponent(hit.w));
               if (tgt) tgt.classList.add("ws-done");
               if (found.size === placedWords.length) {
-                setTimeout(() => { if (gridEl.isConnected) finishRound(); }, 600);
+                exLater(() => { if (gridEl.isConnected) finishRound(); }, 600);
               }
             }
           });
@@ -2883,6 +2938,232 @@ const EX_RUNNERS = {
       note: "Как в экзамене: слева предложение, справа исходное слово заглавными.",
       hintLabel: "перевод",
     });
+  },
+
+  /* =========================================================
+   * НЕПРАВИЛЬНЫЕ ГЛАГОЛЫ — три формы, как в таблице учебника
+   *
+   * Почему отдельное упражнение, а не задания внутри грамматики.
+   * Три формы не выводятся правилом, их держат в памяти списком, и
+   * тренируется тут не понимание, а именно припоминание. Формат
+   * соответствующий: обе формы ученик пишет сам. Выбор из вариантов
+   * не годится — на экзамене подсказок нет, а «узнать среди четырёх»
+   * получается и у того, кто списка не учил.
+   *
+   * Почему по группам совпадения форм (put-put-put, buy-bought-bought
+   * и так далее). Сто тринадцать глаголов подряд не учит никто. По
+   * группам их примерно по десятку-полсотни, и внутри группы работает
+   * одна и та же подсказка памяти — это и есть школьный способ.
+   *
+   * Ошибки не выбрасываются: в конце подхода они возвращаются вторым
+   * кругом. Смысл тренажёра ровно в том, чтобы не выученное встретилось
+   * ещё раз в тот же заход, а не «когда-нибудь потом».
+   * ========================================================= */
+  irregular() {
+    const PER_RUN = 10;
+
+    /* Сверка ответа. Регистр и лишние знаки не важны, порядок слов —
+     * тоже: «was, were» и «were was» ученик пишет как придётся, и
+     * придираться тут не к чему. А вот сама форма должна быть точной:
+     * в этом всё задание. */
+    const norm = x => String(x || "").toLowerCase()
+      .replace(/^to\s+/, "").replace(/[^a-z\s]+/g, " ").trim().replace(/\s+/g, " ");
+    const same = (given, want) => {
+      const a = norm(given), b = norm(want);
+      if (!a) return false;
+      if (a === b) return true;
+      return a.split(" ").sort().join(" ") === b.split(" ").sort().join(" ");
+    };
+    const matches = (given, want, alts) =>
+      same(given, want) || (alts || []).some(x => same(given, x));
+
+    const start = (bank, title) => {
+      // Уровень ученика и соседний снизу — как в словообразовании.
+      // Фильтр применяем, только если после него банка хватает на два
+      // подхода: иначе на краях (A1, B2) он оставит одни и те же глаголы.
+      const lvl = studyLevel();
+      const idx = LEVELS.indexOf(lvl);
+      const near = new Set([LEVELS[Math.max(0, idx - 1)], lvl, LEVELS[Math.min(LEVELS.length - 1, idx + 1)]]);
+      const fit = bank.filter(r => near.has(r.lvl));
+      const use = fit.length >= PER_RUN * 2 ? fit : bank;
+      const pool = pickFresh("irr:" + title + ":" + lvl, use, Math.min(PER_RUN, use.length), r => r.v);
+      if (!pool.length) { exFinish(0, 0, "Глаголов для этой группы пока нет."); return; }
+
+      // Очередь: сначала весь подход, потом ошибки вторым кругом.
+      const queue = pool.slice();
+      const again = [];
+      let score = 0, done = 0;
+      const total = pool.length;
+
+      const next = () => {
+        if (!queue.length && again.length) { queue.push(...again.splice(0)); }
+        if (!queue.length) { exFinish(score, total); return; }
+        const r = queue.shift();
+        const retry = done >= total;   // первый круг пройден — это работа над ошибками
+        stage().innerHTML = `
+          ${exProgress(Math.min(done, total - 1), total)}
+          <div class="card word-quiz-card">
+            <p class="quiz-label">${esc(title)}${retry ? " · второй круг" : ""}</p>
+            <div class="quiz-word quiz-word-small">${esc(r.v)}</div>
+            <p class="muted-small">${esc(r.t)}</p>
+            <div class="irr-forms">
+              <label class="irr-field">
+                <span class="irr-label">Past Simple <i>вторая форма</i></span>
+                <input class="type-input" id="irr-p" autocomplete="off" autocorrect="off"
+                  autocapitalize="off" spellcheck="false" placeholder="…">
+              </label>
+              <label class="irr-field">
+                <span class="irr-label">Participle II <i>третья форма</i></span>
+                <input class="type-input" id="irr-pp" autocomplete="off" autocorrect="off"
+                  autocapitalize="off" spellcheck="false" placeholder="…">
+              </label>
+            </div>
+            <div class="quiz-buttons">
+              <button class="btn btn-primary" id="irr-check">Проверить</button>
+            </div>
+            <p class="type-feedback" id="irr-feedback" role="status" aria-live="polite"></p>
+          </div>`;
+        const inP = document.getElementById("irr-p");
+        const inPP = document.getElementById("irr-pp");
+        const fb = document.getElementById("irr-feedback");
+        const btn = document.getElementById("irr-check");
+        inP.focus();
+
+        let answered = false;
+        const check = () => {
+          if (answered) return;      // подход засчитывается один раз
+          const rawP = inP.value.trim(), rawPP = inPP.value.trim();
+          if (!rawP && !rawPP) return;                  // пустое — это не ответ
+          // Написано, но не латиницей. Для нашего ученика это не экзотика,
+          // а самый обычный вечер: забыл переключить раскладку. Раньше
+          // кнопка на такое просто молчала, и понять, что происходит,
+          // было нельзя.
+          if (!norm(rawP) && !norm(rawPP)) {
+            fb.className = "type-feedback err";
+            fb.textContent = "Похоже, включена русская раскладка: формы пишутся латиницей.";
+            return;
+          }
+          // Заполнено одно поле из двух. Считать вторую форму ошибкой
+          // нечестно — ученик её ещё не писал; просим дописать.
+          if (!rawP || !rawPP) {
+            fb.className = "type-feedback err";
+            fb.textContent = "Напиши обе формы — вторую и третью.";
+            (rawP ? inPP : inP).focus();
+            return;
+          }
+          answered = true;
+          const okP = matches(inP.value, r.p, r.pAlt);
+          const okPP = matches(inPP.value, r.pp, r.ppAlt);
+          const ok = okP && okPP;
+          inP.disabled = inPP.disabled = btn.disabled = true;
+          inP.classList.toggle("bad", !okP);
+          inPP.classList.toggle("bad", !okPP);
+          // Второй круг очков не приносит: иначе выгоднее ошибиться.
+          if (!retry) {
+            statUpdate(r.v, ok);
+            if (ok) { score++; award(15); }
+          }
+          if (!ok && !again.includes(r)) again.push(r);
+          if (!retry) done++;
+          fb.className = "type-feedback " + (ok ? "ok" : "err");
+          fb.textContent = ok
+            ? "Верно, мяу!"
+            : (retry ? "Снова мимо — посмотри и проговори вслух:" : "Не так. Правильно:");
+
+          const after = document.createElement("div");
+          if (!ok) {
+            const row = document.createElement("p");
+            row.className = "irr-answer";
+            row.textContent = `${r.v} — ${r.p} — ${r.pp}`;
+            after.appendChild(row);
+          }
+          if (r.note) {
+            const nt = document.createElement("p");
+            nt.className = "muted-small";
+            nt.textContent = r.note;
+            after.appendChild(nt);
+          }
+          if (!ok) {
+            const tip = document.createElement("p");
+            tip.className = "muted-small";
+            tip.textContent = "Этот глагол вернётся в конце подхода.";
+            after.appendChild(tip);
+          }
+          const buttons = document.createElement("div");
+          buttons.className = "quiz-buttons";
+          buttons.innerHTML = (TTS_OK
+            ? '<button type="button" class="btn btn-ghost" id="irr-say">Послушать</button>' : "")
+            + '<button type="button" class="btn btn-primary" id="irr-next">Дальше →</button>';
+          after.appendChild(buttons);
+          fb.insertAdjacentElement("afterend", after);
+          const sayBtn = buttons.querySelector("#irr-say");
+          // Три формы подряд, с паузами: их и заучивают вслух цепочкой.
+          if (sayBtn) sayBtn.addEventListener("click", () => speak(`${r.v}, ${r.p}, ${r.pp}`));
+          buttons.querySelector("#irr-next").addEventListener("click", next);
+          buttons.querySelector("#irr-next").focus();
+        };
+        btn.addEventListener("click", check);
+        // Enter из первого поля переводит во второе, из второго — проверяет:
+        // руки от клавиатуры не отрываются, а на телефоне это кнопка «дальше».
+        inP.addEventListener("keydown", e => {
+          if (e.key === "Enter") { e.preventDefault(); inPP.focus(); }
+        });
+        inPP.addEventListener("keydown", e => {
+          if (e.key === "Enter") { e.preventDefault(); check(); }
+        });
+      };
+      next();
+    };
+
+    /* Таблица группы. Не «шпаргалка вместо тренировки», а то, с чего
+     * учат список: сначала прочитать столбиком, потом закрыть и писать.
+     * Без неё ученик всё равно пойдёт искать таблицу в интернете. */
+    const showTable = (bank, title, back) => {
+      const rows = bank.slice().sort((a, b) => a.v.localeCompare(b.v));
+      stage().innerHTML = `
+        <p class="muted-small ex-hint">${esc(title)} — ${rows.length}
+           ${pluralRuEx(rows.length, "глагол", "глагола", "глаголов")}.
+           Прочитай столбиком вслух, потом закрой и попробуй написать.</p>
+        <div class="irr-table-wrap">
+          <table class="irr-table">
+            <thead><tr><th>Инфинитив</th><th>Past Simple</th><th>Participle II</th><th>Перевод</th></tr></thead>
+            <tbody>${rows.map(r => `<tr><td>${esc(r.v)}</td><td>${esc(r.p)}</td>`
+              + `<td>${esc(r.pp)}</td><td class="irr-ru">${esc(r.t)}</td></tr>`).join("")}</tbody>
+          </table>
+        </div>
+        <div class="quiz-buttons">
+          <button class="btn btn-ghost" id="irr-back">← К группам</button>
+          <button class="btn btn-primary" id="irr-go">Тренировать</button>
+        </div>`;
+      document.getElementById("irr-back").addEventListener("click", back);
+      document.getElementById("irr-go").addEventListener("click", () => start(bank, title));
+    };
+
+    const pickGroup = () => {
+      stage().innerHTML = `
+        <p class="muted-small ex-hint">Три формы глагола. Выбери группу —
+           внутри неё глаголы меняются одинаково, так их и запоминают.</p>
+        <div class="gr-topics" id="irr-groups"></div>`;
+      const box = document.getElementById("irr-groups");
+      const add = (bank, name, hint) => {
+        if (!bank.length) return;
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "gr-topic irr-group";
+        b.innerHTML = `<span class="gr-topic-name">${esc(name)}`
+          + `<i class="irr-group-hint">${esc(hint)}</i></span>`
+          + `<span class="gr-topic-count">${bank.length}</span>`;
+        b.addEventListener("click", () => showTable(bank, name, pickGroup));
+        box.appendChild(b);
+      };
+      IRREGULAR_GROUPS.forEach(g => {
+        add(IRREGULAR_VERBS.filter(r => r.grp === g.id), g.name, g.hint);
+      });
+      add(IRREGULAR_VERBS, "Все вперемешку",
+          "Как на экзамене: группа заранее не известна.");
+    };
+
+    pickGroup();
   },
 
   /* =========================================================
@@ -3289,7 +3570,7 @@ const EX_RUNNERS = {
       if (allOk) {
         placed.forEach(p => statUpdate(p.w, true));
         award(15 * placed.length);
-        setTimeout(() => exFinish(placed.length, placed.length), 700);
+        exLater(() => exFinish(placed.length, placed.length), 700);
       }
     });
   },

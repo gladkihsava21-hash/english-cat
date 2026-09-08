@@ -1931,3 +1931,83 @@ h2[tabindex="-1"]:focus-visible { outline: none; box-shadow: none; }
 /* Область нажатия во весь ряд: на телефоне в чекбокс 16×16 не попасть */
 .train-mix-label input { width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; }
 .train-mix .muted-small { flex-basis: 100%; }
+
+/* ===== Неправильные глаголы =====
+   Два поля рядом на большом экране и столбиком на телефоне: подписи
+   «Past Simple» и «Participle II» длинные, в один ряд на 320px они
+   ломаются посреди слова. */
+.irr-forms {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: var(--space-12);
+  margin-top: var(--space-16);
+  text-align: left;
+}
+.irr-field { display: block; }
+/* Подпись поля в две строки: сверху экзаменационное название, снизу
+   школьное. Ученик знает своё — какое именно, зависит от учебника. */
+.irr-label {
+  display: block;
+  font-size: var(--text-caption);
+  font-weight: 700;
+  color: var(--ink);
+}
+.irr-label i {
+  display: block;
+  font-style: normal;
+  font-weight: 500;
+  color: var(--ink-soft);
+}
+.irr-forms .type-input { margin-top: var(--space-4); }
+.irr-forms .type-input.bad { border-color: var(--red); background: var(--surface-alt); }
+/* Правильные три формы после ошибки — крупно и в одну строку: именно
+   такой цепочкой их и заучивают вслух. */
+.irr-answer {
+  margin: var(--space-8) 0 0;
+  font-size: var(--text-subheading);
+  font-weight: 800;
+  color: var(--ink);
+}
+/* Пояснение под названием группы. В .gr-topic оно не помещалось в строку,
+   поэтому уводим на вторую и делаем тише основного текста. */
+.irr-group-hint {
+  display: block;
+  margin-top: 2px;
+  font-style: normal;
+  font-weight: 500;
+  font-size: var(--text-caption);
+  color: var(--ink-soft);
+  white-space: normal;
+}
+.gr-topic.irr-group { align-items: flex-start; }
+/* Таблица прокручивается внутри себя: четыре колонки на 320px не влезают
+   никак, а горизонтальная прокрутка всей страницы — это баг. */
+.irr-table-wrap {
+  overflow-x: auto;
+  margin: var(--space-16) 0;
+  border: 2px solid var(--border);
+  border-radius: var(--radius-card, 16px);
+  background: var(--surface);
+}
+.irr-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-caption);
+}
+.irr-table th,
+.irr-table td {
+  padding: var(--space-8) var(--space-12);
+  text-align: left;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--line-soft);
+}
+.irr-table th {
+  font-weight: 700;
+  color: var(--ink-soft);
+  background: var(--surface-alt);
+  position: sticky;
+  top: 0;
+}
+.irr-table td { font-weight: 700; color: var(--ink); }
+.irr-table .irr-ru { font-weight: 500; color: var(--ink-soft); white-space: normal; }
+.irr-table tr:last-child td { border-bottom: 0; }
