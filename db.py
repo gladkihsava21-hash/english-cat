@@ -978,7 +978,18 @@ def sync_student(token, state):
         achievements = []
     # чистим словарь от мусора: только строковые поля, ограниченной длины
     clean_dict = []
-    for d in dictionary[:1000]:
+    # Потолок берём С КОНЦА списка, а не с начала.
+    #
+    # Здесь стояло dictionary[:1000] — то есть у ученика с большим
+    # словарём выбрасывались САМЫЕ СВЕЖИЕ слова, добавленные последними,
+    # а хранились самые старые. Потолок задуман как защита от мусора, а
+    # работал как «новое не сохраняется»: ребёнок добавляет слово, оно
+    # живёт в браузере и молча не доезжает до сервера.
+    #
+    # Потолок заодно поднят: 1000 слов — это меньше, чем набирает
+    # усердный ученик за год, а весит запись около 200 знаков, то есть
+    # 5000 слов это примерно мегабайт на человека. Терпимо.
+    for d in dictionary[-DICT_MAX_WORDS:]:
         if not isinstance(d, dict) or not d.get("w"):
             continue
         clean_dict.append({
@@ -1557,9 +1568,16 @@ def messages_for_student(all_messages, student_row):
 # ---------- сериализация для API ----------
 
 def xp_since(activity, days):
-    """Сколько очков ученик набрал за последние N дней."""
-    from datetime import date, timedelta
-    today = date.today()
+    """Сколько очков ученик набрал за последние N дней.
+
+    День считаем по МОСКВЕ, а не по часовому поясу сервера. Ключи в
+    activity ставит браузер ученика, и все остальные суточные срезы в
+    этом файле уже считаются по MSK (см. _period и claim-функции ниже).
+    Здесь стояло date.today() — то есть время ХОСТИНГА: он живёт в UTC,
+    и с полуночи до трёх ночи по Москве окно съезжало на сутки. Репетитор
+    в это время видел у ученика ноль очков за сегодня, хотя тот занимался."""
+    from datetime import timedelta
+    today = datetime.now(MSK).date()
     total = 0
     for i in range(days):
         key = (today - timedelta(days=i)).isoformat()
@@ -2817,6 +2835,7 @@ def lesson_state(tutor_row):
     # live управляет только тем, насколько громко зовёт кнопка.
     return {"url": url, "live": live}
 PHOTOS_PER_CHECK = 5     # больше пяти снимков на одну домашку не принимаем
+DICT_MAX_WORDS = 5000    # потолок словаря ученика — см. sync_student
 CHAT_MONTHLY_LIMIT = 150  # fair-use: отрезает хвост, обычный ученик не заметит
 
 
@@ -3071,9 +3090,26 @@ def paid_left(row):
     return max(0, round(left, 1))
 
 
+def paid_seconds_left(row):
+    """Сколько СЕКУНД оплачено вперёд. Для решений о доступе — только это.
+
+    paid_left округляет до десятых дня, и на этом кабинет закрывался
+    раньше срока: при остатке меньше 72 минут round(0.049, 1) даёт 0.0,
+    то есть «не оплачено». Репетитор, заплативший до полуночи, терял
+    доступ ещё вечером. Для показа человеку округление уместно, для
+    проверки доступа — нет."""
+    keys = row.keys()
+    if "paid_until" not in keys or not row["paid_until"]:
+        return 0
+    end = _parse_ts(row["paid_until"])
+    if not end:
+        return 0
+    return max(0, (end - datetime.now(timezone.utc)).total_seconds())
+
+
 def access_state(row):
     """Что сейчас с доступом: 'paid' | 'trial' | 'expired'."""
-    if paid_left(row) > 0:
+    if paid_seconds_left(row) > 0:
         return "paid"
     if trial_left(row) > 0:
         return "trial"

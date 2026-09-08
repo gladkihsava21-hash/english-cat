@@ -127,7 +127,14 @@ async function joinTutor(name) {
 
   // Запоминаем намерение: если сервер сейчас недоступен, ученик иначе
   // навсегда остался бы вне кабинета репетитора и молча учился один.
-  localStorage.setItem(PENDING_JOIN_KEY, JSON.stringify({ code: inv.code, name }));
+  // at — отметка времени: без неё запись жила вечно. Сценарий узкий, но
+  // неприятный: сервер отказал («заняты все места»), аккаунт не создан,
+  // кнопки выхода у человека нет — значит стереть ключ ему нечем. Когда
+  // репетитор через неделю докупит место, любая загрузка сайта на этом
+  // устройстве ФОНОМ заведёт ученика со старым именем. У репетитора
+  // появится призрак, съевший оплаченное место, а на общем ноутбуке
+  // следующий ребёнок молча получит чужой аккаунт.
+  localStorage.setItem(PENDING_JOIN_KEY, JSON.stringify({ code: inv.code, name, at: Date.now() }));
   return tryPendingJoin();
 }
 
@@ -335,6 +342,11 @@ function adoptServerState(srv) {
   if (typeof show === "function" && state.user && state.level && neutral) show("dashboard");
 }
 
+/** Сколько живёт отложенное приглашение. Трёх дней хватает, чтобы
+ *  репетитор увидел просьбу и добавил место; дольше — это уже не «догоню
+ *  привязку», а сюрприз из прошлого. */
+const PENDING_JOIN_TTL = 3 * 24 * 3600 * 1000;
+
 /** Возвращает исход привязки: { ok } при успехе и офлайне (догоним),
  *  { ok:false, shown:true } когда нарисован выбор «это я / другой»,
  *  { ok:false, error } при явном отказе сервера. Раньше все отказы
@@ -347,6 +359,12 @@ async function tryPendingJoin() {
   if (!raw) return { ok: true };
   let pending;
   try { pending = JSON.parse(raw); } catch (e) {
+    localStorage.removeItem(PENDING_JOIN_KEY);
+    return { ok: true };
+  }
+  // Протухшее не переигрываем. Записи без отметки времени — из старых
+  // версий; их тоже гасим, иначе они останутся вечными навсегда.
+  if (!pending.at || Date.now() - pending.at > PENDING_JOIN_TTL) {
     localStorage.removeItem(PENDING_JOIN_KEY);
     return { ok: true };
   }
