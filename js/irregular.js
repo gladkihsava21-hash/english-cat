@@ -103,7 +103,8 @@ const IRREGULAR_VERBS = [
   { v: "stick", p: "stuck", pp: "stuck", t: "приклеивать, застревать", lvl: "B1", grp: "abb" },
   { v: "sting", p: "stung", pp: "stung", t: "жалить", lvl: "B2", grp: "abb" },
   { v: "swing", p: "swung", pp: "swung", t: "качаться, размахивать", lvl: "B2", grp: "abb" },
-  { v: "shine", p: "shone", pp: "shone", t: "светить, сиять", lvl: "B1", grp: "abb" },
+  { v: "shine", p: "shone", pp: "shone", t: "светить, сиять", lvl: "B1", grp: "abb",
+    note: "Солнце shone. А вот «начистил ботинки» — shined: там глагол правильный." },
   { v: "light", p: "lit", pp: "lit", t: "зажигать, освещать", lvl: "B1", grp: "abb",
     pAlt: ["lighted"], ppAlt: ["lighted"], note: "Годится и lighted, но lit встречается чаще." },
 

@@ -200,7 +200,14 @@
         document.getElementById("wheel-answer").hidden = false;
         e.currentTarget.disabled = true;
       });
+      // Слово отмечается один раз. На последнем слове панель уже не
+      // перерисовывается (ждём итогов), а кнопки «Знал / Не знал» остаются
+      // живыми — второе нажатие давало ещё очки, ещё одну отметку в словаре
+      // и второй уход на итоги: «знал 9 из 8».
+      let marked = false;
       const mark = ok => {
+        if (marked) return;
+        marked = true;
         if (ok) { known++; award(6); }
         statUpdate(w.w, ok);
         react(ok ? "happy" : "oops");

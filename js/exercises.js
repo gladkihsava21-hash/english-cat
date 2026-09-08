@@ -3547,7 +3547,13 @@ const EX_RUNNERS = {
     // Стартуем с первой клетки первого слова: сразу видно, куда печатать
     select(key(placed[0].r, placed[0].c), true);
 
+    // Кроссворд засчитывается один раз. До сборки «Проверить» можно жать
+    // сколько угодно — это подсказка, где ошибка. А вот ПОСЛЕ сборки каждое
+    // повторное нажатие начисляло очки заново (15 за слово), заново отмечало
+    // все слова вспомненными и заводило второй уход на итоги.
+    let cwDone = false;
     document.getElementById("cw-check").addEventListener("click", () => {
+      if (cwDone) return;
       let allOk = true, wrong = 0, empty = 0;
       Object.values(cells).forEach(x => {
         const ok = x.val === x.ch;
@@ -3568,6 +3574,8 @@ const EX_RUNNERS = {
               .filter(Boolean).join(", ").replace(/^./, m => m.toUpperCase()) + ".";
       }
       if (allOk) {
+        cwDone = true;
+        document.getElementById("cw-check").disabled = true;
         placed.forEach(p => statUpdate(p.w, true));
         award(15 * placed.length);
         exLater(() => exFinish(placed.length, placed.length), 700);
