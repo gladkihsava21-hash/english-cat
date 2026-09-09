@@ -43,8 +43,10 @@ function planFor(count) {
 }
 
 /** Подсказка под полем «сколько у вас учеников».
- *  Одна сумма без объяснения читается как «а с учеников ещё сколько?» —
- *  поэтому цена всегда идёт вместе с тем, кто её платит и когда. */
+ *  Одна сумма без объяснения читается как «а сколько ещё сверху?» —
+ *  поэтому цена всегда идёт вместе с тем, что в неё входит и когда её
+ *  спросят. Обещания «с учеников не берём ничего и никогда» тут больше
+ *  нет: обещать «никогда» за весь будущий сайт нельзя. */
 function planHintText(count) {
   const n = Number(count) || 0;
   if (!n) return "";
@@ -57,7 +59,7 @@ function planHintText(count) {
       `за места сверх лимита. Итого ${planCost(plan, n)} ₽ в месяц`
     : `Подходит тариф «${plan.name}» — ${plan.price} ₽ в месяц, до ${plan.limit} учеников`;
 
-  return `${price}. Это вся сумма: ученики не платят ничего. ` +
+  return `${price}. Это вся сумма за панель. ` +
          `Первые ${TRIAL_DAYS} ${plural(TRIAL_DAYS, "день", "дня", "дней")} бесплатно, счёт — после них.`;
 }
 
@@ -226,8 +228,7 @@ function renderPlan() {
           <span class="plan-row-price">${pl.price ? pl.price + " ₽/мес" : "—"}</span>
         </div>`).join("")}
     </div>
-    <p class="reset-note">Подписку оплачивает репетитор — с учеников не берём ничего.
-      Счёт и смена тарифа — в телеграме
+    <p class="reset-note">Счёт и смена тарифа — в телеграме
       <a class="tg-link" href="https://t.me/KOTSAVELII" target="_blank" rel="noopener">@KOTSAVELII</a>.</p>`;
 
   // Имя box выше уже занято карточкой тарифа — здесь своё
@@ -318,7 +319,7 @@ function accessBanner(t) {
       ? `${d} ${plural(d, "день", "дня", "дней")}`
       : `${h} ${plural(h, "час", "часа", "часов")}`;
     return `<div class="access-bar">Пробный период: осталось ${text}.
-      Дальше — «${esc(t.planName)}», ${t.monthlyTotal} ₽ в месяц; ученики не платят ничего.</div>`;
+      Дальше — «${esc(t.planName)}», ${t.monthlyTotal} ₽ в месяц.</div>`;
   }
   return `<div class="access-bar stop">Оформите подписку, чтобы вернуть панель —
     пробный период закончился. Ученики всё это время занимаются как обычно.</div>`;
@@ -337,7 +338,7 @@ function showPaywall(t) {
     box.innerHTML = `
       <p class="plan-name">${esc(t.planName)} — ${t.monthlyTotal} ₽/мес</p>
       <p class="muted-note">до ${t.studentLimit} учеников · сейчас занимается ${t.studentCount}</p>
-      <p class="muted-note">Это вся сумма: с учеников не берём ничего.</p>`;
+      <p class="muted-note">Это вся сумма за панель.</p>`;
   }
 }
 
