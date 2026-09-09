@@ -6,6 +6,7 @@
 Панель:  http://localhost:4210/tutor.html
 """
 import base64
+import hashlib
 import json
 import os
 import re
@@ -35,7 +36,7 @@ import mailer
 # Теперь это видно одним curl /health: цифра совпала с ?v= на странице —
 # приложение перезапущено; не совпала или её нет вовсе — в памяти старый
 # код, надо нажать «Перезапустить приложение» в панели хостинга.
-ASSET_VERSION = 264
+ASSET_VERSION = 265
 
 PORT = int(os.environ.get("SAVELY_PORT", "4210"))
 # За nginx сервер слушает только localhost — снаружи он не должен быть виден
@@ -207,6 +208,15 @@ ALICE_KEY = _clean_key(os.environ.get("SAVELY_YC_KEY") or _YA.get("api_key", "")
 ALICE_FOLDER = (os.environ.get("SAVELY_YC_FOLDER") or _YA.get("folder", "")).strip()
 ALICE_CHAT_MODEL = (_YA.get("chat_model") or "yandexgpt-lite/latest").strip()
 ALICE_CHECK_MODEL = (_YA.get("check_model") or "yandexgpt/latest").strip()
+# Озвучка (SpeechKit). Голоса на выбор: alena, jane, oksana, omazh, filipp,
+# ermil, zahar, madirus; «алиса» из колонки — голос Алисы недоступен через
+# API, alena — ближайший открытый. tts = 0 в конфиге выключает только
+# озвучку, не трогая чат и проверки. tts_endpoint переопределяется для
+# локальных тестов (мок вместо облака).
+ALICE_TTS_VOICE = (_YA.get("voice") or "alena").strip()
+ALICE_TTS_ON = (_YA.get("tts", "1").strip() != "0")
+ALICE_TTS_ENDPOINT = (_YA.get("tts_endpoint")
+                      or "https://tts.api.cloud.yandex.net/tts/v3/utteranceSynthesis").strip()
 
 
 def alice_ready():
@@ -394,6 +404,7 @@ _HIT_LIMITS = {
     # их надо где-то, и здесь. Счётчик попыток на сам код тоже есть.
     "/api/tutor/reset/check": (10, 600),
     "/api/chat": (120, 300),
+    "/api/tts": (240, 300),
     # Каждый вызов читает файл с диска и кодирует до 8 МБ в base64.
     # Лимита не было вовсе, а хостинг однопроцессный: этого хватает,
     # чтобы положить сайт для живых репетиторов.
@@ -751,14 +762,18 @@ ALT_PROVIDERS = {
 }
 
 
-# Нейросети поставлены на паузу ЦЕЛИКОМ — решение владельца от 20.08.2026:
+# Нейросети поставлены на паузу — решение владельца от 20.08.2026:
 # запускаемся без ИИ («в разработке»), чтобы не тянуть юридическую часть
-# (уведомления РКН про обработчиков, согласия) раньше времени. Пока True,
-# появление ключей на сервере (api_key.txt, yandex.conf) НИЧЕГО не включает:
-# чат отвечает правилами, фото тетрадей уходит репетитору без разбора,
-# счёт за проверки не начисляется. Включать: False → деплой → в админке
-# должен появиться чип «ИИ: …» с именем провайдера.
-AI_PAUSED = True
+# (уведомления РКН про обработчиков, согласия) раньше времени.
+#
+# Включение БЕЗ деплоя: строка «enabled = 1» в savely-data/yandex.conf
+# (рядом с ключами) снимает паузу — файл лежит только на сервере, и
+# включает его владелец осознанно. Пока строки нет, появление одних
+# ключей НИЧЕГО не включает: чат отвечает правилами, фото тетрадей
+# уходит репетитору без разбора, счёт за проверки не начисляется.
+# После включения в админке появляется чип «ИИ: …» с именем провайдера.
+# ВАЖНО: включать только после юридической части (deploy/RKN.md).
+AI_PAUSED = (_YA.get("enabled", "").strip() != "1")
 
 
 def ai_available():
@@ -776,6 +791,14 @@ def ai_available():
     if alt and alt[1]():
         return True
     return os.path.exists(CLAUDE)
+
+
+def tts_available():
+    """Озвучка Алисой: только когда ИИ включён и есть ключи Яндекса.
+    Отдельный флаг: чат может идти через Claude, а голос — только Яндекс."""
+    if AI_PAUSED or os.environ.get("SAVELY_NO_AI"):
+        return False
+    return ALICE_TTS_ON and alice_ready()
 
 
 def ai_photo_available():
@@ -1708,6 +1731,9 @@ class Api:
             return {"ok": True, "homework": [], "leaderboard": [], "messages": [],
                     "lesson": {"live": False, "url": ""}, "hasTutor": False,
                     "ai": ai_available(),
+                    # одиночке серверная озвучка не положена (решение
+                    # владельца) — и обещать её клиенту нельзя
+                    "tts": False,
                     "taskResults": json.loads((row["task_results"] if "task_results" in row.keys() else "{}") or "{}")}
         keys_row = row.keys()
         # Назначенный репетитором уровень: ученик применит его по отметке
@@ -1752,6 +1778,7 @@ class Api:
             "lesson": db.lesson_state(db.get_tutor_by_id(row["tutor_id"])),
             "hasTutor": True,
             "levelForce": level_force,
+            "tts": tts_available(),
             # Имя репетитора приходит с каждой синхронизацией.
             # Раньше оно записывалось на устройство ОДИН раз — при входе,
             # — и если ученика привязали позже или он вошёл иначе, метка
@@ -2377,7 +2404,39 @@ class Api:
     # с витрины не ограничен вообще ничем, кроме частоты. Каждое сообщение
     # стоит реальных денег — потолки must have (чек-лист совладельца, п. 1).
     CHAT_DAILY_STUDENT = 40   # сообщений ученику в сутки; средний день — 5
+    CHAT_DAILY_SOLO = 15      # одиночке без репетитора: чат оставляем, но
+                              # скромно — за его нейросеть никто не платит
     CHAT_DAILY_GUEST = 15     # гостю с витрины на адрес в сутки — попробовать хватает
+
+    TTS_DAILY = 300     # озвучек на ученика в сутки; урок съедает ~50
+
+    @staticmethod
+    def tts(h, p):
+        """Озвучка СЛОВА (словарной единицы). Решение владельца: Алисой
+        озвучиваем только слова — короткие, с вечным кэшем каждое уникальное
+        покупается один раз (~0,004 ₽), то есть почти бесплатно. Предложения
+        диктанта остаются на браузерном синтезе. Право — только у учеников
+        репетитора: бесплатному одиночке — только чат, и тот с лимитом.
+        Отдаём mp3 напрямую, а не JSON: клиент кладёт его в Audio как есть."""
+        if not tts_available():
+            return {"ok": False, "error": "ai_off"}
+        row = db.get_student_by_token(p.get("token"))
+        if not row:
+            return {"ok": False, "error": "unauthorized"}
+        if not row["tutor_id"]:
+            return {"ok": False, "error": "solo"}
+        text = " ".join(str(p.get("text") or "").split())
+        # «Слово» — включая словарные фразы («take it with a grain of salt»),
+        # исключая предложения: те длиннее и им хватает браузерного голоса.
+        if not text or len(text) > 80 or len(text.split()) > 6:
+            return {"ok": False, "error": "not_a_word"}
+        if not db.rate_hit("tts-day|%d" % row["id"], Api.TTS_DAILY, 86400):
+            return {"ok": False, "error": "limit"}
+        audio = tts_for(text)
+        if not audio:
+            return {"ok": False, "error": "empty"}
+        # немой кэш браузера: одно и то же слово в подходе звучит трижды
+        return {"_raw": audio, "_type": "audio/mpeg", "_cache": 86400}
 
     @staticmethod
     def chat(h, p):
@@ -2392,7 +2451,8 @@ class Api:
         # Дневной потолок проверяем ДО списания месячной квоты: отказ
         # не должен съедать сообщение из месяца.
         day_key = ("chat-day|%d" % row["id"]) if row else ("chat-guest|%s" % p.get("_ip"))
-        day_limit = Api.CHAT_DAILY_STUDENT if row else Api.CHAT_DAILY_GUEST
+        day_limit = (Api.CHAT_DAILY_STUDENT if row and row["tutor_id"]
+                     else Api.CHAT_DAILY_SOLO if row else Api.CHAT_DAILY_GUEST)
         if not db.rate_hit(day_key, day_limit, 86400):
             return {"ok": True, "limitReached": True,
                     "reply": "Мур… на сегодня я наговорился — вернусь завтра со свежей головой! 🐈‍⬛ "
@@ -2415,6 +2475,88 @@ class Api:
             if row:
                 db.refund_chat(row["id"])   # не ответил — не считаем
             return {"ok": False, "error": ai_error_text(e, p)}
+
+
+# ---------- озвучка (SpeechKit) ----------
+# Слово, произнесённое одним и тем же голосом у всех, — то, ради чего
+# сервер вообще влез в озвучку: браузерный синтез на телефонах то нем,
+# то говорит по-немецки (см. audioHelpHTML). Каждый синтез стоит денег
+# (~400 ₽ за миллион знаков), поэтому диск помнит всё произнесённое:
+# слово «apple» покупается один раз на всех учеников навсегда.
+
+def _tts_cache_dir():
+    d = os.path.join(os.path.dirname(os.path.abspath(db.DB_PATH)), "tts-cache")
+    os.makedirs(d, exist_ok=True)
+    return d
+
+
+def _tts_cache_trim(d):
+    """Кэш не должен съесть хостинг: больше ~4000 файлов — старейшие вон."""
+    try:
+        names = os.listdir(d)
+        if len(names) <= 4000:
+            return
+        paths = [os.path.join(d, n) for n in names]
+        paths.sort(key=lambda x: os.path.getmtime(x))
+        for x in paths[:400]:
+            os.remove(x)
+    except OSError:
+        pass
+
+
+def alice_tts(text):
+    """Синтез mp3 через SpeechKit v3. Ответ — поток JSON-строк с кусками
+    аудио в base64; склеиваем. Возвращает байты mp3 или бросает."""
+    body = json.dumps({
+        "text": text,
+        "hints": [{"voice": ALICE_TTS_VOICE}],
+        "outputAudioSpec": {"containerAudio": {"containerAudioType": "MP3"}},
+        "loudnessNormalizationType": "LUFS",
+    }).encode("utf-8")
+    req = urllib.request.Request(
+        ALICE_TTS_ENDPOINT, data=body,
+        headers={"Content-Type": "application/json",
+                 "Authorization": "Api-Key " + ALICE_KEY,
+                 "x-folder-id": ALICE_FOLDER})
+    with urllib.request.urlopen(req, timeout=15) as resp:
+        raw = resp.read()
+    chunks = []
+    for line in raw.decode("utf-8", "replace").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        piece = json.loads(line)
+        data = ((piece.get("result") or {}).get("audioChunk") or {}).get("data")
+        if data:
+            chunks.append(base64.b64decode(data))
+    audio = b"".join(chunks)
+    if not audio:
+        raise ValueError("SpeechKit вернул пустой звук")
+    return audio
+
+
+def tts_for(text):
+    """Кэш → синтез. Ключ включает голос: сменили голос — старые файлы
+    не подсовываются."""
+    text = " ".join(str(text or "").split())[:240]
+    if not text:
+        return None
+    d = _tts_cache_dir()
+    name = hashlib.sha1((ALICE_TTS_VOICE + "|" + text).encode("utf-8")).hexdigest() + ".mp3"
+    path = os.path.join(d, name)
+    try:
+        with open(path, "rb") as f:
+            return f.read()
+    except OSError:
+        pass
+    audio = alice_tts(text)
+    try:
+        with open(path, "wb") as f:
+            f.write(audio)
+        _tts_cache_trim(d)
+    except OSError:
+        pass                       # диск переполнен — звук всё равно отдаём
+    return audio
 
 
 # ---------- проверка фото домашки ----------
@@ -2688,6 +2830,7 @@ ROUTES = {
     "/api/tutor/photo/archive": Api.tutor_photo_archive,
     "/api/photo": Api.photo_fetch,
     "/api/chat": Api.chat,
+    "/api/tts": Api.tts,
 }
 
 
@@ -2696,6 +2839,19 @@ class Handler(SimpleHTTPRequestHandler):
         super().__init__(*args, directory=ROOT, **kwargs)
 
     def _send_json(self, obj, status=200):
+        # dict с ключом _raw — готовые байты (mp3 озвучки), не JSON;
+        # см. одноимённую договорённость в wsgi.py
+        if isinstance(obj, dict) and "_raw" in obj:
+            body = obj["_raw"]
+            self.send_response(status)
+            self.send_header("Content-Type", obj.get("_type") or "application/octet-stream")
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Access-Control-Allow-Origin", "*")
+            if obj.get("_cache"):
+                self.send_header("Cache-Control", "private, max-age=%d" % int(obj["_cache"]))
+            self.end_headers()
+            self.wfile.write(body)
+            return
         body = json.dumps(obj, ensure_ascii=False).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")

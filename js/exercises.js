@@ -22,7 +22,60 @@ if (TTS_OK) {
 let TTS_RATE = 0.92;
 function setSpeechRate(rate) { TTS_RATE = rate; }
 
+/* ---- озвучка словаря голосом Алисы (SpeechKit) ----
+ * Только СЛОВА и словарные фразы: они короткие, сервер держит вечный
+ * кэш, и каждое уникальное слово покупается один раз на всех. Предложения
+ * (диктант) остаются на браузерном синтезе. Флаг window.SAVELY_TTS
+ * приходит синхронизацией и false у одиночек — им серверная озвучка
+ * не положена, работает браузерная, как раньше. */
+const ALICE_AUDIO = new Map();      // текст -> objectURL; живёт до перезагрузки
+let aliceNow = null;                // что звучит сейчас — глушим перед новым
+
+function speakAlice(text, opts) {
+  if (!window.SAVELY_TTS) return false;
+  const clean = String(text || "").trim();
+  // тот же критерий «это слово», что и на сервере
+  if (!clean || clean.length > 80 || clean.split(/\s+/).length > 6) return false;
+  const token = typeof studentToken === "function" ? studentToken() : "";
+  if (!token) return false;
+  const rate = (opts && opts.rate) || TTS_RATE;
+  const play = url => {
+    if (aliceNow) { try { aliceNow.pause(); } catch (e) { /* уже молчит */ } }
+    if (TTS_OK) { try { speechSynthesis.cancel(); } catch (e) { /* пусто */ } }
+    const a = new Audio(url);
+    // «Медленно» в упражнениях — замедляем сам файл; тона браузер держит
+    a.playbackRate = rate < 0.8 ? 0.72 : 1;
+    aliceNow = a;
+    a.play().catch(() => { speakBrowser(clean, opts); });
+  };
+  const have = ALICE_AUDIO.get(clean);
+  if (have) { play(have); return true; }
+  fetch("/api/tts", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token, text: clean }),
+  }).then(async r => {
+    if (!r.ok || (r.headers.get("Content-Type") || "").includes("json")) {
+      // сервер отказал (лимит, выключили) — до следующей синхронизации
+      // не пробуем и говорим браузером
+      window.SAVELY_TTS = false;
+      speakBrowser(clean, opts);
+      return;
+    }
+    const url = URL.createObjectURL(await r.blob());
+    if (ALICE_AUDIO.size > 300) ALICE_AUDIO.clear();   // не копим мегабайты
+    ALICE_AUDIO.set(clean, url);
+    play(url);
+  }).catch(() => { speakBrowser(clean, opts); });
+  return true;
+}
+
 function speak(text, opts) {
+  if (speakAlice(text, opts)) return;
+  speakBrowser(text, opts);
+}
+
+function speakBrowser(text, opts) {
   if (!TTS_OK) return;
   // Android Chrome (и WebView) молча глотает utterance в двух случаях:
   // сразу после cancel() и когда синтез завис в paused. Репетитор прислала
@@ -640,14 +693,44 @@ function distractors(word, n, field) {
 
   // Порядок важен: сначала своя категория, потом вычитанное, добор — остальным.
   // Set убирает совпадения по ТЕКСТУ: у разных слов перевод иногда
-  // одинаковый, и тогда на экране два одинаковых варианта.
+  // одинаковый, и тогда на экране два одинаковых варианта. Для перевода
+  // сверяем ещё и слова внутри: «милый, симпатичный» против «приятный,
+  // милый» — это две верные кнопки с точки зрения ученика (замечание
+  // Ирины), такую ловушку не берём.
+  const banned = field === "t" ? ruTokens(word.t) : null;
   const out = [];
   for (const v of [...sameCat, ...vetted, ...rest]) {
     if (v === word[field]) continue;      // не подсовываем верный ответ дважды
+    if (banned && [...ruTokens(v)].some(t => banned.has(t))) continue;
     if (!out.includes(v)) out.push(v);
     if (out.length === n) break;
   }
   return out;
+}
+
+/** Слова-токены перевода: по ним ловим «одинаковые по смыслу» варианты.
+ *  «милый, симпатичный» → {милый, симпатичный}. Союзы и предлоги короче
+ *  трёх букв отсеиваются сами. */
+function ruTokens(t) {
+  return new Set(String(t || "").toLowerCase().replace(/ё/g, "е")
+    .split(/[^а-яё]+/i).filter(x => x.length >= 3));
+}
+
+/** Пул без пересечений переводов: два слова с общим словом в переводе
+ *  («милый») в один подход не берём — на «милый, симпатичный» ученица
+ *  честно писала affectionate из этого же подхода и получала «не совсем».
+ *  Если непохожих слишком мало, лучше вернуть как есть: короткий подход
+ *  из-за фильтра хуже редкого конфликта. */
+function pickDistinctT(pool, n) {
+  const out = [], seen = new Set();
+  for (const p of pool) {
+    const tk = [...ruTokens(p.t)];
+    if (tk.some(t => seen.has(t))) continue;
+    tk.forEach(t => seen.add(t));
+    out.push(p);
+    if (out.length >= n) break;
+  }
+  return out.length >= Math.min(3, n) ? out : pool.slice(0, n);
 }
 
 /** Слова, на которых ученик ошибся за этот подход и которых НЕТ в его
@@ -1996,7 +2079,9 @@ const EX_RUNNERS = {
   },
 
   spelling() {
-    const pool = trainPool(6);
+    // Запас втрое: pickDistinctT выкидывает слова с пересекающимися
+    // переводами, надо из чего добирать.
+    const pool = pickDistinctT(trainPool(18), 6);
     runType(pool.map(p => ({
       sub: "Впиши слово по-английски",
       prompt: "«" + p.t + "»",

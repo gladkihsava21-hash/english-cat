@@ -166,6 +166,14 @@ function grammarCheck(text) {
       why: "«Как ты думаешь?» по-английски — what do you think, а не how." },
     { re: /\bi\s+feel\s+myself\b/i, bad: "I feel myself", good: "I feel",
       why: "«Чувствую себя» — просто I feel good. Myself здесь лишнее и звучит двусмысленно." },
+    // Согласование be в прошедшем: Ирина прислала скрин, где «yesterday
+    // she were hasty» прошло без замечаний — ловим только с местоимением
+    // прямо перед was/were, чтобы не спорить с сослагательным «if she
+    // were» (перед ним стоит if/wish — под правило не попадает нарочно).
+    { re: /(?<!\bif\s)(?<!\bwish\s)\b(he|she|it)\s+were\b/i, bad: "she were", good: "was",
+      why: "С he, she, it в прошедшем — was: she was hasty. Were — для you, we, they." },
+    { re: /\b(you|we|they)\s+was\b/i, bad: "they was", good: "were",
+      why: "С you, we, they в прошедшем — were: they were late. Was — для I, he, she, it." },
   ];
   calques.forEach(c => {
     const m = c.re.exec(raw);
