@@ -104,10 +104,53 @@ function loadScriptOnce(src) {
   return _loading[src];
 }
 
-/** Словарь. Всё, что читает WORDS, обязано сначала дождаться этого. */
-function ensureWords() {
-  if (typeof WORDS !== "undefined") return Promise.resolve(true);
-  return loadScriptOnce("js/words.js");
+/** Какие уровни словаря нужны прямо сейчас.
+ *
+ *  Ученику — его уровень, всё что ниже и один следующий: именно так
+ *  подбирают слова trainPool и levelPool, и ровно столько же берёт
+ *  recommendations. Для A2 это A1+A2+B1 — 198 КБ вместо 690.
+ *
+ *  На странице репетитора уровня ученика нет вовсе (app.js там не
+ *  подключён), а домашку составляют по любому уровню — значит весь
+ *  словарь. Репетиторов единицы и сидят они с компьютера. */
+function wordsLevels() {
+  if (typeof LEVELS === "undefined") return [];
+  if (typeof studyLevel !== "function") return LEVELS.slice();
+  const i = LEVELS.indexOf(studyLevel());
+  return LEVELS.slice(0, (i < 0 ? LEVELS.length : i + 2));
+}
+
+/** Словарь. Всё, что читает WORDS, обязано сначала дождаться этого.
+ *
+ *  Файл был один на 2,1 МБ (690 КБ в gzip) и ехал целиком при первом
+ *  заходе в любое упражнение — на слабом мобильном это минута с лишним
+ *  пустого экрана, замерено на бою. Теперь по файлу на уровень
+ *  (tools/split-words.py), и едут только нужные.
+ *
+ *  Уровень ученика меняется (тест, выбор в тренировках, подсказка «пора
+ *  выше», принудительная установка репетитором), поэтому нужный набор
+ *  считается КАЖДЫЙ раз, а не запоминается: следующий вызов догрузит
+ *  недостающее сам. Повторные загрузки одного файла склеивает
+ *  loadScriptOnce. */
+/** Загружены ли уровни, которые нужны прямо сейчас.
+ *
+ *  Раньше готовность проверяли как `typeof WORDS === "undefined"`: файл
+ *  был один, и «есть объект» означало «есть весь словарь». Теперь файлов
+ *  шесть, и объект появляется, как только доехал ПЕРВЫЙ уровень, — старая
+ *  проверка пропустила бы упражнение вперёд загрузки и показала ученику
+ *  пустую тренировку вместо ожидания. */
+function wordsReady(levels) {
+  if (typeof WORDS === "undefined") return false;
+  const want = (levels && levels.length) ? levels : wordsLevels();
+  return want.every(l => WORDS[l]);
+}
+
+function ensureWords(levels) {
+  const want = (levels && levels.length) ? levels : wordsLevels();
+  const need = want.filter(l => typeof WORDS === "undefined" || !WORDS[l]);
+  if (!need.length) return Promise.resolve(true);
+  return Promise.all(need.map(l => loadScriptOnce("js/words-" + l + ".js")))
+    .then(() => true);
 }
 
 /** Транскрипция (МФА). Отдельным файлом и НЕ обязательна: 276 КБ ради

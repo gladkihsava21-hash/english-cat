@@ -786,7 +786,7 @@ document.getElementById("start-test-btn").addEventListener("click", async () => 
     // откатываемся на прежнее поведение: тест важнее идеальных слов.
     const pool = (typeof LEVEL_TEST_WORDS !== "undefined" && LEVEL_TEST_WORDS[lvl])
       ? LEVEL_TEST_WORDS[lvl].map(w => ({ w }))
-      : WORDS[lvl];
+      : (WORDS[lvl] || []);
     sample(pool, TEST_PER_LEVEL).forEach(w => testWords.push({ ...w, level: lvl }));
   });
   // Обманки раскидываем по всему тесту, а не кучей в конце: иначе они
@@ -1099,6 +1099,8 @@ function applyLevel(levelIdx, right, total) {
   state.level = level;
   state.vocabEstimate = vocab;
   saveState();
+  // Тест мог поставить уровень выше загруженного — доедут к тренировке.
+  if (typeof ensureWords === "function") ensureWords().catch(() => {});
   addXP(25);
   updateChrome();
   currentRecs = []; // после нового теста подберём слова заново
@@ -1246,7 +1248,7 @@ function pickRecommendations() {
   // Словарь подгружается отдельно (см. «Старт» внизу файла). Пока он
   // едет, главная рисуется без карточек, а не падает; когда приедет —
   // renderDashboard зовут ещё раз.
-  if (typeof WORDS === "undefined") return [];
+  if (!wordsReady()) return [];
   const lvl = studyLevel();
   const nextLvl = LEVELS[Math.min(LEVELS.indexOf(lvl) + 1, LEVELS.length - 1)];
   const inDict = new Set(state.dictionary.map(d => d.w));
@@ -1256,20 +1258,20 @@ function pickRecommendations() {
   // хватило — любые. Жёсткий фильтр оставил бы C1 без рекомендаций
   // совсем: там полных всего 369 на 5902, и они кончатся.
   const fit = (w, l) => !inDict.has(w.w) && !seen.has(w.w);
-  const good = WORDS[lvl].filter(w => fit(w) && recQuality(w)).map(w => ({ ...w, level: lvl }));
+  const good = (WORDS[lvl] || []).filter(w => fit(w) && recQuality(w)).map(w => ({ ...w, level: lvl }));
   const poolMain = good.length >= 4
     ? good
-    : [...good, ...WORDS[lvl].filter(w => fit(w) && !recQuality(w)).map(w => ({ ...w, level: lvl }))];
+    : [...good, ...(WORDS[lvl] || []).filter(w => fit(w) && !recQuality(w)).map(w => ({ ...w, level: lvl }))];
   const mainPicks = sample(poolMain, 4);
   // на C2 nextLvl совпадает с текущим — исключаем уже выбранное,
   // иначе одно слово попадает на главную двумя карточками сразу
   const takenNow = new Set(mainPicks.map(w => w.w));
   const fitNext = w => !inDict.has(w.w) && !seen.has(w.w) && !takenNow.has(w.w);
-  const goodNext = WORDS[nextLvl].filter(w => fitNext(w) && recQuality(w))
+  const goodNext = (WORDS[nextLvl] || []).filter(w => fitNext(w) && recQuality(w))
     .map(w => ({ ...w, level: nextLvl }));
   const poolNext = goodNext.length >= 2
     ? goodNext
-    : [...goodNext, ...WORDS[nextLvl].filter(w => fitNext(w) && !recQuality(w))
+    : [...goodNext, ...(WORDS[nextLvl] || []).filter(w => fitNext(w) && !recQuality(w))
         .map(w => ({ ...w, level: nextLvl }))];
 
   let picks = [...mainPicks, ...sample(poolNext, 2)];
@@ -1278,8 +1280,8 @@ function pickRecommendations() {
     // И в запасном круге сначала полные записи. Сортировать нельзя:
     // sample берёт случайные элементы, порядок ему безразличен —
     // поэтому именно два отдельных списка, как и выше.
-    const rest = [...WORDS[lvl].map(w => ({ ...w, level: lvl })),
-                  ...WORDS[nextLvl].map(w => ({ ...w, level: nextLvl }))]
+    const rest = [...(WORDS[lvl] || []).map(w => ({ ...w, level: lvl })),
+                  ...(WORDS[nextLvl] || []).map(w => ({ ...w, level: nextLvl }))]
       .filter(w => !inDict.has(w.w) && !picks.some(p => p.w === w.w));
     const restGood = rest.filter(recQuality);
     const fallback = restGood.length >= RECOMMEND_COUNT - picks.length
@@ -1321,9 +1323,9 @@ function renderWordOfDay() {
   // когда он приехал. Один раз добавленный hidden без парного remove
   // означал бы «слово дня пропало навсегда» для всех, кто зашёл на
   // главную раньше, чем догрузился словарь.
-  box.classList.toggle("hidden", typeof WORDS === "undefined");
-  if (typeof WORDS === "undefined") return;
-  const pool = WORDS[studyLevel()] || WORDS.A1;
+  box.classList.toggle("hidden", !wordsReady());
+  if (!wordsReady()) return;
+  const pool = WORDS[studyLevel()] || WORDS.A1 || [];
   const days = Math.floor(Date.now() / 86400000);
   const wd = pool[days % pool.length];
   const inDict = state.dictionary.some(d => d.w.toLowerCase() === wd.w.toLowerCase());
@@ -2305,7 +2307,7 @@ function addWordHint() {
 document.getElementById("add-word-en").addEventListener("input", () => {
   // Словарь и транскрипция могут быть ещё не загружены — тогда просто
   // подтягиваем их и пробуем снова: подсказка появится через мгновение.
-  if (typeof WORDS === "undefined" && typeof ensureWords === "function") {
+  if (!wordsReady() && typeof ensureWords === "function") {
     ensureWords().then(addWordHint);
     return;
   }
@@ -2782,7 +2784,7 @@ function catReply(raw) {
     }
     const inDict = new Set(state.dictionary.map(d => d.w));
     const lvl = studyLevel();
-    const pool = WORDS[lvl].filter(w => !inDict.has(w.w));
+    const pool = (WORDS[lvl] || []).filter(w => !inDict.has(w.w));
     const word = pool.length ? pool[Math.floor(Math.random() * pool.length)] : null;
     if (!word) {
       catSay("Мяу, слова твоего уровня закончились! Ты всё разобрал. Скоро подвезу новых.");

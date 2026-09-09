@@ -57,7 +57,14 @@ const load = f => {
  "js/levels.js","js/srs.js","js/images.js","js/word-photos.js","js/app.js",
  "js/achievements.js","js/exercises.js","js/games.js",
  // банки, которые в браузере едут лениво
- "js/words.js","js/phrases.js","js/grammar.js","js/wordform.js",
+ //
+ // Словарь грузим НЕ целиком, а ровно те уровни, которые ensureWords()
+ // дал бы ученику A2: свой, всё что ниже и один следующий. Это не
+ // экономия для теста, а проверка по делу — при живом ученике B2, C1 и
+ // C2 в WORDS отсутствуют, и весь код, который ходит по LEVELS, обязан
+ // это переживать. Загрузи мы всё — эта ветка не проверялась бы никогда.
+ "js/words-A1.js", "js/words-A2.js", "js/words-B1.js",
+ "js/phrases.js","js/grammar.js","js/wordform.js",
  "js/grammarcheck.js","js/irregular.js"].forEach(load);
 
 w.eval(`

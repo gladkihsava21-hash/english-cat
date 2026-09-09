@@ -174,7 +174,7 @@ async function openPanel() {
   // На экране входа он не нужен вообще, а это 326 КБ сжатыми: раньше
   // их качал каждый, кто просто открыл форму. Не ждём: список учеников
   // важнее, а подборщик слов лежит на другой вкладке.
-  ensureWords().then(fillWordPicker).catch(() => {});
+  ensureWords(LEVELS).then(fillWordPicker).catch(() => {});
   await loadStudents();
   setInterval(loadStudents, 60000);  // подтягиваем свежий прогресс раз в минуту
 }
@@ -944,7 +944,7 @@ function fillLevels() {
     `<option value="${l}">${l} — ${LEVEL_NAMES[l]}</option>`).join("");
   $("hw-level").value = "A2";
   // темы: репетитор выдаёт «еду» или «путешествия» одним махом
-  const cats = [...new Set(LEVELS.flatMap(l => WORDS[l].map(w => w.cat)))]
+  const cats = [...new Set(LEVELS.flatMap(l => (WORDS[l] || []).map(w => w.cat)))]
     .filter(Boolean)
     .sort((a, b) => (CATEGORY_NAMES[a] || a).localeCompare(CATEGORY_NAMES[b] || b, "ru"));
   $("hw-topic").innerHTML = `<option value="">все темы</option>` +

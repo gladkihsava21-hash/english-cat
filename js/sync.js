@@ -611,6 +611,8 @@ async function pushProgress() {
         state.level = res.levelForce.level;
         state.trainLevel = null;
         saveStateQuiet();
+        // Репетитор переставил уровень — нужных слов может ещё не быть.
+        if (typeof ensureWords === "function") ensureWords().catch(() => {});
         if (typeof updateChrome === "function") updateChrome();
         if (typeof renderDashboard === "function"
             && document.getElementById("screen-dashboard")

@@ -222,7 +222,7 @@ document.getElementById("flash-audio").addEventListener("click", e => {
 function wordInfo(w) {
   const lw = String(w).toLowerCase();
   for (const lvl of LEVELS) {
-    const hit = WORDS[lvl].find(x => x.w.toLowerCase() === lw);
+    const hit = (WORDS[lvl] || []).find(x => x.w.toLowerCase() === lw);
     if (hit) return { ...hit, level: lvl };
   }
   return null;
@@ -524,7 +524,7 @@ function catBags(only = null, capLevel = true) {
     ? Math.min(LEVELS.length - 1, LEVELS.indexOf(studyLevel()) + 1)
     : LEVELS.length - 1;
   if (!trainingScope()) {
-    LEVELS.slice(0, top + 1).forEach(l => WORDS[l].forEach(x => {
+    LEVELS.slice(0, top + 1).forEach(l => (WORDS[l] || []).forEach(x => {
       if (fits(x) && !own.has(x.w.toLowerCase())) (rest[x.cat] = rest[x.cat] || []).push(x);
     }));
   }
@@ -614,7 +614,7 @@ function trainPool(n, need = [], fit = null) {
     const own = new Set(source.map(d => d.w.toLowerCase()));
     const lvl = studyLevel();
     const nextLvl = LEVELS[Math.min(LEVELS.indexOf(lvl) + 1, LEVELS.length - 1)];
-    const extra = shuffled([...WORDS[lvl], ...WORDS[nextLvl]].filter(
+    const extra = shuffled([...(WORDS[lvl] || []), ...(WORDS[nextLvl] || [])].filter(
       x => has(x) && !inPool.has(x.w.toLowerCase()) && !own.has(x.w.toLowerCase())));
     picked.push(...extra.slice(0, n - picked.length).map(x => ({ ...x, inDict: false })));
     // Слов уровня с нужными полями может не хватить (примеры есть не у
@@ -648,7 +648,7 @@ function levelPool(n, need = [], fit = null) {
   const own = new Set(state.dictionary.map(d => d.w.toLowerCase()));
   const lvl = studyLevel();
   const nextLvl = LEVELS[Math.min(LEVELS.indexOf(lvl) + 1, LEVELS.length - 1)];
-  const pool = shuffled([...WORDS[lvl], ...WORDS[nextLvl]].filter(has))
+  const pool = shuffled([...(WORDS[lvl] || []), ...(WORDS[nextLvl] || [])].filter(has))
     .map(x => ({ ...x, inDict: own.has(x.w.toLowerCase()) }));
   if (pool.length >= n) return pool.slice(0, n);
   // Слов уровня с нужными полями бывает мало (пример есть не у каждого) —
@@ -677,7 +677,7 @@ function distractors(word, n, field) {
   const idx = LEVELS.indexOf(lvl);
   const near = [...new Set([LEVELS[Math.max(0, idx - 1)], lvl,
                             LEVELS[Math.min(LEVELS.length - 1, idx + 1)]])];
-  const all = near.flatMap(l => WORDS[l]).filter(x => x.w !== word.w && x[field]);
+  const all = near.flatMap(l => WORDS[l] || []).filter(x => x.w !== word.w && x[field]);
 
   const sameCat = word.cat
     ? shuffled(all.filter(x => x.cat === word.cat)).map(x => x[field])
@@ -996,6 +996,11 @@ function renderTrainLevel() {
       if (typeof currentRecs !== "undefined") currentRecs = [];
       saveState();
       renderPracticeHub();
+      // Уровень сменился — значит нужен ещё один файл словаря.
+      // Рисуем СРАЗУ (ученик нажал, экран обязан ответить), но
+      // перерисовываем ещё раз, когда слова доедут: до этого
+      // рекомендации и пулы собираются из того, что уже есть.
+      ensureWords().then(() => renderPracticeHub()).catch(() => {});
     });
   }
 }
@@ -1068,6 +1073,8 @@ function renderLevelNudge() {
     if (typeof currentRecs !== "undefined") currentRecs = [];
     saveState();
     renderPracticeHub();
+    // Ученик поднялся на уровень выше — его слов ещё нет, догружаем.
+    ensureWords().then(() => renderPracticeHub()).catch(() => {});
   });
   document.getElementById("nudge-no").addEventListener("click", () => {
     try { localStorage.setItem("savelyLevelNudge", JSON.stringify({ lvl, target, at: total })); } catch (e) {}
@@ -1243,7 +1250,7 @@ function openExercise(id) {
 
   // То же и со словарём: упражнению без него делать нечего, а на экране
   // приветствия он не грузится вовсе. Ждём и показываем, что ждём.
-  if (typeof WORDS === "undefined" && !isCustom) {
+  if (!wordsReady() && !isCustom) {
     stage().innerHTML = `
       <div class="empty-state">
         <div class="cat-avatar cat-mid" data-cat="hello"></div>
@@ -2025,7 +2032,7 @@ const EX_RUNNERS = {
     // ответ: подменять папку чужими картинками нельзя.
     if (pool.length < 8 && !trainingScope()) {
       const have = new Set(pool.map(p => p.w.toLowerCase()));
-      const extra = shuffled(LEVELS.flatMap(l => WORDS[l])
+      const extra = shuffled(LEVELS.flatMap(l => WORDS[l] || [])
         .filter(x => named.has(x.w.toLowerCase()) && !have.has(x.w.toLowerCase())));
       pool = [...pool, ...extra.slice(0, 8 - pool.length)];
     }
@@ -2038,7 +2045,7 @@ const EX_RUNNERS = {
     runMCQ(pool.map(p => {
       // Ловушки — тоже слова с фото, но с другим переводом: пара
       // «shoe/boots» с одинаковым переводом путала бы без вины ученика.
-      const wrong = shuffled(LEVELS.flatMap(l => WORDS[l])
+      const wrong = shuffled(LEVELS.flatMap(l => WORDS[l] || [])
         .filter(x => x.w !== p.w && named.has(x.w.toLowerCase())
           && x.t !== p.t
           && wordArt(x.w, x.cat) !== wordArt(p.w, p.cat)))
@@ -2293,7 +2300,7 @@ const EX_RUNNERS = {
       if (pool.length < 4) {
         const lvl = studyLevel();
         const nextLvl = LEVELS[Math.min(LEVELS.indexOf(lvl) + 1, LEVELS.length - 1)];
-        const extra = shuffled([...WORDS[lvl], ...WORDS[nextLvl]]
+        const extra = shuffled([...(WORDS[lvl] || []), ...(WORDS[nextLvl] || [])]
           .filter(x => x.def && !have.has(x.w.toLowerCase())));
         fromBank = Math.min(extra.length, 4 - pool.length);
         pool = pool.concat(extra.slice(0, fromBank).map(x => ({ ...x, inDict: false })));
@@ -2401,7 +2408,7 @@ const EX_RUNNERS = {
     const rounds = [];
     pool.forEach(p => {
       // неправильные варианты: чужие примеры с подставленным словом
-      const donors = shuffled(LEVELS.flatMap(l => WORDS[l])
+      const donors = shuffled(LEVELS.flatMap(l => WORDS[l] || [])
         .filter(x => x.w !== p.w && x.ex))
         .map(x => {
           const re = new RegExp("\\b" + x.w.slice(0, Math.max(3, x.w.length - 2)) + "[a-z]*", "i");
