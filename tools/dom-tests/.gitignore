@@ -1,0 +1,5 @@
+node_modules/
+package-lock.json
+package.json
+# копии прежних версий для проверки «а был ли баг» — делаются по месту
+*-old.js
