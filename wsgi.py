@@ -58,6 +58,19 @@ CORS = [("Access-Control-Allow-Origin", "*")]
 
 
 def _json(start_response, obj, status="200 OK"):
+    # Договорённость с обработчиками: dict с ключом _raw — это не JSON,
+    # а готовые байты (сейчас — mp3 озвучки). Появилось ради /api/tts:
+    # гонять звук через base64-в-JSON значит +33% трафика на каждое слово.
+    if isinstance(obj, dict) and "_raw" in obj:
+        body = obj["_raw"]
+        headers = [
+            ("Content-Type", obj.get("_type") or "application/octet-stream"),
+            ("Content-Length", str(len(body))),
+        ]
+        if obj.get("_cache"):
+            headers.append(("Cache-Control", "private, max-age=%d" % int(obj["_cache"])))
+        start_response(status, headers + CORS)
+        return [body]
     body = json.dumps(obj, ensure_ascii=False).encode("utf-8")
     start_response(status, [
         ("Content-Type", "application/json; charset=utf-8"),
