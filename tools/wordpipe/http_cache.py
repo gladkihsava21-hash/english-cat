@@ -131,7 +131,12 @@ class Fetcher:
             pass
 
     # --- основное ------------------------------------------------------
-    def get(self, url, source, key=None, min_interval=1.0, accept="application/json"):
+    def get(self, url, source, key=None, min_interval=1.0, accept="application/json",
+            headers=None):
+        # headers — дополнительные заголовки запроса (авторизация стоков:
+        # Pexels требует Authorization). В ключ кэша они не входят —
+        # ответ на один и тот же адрес одинаков, а ключ в имени файла
+        # кэша был бы утечкой.
         key = key or url
         path = self._cache_path(source, key)
 
@@ -155,6 +160,7 @@ class Fetcher:
                         "User-Agent": self.user_agent,
                         "Accept": accept,
                         "Accept-Encoding": "gzip",
+                        **(headers or {}),
                     },
                 )
                 with urllib.request.urlopen(req, timeout=self.timeout) as resp:
