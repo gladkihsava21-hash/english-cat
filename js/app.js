@@ -111,7 +111,16 @@ function revokeXP(n) {
   if (!n) return;
   state.xp = Math.max(0, (state.xp || 0) - n);
   const key = dayKey();
-  state.activity[key] = Math.max(0, (state.activity[key] || 0) - n);
+  const before = state.activity[key] || 0;
+  state.activity[key] = Math.max(0, before - n);
+  // Цель дня, которую взял именно этот подход, возвращается вместе с
+  // очками. Иначе прокликанный подход засчитывал «цель выполнена» — и
+  // каждое переоткрытие заново: очки снимались, счётчик целей рос.
+  const goal = state.goal || 50;
+  if (before >= goal && state.activity[key] < goal
+      && state.counters && state.counters.goalsHit) {
+    state.counters.goalsHit--;
+  }
   saveState();
   updateChrome();
 }

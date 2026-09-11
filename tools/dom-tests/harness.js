@@ -13,7 +13,17 @@ const html = fs.readFileSync(path.join(ROOT, "index.html"), "utf8")
 
 const dom = new JSDOM(html, { runScripts: "dangerously", pretendToBeVisual: true, url: "http://localhost:4210/" });
 const w = dom.window;
-delete w.speechSynthesis;   // синтеза речи в jsdom нет — TTS_OK станет false
+// Речи в jsdom нет. По умолчанию её и не подделываем: так проверяется
+// штатная ветка «нет озвучки» — хаб и вход закрывают «На слух». Тесты
+// самих аудио-упражнений включают заглушку: process.env.TTS = "1" до
+// require. Ставить её надо ДО загрузки скриптов: TTS_OK — константа.
+if (process.env.TTS) {
+  w.speechSynthesis = { speaking: false, pending: false, onvoiceschanged: null,
+    speak() {}, cancel() {}, pause() {}, resume() {}, getVoices() { return []; } };
+  w.SpeechSynthesisUtterance = function (t) { this.text = t; };
+} else {
+  delete w.speechSynthesis;
+}
 w.matchMedia = w.matchMedia || (q => ({ matches: false, media: q, addEventListener(){}, removeEventListener(){}, addListener(){}, removeListener(){} }));
 w.scrollTo = () => {};
 w.fetch = () => Promise.reject(new Error("сеть в тесте выключена"));

@@ -19,7 +19,8 @@ if (TTS_OK) {
  * ученик не успевает разобрать фразу, а переслушивание на той же скорости
  * не помогает. Значение живёт здесь, а не в state: это настройка «здесь
  * и сейчас», и тащить её между устройствами незачем. */
-let TTS_RATE = 0.92;
+const TTS_RATE_DEFAULT = 0.92;
+let TTS_RATE = TTS_RATE_DEFAULT;
 function setSpeechRate(rate) { TTS_RATE = rate; }
 
 /* ---- озвучка словаря голосом Алисы (SpeechKit) ----
@@ -202,9 +203,14 @@ function readGateMs(text, audio) {
 }
 
 /** Ответ засчитан в статистику подхода: сколько думали сверх паузы. */
-function exRoundAnswer(thinkMs, gateMs) {
+function exRoundAnswer(thinkMs, gateMs, audio) {
   exRound.answered++;
-  exRound.thinkMs += Math.max(0, thinkMs);
+  // На слух пауза уже включает само прослушивание, а узнать услышанное
+  // слово среди четырёх — дело доли секунды. Честные 6 из 6 в аудировании
+  // объявлялись прокликанными: очки снимались, репетитор видел «слишком
+  // быстро». Засчитываем слушающему четверть секунды на узнавание —
+  // долбящий по кнопке в момент открытия всё равно остаётся ниже порога.
+  exRound.thinkMs += Math.max(0, thinkMs) + (audio ? 250 : 0);
   exRound.gateMs += gateMs || 0;
 }
 
@@ -229,7 +235,15 @@ function wordInfo(w) {
 }
 
 function shuffled(arr) {
-  return [...arr].sort(() => Math.random() - 0.5);
+  // Фишер — Йетс. sort() со случайным сравнением тасует криво: верный
+  // вариант, поставленный первым, оставался первым в 36% вопросов вместо
+  // 25%, и внимательный ученик мог это поймать.
+  const b = [...arr];
+  for (let i = b.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [b[i], b[j]] = [b[j], b[i]];
+  }
+  return b;
 }
 
 /* Выборка «сначала невиданное». Грамматика и словообразование берут
@@ -295,10 +309,25 @@ function sameStem(a, b) {
   return x.length >= 3 && (x === y || x === b || y === a);
 }
 
+/** he's → he is, don't → do not. Сокращение — такой же верный перевод,
+ *  как полная форма: «He's my friend.» против образца «He is my friend.»
+ *  было «Пропущено: is». 's раскрываем только после местоимений —
+ *  у «Tom's» это притяжательное, а не is. */
+function expandContractions(t) {
+  return t
+    .replace(/\bcan't\b/g, "can not").replace(/\bcannot\b/g, "can not")
+    .replace(/\bwon't\b/g, "will not").replace(/\bshan't\b/g, "shall not")
+    .replace(/n't\b/g, " not")
+    .replace(/\b(he|she|it|that|what|there|here|who|where)'s\b/g, "$1 is")
+    .replace(/'m\b/g, " am").replace(/'re\b/g, " are")
+    .replace(/'ll\b/g, " will").replace(/'ve\b/g, " have")
+    .replace(/\b(i|you|we|they|he|she)'d\b/g, "$1 would");
+}
+
 function translateReview(value, sample, word) {
   const notes = [];
-  const got = normEn(value).split(" ").filter(Boolean);
-  const want = normEn(sample).split(" ").filter(Boolean);
+  const got = expandContractions(normEn(value)).split(" ").filter(Boolean);
+  const want = expandContractions(normEn(sample)).split(" ").filter(Boolean);
 
   // 1. Смысл: заданное слово и содержательные слова образца
   const stem = word.slice(0, Math.max(3, word.length - 2)).toLowerCase();
@@ -333,14 +362,24 @@ function translateReview(value, sample, word) {
   }
 
   // 4. Общие правила: заглавная, точка, a/an, окончание после he/she/it
+  //    Ученика не судим строже образца: правило, которое срабатывает на
+  //    самом эталоне, — ошибка правила, а не ответа. Без этого часть
+  //    заданий была нерешаема: ответ знак в знак с правильным получал
+  //    «Не совсем» («Pull it open.» — «it opens»).
   if (typeof grammarCheck === "function") {
-    grammarCheck(value).forEach(n => notes.push(n.why));
+    const sampleWhy = new Set(grammarCheck(sample).map(n => n.why));
+    grammarCheck(value).forEach(n => { if (!sampleWhy.has(n.why)) notes.push(n.why); });
   }
 
   // Дубли убираем: одну и ту же ошибку разные проверки описывают по-разному
   const seen = new Set();
   const uniq = notes.filter(n => !seen.has(n) && seen.add(n));
-  return { ok: meaning && uniq.length === 0, meaning, notes: uniq };
+  // Точка в конце и заглавная буква — оформление, а не перевод: забытая
+  // точка не делает перевод неверным и не должна отправлять слово в SRS
+  // как забытое. Замечание остаётся видно, но ответ не валит.
+  const SOFT = /^(В конце предложения нужна точка|Предложение начинается с заглавной)/;
+  const blocking = uniq.filter(n => !SOFT.test(n));
+  return { ok: meaning && blocking.length === 0, meaning, notes: uniq };
 }
 
 /* ===== Сверка диктанта =====
@@ -415,8 +454,17 @@ function dictationReviewHTML(value, sample) {
   // «не расслышал» тут нельзя: человек всё расслышал, порядок перепутал.
   const misheard = d.want.filter((_, i) => d.marks[i] === "miss");
   if (!misheard.length) {
-    return `<span class="dict-review">Слова верные, а порядок другой — в английском`
-         + ` он и есть грамматика.<br><span class="dict-sample">${words}</span></span>`;
+    // Все слова образца на месте — ошибка либо в порядке, либо в лишних
+    // словах. Раньше на лишние слова тоже отвечали «порядок другой», хотя
+    // порядок был верный, и ничего не подсвечивали.
+    if (d.marks.some(m => m === "moved")) {
+      return `<span class="dict-review">Слова верные, а порядок другой — в английском`
+           + ` он и есть грамматика.<br><span class="dict-sample">${words}</span></span>`;
+    }
+    const extra = d.extra || [];
+    return `<span class="dict-review">Всё расслышал, но написал лишнее${extra.length
+      ? `: <b>${esc(extra.join(", "))}</b>` : ""} — в диктовке этого нет.`
+         + `<br><span class="dict-sample">${words}</span></span>`;
   }
   const which = misheard.length === 1 ? "Не расслышал слово:" : "Не расслышал слова:";
   return `<span class="dict-review">${which} <b>${esc(misheard.join(", "))}</b>`
@@ -439,6 +487,19 @@ function pickFresh(bucket, all, n, keyFn) {
   seen[bucket] = [...done];
   try { localStorage.setItem(EX_SEEN_KEY, JSON.stringify(seen)); } catch (e) { /* переполнено — переживём */ }
   return picked;
+}
+
+/** Вернуть в «невиданные» то, что pickFresh выдал, но на экран не попало.
+ *  «Сочетания» берут кандидатов с запасом и отсеивают конфликтные — и
+ *  девятнадцать из двадцати четырёх уходили в «уже видел», ни разу не
+ *  побывав на экране. */
+function unseeFresh(bucket, keys) {
+  if (!keys.length) return;
+  let seen = {};
+  try { seen = JSON.parse(localStorage.getItem(EX_SEEN_KEY)) || {}; } catch (e) { return; }
+  const drop = new Set(keys);
+  seen[bucket] = (seen[bucket] || []).filter(k => !drop.has(k));
+  try { localStorage.setItem(EX_SEEN_KEY, JSON.stringify(seen)); } catch (e) { /* переживём */ }
 }
 
 // пул для тренировки: словарь (приоритет — слова с ошибками) + добор до n из уровня.
@@ -509,6 +570,38 @@ function trainingDictionary() {
  * only — какие темы годятся (у «лишнего» они конкретные), capLevel —
  * не брать слова выше уровня ученика плюс один.
  */
+/** Всё, что банк синонимов связывает со словом: его синонимы и антонимы,
+ *  слова, у которых оно само синоним или антоним, и синонимы синонимов.
+ *  Для отсева отвлекающих берём с запасом: лишний раз не показать слово
+ *  дешевле, чем объявить верный ответ ошибкой. */
+function synRelated(word) {
+  const out = new Set();
+  const add = x => { if (x) out.add(x); };
+  SYNONYMS.forEach(e => {
+    if (e.w === word) { add(e.syn); add(e.ant); }
+    if (e.syn === word || e.ant === word) { add(e.w); add(e.syn); add(e.ant); }
+  });
+  [...out].forEach(o => SYNONYMS.forEach(e => { if (e.w === o) add(e.syn); }));
+  out.delete(word);
+  return out;
+}
+
+/** Темы, по которым игры раскладывают слова и печатают «X — это Y» как
+ *  факт. Только конкретные и различимые: «Качества», «Мышление»,
+ *  «Слова-связки» слишком размыты, чтобы по ним искать лишнее или
+ *  раскладывать по коробкам. WORLD — «мир» темы: две темы из одного мира
+ *  (дом и город) в одной игре — не игра, а спор. Общие для «Найди
+ *  лишнее» и «Категорий»: вторая раньше звала catBags() без фильтра и
+ *  раскладывала по всем 30 темам банка. */
+const GAME_TOPICS = ["food", "animals", "clothes", "body", "family", "home", "school",
+                     "city", "travel", "weather", "nature", "sports", "work", "health",
+                     "tech", "art", "time", "money"];
+const TOPIC_WORLD = { food: "food", animals: "life", nature: "life", weather: "life",
+                      clothes: "clothes", body: "person", health: "person", family: "family",
+                      home: "place", city: "place", travel: "place", school: "study",
+                      work: "study", sports: "sports", tech: "tech", art: "art",
+                      time: "time", money: "money" };
+
 function catBags(only = null, capLevel = true) {
   const fits = x => x && x.cat && (!only || only.includes(x.cat)) && !x.w.includes(" ");
   const mine = {}, rest = {};
@@ -788,7 +881,13 @@ function lettersWord(n) {
 }
 
 function normEn(s) {
-  return String(s).toLowerCase().replace(/[^a-z0-9\s']/g, " ").replace(/\s+/g, " ").trim();
+  // ’ и ' — один и тот же апостроф для ученика: телефон ставит типографский
+  // сам, а в банке встречаются оба. Без этого «It's a bone.» против
+  // «It’s a bone.» был ошибкой при ответе знак в знак. Диакритику снимаем
+  // по той же причине: «café» в банке, «cafe» на клавиатуре.
+  return String(s).normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[\u2018\u2019\u02BC`\u00B4]/g, "'")
+    .toLowerCase().replace(/[^a-z0-9\s']/g, " ").replace(/\s+/g, " ").trim();
 }
 
 // ===== Каркас: хаб и общие блоки =====
@@ -871,7 +970,11 @@ let exLaunch = 0;
  *  из которого ушли. */
 function exLater(fn, ms) {
   const token = exLaunch;
-  return setTimeout(() => { if (token === exLaunch) fn(); }, ms);
+  // Не только «тот же заход», но и «экран на виду»: ушёл на «Главную»,
+  // не открывая другого упражнения, — номер захода прежний, и таймер
+  // догонял ученика там: итоги, очки, запись репетитору и уход на доску
+  // с чужого экрана. Ушёл — значит бросил подход.
+  return setTimeout(() => { if (exStillHere(token)) fn(); }, ms);
 }
 
 function exStillHere(token) {
@@ -1203,6 +1306,10 @@ function openExercise(id) {
   if (id === "flashcards") { show("trainer"); return; }
   currentExId = id;
   exSessionXP = 0;
+  // «Медленно» — просьба на время одного диктанта, а не настройка на всё
+  // приложение: включив её раз, ученик слышал медленно и аудирование, и
+  // словарь, и вернуть обычную скорость оттуда было нечем.
+  TTS_RATE = TTS_RATE_DEFAULT;
   if (TTS_OK) speechSynthesis.cancel();
   show("exercise");
   const body = document.getElementById("exercise-body");
@@ -1218,6 +1325,15 @@ function openExercise(id) {
       <h2><span class="ex-title-icon">${icon(ex.icon, 22)}</span> ${esc(title)}</h2>
     </div>
     <div id="ex-stage"></div>`;
+
+  // Без озвучки «На слух» закрыт не только в хабе, но и на входе: с доски
+  // и из домашки упражнение открывается мимо хаба, и ученик писал диктант
+  // вслепую, а репетитору уходило «0 из 5».
+  if (ex && ex.audio && !TTS_OK) {
+    stage().innerHTML = audioHelpHTML();
+    wireAudioHelp(stage());
+    return;
+  }
 
   // Заслон на входе, а не в каждом упражнении по отдельности.
   // Пустой пул возможен ровно в одном случае — выбрана папка, в которой
@@ -1343,7 +1459,18 @@ function openExercise(id) {
 
 function stage() { return document.getElementById("ex-stage"); }
 
+/** За какой заход подход уже закрыт. exFinish звали из девяти мест по
+ *  таймерам и кнопкам «Дальше», и почти у каждого находился путь дойти
+ *  до него дважды: «Собери выражение» закрывался трижды, «Открой коробку»
+ *  и последний «Дальше» в runMCQ/runType — дважды. Каждый такой раз —
+ *  вторая запись репетитору и второй уход на доску. Заслон ставим в
+ *  одном месте, а не в каждом упражнении: следующее упражнение про него
+ *  забыло бы точно так же. «Ещё раз» открывает новый заход и проходит. */
+let exFinishedFor = 0;
+
 function exFinish(correct, total, note = "") {
+  if (exFinishedFor === exLaunch) return;
+  exFinishedFor = exLaunch;
   const pct = total ? correct / total : 0;
   // Прокликанный подход (см. «Защита от прокликивания»): очки снимаем,
   // наград не даём, результат по домашке уходит с пометкой.
@@ -1440,7 +1567,7 @@ function exFinish(correct, total, note = "") {
               <li class="${x.ok ? "ok" : "bad"}">
                 <span class="ex-review-mark">${icon(x.ok ? "check" : "cross", 15)}</span>
                 <div>
-                  <p class="ex-review-q">${x.sub ? `<span class="muted-small">${esc(x.sub)} · </span>` : ""}${esc(x.q)}</p>
+                  <p class="ex-review-q">${x.sub ? `<span class="muted-small">${esc(x.sub)}${x.q ? " · " : ""}</span>` : ""}${esc(x.q)}</p>
                   ${x.ok
                     ? `<p class="ex-review-a">${esc(x.yours)}</p>`
                     : `<p class="ex-review-a"><s>${esc(x.yours || "—")}</s> → <b>${esc(x.right)}</b></p>`}
@@ -1537,7 +1664,7 @@ function runMCQ(rounds, opts = {}) {
     if (r.audioText) {
       const play = () => speak(r.audioText);
       document.getElementById("mcq-audio").addEventListener("click", play);
-      setTimeout(play, 350);
+      exLater(play, 350);   // ушёл за эти 350 мс — чужому экрану не звучит
     }
     const box = document.getElementById("mcq-options");
     let answered = false;
@@ -1562,10 +1689,13 @@ function runMCQ(rounds, opts = {}) {
         if (answered) return;
         if (openedAt === null) return;   // варианты ещё не открылись
         answered = true;
-        exRoundAnswer(performance.now() - openedAt, gateMs);
+        exRoundAnswer(performance.now() - openedAt, gateMs, !!r.audioText);
         const ok = oi === r.correct;
         exLog.push({
-          q: exQuestionText(r) || `Лишнее среди: ${r.options.join(", ")}`,
+          // Запасную подпись задаёт само упражнение. Раньше она была общей —
+          // «Лишнее среди: …», — и в разборе аудирования и «Слова в
+          // контексте» каждый вопрос подписывался чужим упражнением.
+          q: exQuestionText(r) || r.reviewQ || "",
           sub: r.sub || "", yours: opt, right: r.options[r.correct], ok, why: r.why || "",
         });
         if (ok) { score++; award(10); }
@@ -1640,6 +1770,9 @@ function runPairs(pairs, opts = {}) {
   // засчитывается как «вспомнил», но не как проверенный ответ — иначе
   // домашку из шести пар можно было бы «сдать» перебором за полминуты.
   const misses = new Map();
+  // Учёт времени на каждое соединение — как у остальных: перебор пар
+  // пальцем без чтения теперь распознаётся как прокликивание.
+  let lastAt = performance.now();
   left.forEach(item => {
     const b = document.createElement("button");
     b.className = "pair-item";
@@ -1658,13 +1791,20 @@ function runPairs(pairs, opts = {}) {
     b.textContent = item.text;
     b.addEventListener("click", () => {
       if (!selL || b.classList.contains("done")) return;
-      const ok = item.i === selL.item.i;
-      const word = pairs[selL.item.i].statWord;
+      // Два одинаковых слова слева («make» и «make») — для ученика одно и
+      // то же. Сверка по индексу объявляла ошибкой верное сочетание, если
+      // он нажал не на тот из двух близнецов.
+      const ok = item.i === selL.item.i || pairs[item.i].l === pairs[selL.item.i].l;
+      const word = ok ? pairs[item.i].statWord : pairs[selL.item.i].statWord;
       if (!ok) misses.set(selL.item.i, (misses.get(selL.item.i) || 0) + 1);
       if (word) statUpdate(word, ok, !misses.get(selL.item.i));
+      exRoundAnswer(performance.now() - lastAt, 0);
+      lastAt = performance.now();
       if (ok) {
         matched++;
-        award(8);
+        // Очки — только за пару без промахов: перебор давал «Верно 0 из 5»
+        // и одновременно «+40 ⭐».
+        if (!misses.get(selL.item.i)) award(8);
         b.classList.add("done");
         selL.el.classList.add("done");
         selL.el.classList.remove("sel");
@@ -1732,12 +1872,14 @@ function runType(rounds, opts = {}) {
         play();
       }));
       mark();
-      setTimeout(play, 350);
+      exLater(play, 350);   // ушёл за эти 350 мс — чужому экрану не звучит
     }
     const input = document.getElementById("type-input");
     input.focus();
     if (r.hint) {
       document.getElementById("type-hint").addEventListener("click", () => {
+        // После ответа в этом поле — правильный ответ; подсказка его стирала.
+        if (done) return;
         document.getElementById("type-feedback").textContent =
           (opts.hintLabel ? opts.hintLabel[0].toUpperCase() + opts.hintLabel.slice(1) : "Подсказка") + ": " + r.hint;
       });
@@ -1766,9 +1908,15 @@ function runType(rounds, opts = {}) {
       // Разбор по словам (диктант): показать, ЧТО именно не расслышал.
       // Без него ученик сличает две длинные фразы глазами и не находит
       // отличия — то есть ошибка не учит.
+      let reviewEl = null;
       if (!ok && typeof r.review === "function") {
         const html = r.review(val);
-        if (html) fb.insertAdjacentHTML("afterend", `<p class="muted-small">${html}</p>`);
+        if (html) {
+          reviewEl = document.createElement("p");
+          reviewEl.className = "muted-small";
+          reviewEl.innerHTML = html;
+          fb.insertAdjacentElement("afterend", reviewEl);
+        }
       }
       input.disabled = true;
       i++;
@@ -1781,12 +1929,15 @@ function runType(rounds, opts = {}) {
       // Дальше — только по кнопке. Сравнить свой ответ с правильным это
       // тоже разбор, и в диктанте, где предложение целиком, на него
       // не хватало никаких 2,2 секунды. Свой текст остаётся в поле выше.
-      let anchor = fb;
+      // Порядок сверху вниз: вердикт, разбор, пояснение, «Дальше». Раньше
+      // кнопка вставала сразу под вердиктом, и разбор оказывался НИЖЕ неё —
+      // а кнопка ещё и забирала фокус, уводя экран от разбора.
+      let anchor = reviewEl || fb;
       if (r.why) {
         const ex = document.createElement("p");
         ex.className = "muted-small quiz-why";
         ex.textContent = r.why;
-        fb.insertAdjacentElement("afterend", ex);
+        anchor.insertAdjacentElement("afterend", ex);
         anchor = ex;
       }
       const row = document.createElement("div");
@@ -1851,7 +2002,12 @@ const EX_RUNNERS = {
      * это ровно та подмена, на которую жаловались. */
     const scope = trainingScope();
     if (scope) {
-      pool = pool.filter(x => scope.has(x.w.toLowerCase()));
+      // Папку берём из ВСЕГО банка, а не из уровневой выборки: ученица A2
+      // с идиомами B2 в папке получала «в папке нет подходящих слов» —
+      // уровневый фильтр выбрасывал её выражения раньше, чем папка
+      // успевала их выбрать.
+      pool = all.filter(x => scope.has(x.w.toLowerCase())
+        && (need || []).every(f => x[f]));
       if (!pool.length) return [];
     }
     // Тоже «сначала невиданное»: выражений на уровень немного, и без
@@ -1876,9 +2032,15 @@ const EX_RUNNERS = {
       // у разных выражений перевод иногда одинаковый («сдаваться»),
       // и тогда на экране два одинаковых варианта, один из которых
       // засчитывается неверным. Сверяем по строке, а не по слову.
+      // Сверяем по вариантам перевода, а не строкой: «сдаться» и
+      // «сдаваться, капитулировать» — один смысл, и ученик, выбравший
+      // второе, получал ошибку за верный ответ.
+      const vars = t => t.split(/[;,]/).map(v => v.replace(/\(.*?\)/g, "").trim().toLowerCase())
+        .filter(Boolean);
+      const mine = new Set(vars(p.t));
       const others = [...new Set(
         shuffled((PHRASES.phrasal || []).concat(PHRASES.idioms || [])
-          .filter(x => x.w !== p.w && x.t && x.t !== p.t))
+          .filter(x => x.w !== p.w && x.t && !vars(x.t).some(v => mine.has(v))))
           .map(x => x.t))].slice(0, 3);
       const options = shuffled([p.t, ...others]);
       return {
@@ -1886,6 +2048,7 @@ const EX_RUNNERS = {
         prompt: p.w,
         options,
         correct: options.indexOf(p.t),
+        statWord: p.w,   // выражение из словаря ученика двигается в SRS
       };
     });
     runMCQ(rounds, { note: "У устойчивых выражений значение не складывается из слов." });
@@ -1912,6 +2075,9 @@ const EX_RUNNERS = {
           <div class="quiz-word quiz-word-small">${esc(p.t)}</div>
           <div class="built-row" id="built" aria-live="polite"></div>
           <div class="scr-tiles" id="tiles"></div>
+          <div class="quiz-buttons">
+            <button type="button" class="btn btn-ghost" id="bp-clear">Сбросить</button>
+          </div>
           <p class="type-feedback" id="bp-msg"></p>
         </div>`;
       const tilesBox = document.getElementById("tiles");
@@ -1922,17 +2088,42 @@ const EX_RUNNERS = {
           : `<span class="muted-small">нажимай слова по порядку</span>`;
       };
       draw();
+      // Промах пальцем исправляется, как в «Собери слово», — пока раунд
+      // не закрыт. Раньше первая неверная плитка сразу становилась ошибкой.
+      let roundDone = false;
+      document.getElementById("bp-clear").addEventListener("click", () => {
+        if (roundDone) return;
+        built = [];
+        tilesBox.querySelectorAll("[data-n]").forEach(b => { b.disabled = false; b.classList.remove("used"); });
+        draw();
+      });
       tilesBox.innerHTML = tiles.map((t, n) =>
         `<button class="scr-tile" type="button" data-n="${n}">${esc(t.w)}</button>`).join("");
+      // Пауза на чтение и учёт времени — как у соседей в runMCQ. Без них
+      // «Собери выражение» было единственным упражнением, где долбить по
+      // плиткам не читая выгодно: подход никогда не признавался
+      // прокликанным, и за 7 секунд набегало «6 из 6», +72 очка и две
+      // награды. Момент открытия берём фактический, когда таймер снял паузу.
+      const gateMs = readGateMs(p.t, false);
+      let openedAt = null;
+      tilesBox.classList.add("mcq-wait");
+      exLater(() => { tilesBox.classList.remove("mcq-wait"); openedAt = performance.now(); }, gateMs);
       tilesBox.querySelectorAll("[data-n]").forEach(btn => {
         btn.addEventListener("click", () => {
-          if (btn.disabled) return;
+          if (btn.disabled || openedAt === null) return;
           btn.disabled = true;
           btn.classList.add("used");
           built.push(tiles[+btn.dataset.n]);
           draw();
           if (built.length < p.parts.length) return;
+          roundDone = true;
           const ok = built.every((b, n) => b.w === p.parts[n]);
+          exRoundAnswer(performance.now() - openedAt, gateMs);
+          statUpdate(p.w, ok);
+          // В «Разбор ответов» на итогах — как у остальных: раньше это
+          // упражнение туда не попадало вовсе.
+          exLog.push({ q: p.t, sub: "Собери выражение", yours: built.map(b => b.w).join(" "),
+                       right: p.w, ok, why: "" });
           const msg = document.getElementById("bp-msg");
           if (ok) {
             correct++; award(12);
@@ -1974,8 +2165,12 @@ const EX_RUNNERS = {
       const rest = p.parts.slice(1).join(" ");
       // Отвлекающие — первые слова ДРУГИХ сочетаний: именно между ними
       // ученик и путается, а случайное слово из словаря отсеивается сходу.
+      // Если банк сам знает «make a decision» и «take a decision», то take
+      // для хвоста «a decision» — верный ответ, а не отвлекающий.
+      const alsoOk = new Set((PHRASES.colloc || [])
+        .filter(x => x.parts && x.parts.slice(1).join(" ") === rest).map(x => x.parts[0]));
       const others = shuffled((PHRASES.colloc || [])
-        .filter(x => x.parts && x.parts[0] && x.parts[0] !== head))
+        .filter(x => x.parts && x.parts[0] && x.parts[0] !== head && !alsoOk.has(x.parts[0])))
         .map(x => x.parts[0]);
       const options = shuffled([head, ...[...new Set(others)].slice(0, 3)]);
       return {
@@ -1983,6 +2178,7 @@ const EX_RUNNERS = {
         prompt: "… " + rest,
         options,
         correct: options.indexOf(head),
+        statWord: p.w,
       };
     });
     runMCQ(rounds, { note: "Эти пары надо запомнить целиком: логики в них нет." });
@@ -2113,14 +2309,8 @@ const EX_RUNNERS = {
     // Теперь: только конкретные темы (еда, животные, одежда, тело…),
     // темы из разных «миров» (еда против животных — да, дом против
     // города — нет), и слова не выше уровня ученика плюс один.
-    const CONCRETE = ["food", "animals", "clothes", "body", "family", "home", "school",
-                      "city", "travel", "weather", "nature", "sports", "work", "health",
-                      "tech", "art", "time", "money"];
-    const WORLD = { food: "food", animals: "life", nature: "life", weather: "life",
-                    clothes: "clothes", body: "person", health: "person", family: "family",
-                    home: "place", city: "place", travel: "place", school: "study",
-                    work: "study", sports: "sports", tech: "tech", art: "art",
-                    time: "time", money: "money" };
+    const CONCRETE = GAME_TOPICS;
+    const WORLD = TOPIC_WORLD;
     // Слова ученика идут первыми: играть интереснее теми, что учишь
     const bags = catBags(CONCRETE);
     const cats = bags.cats.filter(c => bags.size(c) >= 3);
@@ -2145,6 +2335,7 @@ const EX_RUNNERS = {
         promptHTML: icon("paw", 44),
         options,
         correct: options.indexOf(odd.w),
+        reviewQ: `Лишнее среди: ${options.join(", ")}`,
         // «banana (банан) — это еда, а bed, sofa, lamp — дом.»
         why: `${odd.w} (${odd.t}) — это ${nameB}, `
            + `а ${three.map(x => `${x.w} (${x.t})`).join(", ")} — ${nameA}.`,
@@ -2394,7 +2585,9 @@ const EX_RUNNERS = {
         //
         // Опечатку в одну букву в длинном слове прощаем: диктант проверяет,
         // расслышал ли человек фразу, а не орфографическую безупречность.
-        check: v => dictationDiff(v, text).ok,
+        // Одно слово — ровно то, ради чего диктант: опечатку в одну букву,
+        // которую прощаем внутри фразы, в самом слове не прощаем.
+        check: v => sentence ? dictationDiff(v, text).ok : normEn(v) === normEn(text),
         review: v => dictationReviewHTML(v, text),
         statWord: p.w,
         sample: text,
@@ -2407,9 +2600,14 @@ const EX_RUNNERS = {
     const pool = levelPool(5, ["ex"]);
     const rounds = [];
     pool.forEach(p => {
+      // Тема слова: у записи из словаря ученика её может не быть — берём из банка.
+      const pc = p.cat || ((typeof wordInfo === "function" && wordInfo(p.w)) || {}).cat;
       // неправильные варианты: чужие примеры с подставленным словом
+      // Донор — из другой темы: слово из той же подставлялось в чужой пример
+      // почти без потерь («a big dog» → «a large dog»), и «неверный»
+      // вариант оказывался правильным английским.
       const donors = shuffled(LEVELS.flatMap(l => WORDS[l] || [])
-        .filter(x => x.w !== p.w && x.ex))
+        .filter(x => x.w !== p.w && x.ex && !(x.cat && pc && x.cat === pc)))
         .map(x => {
           const re = new RegExp("\\b" + x.w.slice(0, Math.max(3, x.w.length - 2)) + "[a-z]*", "i");
           return re.test(x.ex) ? x.ex.replace(re, p.w) : null;
@@ -2473,8 +2671,12 @@ const EX_RUNNERS = {
       // В большом банке одно слово бывает и ответом здесь, и чужим
       // синонимом (noisy: антоним quiet и синоним loud). Дубль варианта —
       // это кнопка, за которую не засчитают, поэтому отсеиваем.
+      // Отвлекающий не может быть словом, которое банк САМ связывает с
+      // заданным (синоним синонима, синоним антонима): иначе среди
+      // «неверных» стоял ответ, который банк считает верным.
+      const rel = synRelated(s.w);
       const others = shuffled([...new Set(bank.filter(x => x.w !== s.w).map(x => x.syn))]
-        .filter(o => o !== right && o !== trap && o !== s.w)).slice(0, 2);
+        .filter(o => o !== right && o !== trap && o !== s.w && !rel.has(o))).slice(0, 2);
       const options = shuffled([right, trap, ...others]);
       return {
         sub: askSyn ? "Выбери СИНОНИМ" : "Выбери АНТОНИМ",
@@ -2498,7 +2700,10 @@ const EX_RUNNERS = {
     // Раздел уровневый: предложения даёт система (схема методиста), кроме
     // домашки и папок — там levelPool отдаёт назначенные слова.
     const lvl = studyLevel();
-    const all = levelPool(60, ["exr", "ex"]);
+    // Только решаемые: образец обязан проходить собственную проверку.
+    // «He strode…» при слове stride не пройдёт её никогда — ученик,
+    // написавший ровно эталон, получал бы «Не совсем».
+    const all = levelPool(60, ["exr", "ex"]).filter(p => translateReview(p.ex, p.ex, p.w).ok);
     if (!all.length) { exFinish(0, 0, "Пока нет подходящих предложений — загляни в другое упражнение."); return; }
     const pool = pickFresh("tr:" + lvl, all, 4, p => p.exr);
 
@@ -2550,7 +2755,14 @@ const EX_RUNNERS = {
       const raw = document.getElementById("pers-input").value.trim();
       const val = normEn(raw);
       if (!val) return;
-      const used = pool.filter(p => val.includes(p.w.slice(0, Math.max(3, p.w.length - 2)).toLowerCase()));
+      // Слово ищем целиком, с окончаниями (cars, played), а не подстрокой:
+      // «car» засчитывался за «scar» и «care», то есть слово считалось
+      // использованным, хотя его в тексте не было.
+      const toks = raw.toLowerCase().match(/[a-z']+/g) || [];
+      const used = pool.filter(p => {
+        const w = p.w.toLowerCase();
+        return w.includes(" ") ? val.includes(w) : toks.some(t => t === w || sameStem(t, w));
+      });
       const missing = pool.filter(p => !used.includes(p));
       const fb = document.getElementById("pers-feedback");
       if (missing.length) {
@@ -2625,16 +2837,21 @@ const EX_RUNNERS = {
       after.appendChild(row);
       fb.insertAdjacentElement("afterend", after);
       document.getElementById("pers-check").disabled = true;
-      const finish = () => exFinish(used.length, pool.length);
+      // Итог — по тому, что проверялось: слова на месте, но каждое
+      // замечание по грамматике — минус. Раньше всегда было «3 из 3 ·
+      // идеально», даже поверх разобранных ошибок.
+      const finish = () => exFinish(Math.max(0, pool.length - notes.length), pool.length);
       row.querySelector("#pers-next").addEventListener("click", finish);
       const aiBtn = row.querySelector("#pers-ai");
       if (aiBtn) aiBtn.addEventListener("click", () => {
         // Уходим в чат с готовым вопросом: там свои лимиты и своя честная
         // рамка «нейросеть отдыхает», ничего дублировать не нужно.
+        // Сначала итог, потом чат: show() снимает домашку, и при обратном
+        // порядке результат репетитору не уходил вовсе.
+        finish();
         show("chat");
         if (typeof initChat === "function") initChat();
         sendToSavely("Проверь мои предложения: есть ли ошибки и звучат ли они естественно? Вот они:\n" + raw);
-        finish();
       });
     });
   },
@@ -2650,27 +2867,49 @@ const EX_RUNNERS = {
     // новая игра шла с чужим временем и обрывалась раньше срока.
     // Ссылка на таймер лежит снаружи именно для этого.
     if (blitzTimer) { clearInterval(blitzTimer); blitzTimer = null; }
-    let score = 0, streak = 0, timeLeft = DURATION, timer = null;
+    let score = 0, streak = 0, timeLeft = DURATION, timer = null, shownAt = 0;
     const asked = new Set();
     const nextWord = () => {
+      if (!document.getElementById("blitz-word")) return;   // минута кончилась
       const pool = trainPool(30).filter(p => !asked.has(p.w));
       if (!pool.length) asked.clear();
       const p = (pool.length ? pool : trainPool(30))[0];
       asked.add(p.w);
       const options = shuffled([p.t, ...distractors(p, 3, "t")]);
+      // Перевод — текст ученика и банка, в разметку он идёт только через
+      // esc(): иначе «<img onerror>» в переводе разбирался браузером и его
+      // обработчик срабатывал по нажатию.
       const optsHtml = options.map((o, i) =>
-        `<button class="mcq-option" data-i="${i}">${o}</button>`).join("");
+        `<button class="mcq-option" data-i="${i}">${esc(o)}</button>`).join("");
       document.getElementById("blitz-word").textContent = p.w;
+      shownAt = performance.now();
       const box = document.getElementById("blitz-options");
       box.innerHTML = optsHtml;
+      let locked = false;
       box.querySelectorAll(".mcq-option").forEach(b => {
         b.addEventListener("click", () => {
+          if (locked) return;
+          locked = true;
           const ok = options[+b.dataset.i] === p.t;
-          statUpdate(p.w, ok);
+          const think = performance.now() - shownAt;
+          exRoundAnswer(think, 0);
+          // Ответ быстрее полусекунды — тык, а не чтение, и слово он не
+          // трогает вовсе: ни «знаю», ни «забыл». Минута тыканья наугад
+          // переписывала статусы сотни слов (неверный ответ сбрасывает
+          // интервал, даже если он помечен непроверенным).
+          if (think >= 500) statUpdate(p.w, ok);
           if (ok) { streak++; score += streak >= 3 ? 20 : 10; }
           else streak = 0;
           document.getElementById("blitz-score").textContent = score;
-          nextWord();
+          // Четверть секунды видно, верно ли: раньше за всю минуту ученик ни
+          // разу не узнавал, правильно ли ответил. На ошибке — дольше и с
+          // подсветкой верного.
+          b.classList.add(ok ? "right" : "wrong");
+          if (!ok) {
+            const rb = [...box.children].find(x => options[+x.dataset.i] === p.t);
+            if (rb) rb.classList.add("right");
+          }
+          exLater(nextWord, ok ? 250 : 650);
         });
       });
     };
@@ -2693,12 +2932,20 @@ const EX_RUNNERS = {
       if (timeLeft <= 0) {
         clearInterval(timer);
         if (blitzTimer === timer) blitzTimer = null;
-        const best = Math.max(score, state.blitzBest || 0);
-        const isRecord = score > 0 && score >= best && score > (state.blitzBest || 0);
+        // Как в exFinish: без единого ответа — не подход, прокликанная
+        // минута — без очков, наград и рекорда. Раньше тыканье наугад
+        // давало втрое больше честной игры.
+        const rushed = exRoundRushed();
+        const played = exRound.answered > 0;
+        const counted = rushed ? 0 : score;
+        const best = Math.max(counted, state.blitzBest || 0);
+        const isRecord = counted > 0 && counted > (state.blitzBest || 0);
         state.blitzBest = best;
         saveState();
-        award(Math.round(score / 2));
-        if (typeof bump === "function") bump("exercises");
+        if (played && !rushed) {
+          award(Math.round(score / 2));
+          if (typeof bump === "function") bump("exercises");
+        }
         stage().innerHTML = `
           <div class="empty-state">
             <div class="cat-avatar cat-mid" data-cat="${isRecord ? "love" : "happy"}"></div>
@@ -2706,6 +2953,8 @@ const EX_RUNNERS = {
             <p>Ты набрал <b>${score}</b> очков.${isRecord
               ? ` ${iconInline("medal", 16)} Новый рекорд!` : ""}</p>
             ${exSessionXP ? `<p class="xp-earned">+${exSessionXP} ${iconInline("star", 16)}</p>` : ""}
+            ${rushed ? `<p class="muted-small">Ответы шли быстрее, чем их можно
+              прочитать, — очки и рекорд за эту минуту не засчитаны.</p>` : ""}
             <p class="muted-small">Лучший результат: ${best}</p>
             <div class="quiz-buttons">
               <button class="btn btn-ghost" data-nav="practice">К тренировкам</button>
@@ -2769,16 +3018,23 @@ const EX_RUNNERS = {
     // ученик, ответивший правильно, получал ошибку. Список таких
     // случаев — COLLOC_ALSO в js/levels.js.
     const also = typeof COLLOC_ALSO === "object" ? COLLOC_ALSO : {};
+    // Кроме ручного списка — сам банк: если в нём есть «give advice», то
+    // give рядом с чужим «advice» даёт верное сочетание, которое игра
+    // засчитывала ошибкой. Тот же глагол в двух парах — тоже конфликт.
+    const bankPairs = new Set(COLLOCATIONS.map(c => c.h + " " + c.tl));
     const conflicts = c => picks.some(p =>
-      (also[p.tl] || []).includes(c.h) || (also[c.tl] || []).includes(p.h));
+      (also[p.tl] || []).includes(c.h) || (also[c.tl] || []).includes(p.h)
+      || bankPairs.has(c.h + " " + p.tl) || bankPairs.has(p.h + " " + c.tl));
 
-    for (const c of pickFresh("colloc:" + lvl, bank, 24, c => c.h + " " + c.tl)) {
+    const cand = pickFresh("colloc:" + lvl, bank, 24, c => c.h + " " + c.tl);
+    for (const c of cand) {
       if (rights.has(c.tl)) continue;
       if (conflicts(c)) continue;
       rights.add(c.tl);
       picks.push(c);
       if (picks.length === 5) break;
     }
+    unseeFresh("colloc:" + lvl, cand.filter(c => !picks.includes(c)).map(c => c.h + " " + c.tl));
     runPairs(picks.map(c => ({ l: c.h, r: c.tl })),
       { hint: "Соедини части устойчивых сочетаний", note: "Примеры: make a decision, do homework, take a photo…" });
   },
@@ -2788,8 +3044,12 @@ const EX_RUNNERS = {
     // Тоже со своими словами вперёд. И с потолком по уровню: раньше темы
     // собирались со ВСЕХ уровней сразу, и первокласснику в «еду» попадало
     // что-нибудь из C2 — разложить по темам он это не мог даже теоретически.
-    const bags = catBags();
-    const cats = shuffled(bags.cats.filter(c => bags.size(c) >= 4)).slice(0, 2);
+    const bags = catBags(GAME_TOPICS);
+    // Две темы из РАЗНЫХ миров: «Дом» и «Город» в одной раскладке — спор.
+    const pool4 = shuffled(bags.cats.filter(c => bags.size(c) >= 4));
+    const first = pool4[0];
+    const second = pool4.find(c => c !== first && TOPIC_WORLD[c] !== TOPIC_WORLD[first]);
+    const cats = first && second ? [first, second] : [];
     if (cats.length < 2 && trainingScope()) {
       exOutOfScope("Чтобы раскладывать по темам, нужны слова хотя бы из двух "
         + "разных тем — по четыре на тему.");
@@ -2868,12 +3128,15 @@ const EX_RUNNERS = {
     }
     let queue = [...eligible];
     let round = 0, totalPlaced = 0, totalFound = 0;
+    // Сеток столько, сколько слов хватает без повторов. Раньше очередь
+    // тасовалась заново: шесть слов домашки превращались в «18 заданий» у
+    // репетитора, а слово, найденное в первой сетке, в четвёртой
+    // помечалось «забыл».
+    const roundsTotal = Math.min(ROUNDS, Math.ceil(eligible.length / PER_ROUND));
 
     const nextRound = () => {
-      if (round >= ROUNDS) { exFinish(totalFound, totalPlaced); return; }
+      if (round >= roundsTotal || !queue.length) { exFinish(totalFound, totalPlaced); return; }
       round++;
-      // Слова раунда — из очереди без повторов; кончилась — тасуем заново
-      if (queue.length < 2) queue = shuffled([...eligible]);
       const roundWords = queue.splice(0, Math.min(PER_ROUND, queue.length));
 
       const grid = Array.from({ length: SIZE }, () => Array(SIZE).fill(null));
@@ -2909,13 +3172,13 @@ const EX_RUNNERS = {
       let selStart = null;
       let hintIdx = 0;
       stage().innerHTML = `
-        ${exProgress(round - 1, ROUNDS)}
+        ${exProgress(round - 1, roundsTotal)}
         <p class="muted-small ex-hint">Нажми первую и последнюю букву слова. Найди:
           <span id="ws-targets">${placedWords.map(p => `<b class="ws-target" id="ws-t-${encodeURIComponent(p.w)}">${esc(p.w)}</b>`).join(", ")}</span></p>
         <div class="ws-grid" style="grid-template-columns: repeat(${SIZE}, 1fr)" id="ws-grid"></div>
         <div class="quiz-buttons">
           <button class="btn btn-ghost hidden" id="ws-hint">${iconInline("sparkle", 16)} Подсказка</button>
-          <button class="btn btn-primary" id="ws-next">${round < ROUNDS ? "Дальше →" : "Закончить"}</button>
+          <button class="btn btn-primary" id="ws-next">${round < roundsTotal ? "Дальше →" : "Закончить"}</button>
         </div>`;
       const gridEl = document.getElementById("ws-grid");
       const cells = [];
@@ -2943,9 +3206,15 @@ const EX_RUNNERS = {
             } else {
               for (let k = Math.min(r1, r2); k <= Math.max(r1, r2); k++) line.push(cells[k * SIZE + c2]);
             }
-            const str = line.map(x => x.textContent).join("");
-            const rev = [...str].reverse().join("");
-            const hit = placedWords.find(p => !found.has(p.w) && (p.w === str || p.w === rev));
+            // Зачёт по клеткам, а не по буквам. «dam» и «mad» — одни и те же
+            // три буквы в разном порядке: сверка по строке засчитывала
+            // найденное слово его перевёртышу, а повтор тех же клеток давал
+            // второе слово даром.
+            const picked = new Set(line.map(x => cells.indexOf(x)));
+            const cellsOf = p => Array.from({ length: p.w.length }, (_, k) =>
+              p.horiz ? p.r * SIZE + p.c + k : (p.r + k) * SIZE + p.c);
+            const hit = placedWords.find(p => !found.has(p.w)
+              && p.w.length === picked.size && cellsOf(p).every(i => picked.has(i)));
             if (hit) {
               found.add(hit.w);
               totalFound++;
@@ -3444,8 +3713,18 @@ const EX_RUNNERS = {
     const maxR = Math.max(...placed.map(p => p.horiz ? p.r : p.r + p.w.length - 1));
     const maxC = Math.max(...placed.map(p => p.horiz ? p.c + p.w.length - 1 : p.c));
     const owns = {};
-    placed.forEach((p, num) => {
-      p.num = num + 1;
+    // Номер — у клетки, а не у слова. Два слова из одной клетки (вправо и
+    // вниз) — это «3→» и «3↓». Раньше номера шли по словам, клетка брала
+    // первый, и у второго слова номера на поле не было вовсе — в половине
+    // сеток.
+    const startNum = {};
+    let nextNum = 0;
+    [...placed].sort((a, b) => a.r - b.r || a.c - b.c).forEach(p => {
+      const k0 = key(p.r, p.c);
+      if (!startNum[k0]) startNum[k0] = ++nextNum;
+      p.num = startNum[k0];
+    });
+    placed.forEach(p => {
       for (let k = 0; k < p.w.length; k++) {
         const r = p.horiz ? p.r : p.r + k;
         const c = p.horiz ? p.c + k : p.c;
@@ -3462,7 +3741,7 @@ const EX_RUNNERS = {
       <div class="cw-scroll"><div class="cw-grid"
            style="grid-template-columns: repeat(${maxC + 1}, 1fr)" id="cw-grid"></div></div>
       <div class="cw-clues">
-        ${placed.map(p => `<button type="button" class="cw-clue" data-clue="${p.num}">
+        ${placed.map(p => `<button type="button" class="cw-clue" data-clue="${p.num}${p.horiz ? "h" : "v"}">
            <b>${p.num}${p.horiz ? "→" : "↓"}</b> ${esc(p.t)}</button>`).join("")}
       </div>
       <div class="quiz-buttons"><button class="btn btn-primary" id="cw-check">Проверить</button></div>
@@ -3561,7 +3840,7 @@ const EX_RUNNERS = {
         cur.innerHTML = `<b>${p.num}${p.horiz ? "→" : "↓"}</b> ${esc(p.t)}
           <span class="muted-small">· ${p.w.length} ${pluralRuEx(p.w.length, "буква", "буквы", "букв")}</span>`;
         document.querySelectorAll(".cw-clue").forEach(cl =>
-          cl.classList.toggle("active", word && cl.dataset.clue === String(p.num)));
+          cl.classList.toggle("active", word && cl.dataset.clue === p.num + (p.horiz ? "h" : "v")));
       }
       // Клетка должна быть видна: на телефоне сетка шире экрана и едет вбок
       cells[kk].el.scrollIntoView({ block: "nearest", inline: "nearest" });
@@ -3631,7 +3910,7 @@ const EX_RUNNERS = {
     });
     // Тап по подсказке выбирает её слово — искать клетку по номеру не нужно
     document.querySelectorAll(".cw-clue").forEach(cl => cl.addEventListener("click", () => {
-      const p = placed.find(x => String(x.num) === cl.dataset.clue);
+      const p = placed.find(x => x.num + (x.horiz ? "h" : "v") === cl.dataset.clue);
       if (!p) return;
       dir = p.horiz ? "h" : "v";
       select(key(p.r, p.c), true);

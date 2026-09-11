@@ -33,6 +33,14 @@ const GC_MODALS = ["can", "could", "may", "might", "must", "shall", "should", "w
    Имён собственных здесь нет намеренно: «Anna go» мы не ловим, потому что
    отличить имя от чужого слова без словаря нельзя, а ошибиться дороже. */
 const GC_THIRD = ["he", "she", "it"];
+/* Глаголы, у которых прошедшее совпадает с настоящим: по одной форме не
+   понять, ошибка ли «he put» или верное прошедшее, — значит молчим. */
+const GC_PAST_SAME = ["put", "cut", "let", "hit", "set", "hurt", "cost", "shut", "read"];
+/* После этих слов it начинает новое предложение внутри фразы и может
+   быть подлежащим: «…because it works». */
+const GC_CLAUSE_START = new Set(["and", "but", "or", "so", "because", "that", "when",
+  "if", "as", "while", "before", "after", "since", "until", "although", "though",
+  "where", "why", "how", "what", "which", "who"]);
 
 /* Глаголы, которые в школьных текстах встречаются чаще всего. Проверяем
    -s только у них: на произвольном слове после he/she легко принять
@@ -211,6 +219,15 @@ function grammarCheck(text) {
     if (!v) return;
     if (!GC_COMMON_VERBS.includes(v)) return;         // не уверены — молчим
     if (GC_IRREGULAR_BE.has(v)) return;
+    // put, cut, let, hit, read… в прошедшем пишутся так же, как в
+    // настоящем: «He put peanut butter on his toast» — верное прошедшее,
+    // а правило требовало «he puts».
+    if (GC_PAST_SAME.includes(v)) return;
+    // it — не только подлежащее, но и дополнение: «Pull it open»,
+    // «I like it very much». Подлежащим it бывает в начале предложения или
+    // после союза; после глагола или предлога это объект, и -s глаголу за
+    // ним не положено.
+    if (w === "it" && i > 0 && !boundary[i - 1] && !GC_CLAUSE_START.has(lower[i - 1])) return;
     if (GC_MODALS.includes(lower[i + 1])) return;
     // «he did not go», «he can go» — перед глаголом стоит служебное слово,
     // и -s там не нужно. Проверяем, что глагол идёт сразу за местоимением.

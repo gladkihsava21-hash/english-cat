@@ -209,7 +209,9 @@
         if (marked) return;
         marked = true;
         if (ok) { known++; award(6); }
-        statUpdate(w.w, ok);
+        // «Знал» — самоотчёт, колесо ничего не проверяет. В knew идёт, в
+        // checked — нет: иначе словарную домашку закрывало бы нажатие.
+        statUpdate(w.w, ok, false);
         react(ok ? "happy" : "oops");
         done++;
         count.textContent = `${done} / ${total}`;
@@ -220,7 +222,7 @@
         const hint = document.getElementById("wheel-hint");
         if (hint) hint.remove();
         if (!left.length) {
-          setTimeout(() => exFinish(known, total,
+          exLater(() => exFinish(known, total,
             "Колесо ничего не проверяет — оно поднимает слово из памяти. "
             + "Честность тут только твоя."), 400);
           return;
@@ -284,7 +286,9 @@
   const MEM_PAIRS = 6;      // 12 карточек: 3×4 на телефоне, 4×3 на столе
 
   function memory() {
-    const words = trainPool(MEM_PAIRS);
+    // Без двойников по переводу: plate и dish — обе «тарелка», и на поле
+    // лежали две одинаковые русские карточки, одна из которых «не та».
+    const words = pickDistinctT(trainPool(MEM_PAIRS * 3), MEM_PAIRS);
     if (words.length < MEM_PAIRS) return tooFewWords(MEM_PAIRS, words.length);
 
     const deck = shuffled(words.slice(0, MEM_PAIRS).flatMap((w, i) => ([
@@ -334,7 +338,9 @@
       if (ok) {
         matched++;
         award(8);
-        statUpdate(a.card.word, true);
+        // Пара на поле памяти находится и перебором — это не проверка
+        // слова, домашку она не закрывает.
+        statUpdate(a.card.word, true, false);
         [a, c].forEach(x => {
           x.b.classList.add("done");
           x.b.setAttribute("aria-disabled", "true");
@@ -348,7 +354,12 @@
         busy = false;
         react("happy");
         if (matched === MEM_PAIRS) {
-          setTimeout(() => exFinish(Math.max(0, MEM_PAIRS - errors), MEM_PAIRS,
+          // Собранное поле — это «6 из 6». Раньше из пар вычитались
+          // промахи, и полностью собранное поле давало «Верно 0 из 6» с
+          // грустным котом: открыть не ту карточку в игре на память — сама
+          // игра, а не ошибка в слове (поэтому промах и в SRS не идёт).
+          // Сколько ходов ушло — видно в подписи.
+          exLater(() => exFinish(MEM_PAIRS, MEM_PAIRS,
             `Ходов: ${moves}. Идеально — ${MEM_PAIRS}.`), 600);
         }
         return;
@@ -390,17 +401,22 @@
   const BAL_MIN = 4;        // шар-мишень плюс три чужих
 
   function balloons() {
-    const pool = trainPool(BAL_ROUNDS + 6);
+    const pool = pickDistinctT(trainPool((BAL_ROUNDS + 6) * 2), BAL_ROUNDS + 6);
     if (pool.length < BAL_MIN) return tooFewWords(BAL_MIN, pool.length);
 
     const rounds = pool.slice(0, BAL_ROUNDS).map(w => {
-      const others = shuffled(pool.filter(x => x.w !== w.w)).slice(0, 3).map(x => x.w);
+      // Чужой шар не должен переводиться тем же словом: на «тарелку»
+      // лопнутый dish объявлялся ошибкой.
+      const wt = new Set(ruTokens(w.t));
+      const clash = x => [...new Set(ruTokens(x.t))].some(t => wt.has(t));
+      const others = shuffled(pool.filter(x => x.w !== w.w && !clash(x))).slice(0, 3).map(x => x.w);
       // На маленьком словаре чужих слов может не хватить — добираем из базы
       // уровня. Раунд из двух шаров превратил бы игру в подбрасывание монетки.
       const extra = typeof distractors === "function" ? distractors(w, 3, "w") : [];
       while (others.length < 3 && extra.length) {
         const cand = extra.pop();
-        if (cand !== w.w && !others.includes(cand)) others.push(cand);
+        const info = typeof wordInfo === "function" ? wordInfo(cand) : null;
+        if (cand !== w.w && !others.includes(cand) && !(info && clash(info))) others.push(cand);
       }
       return { word: w, options: shuffled([w.w, ...others]) };
     });
@@ -480,7 +496,7 @@
             : `Улетело. Это было «${r.word.w}».`;
         box.querySelectorAll(".bal").forEach(b => { b.disabled = true; });
         i++;
-        setTimeout(() => { if (document.body.contains(box)) next(); }, ok ? 850 : 1500);
+        exLater(() => { if (document.body.contains(box)) next(); }, ok ? 850 : 1500);
       };
 
       r.options.forEach((opt, k) => {
@@ -522,13 +538,27 @@
             // document.hidden ловит момент возврата: событие приходит
             // ровно тогда, когда вкладка ещё не показана либо показана
             // мгновение назад. Просто убираем шар, как чужой.
-            if (document.hidden) { b.remove(); return; }
+            // Мишень при этом НЕ убираем: без неё раунд нечем закрыть, и
+            // игра вставала намертво — ни шаров, ни итогов. Запускаем её
+            // полёт заново; чужие шары просто убираем.
+            if (document.hidden) {
+              if (opt === r.word.w) {
+                b.style.animationName = "none";
+                void b.offsetWidth;
+                b.style.animationDelay = "0s";
+                b.style.animationName = "";
+              } else {
+                b.remove();
+              }
+              return;
+            }
             if (opt === r.word.w) finishRound(false, "escaped");
             else b.remove();
           });
         }
         b.addEventListener("click", () => {
-          if (over || b.disabled) return;
+          // На паузе шары не лопаются: случайное касание молча портило раунд.
+          if (over || b.disabled || paused) return;
           const hit = opt === r.word.w;
           b.classList.add(hit ? "pop" : "miss");
           b.disabled = true;
@@ -622,7 +652,7 @@
       // движении ждать нечего: карточка появляется сразу.
       const wait = still() ? 0 : 280;
       if (wait) tile.classList.add("opening");
-      setTimeout(() => { if (document.body.contains(tile)) ask(k); }, wait);
+      exLater(() => { if (document.body.contains(tile)) ask(k); }, wait);
     };
 
     const ask = k => {
@@ -644,15 +674,24 @@
 
       const list = document.getElementById("box-options");
       let answered = false;
+      // Пауза на чтение и учёт времени — как в runMCQ. Коробка проходила
+      // мимо всей защиты от прокликивания: очки и «проверенные» слова
+      // набивались пальцем без чтения.
+      const gateMs = readGateMs(w.w, false);
+      let openedAt = null;
+      list.classList.add("mcq-wait");
+      exLater(() => { list.classList.remove("mcq-wait"); openedAt = performance.now(); }, gateMs);
       options.forEach(opt => {
         const b = document.createElement("button");
         b.className = "mcq-option";
         b.type = "button";
         b.textContent = opt;
         b.addEventListener("click", () => {
-          if (answered) return;
+          if (answered || openedAt === null) return;
           answered = true;
           const ok = opt === w.t;
+          exRoundAnswer(performance.now() - openedAt, gateMs);
+          exLog.push({ q: w.w, sub: "Открой коробку", yours: opt, right: w.t, ok, why: "" });
           if (ok) { score++; award(10); }
           statUpdate(w.w, ok);
           react(ok ? "happy" : "oops");
@@ -670,7 +709,7 @@
             if (opened >= total) { exFinish(score, total); return; }
             drawGrid(k);
           };
-          if (ok) { setTimeout(() => { if (document.body.contains(list)) after(); }, 1000); return; }
+          if (ok) { exLater(() => { if (document.body.contains(list)) after(); }, 1000); return; }
 
           // Ошибка: правильный ответ висит, пока ученик сам не нажмёт
           // «Дальше». Сколько нужно на разбор, таймер знать не может.
