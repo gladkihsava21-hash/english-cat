@@ -2348,6 +2348,23 @@ def board_count(tutor_id):
 
 def create_board(tutor_id, title):
     ts = now()
+    # Хилый хостинг иногда роняет ответ на создание: репетитор не видит
+    # перехода на доску и жмёт «Новая доска» снова. Каждый такой клик
+    # доходил до сервера и плодил ещё одну пустую доску — у одного
+    # репетитора их набралось двенадцать за пять минут, а доска у неё
+    # «не открывалась» (переход на board.html делается только на дошедший
+    # ответ). Если совсем свежая пустая доска уже есть — отдаём её, а не
+    # копию: чистый лист и есть чистый лист. Окно в минутах, чтобы
+    # намеренная вторая пустая доска позже всё равно создавалась.
+    edge = (datetime.now(timezone.utc)
+            - timedelta(minutes=10)).isoformat(timespec="seconds")
+    recent = conn().execute(
+        "SELECT * FROM boards WHERE tutor_id=? AND COALESCE(archived,0)=0"
+        " AND COALESCE(shared,0)=0 AND rev=0 AND COALESCE(data,'{}') IN ('{}','[]','')"
+        " AND created_at>=? ORDER BY id DESC LIMIT 1",
+        (tutor_id, edge)).fetchone()
+    if recent:
+        return recent
     cur = conn().execute(
         "INSERT INTO boards (tutor_id, title, data, rev, created_at, updated_at)"
         " VALUES (?, ?, '{}', 0, ?, ?)",

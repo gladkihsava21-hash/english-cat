@@ -121,10 +121,35 @@
   document.addEventListener("DOMContentLoaded", () => {
     const newBtn = $("board-new");
     if (newBtn) newBtn.addEventListener("click", async () => {
+      // Хостинг медленный: ответ на создание приходит через секунду-две,
+      // а то и теряется. Раньше кнопка на это время оставалась живой и
+      // немой — репетитор жал ещё и ещё, доска не открывалась (переход
+      // только на дошедший ответ), а на сервере копились пустые дубли.
+      // Теперь: блокируем кнопку, показываем «Создаю…», а на обрыве —
+      // честное сообщение вместо тишины. Сервер вдобавок переиспользует
+      // свежую пустую доску, так что и потерянный ответ не плодит копий.
+      if (newBtn.disabled) return;
+      const label = newBtn.textContent;
+      newBtn.disabled = true;
+      newBtn.textContent = "Создаю…";
       const today = new Date().toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
-      const res = await api("/api/board/create", { token: token(), title: "Урок " + today });
-      if (!res.ok) { toastMsg(res.error || "Не получилось."); return; }
-      // Сразу открываем: создают доску, чтобы на ней работать
+      let res;
+      try {
+        res = await api("/api/board/create", { token: token(), title: "Урок " + today });
+      } catch (e) {
+        newBtn.disabled = false;
+        newBtn.textContent = label;
+        toastMsg("Связь с сервером прервалась. Нажмите ещё раз — доска не потеряется.");
+        return;
+      }
+      if (!res.ok) {
+        newBtn.disabled = false;
+        newBtn.textContent = label;
+        toastMsg(res.error || "Не получилось.");
+        return;
+      }
+      // Сразу открываем: создают доску, чтобы на ней работать. Кнопку
+      // не разблокируем — сейчас уйдём со страницы.
       location.href = "board.html?id=" + res.board.id;
     });
 
