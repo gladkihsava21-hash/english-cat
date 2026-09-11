@@ -5,12 +5,12 @@
 // а счёт выставлялся по другой. Значения ниже — только чтобы подсказка не
 // была пустой, пока запрос летит; сразу после ответа они заменяются.
 let PLANS = [
-  { id: "start",    limit: 5,  price: 799,  name: "Старт" },
-  { id: "practice", limit: 10, price: 1299, name: "Практика" },
-  { id: "school",   limit: 20, price: 2399, name: "Школа" },
-  { id: "pro",      limit: 50, price: 4990, name: "Профи" },
+  { id: "start",    limit: 5,  price: 990,  name: "Старт" },
+  { id: "practice", limit: 10, price: 1690, name: "Практика" },
+  { id: "school",   limit: 20, price: 2990, name: "Школа" },
+  { id: "pro",      limit: 50, price: 5990, name: "Профи" },
 ];
-let EXTRA_STUDENT_PRICE = 119;
+let EXTRA_STUDENT_PRICE = 169;
 let TRIAL_DAYS = 5;   // запасное значение; настоящее приходит из /api/plans
 
 (async function loadPrices() {
