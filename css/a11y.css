@@ -2011,3 +2011,6 @@ h2[tabindex="-1"]:focus-visible { outline: none; box-shadow: none; }
 .irr-table td { font-weight: 700; color: var(--ink); }
 .irr-table .irr-ru { font-weight: 500; color: var(--ink-soft); white-space: normal; }
 .irr-table tr:last-child td { border-bottom: 0; }
+
+/* Подсказка в строке «Тренируем»: папки складываются */
+.scope-note { flex-basis: 100%; font-size: var(--text-caption, 13px); color: var(--ink-soft); margin-top: 2px; }

@@ -1052,10 +1052,20 @@ function renderTrainScope() {
         : "")
     + `<button class="chip scope-chip${picked.length || chosen.length ? "" : " active"}" type="button"
                data-scope="">весь словарь <b>${state.dictionary.length}</b></button>`
-    + names.map(n => `
-        <button class="chip scope-chip${picked.includes(n) ? " active" : ""}" type="button"
-                data-scope="${esc(n)}" aria-pressed="${picked.includes(n)}">
-          ${esc(n)} <b>${count(n)}</b></button>`).join("");
+    + names.map(n => {
+        // При живом отборе отмеченных слов папка НЕ подсвечивается:
+        // раньше чип горел зелёным, хотя тренировка шла по отметкам —
+        // Ирина кликала «Upstream B2+», видела активную папку и получала
+        // подход из совсем других слов.
+        const on = !chosen.length && picked.includes(n);
+        return `
+        <button class="chip scope-chip${on ? " active" : ""}" type="button"
+                data-scope="${esc(n)}" aria-pressed="${on}">
+          ${esc(n)} <b>${count(n)}</b></button>`;
+      }).join("")
+    + (names.length > 1
+        ? `<span class="scope-note">Папки складываются: жми две-три — потренируем вместе.</span>`
+        : "");
 
   const clear = box.querySelector("[data-scope-clear]");
   if (clear) clear.addEventListener("click", () => { state.trainWords = []; saveState(); renderPracticeHub(); });
@@ -1068,6 +1078,10 @@ function renderTrainScope() {
         state.trainFolders = [];            // «весь словарь» снимает всё
         state.trainWords = [];
       } else {
+        // Клик по папке значит «хочу тренировать папку» — снимаем отбор
+        // отмеченных слов. Иначе отбор молча главнее, и папка выглядит
+        // включённой, не влияя ни на что.
+        state.trainWords = [];
         // Папки складываются: можно тренировать две сразу.
         const cur = new Set(trainingFolders());
         cur.has(name) ? cur.delete(name) : cur.add(name);
