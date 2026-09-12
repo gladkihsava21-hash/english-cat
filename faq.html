@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Вопросы и ответы — Савелий, кот-репетитор английского</title>
+  <meta name="description" content="Частые вопросы учеников и репетиторов: папки в тренировках, личный код, повторения, доска, звонок, домашки и цены.">
+  <!-- В отличие от оферты и политики, здесь нет ничьих персональных данных —
+       странице МОЖНО в поиск: люди ищут ровно такие ответы. -->
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://wordcat.ru/faq.html">
+  <link rel="preload" href="css/fonts/nunito-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="css/fonts/inter-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="css/fonts.css?v=273">
+  <script>
+    try {
+      var t = localStorage.getItem("savelyTheme");
+      if (t !== "night" && t !== "day")
+        t = matchMedia("(prefers-color-scheme: dark)").matches ? "night" : "day";
+      document.documentElement.dataset.theme = t;
+    } catch (e) { /* приватный режим — останется дневная */ }
+  </script>
+  <link rel="stylesheet" href="css/tokens.css?v=273">
+  <link rel="stylesheet" href="css/style.css?v=273">
+  <link rel="stylesheet" href="css/cat.css?v=273">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <style>
+    /* Страница живёт отдельно от приложения, как оферта, но выглядит как
+       экран регистрации: живой кот, пузырь, мягкий каскад появления. Все
+       цвета — из tokens.css, своих красок здесь нет. */
+    body { background: var(--paper); color: var(--ink); }
+    .fq-wrap { max-width: 720px; margin: 0 auto; padding: 28px 20px 72px; }
+    .fq-back { display: inline-block; margin-bottom: 6px; color: var(--accent); font-weight: 700; }
+    .fq-back:hover { text-decoration: none; }
+
+    .fq-hero { text-align: center; margin-bottom: 26px; }
+    .fq-hero .cat-big { width: 150px; height: 150px; }
+    /* Дыхание кота живёт в savely.css, который сюда не подключён (он про
+       экраны приложения). Копия одного правила дешевле целого файла. */
+    @keyframes fq-breathe {
+      0%, 100% { transform: translateY(0)    scale(1); }
+      50%      { transform: translateY(-3px) scale(1.012); }
+    }
+    .fq-hero .cat-avatar svg { animation: fq-breathe 5.5s var(--ease) infinite; transform-origin: 50% 90%; }
+    /* Реплика меняется при переключении роли — пузырь коротко «всплывает»
+       заново, иначе подмену текста никто не замечает. */
+    @keyframes fq-bubble-in {
+      from { opacity: 0; transform: translateY(6px) scale(.97); }
+      to   { opacity: 1; transform: translateY(0)   scale(1); }
+    }
+    .fq-hero .speech-bubble { animation: fq-bubble-in .35s var(--ease) both; }
+    .fq-hero h1 { font-size: var(--text-heading-lg, 32px); font-weight: 900; margin: 16px 0 8px; }
+
+    .fq-roles { display: flex; justify-content: center; margin-bottom: 22px; }
+
+    /* Карточка вопроса. Кнопка на всю ширину — попадать легко и с телефона. */
+    .fq { background: var(--surface); border: 2px solid var(--border);
+          border-radius: 16px; margin-bottom: 12px;
+          transition: border-color var(--dur, .2s) var(--ease),
+                      box-shadow var(--dur, .2s) var(--ease),
+                      transform var(--dur, .2s) var(--ease); }
+    .fq:hover { transform: translateY(-1px); box-shadow: var(--shadow); }
+    .fq.open { border-color: var(--accent); }
+    .fq-q { display: flex; align-items: center; gap: 12px; width: 100%;
+            background: none; border: 0; cursor: pointer; text-align: left;
+            font: inherit; font-weight: 800; color: var(--ink);
+            padding: 15px 16px 15px 18px; border-radius: 14px; }
+    .fq-q:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+    .fq-q span:first-child { flex: 1; }
+    /* Шеврон рисуем рамкой, чтобы не тащить сюда js/icons.js целиком. */
+    .fq-chev { flex: none; width: 10px; height: 10px; margin-right: 4px;
+               border-right: 2.5px solid var(--muted); border-bottom: 2.5px solid var(--muted);
+               transform: rotate(45deg); transition: transform .3s var(--ease); }
+    .fq.open .fq-chev { transform: rotate(225deg); }
+
+    /* Раскрытие без измерения высоты: grid-строка 0fr → 1fr. */
+    .fq-a { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .32s var(--ease); }
+    .fq.open .fq-a { grid-template-rows: 1fr; }
+    .fq-a-in { overflow: hidden; min-height: 0; }
+    .fq-a-pad { padding: 0 18px 16px; }
+    .fq-a-pad p { color: var(--ink-soft); line-height: 1.6; margin: 0 0 10px; }
+    .fq-a-pad p:last-child { margin-bottom: 0; }
+    .fq-a-pad b { color: var(--ink); }
+    .fq-a-pad a { color: var(--accent); }
+    .fq-a-pad a:hover { text-decoration: none; }
+    .fq-a-pad .cat-tiny { width: 26px; height: 26px; display: inline-block;
+                          vertical-align: -7px; margin-left: 2px; }
+
+    /* Каскад появления — тот же жест, что у карточек на экранах приложения:
+       мягкий подъём с задержкой по порядку. Класс перевешивается при смене
+       роли, чтобы новая колода тоже «раздалась» по очереди. */
+    @keyframes fq-rise {
+      from { opacity: 0; transform: translateY(14px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .fq-anim .fq, .fq-anim .fq-more { animation: fq-rise .5s var(--ease) both; }
+    .fq-anim .fq:nth-child(1)  { animation-delay: .03s }
+    .fq-anim .fq:nth-child(2)  { animation-delay: .07s }
+    .fq-anim .fq:nth-child(3)  { animation-delay: .11s }
+    .fq-anim .fq:nth-child(4)  { animation-delay: .15s }
+    .fq-anim .fq:nth-child(5)  { animation-delay: .19s }
+    .fq-anim .fq:nth-child(6)  { animation-delay: .23s }
+    .fq-anim .fq:nth-child(7)  { animation-delay: .27s }
+    .fq-anim .fq:nth-child(8)  { animation-delay: .31s }
+    .fq-anim .fq:nth-child(9)  { animation-delay: .35s }
+    .fq-anim .fq:nth-child(10) { animation-delay: .39s }
+    .fq-anim .fq-more          { animation-delay: .43s }
+
+    .fq-more { text-align: center; background: var(--surface); border: 2px solid var(--border);
+               border-radius: 16px; padding: 22px 18px; margin-top: 26px; }
+    .fq-more .cat-mid { width: 84px; height: 84px; }
+    .fq-more h2 { font-weight: 900; margin: 10px 0 6px; }
+    .fq-more p { color: var(--ink-soft); line-height: 1.6; margin: 0; }
+    .fq-more a { color: var(--accent); font-weight: 700; }
+    .fq-more a:hover { text-decoration: none; }
+
+    .fq-foot { text-align: center; color: var(--muted); font-size: var(--text-caption, 16px);
+               margin-top: 30px; }
+    .fq-foot a { color: var(--muted); }
+    .fq-foot a:hover { color: var(--ink); }
+
+    @media (prefers-reduced-motion: reduce) {
+      .fq-hero .cat-avatar svg, .fq-hero .speech-bubble,
+      .fq-anim .fq, .fq-anim .fq-more { animation: none; }
+      .fq, .fq-chev, .fq-a { transition: none; }
+    }
+  </style>
+</head>
+<body>
+<main class="fq-wrap">
+  <a class="fq-back" href="index.html">← на главную</a>
+
+  <header class="fq-hero">
+    <div class="cat-avatar cat-big" data-cat="hello" id="fq-cat"></div>
+    <div class="speech-bubble" id="fq-bubble">Спрашивай. Я тут всё знаю — я тут живу.</div>
+    <h1>Вопросы и ответы</h1>
+  </header>
+
+  <!-- Тот же переключатель, что на входе: две аудитории — два тона.
+       Ученикам отвечает кот на «ты», репетиторам — панель на «вы». -->
+  <div class="fq-roles">
+    <div class="role-switch" role="group" aria-label="Для кого вопросы">
+      <button type="button" class="role-btn active" id="fq-role-student" aria-current="true">Ученикам</button>
+      <button type="button" class="role-btn" id="fq-role-tutor">Репетиторам</button>
+    </div>
+  </div>
+
+  <!-- ========================= УЧЕНИКАМ ========================= -->
+  <section id="fq-student" class="fq-anim" aria-label="Вопросы учеников">
+
+    <article class="fq" id="free">
+      <button class="fq-q" type="button" aria-expanded="false">
+        <span>Сколько стоит заниматься?</span><span class="fq-chev" aria-hidden="true"></span>
+      </button>
+      <div class="fq-a"><div class="fq-a-in"><div class="fq-a-pad">
+        <p>Нисколько. Для учеников сайт <b>бесплатный</b>: слова, тренировки,
+          награды — всё открыто. Если ты занимаешься с репетитором, панель
+          оплачивает он, а не ты.</p>
+      </div></div></div>
+    </article>
+
+    <article class="fq" id="level">
+      <button class="fq-q" type="button" aria-expanded="false">
+        <span>Что за тест из 36 слов в начале?</span><span class="fq-chev" aria-hidden="true"></span>
+      </button>
+      <div class="fq-a"><div class="fq-a-in"><div class="fq-a-pad">
+        <p>Проверка уровня: я показываю 36 слов, а ты честно говоришь, знаешь
+          их или нет. По ответам я понимаю твой уровень — от A1 до C2 — и
+          дальше даю слова <b>тебе по силам</b>: без «apple» для взрослого и
+          без «endeavour» для новичка.</p>
+        <p>Отвечай честно. Обманешь — сам же и намучаешься.</p>
+      </div></div></div>
+    </article>
+
+    <article class="fq" id="repeat">
+      <button class="fq-q" type="button" aria-expanded="false">
+        <span>Как работает повторение?</span><span class="fq-chev" aria-hidden="true"></span>
+      </button>
+      <div class="fq-a"><div class="fq-a-in"><div class="fq-a-pad">
+        <p>Я помню каждое твоё слово и знаю, когда оно начнёт выветриваться.
+          В нужный день слово само всплывёт в повторении: просто заходи —
+          <b>нужные слова уже ждут тебя</b>.</p>
+        <p>Заходишь каждый день — растёт серия, она видна в шапке.</p>
+      </div></div></div>
+    </article>
+
+    <article class="fq" id="folders">
+      <button class="fq-q" type="button" aria-expanded="false">
+        <span>Как выбрать, какие слова тренировать?</span><span class="fq-chev" aria-hidden="true"></span>
+      </button>
+      <div class="fq-a"><div class="fq-a-in"><div class="fq-a-pad">
+        <p>На экране «Тренировки» есть строка <b>«Тренируем:»</b> — здесь
+          выбираются папки. Нажми папку — тренируются слова из неё, нажми
+          две-три — они складываются.</p>
+        <p>А папка в словаре — это просто фильтр просмотра, на тренировку
+          она не влияет.</p>
+      </div></div></div>
+    </article>
+
+    <article class="fq" id="marked">
+      <button class="fq-q" type="button" aria-expanded="false">
+        <span>Что значит «Отмечено» в тренировках?</span><span class="fq-chev" aria-hidden="true"></span>
+      </button>
+      <div class="fq-a"><div class="fq-a-in"><div class="fq-a-pad">
+        <p>В словаре можно отметить слова галочками — тогда тренируются
+          <b>именно они</b>, а строка «Тренируем:» показывает «Отмечено»
+          и сколько их.</p>
+        <p>Вернуться к обычным тренировкам: кнопка «снять отбор» на экране
+          «Тренировки» — или просто нажми нужную папку, отбор снимется сам.</p>
+      </div></div></div>
+    </article>
+
+    <article class="fq" id="definitions">
+      <button class="fq-q" type="button" aria-expanded="false">
+        <span>Почему в «Определениях» меньше слов, чем в папке?</span><span class="fq-chev" aria-hidden="true"></span>
+      </button>
+      <div class="fq-a"><div class="fq-a-in"><div class="fq-a-pad">
+        <p>«Определения» и похожие упражнения берут только слова из моей
+          базы — у слов, добавленных руками, определений нет.</p>
+        <p>Слова не потерялись: они ждут тебя в остальных упражнениях.</p>
+      </div></div></div>
+    </article>
+
+    <article class="fq" id="code">
+      <button class="fq-q" type="button" aria-expanded="false">
+        <span>Что такое личный код?</span><span class="fq-chev" aria-hidden="true"></span>
+      </button>
+      <div class="fq-a"><div class="fq-a-in"><div class="fq-a-pad">
+        <p>Твой пропуск одной строчкой, вида <b>ABCD-2345</b>. Он лежит в
+          профиле — нажми на своё имя в шапке.</p>
+        <p>Новый телефон или другой браузер? Нажми на входе «Войти по личному
+          коду», введи его — и весь прогресс на месте.</p>
+      </div></div></div>
+    </article>
+
+    <article class="fq" id="password">
+      <button class="fq-q" type="button" aria-expanded="false">
+        <span>Забыл пароль — что делать?</span><span class="fq-chev" aria-hidden="true"></span>
+      </button>
+      <div class="fq-a"><div class="fq-a-in"><div class="fq-a-pad">
+        <p>На вкладке «Вход» нажми <b>«Забыл пароль?»</b> — пришлю на почту
+          код, по нему задашь новый. Словарь и очки останутся на месте.</p>
+        <p>А если пароля у тебя и не было — входи по личному коду.</p>
+      </div></div></div>
+    </article>
+
+    <article class="fq" id="board">
+      <button class="fq-q" type="button" aria-expanded="false">
+        <span>Репетитор зовёт меня на доску. Куда идти?</span><span class="fq-chev" aria-hidden="true"></span>
+      </button>
+      <div class="fq-a"><div class="fq-a-in"><div class="fq-a-pad">
+        <p>Когда репетитор открывает тебе доску, на главной появляется кнопка
+          <b>«Открыть доску»</b>. Там вы рисуете и разбираете слова вместе.</p>
+        <p>Если репетитор положил на доску задание — нажми карточку:
+          тренировка откроется в новой вкладке, звонок не прервётся. Результат
+          я сам принесу на доску и покажу репетитору
+          <span class="cat-avatar cat-tiny" data-cat="proud" aria-hidden="true"></span></p>
+      </div></div></div>
+    </article>
+
+    <article class="fq" id="english">
+      <button class="fq-q" type="button" aria-expanded="false">
+        <span>Можно интерфейс на английском? А тёмная тема?</span><span class="fq-chev" aria-hidden="true"></span>
+      </button>
+      <div class="fq-a"><div class="fq-a-in"><div class="fq-a-pad">
+        <p>Да: кнопка <b>EN</b> в шапке переключает язык интерфейса, кнопка
+          с солнцем и луной — день и ночь.</p>
+        <p>Мои реплики останутся русскими: я тут репетитор, а не кнопка.</p>
+      </div></div></div>
+    </article>
+
+  </section>
+
+  <!-- ======================== РЕПЕТИТОРАМ ======================== -->
+  <section id="fq-tutor" class="fq-anim" aria-label="Вопросы репетиторов" hidden>
+
+    <article class="fq" id="price">
+      <button class="fq-q" type="button" aria-expanded="false">
+        <span>Сколько стоит панель и что входит?</span><span class="fq-chev" aria-hidden="true"></span>
+      </button>
+      <div class="fq-a"><div class="fq-a-in"><div class="fq-a-pad">
+        <p>Тарифы отличаются только числом учеников: <b>«Старт»</b> — до 5 за
+          990 ₽ в месяц, <b>«Практика»</b> — до 10 за 1690 ₽, <b>«Школа»</b> —
+          до 20 за 2990 ₽, <b>«Профи»</b> — до 50 за 5990 ₽. Нужно на одного
+          больше — место сверх лимита стоит 169 ₽ в месяц.</p>
+        <p>Входит всё сразу: домашки, свои задания, фото тетрадей, доска,
+          видеозвонок, отчёты. Подробности — в
+          <a href="offer.html">условиях подписки</a>.</p>
+      </div></div></div>
+    </article>
+
+    <article class="fq" id="students-free">
+      <button class="fq-q" type="button" aria-expanded="false">
+        <span>Ученикам нужно платить?</span><span class="fq-chev" aria-hidden="true"></span>
+      </button>
+      <div class="fq-a"><div class="fq-a-in"><div class="fq-a-pad">
+        <p>Нет. Ученики пользуются сайтом бесплатно и без ограничений по
+          времени — им нужна только ваша ссылка.</p>
+      </div></div></div>
+    </article>
+
+    <article class="fq" id="invite">
+      <button class="fq-q" type="button" aria-expanded="false">
+        <span>Как пригласить ученика?</span><span class="fq-chev" aria-hidden="true"></span>
+      </button>
+      <div class="fq-a"><div class="fq-a-in"><div class="fq-a-pad">
+        <p>Вкладка <b>«Ссылка для учеников»</b>: отправьте ссылку — ученик
+          откроет её, назовёт имя и сразу окажется в вашем списке.</p>
+        <p>Пароль ему не нужен: вход по ссылке, возврат на новом устройстве —
+          по личному коду.</p>
+      </div></div></div>
+    </article>
+
+    <article class="fq" id="homework">
+      <button class="fq-q" type="button" aria-expanded="false">
+        <span>Как выдать домашнее задание?</span><span class="fq-chev" aria-hidden="true"></span>
+      </button>
+      <div class="fq-a"><div class="fq-a-in"><div class="fq-a-pad">
+        <p>Вкладка <b>«Выдать домашку»</b>: выберите ученика, слова и
+          упражнения — задание появится у него на главной, а результат —
+          у вас во вкладке «Домашки».</p>
+        <p>Свои упражнения собираются во вкладке «Свои задания». Фото
+          тетрадей ученики присылают прямо на сайт — они ждут во вкладке
+          «Фото тетрадей».</p>
+      </div></div></div>
+    </article>
+
+    <article class="fq" id="progress">
+      <button class="fq-q" type="button" aria-expanded="false">
+        <span>Что видно про ученика?</span><span class="fq-chev" aria-hidden="true"></span>
+      </button>
+      <div class="fq-a"><div class="fq-a-in"><div class="fq-a-pad">
+        <p>Откройте ученика в списке: его словарь, прогресс по словам,
+          результаты домашек и отчёты. Ученику можно написать сообщение —
+          он увидит его на сайте.</p>
+      </div></div></div>
+    </article>
+
+    <article class="fq" id="board-open">
+      <button class="fq-q" type="button" aria-expanded="false">
+        <span>Как открыть доску ученику?</span><span class="fq-chev" aria-hidden="true"></span>
+      </button>
+      <div class="fq-a"><div class="fq-a-in"><div class="fq-a-pad">
+        <p>На доске нажмите <b>«Открыть ученику»</b> и выберите: всех или
+          одного. Остальные доску даже не увидят.</p>
+        <p>У приглашённого на главной появится кнопка «Открыть доску».</p>
+      </div></div></div>
+    </article>
+
+    <article class="fq" id="board-what">
+      <button class="fq-q" type="button" aria-expanded="false">
+        <span>Что умеет доска?</span><span class="fq-chev" aria-hidden="true"></span>
+      </button>
+      <div class="fq-a"><div class="fq-a-in"><div class="fq-a-pad">
+        <p>Рисование, стикеры, текст, фигуры и картинки — как в обычной
+          онлайн-доске. Плюс наше: <b>карточки слов ученика</b> (перевод
+          скрыт и открывается нажатием) и <b>задания</b> — ученик нажимает
+          карточку, тренировка открывается у него в новой вкладке, а
+          результат возвращается на доску плашкой.</p>
+        <p>Ещё есть <b>PDF-книжки</b>: страница ложится на доску картинкой
+          и листается стрелками — ученик видит ту же страницу.</p>
+      </div></div></div>
+    </article>
+
+    <article class="fq" id="call">
+      <button class="fq-q" type="button" aria-expanded="false">
+        <span>Звонок и показ экрана</span><span class="fq-chev" aria-hidden="true"></span>
+      </button>
+      <div class="fq-a"><div class="fq-a-in"><div class="fq-a-pad">
+        <p>Кнопка <b>«Звонок»</b> на доске: видео и звук идут напрямую между
+          браузерами, на сервере ничего не хранится. В звонке есть показ
+          экрана и режим «поверх всех окон» — видно ученика, пока рисуете.</p>
+      </div></div></div>
+    </article>
+
+    <article class="fq" id="pay">
+      <button class="fq-q" type="button" aria-expanded="false">
+        <span>Как проходит оплата?</span><span class="fq-chev" aria-hidden="true"></span>
+      </button>
+      <div class="fq-a"><div class="fq-a-in"><div class="fq-a-pad">
+        <p>Помесячно и <b>без автосписаний</b>: выставляется счёт, вы его
+          оплачиваете. На каждый платёж формируется чек самозанятого.</p>
+        <p>Начатый месяц не пересчитывается, оплаченные вперёд и не начатые
+          месяцы возвращаются — детали в
+          <a href="offer.html">условиях подписки</a>.</p>
+      </div></div></div>
+    </article>
+
+  </section>
+
+  <div class="fq-more">
+    <div class="cat-avatar cat-mid" data-cat="wink"></div>
+    <h2>Остались вопросы?</h2>
+    <p>Почта <a href="mailto:support@wordcat.ru">support@wordcat.ru</a>,
+      телеграм <a href="https://t.me/KOTSAVELII" target="_blank" rel="noopener">@KOTSAVELII</a>
+      — отвечает не кот, но тоже быстро.</p>
+  </div>
+
+  <p class="fq-foot">
+    <a href="index.html">Главная</a> · <a href="offer.html">Условия подписки</a> ·
+    <a href="privacy.html">Что мы храним и зачем</a>
+  </p>
+</main>
+
+<!-- Без JS страница не должна превращаться в список запертых дверей:
+     показываем обе секции с раскрытыми ответами, переключатель прячем. -->
+<noscript><style>
+  section[hidden] { display: block !important; }
+  .fq-a { grid-template-rows: 1fr !important; }
+  .fq-roles { display: none; }
+  .fq-chev { display: none; }
+</style></noscript>
+
+<script defer src="js/cat.js?v=273"></script>
+<script defer src="js/faq.js?v=273"></script>
+</body>
+</html>
