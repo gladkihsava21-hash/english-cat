@@ -64,13 +64,29 @@ const toast = (text, ms = 2600) => {
 };
 const paint = () => { BD.needsPaint = true; };
 
+// Предел ожидания ответа. Без него запрос к подвисшему хостингу висел
+// вечно: syncBusy оставался поднятым, опрос молчал, и доска не оживала
+// даже когда связь возвращалась — только перезагрузка. 20 секунд с
+// запасом: самый долгий вызов доски — страница PDF-книжки, и та
+// укладывается в несколько.
+// window.BD_API_TIMEOUT_MS задаёт только стенд (tools/dom-tests), чтобы не
+// ждать двадцать секунд в каждом прогоне; в браузере его нет.
+const API_TIMEOUT_MS = Number(window.BD_API_TIMEOUT_MS) || 20000;
+
 async function api(path, body) {
-  const res = await fetch(path, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body || {}),
-  });
-  return res.json();
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), API_TIMEOUT_MS);
+  try {
+    const res = await fetch(path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body || {}),
+      signal: ctl.signal,
+    });
+    return await res.json();
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 /* ---------- экран ↔ доска ---------- */
@@ -1761,6 +1777,19 @@ async function boot() {
     return;
   }
 
+  // Полотно оживает ДО первого ответа сервера, а не после.
+  //
+  // Раньше цикл отрисовки запускался в самом конце boot(), уже за
+  // await syncNow(). На медленном хостинге первый ответ идёт десятки
+  // секунд, а без предела ожидания — никогда; всё это время на экране
+  // был голый белый прямоугольник без сетки и с надписью «сохраняю…».
+  // Репетитор читал это как «доска не работает» и жал «Новая доска»
+  // снова (см. tutor-boards.js). Теперь бумага и сетка рисуются сразу,
+  // а строка состояния честно говорит, что происходит.
+  setState("подключаюсь…");
+  paint();
+  requestAnimationFrame(function loop() { draw(); requestAnimationFrame(loop); });
+
   await syncNow();
   // Имена учеников нужны кнопке доступа уже при загрузке: без них
   // «Доска: Ира» рисовалась бы как безликое «один ученик».
@@ -1779,8 +1808,9 @@ async function boot() {
   // и innerWidth настоящий, а не промежуточный.
   requestAnimationFrame(() => requestAnimationFrame(fitToContent));
   // Опрос: чужие штрихи должны появляться сами, без перезагрузки.
+  // Он же — вторая попытка, если первый ответ не дошёл: syncNow сама
+  // ставит «нет связи» и снимает syncBusy, дальше дело за опросом.
   setInterval(syncNow, 1200);
-  requestAnimationFrame(function loop() { draw(); requestAnimationFrame(loop); });
 }
 
 boot();

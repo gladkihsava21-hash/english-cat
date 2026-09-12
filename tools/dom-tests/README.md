@@ -23,6 +23,7 @@ node test-irr.js          # неправильные глаголы, подро�
 node test-fixes.js        # «Свои предложения», «Собери слово», ленивые банки
 node test-double.js       # кроссворд и «Колесо»: повторные нажатия
 node test-invariants.js   # счёт: подход не закрывается дважды, верных не больше заданий
+node test-board-boot.js   # доска при плохой связи: полотно живёт до ответа, таймаут, опрос
 ```
 
 ## Случайность предсказуемая
@@ -47,7 +48,9 @@ SEED=42 node test-double.js
 ```bash
 git show <коммит>:js/exercises.js > exercises-old.js
 git show <коммит>:js/games.js     > games-old.js
+git show <коммит>:js/board.js     > board-old.js
 OLD_EX=1 OLD_GAMES=1 node test-double.js   # должно ПРОВАЛИТЬСЯ
+OLD_BOARD=1 node test-board-boot.js        # то же для доски
 node test-double.js                        # должно пройти
 ```
 
