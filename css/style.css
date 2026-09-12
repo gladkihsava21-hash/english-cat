@@ -835,3 +835,33 @@ a.nav-lesson.live .nav-ico::after {
   background: var(--green, #2e7d4f);
   box-shadow: 0 0 0 2px var(--surface, #fff);
 }
+
+/* ===== «?» — вход в «Вопросы и ответы» =====
+   Одна кнопка на всех страницах: маленький круг с вопросительным знаком.
+   Владелец: «не вижу вопрос-ответ» — страница была только ссылкой в
+   подвале, туда никто не долистывает. Иконки «?» в наборе нет, знак
+   набран текстом заголовочным шрифтом — читается как значок.
+   В шапках стоит в потоке (.help-btn), на страницах без шапки и на
+   экране приветствия прибит к правому верхнему углу (.help-btn-fixed). */
+.help-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  flex: none;
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  border: 2px solid var(--line-control);
+  background: var(--surface);
+  color: var(--ink-soft);
+  font-family: var(--font-display); font-weight: 900; font-size: 17px; line-height: 1;
+  text-decoration: none;
+  transition: border-color var(--dur, .12s) var(--ease, ease), color var(--dur, .12s) var(--ease, ease);
+}
+.help-btn:hover { border-color: var(--accent-line); color: var(--accent); }
+.help-btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.help-btn-fixed {
+  position: fixed; top: 14px; right: 14px; z-index: 60;
+  width: 36px; height: 36px; font-size: 19px;
+  box-shadow: var(--shadow-soft);
+}
+/* На доске — той же формы, что соседние кнопки панели: bd-btn задаёт
+   размер и цвет, здесь только круглость и знак. */
+.help-btn-board { border-radius: 50%; width: 34px; padding: 0; font-weight: 900; }
