@@ -72,6 +72,8 @@ const paint = () => { BD.needsPaint = true; };
 // window.BD_API_TIMEOUT_MS задаёт только стенд (tools/dom-tests), чтобы не
 // ждать двадцать секунд в каждом прогоне; в браузере его нет.
 const API_TIMEOUT_MS = Number(window.BD_API_TIMEOUT_MS) || 20000;
+// Пауза между попытками ученика узнать свою доску, когда сервер молчит.
+const STUDENT_RETRY_MS = Number(window.BD_STUDENT_RETRY_MS) || 3000;
 
 async function api(path, body) {
   const ctl = new AbortController();
@@ -1745,7 +1747,21 @@ async function boot() {
     // и на нажатие отвечала «может только репетитор»: кнопка, которая
     // существует, чтобы отказать, хуже отсутствующей.
     $("bd-clear").hidden = true;
-    const res = await api("/api/student/board", { token: studentToken });
+    // Тот же вопрос, что у репетитора с sync: что делать, если сервер
+    // молчит. Раньше этот вызов висел вечно, теперь падает по таймауту —
+    // и падал бы молча, за пределами try. Ученик перед уроком видел бы
+    // тот же белый экран. Поэтому: сказать, что связи нет, и спрашивать
+    // снова, пока не ответит; урок от этого не начнётся позже.
+    let res;
+    for (;;) {
+      try {
+        res = await api("/api/student/board", { token: studentToken });
+        break;
+      } catch (e) {
+        setState("нет связи — пробую снова…", true);
+        await new Promise(r => setTimeout(r, STUDENT_RETRY_MS));
+      }
+    }
     if (!res.ok || !res.board) {
       // Две разные причины, и путать их нельзя: одиночка может ждать
       // вечно, доска бывает только на уроке с репетитором.

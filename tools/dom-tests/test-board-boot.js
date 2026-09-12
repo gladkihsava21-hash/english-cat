@@ -21,12 +21,12 @@ const tick = ms => new Promise(r => setTimeout(r, ms));
 /** Поднять board.html с подменённой сетью.
  *  mode: "hang" — сервер молчит вечно; "slow" — отвечает через delayMs;
  *  "ok" — отвечает сразу. */
-function makeBoard(mode, delayMs = 0, timeoutMs = 400) {
+function makeBoard(mode, delayMs = 0, timeoutMs = 400, role = "tutor") {
   const html = fs.readFileSync(path.join(ROOT, "board.html"), "utf8")
     .replace(/<script[^>]*src="[^"]*"[^>]*><\/script>/g, "");
   const dom = new JSDOM(html, {
     runScripts: "dangerously", pretendToBeVisual: true,
-    url: "http://localhost:4210/board.html?id=5",
+    url: role === "tutor" ? "http://localhost:4210/board.html?id=5" : "http://localhost:4210/board.html",
   });
   const w = dom.window;
   // jsdom без пакета canvas не даёт 2d-контекст; нам нужен не рисунок,
@@ -38,7 +38,9 @@ function makeBoard(mode, delayMs = 0, timeoutMs = 400) {
     get: (_, name) => (...args) => { if (name === "clearRect") calls.clearRect++; return undefined; },
     set: () => true,
   });
-  w.localStorage.setItem("savelyTutorToken", "t-test");
+  if (role === "tutor") w.localStorage.setItem("savelyTutorToken", "t-test");
+  else w.localStorage.setItem("savelyStudentToken", "s-test");
+  w.BD_STUDENT_RETRY_MS = 300;
   // Короткий предел ожидания вместо 20 с — сама механика та же.
   // Задаём ДО загрузки board.js: первый запрос уходит прямо при старте.
   w.BD_API_TIMEOUT_MS = timeoutMs;
@@ -46,8 +48,10 @@ function makeBoard(mode, delayMs = 0, timeoutMs = 400) {
   const net = { calls: 0, aborted: 0 };
   w.fetch = (url, opts) => new Promise((resolve, reject) => {
     net.calls++;
-    const body = JSON.stringify({ ok: true, rev: 1, objects: [], deleted: [], me: "tutor",
-                                  title: "Урок", shared: 0, invited: null });
+    const body = String(url).includes("/api/student/board")
+      ? JSON.stringify({ ok: true, hasTutor: true, board: { id: 5, title: "Урок" } })
+      : JSON.stringify({ ok: true, rev: 1, objects: [], deleted: [], me: "tutor",
+                         title: "Урок", shared: 0, invited: null });
     const answer = () => resolve({ ok: true, json: () => Promise.resolve(JSON.parse(body)) });
     if (opts && opts.signal) opts.signal.addEventListener("abort", () => {
       net.aborted++;
@@ -99,6 +103,23 @@ function makeBoard(mode, delayMs = 0, timeoutMs = 400) {
     await tick(300);
     ok(/сохранено/.test(b.state()), "«сохранено»: «" + b.state() + "»");
     ok(b.net.aborted === 0, "ничего не оборвано");
+  }
+
+  console.log("\n4. Ученик, сервер молчит, потом оживает: доска не умирает молча");
+  {
+    // первые два запроса — в никуда, потом сервер отвечает
+    const b = makeBoard("hang", 0, 400, "student");
+    await tick(1100);
+    ok(/нет связи/.test(b.state()), "ученику сказано, что связи нет: «" + b.state() + "»");
+    ok(b.net.calls >= 2, "доска переспрашивает, а не умирает (запросов: " + b.net.calls + ")");
+    // «сервер ожил»: с этого момента отвечаем сразу
+    b.w.fetch = (url, opts) => Promise.resolve({ ok: true, json: () => Promise.resolve(
+      String(url).includes("/api/student/board")
+        ? { ok: true, hasTutor: true, board: { id: 5, title: "Урок" } }
+        : { ok: true, rev: 1, objects: [], deleted: [], me: "student", title: "Урок" }) });
+    await tick(1500);
+    ok(/сохранено/.test(b.state()), "после возвращения связи доска поднялась: «" + b.state() + "»");
+    ok(b.w.document.getElementById("bd-name").textContent === "Урок", "название доски получено");
   }
 
   console.log("\n" + (fails ? "ПРОБЛЕМ: " + fails : "доска живёт при плохой связи"));
