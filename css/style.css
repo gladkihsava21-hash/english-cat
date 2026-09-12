@@ -825,3 +825,13 @@ body { overflow-wrap: break-word; }
    !important тут по делу: смысл правила в том, чтобы побеждать чужой
    display, а иначе оно и не работает. */
 [hidden] { display: none !important; }
+
+/* Вкладка «Урок»: ссылка на доску в ряду кнопок-разделов. Есть только
+   у учеников с репетитором; зелёная точка — урок открыт прямо сейчас. */
+a.nav-lesson { text-decoration: none; position: relative; }
+a.nav-lesson.live .nav-ico::after {
+  content: ""; position: absolute; margin-left: 14px; margin-top: -2px;
+  width: 9px; height: 9px; border-radius: 50%;
+  background: var(--green, #2e7d4f);
+  box-shadow: 0 0 0 2px var(--surface, #fff);
+}

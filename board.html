@@ -7,7 +7,7 @@
   <meta name="robots" content="noindex, nofollow">
   <link rel="preload" href="css/fonts/nunito-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="css/fonts/inter-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="css/fonts.css?v=275">
+  <link rel="stylesheet" href="css/fonts.css?v=276">
   <script>
     try {
       var t = localStorage.getItem("savelyTheme");
@@ -16,9 +16,9 @@
       document.documentElement.dataset.theme = t;
     } catch (e) { /* приватный режим */ }
   </script>
-  <link rel="stylesheet" href="css/tokens.css?v=275">
-  <link rel="stylesheet" href="css/style.css?v=275">
-  <link rel="stylesheet" href="css/board.css?v=275">
+  <link rel="stylesheet" href="css/tokens.css?v=276">
+  <link rel="stylesheet" href="css/style.css?v=276">
+  <link rel="stylesheet" href="css/board.css?v=276">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
 </head>
 <body class="board-body">
@@ -175,6 +175,8 @@
     <video id="call-remote" autoplay playsinline></video>
     <video id="call-local" autoplay playsinline muted></video>
   </div>
+  <button class="btn btn-primary bd-call-dial" id="call-dial" hidden>
+    Позвонить</button>
   <div class="bd-call-row">
     <button class="bd-btn" id="call-mic" title="Микрофон"
             data-icon="mic" data-icon-size="18"></button>
@@ -182,6 +184,8 @@
             data-icon="camera" data-icon-size="18"></button>
     <button class="bd-btn" id="call-screen" title="Показать экран" hidden
             data-icon="screen" data-icon-size="18"></button>
+    <button class="bd-btn" id="call-size" title="Развернуть видеоурок"
+            data-icon="zoomIn" data-icon-size="18"></button>
     <button class="bd-btn" id="call-pip" title="Вынести видео поверх всех окон"
             data-icon="fit" data-icon-size="18"></button>
     <button class="bd-btn bd-call-end" id="call-end" title="Завершить">✕</button>
@@ -209,13 +213,13 @@
   </div>
 </div>
 
-<script defer src="js/icons.js?v=275"></script>
-<script defer src="js/util.js?v=275"></script>
+<script defer src="js/icons.js?v=276"></script>
+<script defer src="js/util.js?v=276"></script>
 <!-- Образы слов: фотография или эмодзи-заглушка — те же файлы,
      что у ученика, панель слов показывает их превью. -->
-<script defer src="js/images.js?v=275"></script>
-<script defer src="js/word-photos.js?v=275"></script>
-<script defer src="js/board.js?v=275"></script>
-<script defer src="js/call.js?v=275"></script>
+<script defer src="js/images.js?v=276"></script>
+<script defer src="js/word-photos.js?v=276"></script>
+<script defer src="js/board.js?v=276"></script>
+<script defer src="js/call.js?v=276"></script>
 </body>
 </html>

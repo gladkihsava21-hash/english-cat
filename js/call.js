@@ -184,6 +184,7 @@ async function startCall() {
   CALL.isCaller = true;
   CALL.stream = await getCallMedia();
   showCallPanel();
+  refreshDial();
   setCallState("зовём…");
   CALL.pc = buildPeer();
   const offer = await CALL.pc.createOffer();
@@ -337,10 +338,15 @@ function endCall(sendBye) {
   CALL.stream = null;
   CALL.offer = null;
   CALL.state = "idle";
-  $("bd-call").hidden = true;
+  // В большом режиме после отбоя остаёмся на заставке с «Позвонить»:
+  // человек пришёл на видеоурок, пустая доска ему сейчас не нужна.
+  const big = $("bd-call").classList.contains("big");
+  $("bd-call").hidden = !big;
   $("bd-ring").hidden = true;
   $("call-remote").srcObject = null;
   $("call-local").srcObject = null;
+  setCallState(big ? "звонок завершён" : "");
+  refreshDial();
 }
 
 /* ---------- показ экрана ----------
@@ -435,6 +441,7 @@ function setCallState(text) { $("call-state").textContent = text; }
 
 function showCallPanel() {
   $("bd-call").hidden = false;
+  refreshDial();
   const local = $("call-local");
   local.srcObject = CALL.stream;
   const hasCam = !!(CALL.stream && CALL.stream.getVideoTracks().length);
@@ -455,6 +462,35 @@ function toggleTrack(kindName, btn) {
   tracks.forEach(t => { t.enabled = on; });
   btn.classList.toggle("off", !on);
   if (kindName === "video") $("call-local").classList.toggle("novideo", !on);
+}
+
+/* ---------- видеоурок: большой режим ----------
+   Заход по board.html#video (вкладка «Урок» у ученика, кнопка в панели
+   репетитора) открывает те же видео на весь экран. Разворот и сворот —
+   только CSS-класс: соединение не пересобирается, звонок не рвётся.
+   «К доске» сворачивает лица в привычный угол. */
+const LESSON_MODE = location.hash === "#video";
+
+function setCallSize(big) {
+  const box = $("bd-call");
+  box.classList.toggle("big", big);
+  if (big) {
+    // Развёрнутый режим всегда по центру: сохранённая позиция угла
+    // не должна утаскивать полноэкранное окно
+    box.style.left = ""; box.style.top = "";
+    box.style.right = ""; box.style.bottom = "";
+  }
+  const b = $("call-size");
+  if (b) b.title = big ? "Свернуть к доске" : "Развернуть видеоурок";
+  refreshDial();
+}
+
+/** Кнопка «Позвонить» видна только на заставке видеоурока: панель
+ *  открыта, а звонка ещё нет. В углу она не нужна — там есть трубка. */
+function refreshDial() {
+  const d = $("call-dial");
+  if (!d) return;
+  d.hidden = !($("bd-call").classList.contains("big") && CALL.state === "idle");
 }
 
 /* ---------- перетаскивание панели ----------
@@ -479,6 +515,7 @@ function makeCallDraggable() {
   };
   box.addEventListener("pointerdown", e => {
     if (e.target.closest("button")) return;   // кнопки — не ручка
+    if (box.classList.contains("big")) return; // весь экран не таскают
     const r = box.getBoundingClientRect();
     drag = { dx: e.clientX - r.left, dy: e.clientY - r.top };
     try { box.setPointerCapture(e.pointerId); } catch (err) { /* не беда */ }
@@ -583,8 +620,25 @@ function callBoot() {
       } catch (e) { toast("Видео пока нечего выносить."); }
     });
   }
+  $("call-size").addEventListener("click", () =>
+    setCallSize(!$("bd-call").classList.contains("big")));
+  // Клик по лицу в маленьком окне — естественный жест «сделай крупнее»
+  $("call-remote").addEventListener("click", () => {
+    if (!$("bd-call").classList.contains("big")) setCallSize(true);
+  });
+  $("call-dial").addEventListener("click", () => {
+    if (CALL.state === "idle") startCall();
+    refreshDial();
+  });
   makeCallDraggable();
   callPollLoop();
+  // Пришли по вкладке «Урок»: сразу большой режим. Звонка ещё нет —
+  // заставка с «Позвонить»; репетитор уже зовёт — обычный входящий.
+  if (LESSON_MODE) {
+    showCallPanel();
+    setCallSize(true);
+    setCallState("готов к уроку — позвони, когда будете оба");
+  }
 }
 
 // Доска сообщает о готовности сама (boot в board.js); если событие уже

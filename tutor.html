@@ -32,7 +32,7 @@
   <meta name="twitter:card" content="summary_large_image">
   <link rel="preload" href="css/fonts/nunito-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="css/fonts/inter-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="css/fonts.css?v=275">
+  <link rel="stylesheet" href="css/fonts.css?v=276">
   <!-- Тему ставим ДО первой отрисовки, отдельным крошечным скриптом.
        Всё остальное грузится с defer, а defer выполняется после разбора
        страницы — то есть уже после того, как браузер её покажет. Если
@@ -48,13 +48,13 @@
       document.documentElement.dataset.theme = t;
     } catch (e) { /* приватный режим — просто останется дневная */ }
   </script>
-  <link rel="stylesheet" href="css/tokens.css?v=275">
-  <link rel="stylesheet" href="css/style.css?v=275">
-  <link rel="stylesheet" href="css/savely.css?v=275">
-  <link rel="stylesheet" href="css/tutor.css?v=275">
-<link rel="stylesheet" href="css/motion.css?v=275">
-<link rel="stylesheet" href="css/a11y.css?v=275">
-<link rel="stylesheet" href="css/cat.css?v=275">
+  <link rel="stylesheet" href="css/tokens.css?v=276">
+  <link rel="stylesheet" href="css/style.css?v=276">
+  <link rel="stylesheet" href="css/savely.css?v=276">
+  <link rel="stylesheet" href="css/tutor.css?v=276">
+<link rel="stylesheet" href="css/motion.css?v=276">
+<link rel="stylesheet" href="css/a11y.css?v=276">
+<link rel="stylesheet" href="css/cat.css?v=276">
 </head>
 <body class="tutor-body">
 
@@ -488,9 +488,17 @@
     <section id="tab-lesson" class="hidden">
       <div class="section-head"><h2>Видеоурок</h2></div>
       <div class="card">
-        <p>Занимайтесь там, где вам привычно, — Zoom, Google&nbsp;Meet, Телемост.
-          Вставьте сюда ссылку на&nbsp;свою постоянную комнату, и&nbsp;у&nbsp;учеников
-          на&nbsp;главной появится кнопка «На&nbsp;урок».</p>
+        <p><b>Урок прямо на сайте.</b> Доска и видеозвонок в одном окне:
+          ученик заходит по вкладке «Урок», ничего не устанавливая.</p>
+        <div class="quiz-buttons" style="justify-content:flex-start">
+          <button class="btn btn-primary" id="lesson-board-go">Открыть доску и позвонить</button>
+        </div>
+        <p class="type-feedback" id="lesson-board-msg"></p>
+      </div>
+      <div class="card">
+        <p><b>Запасной путь.</b> Привычнее в Zoom, Google&nbsp;Meet или Телемосте?
+          Вставьте сюда ссылку на&nbsp;свою постоянную комнату — у&nbsp;учеников
+          на&nbsp;главной появится вторая кнопка, рядом с нашей.</p>
         <label for="lesson-url">Ссылка на комнату</label>
         <div class="invite-link">
           <input type="url" id="lesson-url" placeholder="https://telemost.yandex.ru/j/..."
@@ -670,26 +678,26 @@
     <a href="https://t.me/KOTSAVELII" target="_blank" rel="noopener">@KOTSAVELII</a></p>
 </footer>
 
-<script defer src="js/theme.js?v=275"></script>
-<script defer src="js/icons.js?v=275"></script>
-<script defer src="js/cat.js?v=275"></script>
-<script defer src="js/motion.js?v=275"></script>
-<script defer src="js/util.js?v=275"></script>
-<script defer src="js/levels.js?v=275"></script>
+<script defer src="js/theme.js?v=276"></script>
+<script defer src="js/icons.js?v=276"></script>
+<script defer src="js/cat.js?v=276"></script>
+<script defer src="js/motion.js?v=276"></script>
+<script defer src="js/util.js?v=276"></script>
+<script defer src="js/levels.js?v=276"></script>
 <!-- Словаря здесь НЕТ намеренно: на экране входа он не нужен вовсе,
      а нужен внутри панели — собрать домашку. Загружается в openPanel
      через ensureWords(LEVELS), и именно ЦЕЛИКОМ: домашку составляют по
      любому уровню, а уровня ученика на этой странице нет (app.js тут не
      подключён). Ученику при этом едут только его уровни — см. index.html. -->
-<script defer src="js/images.js?v=275"></script>
-<script defer src="js/word-photos.js?v=275"></script>
-<script defer src="js/qr.js?v=275"></script>
-<script defer src="js/tutor.js?v=275"></script>
-<script defer src="js/tutor-tasks.js?v=275"></script>
-<script defer src="js/tutor-photos.js?v=275"></script>
-<script defer src="js/tutor-auth.js?v=275"></script>
-<script defer src="js/tutor-verify.js?v=275"></script>
-<script defer src="js/tutor-boards.js?v=275"></script>
-<script defer src="js/tutor-nav.js?v=275"></script>
+<script defer src="js/images.js?v=276"></script>
+<script defer src="js/word-photos.js?v=276"></script>
+<script defer src="js/qr.js?v=276"></script>
+<script defer src="js/tutor.js?v=276"></script>
+<script defer src="js/tutor-tasks.js?v=276"></script>
+<script defer src="js/tutor-photos.js?v=276"></script>
+<script defer src="js/tutor-auth.js?v=276"></script>
+<script defer src="js/tutor-verify.js?v=276"></script>
+<script defer src="js/tutor-boards.js?v=276"></script>
+<script defer src="js/tutor-nav.js?v=276"></script>
 </body>
 </html>

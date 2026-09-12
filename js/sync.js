@@ -325,6 +325,7 @@ function adoptServerState(srv) {
   if (typeof srsInit === "function") state.dictionary.forEach(srsInit);
   saveStateQuiet();
   if (typeof updateChrome === "function") updateChrome();
+  updateLessonTab();   // аккаунт восстановлен — вкладка «Урок» сразу на месте
   // Главную показываем, только если человек на «нейтральном» экране:
   // приветствие, тест, сама главная. Тогда восстановление аккаунта
   // и правда меняет то, что он видит (вход по коду, по паролю, Safari
@@ -599,6 +600,7 @@ async function pushProgress() {
     if (res.ok && typeof res.tutorName === "string"
         && localStorage.getItem(TUTOR_NAME_KEY) !== res.tutorName) {
       localStorage.setItem(TUTOR_NAME_KEY, res.tutorName);
+      updateLessonTab();
     }
     // Уровень, назначенный репетитором: применяем один раз по отметке
     // времени. Дальше ученик сам шлёт новый уровень в снапшоте, и поля
@@ -925,6 +927,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     return;
   }
   initInvite();
+  updateLessonTab();
   if (studentToken()) {
     await pullProgress();         // сначала забрать, потом отправлять
     pushProgress();
@@ -1057,8 +1060,25 @@ async function pollBoard() {
   if (!studentToken() || syncStopped || apiDown) return;
   try {
     const res = await api("/api/student/board", { token: studentToken() });
-    if (res.ok) renderBoardBox(res.board);
+    if (res.ok) {
+      renderBoardBox(res.board);
+      // Урок «идёт», когда репетитор открыл ученику доску, — этим же
+      // сигналом зажигаем точку на вкладке «Урок»
+      window.savelyBoardOpen = !!res.board;
+      updateLessonTab();
+    }
   } catch (e) { /* нет связи — блок просто не появится */ }
+}
+
+/** Вкладка «Урок» в навигации: есть только у учеников с репетитором.
+ *  Зелёная точка — доска открыта или репетитор начал урок по ссылке. */
+function updateLessonTab() {
+  const tab = document.getElementById("nav-lesson");
+  if (!tab) return;
+  const hasTutor = !!(localStorage.getItem(TUTOR_NAME_KEY) || "").trim();
+  tab.hidden = !hasTutor || !state.user;
+  tab.classList.toggle("live",
+    !!window.savelyBoardOpen || !!(state.lesson && state.lesson.live));
 }
 
 setInterval(() => { if (boardScreenVisible()) pollBoard(); }, BOARD_POLL_MS);
@@ -1072,25 +1092,33 @@ function renderLessonBox() {
   const box = document.getElementById("lesson-box");
   if (!box) return;
   const l = state.lesson || {};
-  // Нет ссылки — блока нет вовсе. Кнопка «на урок», ведущая в никуда,
-  // хуже отсутствия кнопки: по ней жмут и упираются в ошибку.
-  if (!l.url) { box.classList.add("hidden"); box.innerHTML = ""; return; }
+  const hasTutor = !!(localStorage.getItem(TUTOR_NAME_KEY) || "").trim();
+  // Ученику без репетитора видеоурок не положен; без внешней ссылки
+  // блок тоже не рисуем гостю — кнопка в никуда хуже её отсутствия.
+  if (!hasTutor && !l.url) { box.classList.add("hidden"); box.innerHTML = ""; return; }
+  const live = !!l.live || !!window.savelyBoardOpen;
   box.classList.remove("hidden");
-  box.classList.toggle("lesson-live", !!l.live);
+  box.classList.toggle("lesson-live", live);
   const tutorName = localStorage.getItem("savelyTutorName") || "репетитор";
+  // Главный путь — наш видеоурок на доске (звонок + доска, ничего не
+  // ставить). Ссылка на Zoom/Телемост, если репетитор её задал, остаётся
+  // запасным путём — привычки и запасной аэродром никто не отменял.
   box.innerHTML = `
     <div class="card lesson-card">
-      <div class="cat-avatar cat-small" data-cat="${l.live ? "happy" : "hello"}"></div>
+      <div class="cat-avatar cat-small" data-cat="${live ? "happy" : "hello"}"></div>
       <div class="lesson-text">
-        <p class="lesson-kicker">${l.live
+        <p class="lesson-kicker">${live
           ? iconInline("mic", 15) + " Урок идёт сейчас"
-          : iconInline("clock", 15) + " Видеоурок"}</p>
-        <p class="lesson-note">${l.live
-          ? esc(tutorName) + " ждёт тебя в комнате."
-          : "Комната открыта постоянно — заходи, когда договорились."}</p>
+          : iconInline("camera", 15) + " Видеоурок"}</p>
+        <p class="lesson-note">${live
+          ? esc(tutorName) + " уже на месте — заходи."
+          : "Доска и видеозвонок прямо на сайте — ничего ставить не нужно."}</p>
       </div>
-      <a class="btn ${l.live ? "btn-primary" : "btn-ghost"} lesson-go"
-         href="${esc(l.url)}" target="_blank" rel="noopener noreferrer">На урок</a>
+      ${hasTutor ? `<a class="btn ${live ? "btn-primary" : "btn-ghost"} lesson-go"
+         href="board.html#video">На урок</a>` : ""}
+      ${l.url ? `<a class="btn btn-ghost lesson-go lesson-go-ext"
+         href="${esc(l.url)}" target="_blank" rel="noopener noreferrer">${
+           hasTutor ? "В " + (l.url.includes("telemost") ? "Телемост" : "Zoom") : "На урок"}</a>` : ""}
     </div>`;
   if (typeof paintCats === "function") paintCats(box);
 }

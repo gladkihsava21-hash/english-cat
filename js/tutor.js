@@ -1267,6 +1267,27 @@ document.addEventListener("click", e => {
   }).catch(() => { input.select(); document.execCommand("copy"); });
 });
 
+/* «Открыть доску и позвонить»: одно действие вместо трёх. Берём первую
+ * живую доску (или заводим новую) и открываем её сразу в видео-режиме —
+ * дальше работает обычный звонок с доски. */
+document.getElementById("lesson-board-go")?.addEventListener("click", async () => {
+  const msg = document.getElementById("lesson-board-msg");
+  msg.textContent = "открываю…";
+  try {
+    const res = await api("/api/board/list", { token: token() });
+    let board = (res.ok && (res.boards || []).find(b => !b.archived)) || null;
+    if (!board) {
+      const created = await api("/api/board/create",
+        { token: token(), title: "Урок " + new Date().toLocaleDateString("ru-RU") });
+      if (!created.ok) { msg.textContent = created.error || "Не получилось создать доску."; return; }
+      board = created.board;
+    }
+    location.href = "board.html?id=" + board.id + "#video";
+  } catch (e) {
+    msg.textContent = "Сервер не ответил — попробуйте ещё раз.";
+  }
+});
+
 /* ===== Видеоурок =====
  * Комнату не создаём: у репетитора она своя. Наша работа — донести её до
  * ученика в нужный момент одной кнопкой. Расчёт, почему не встроенное
