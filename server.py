@@ -36,7 +36,7 @@ import mailer
 # Теперь это видно одним curl /health: цифра совпала с ?v= на странице —
 # приложение перезапущено; не совпала или её нет вовсе — в памяти старый
 # код, надо нажать «Перезапустить приложение» в панели хостинга.
-ASSET_VERSION = 272
+ASSET_VERSION = 273
 
 PORT = int(os.environ.get("SAVELY_PORT", "4210"))
 # За nginx сервер слушает только localhost — снаружи он не должен быть виден
@@ -2952,7 +2952,7 @@ class Handler(SimpleHTTPRequestHandler):
         в белом списке, наружу не уходят — там хеши паролей и токены."""
         name = path.lstrip("/")
         if name in ("", "index.html", "tutor.html", "admin.html", "credits.html",
-                    "privacy.html", "offer.html", "board.html",
+                    "privacy.html", "offer.html", "board.html", "faq.html",
                     "manifest.json", "sw.js",
                     "icon-192.png", "icon-512.png", "favicon.ico", "robots.txt"):
             return True

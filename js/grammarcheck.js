@@ -52,7 +52,31 @@ const GC_COMMON_VERBS = [
   "watch", "help", "learn", "listen", "eat", "drink", "sleep", "walk",
   "talk", "buy", "call", "feel", "find", "keep", "let", "mean", "meet",
   "open", "close", "start", "stop", "tell", "visit", "wait", "ask",
+  // Добавлены к первой полусотне: те же школьные глаголы, которых не
+  // хватало — из-за них «she can sings» и «my sister cook» проходили
+  // мимо. Все — заметно чаще глаголы, чем существительные, поэтому
+  // направление «нет -s, где нужно» на них безопасно.
+  "sing", "dance", "cook", "drive", "swim", "teach", "clean", "wash",
+  "cry", "smile", "dream", "believe", "remember", "forget", "understand",
+  "wear", "win", "sell", "pay", "spend", "send", "break", "grow", "draw",
+  "paint", "build", "hope", "enjoy", "happen", "follow", "change", "bring",
+  "leave", "become", "hold", "move", "share", "show", "turn", "answer",
+  "decide", "explain", "join", "prefer", "receive", "return", "travel",
+  "worry", "ride", "hear", "cook", "swim",
 ];
+
+/* Неисчисляемые существительные: с ними much (не many), а глагол — в
+   единственном числе (information is, не are). Список закрытый и не
+   спорный — это самые частые в школьных текстах. */
+const GC_UNCOUNTABLE = new Set(["money", "water", "time", "information", "advice",
+  "bread", "milk", "music", "homework", "furniture", "news", "weather", "coffee",
+  "tea", "sugar", "salt", "rice", "snow", "rain", "work", "luggage", "progress",
+  "knowledge", "food", "fun", "help", "traffic", "paper", "cheese", "butter"]);
+/* Множественные исчисляемые: с ними many (не much). Тоже закрытый список
+   из самых ходовых, чтобы «much people» ловилось, а спорное — молчало. */
+const GC_PLURAL_COUNT = new Set(["people", "children", "men", "women", "friends",
+  "students", "books", "cars", "things", "days", "years", "cats", "dogs", "words",
+  "questions", "photos", "toys", "games", "ideas", "boys", "girls", "apples"]);
 
 /* Неправильная форма → правильная. Ошибки из школьных тетрадей:
    ученик образует прошедшее время или третье лицо по общему правилу
@@ -182,6 +206,37 @@ function grammarCheck(text) {
       why: "С he, she, it в прошедшем — was: she was hasty. Were — для you, we, they." },
     { re: /\b(you|we|they)\s+was\b/i, bad: "they was", good: "were",
       why: "С you, we, they в прошедшем — were: they were late. Was — для I, he, she, it." },
+    // Предлоги-кальки: устойчивые сочетания, где предлог в английском
+    // закреплён, а ученик подставляет русский. Каждое — всегда ошибка,
+    // как бы ни было построено остальное предложение.
+    { re: /\bdepends\s+(of|from)\b/i, bad: "depends of", good: "depends on",
+      why: "Depend идёт с on: it depends on the weather." },
+    { re: /\bdepend\s+(of|from)\b/i, bad: "depend of", good: "depend on",
+      why: "Depend идёт с on: they depend on us." },
+    { re: /\bafraid\s+from\b/i, bad: "afraid from", good: "afraid of",
+      why: "Afraid идёт с of: I'm afraid of dogs." },
+    { re: /\blisten\s+(music|songs?|radio|me|him|her|us|them)\b/i,
+      bad: "listen music", good: "listen to music",
+      why: "Listen идёт с to: listen to music, listen to me." },
+    { re: /\b(go|goes|going|went|come|comes|came|get|got)\s+to\s+home\b(?!\s+(page|screen|team|row|town|room|work))/i,
+      bad: "go to home", good: "go home",
+      why: "Home здесь без to и без артикля: go home, come home." },
+    { re: /\bvery\s+(like|likes|liked|love|loves|loved|want|wants|need|needs|enjoy|enjoys|hate|hates)\b/i,
+      bad: "very like", good: "really like",
+      why: "Very не ставят перед глаголом. «Очень нравится» — I really like либо I like it very much." },
+    { re: /\bhow\s+do\s+you\s+call\b/i, bad: "how do you call", good: "what do you call",
+      why: "«Как это называется?» — what do you call it, а не how." },
+    { re: /\bhow\s+(does\s+it|do\s+they|it)\s+looks?\s+like\b/i,
+      bad: "how it looks like", good: "what it looks like",
+      why: "Либо what it looks like, либо how it looks — но не «how … looks like» вместе." },
+    { re: /\bmake\s+(a\s+)?(photos?|pictures?|foto)\b/i, bad: "make a photo", good: "take a photo",
+      why: "Фотографию take a photo, а не make." },
+    { re: /\bsince\s+\d+\s+(years?|months?|weeks?|days?|hours?)\b/i,
+      bad: "since 3 years", good: "for 3 years",
+      why: "Длительность — for: for three years. Since — про начало отсчёта: since 2020." },
+    { re: /\bon\s+(the|this|that|a)\s+(picture|photo|photograph|image)\b/i,
+      bad: "on the picture", good: "in the picture",
+      why: "На изображении — in the picture, in the photo. On было бы «поверх картинки»." },
   ];
   calques.forEach(c => {
     const m = c.re.exec(raw);
@@ -340,6 +395,70 @@ function grammarCheck(text) {
                : /[^aeiou]y$/.test(v) ? v.slice(0, -1) + "ies" : v + "s";
     add(w + " " + vRaw, w + " " + form,
         `Подлежащее в единственном числе («${subject.join(" ")}») — глагол получает -s: ${form}.`);
+  });
+
+  // --- 12. much / many по исчислимости ---
+  //
+  // Закрытые списки: неисчисляемые всегда с much, эти множественные —
+  // всегда с many. Оба однозначны, поэтому правило не ошибётся.
+  lower.forEach((w, i) => {
+    if (!sameSentence(i)) return;
+    const nxt = lower[i + 1];
+    if (!nxt) return;
+    if (w === "many" && GC_UNCOUNTABLE.has(nxt)) {
+      add("many " + nxt, "much " + nxt,
+          `${nxt} не считают по штукам — с ним much: much ${nxt}.`);
+    }
+    if (w === "much" && GC_PLURAL_COUNT.has(nxt)) {
+      add("much " + nxt, "many " + nxt,
+          `${nxt} можно посчитать — с ним many: many ${nxt}.`);
+    }
+  });
+
+  // --- 13. Неисчисляемое подлежащее + are / were ---
+  //
+  // information, news, money, advice — всегда единственное число, глагол
+  // к ним тоже в единственном: «this information is», а не «are».
+  lower.forEach((w, i) => {
+    if (!GC_UNCOUNTABLE.has(w) || !sameSentence(i)) return;
+    const v = lower[i + 1];
+    if (v === "are") {
+      add(asWritten(i) + " are", asWritten(i) + " is",
+          `${w} — неисчисляемое, глагол в единственном числе: ${w} is.`);
+    } else if (v === "were") {
+      add(asWritten(i) + " were", asWritten(i) + " was",
+          `${w} — неисчисляемое, глагол в единственном числе: ${w} was.`);
+    }
+  });
+
+  // --- 14. Существительное-подлежащее в единственном числе + глагол без -s ---
+  //
+  // Правило 5 ловит только he/she/it. А «my mother work», «her brother
+  // like» — та же ошибка, но с существительным, и именно её называла
+  // методист. Берём closed-список явно единичных подлежащих (родня,
+  // питомцы) и требуем определитель перед ним или начало предложения:
+  // тогда это точно подлежащее, а не дополнение. Множественное («my
+  // parents work») в список не входит и не трогается.
+  const GC_SINGULAR_SUBJ = new Set(["mother", "father", "sister", "brother",
+    "friend", "teacher", "dog", "cat", "mom", "mum", "dad", "son", "daughter",
+    "wife", "husband", "boss", "uncle", "aunt", "grandmother", "grandfather",
+    "grandma", "grandpa", "boy", "girl", "man", "woman", "child", "baby"]);
+  const GC_SUBJ_DET = new Set(["my", "his", "her", "the", "a", "our", "your",
+    "their", "every", "this", "that"]);
+  lower.forEach((w, i) => {
+    if (!GC_SINGULAR_SUBJ.has(w) || !sameSentence(i)) return;
+    const okSubject = i === 0 || boundary[i - 1] || GC_SUBJ_DET.has(lower[i - 1]);
+    if (!okSubject) return;
+    const v = lower[i + 1];
+    if (!v || !GC_COMMON_VERBS.includes(v)) return;   // не уверены — молчим
+    if (GC_IRREGULAR_BE.has(v) || GC_MODALS.includes(v) || GC_PAST_SAME.includes(v)) return;
+    const form = v === "go" || v === "do" ? v + "es"
+               : v === "have" ? "has"
+               : v === "study" ? "studies"
+               : v === "try" ? "tries"
+               : v === "watch" ? "watches" : v + "s";
+    add(asWritten(i) + " " + v, asWritten(i) + " " + form,
+        `Подлежащее в единственном числе — глагол получает -s: ${w} ${form}.`);
   });
 
   return notes;
