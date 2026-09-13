@@ -13,7 +13,7 @@
        подмножества браузер возьмёт сам, если встретит редкую букву. -->
   <link rel="preload" href="css/fonts/nunito-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="css/fonts/inter-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="css/fonts.css?v=280">
+  <link rel="stylesheet" href="css/fonts.css?v=281">
 <!-- Тему ставим ДО первой отрисовки, отдельным крошечным скриптом.
      Всё остальное грузится с defer, а defer выполняется после разбора
      страницы — то есть уже после того, как браузер её показал. Оставить
@@ -29,14 +29,14 @@
     document.documentElement.dataset.theme = t;
   } catch (e) { /* приватный режим — просто останется дневная */ }
 </script>
-<link rel="stylesheet" href="css/tokens.css?v=280">
-<link rel="stylesheet" href="css/style.css?v=280">
-  <link rel="stylesheet" href="css/savely.css?v=280">
-<link rel="stylesheet" href="css/tutor.css?v=280">
-<link rel="stylesheet" href="css/motion.css?v=280">
-<link rel="stylesheet" href="css/cat.css?v=280">
-<link rel="stylesheet" href="css/a11y.css?v=280">
-<link rel="stylesheet" href="css/admin.css?v=280">
+<link rel="stylesheet" href="css/tokens.css?v=281">
+<link rel="stylesheet" href="css/style.css?v=281">
+  <link rel="stylesheet" href="css/savely.css?v=281">
+<link rel="stylesheet" href="css/tutor.css?v=281">
+<link rel="stylesheet" href="css/motion.css?v=281">
+<link rel="stylesheet" href="css/cat.css?v=281">
+<link rel="stylesheet" href="css/a11y.css?v=281">
+<link rel="stylesheet" href="css/admin.css?v=281">
 </head>
 <body>
 
@@ -54,11 +54,22 @@
                     aria-label="Показать пароль" aria-pressed="false"></button>
           </span>
         </label>
+        <div id="a-enroll" hidden>
+          <p class="reset-note" style="margin-top:14px">Первый вход: заведи одноразовый
+            код. Открой <b>Google Authenticator</b> → «+» → «Сканировать QR-код» и наведи
+            камеру. Не сканируется — добавь вручную ключ: <code id="a-secret"></code></p>
+          <div id="a-qr" class="qr" aria-label="QR для привязки кода"></div>
+        </div>
+        <label id="a-code-row" hidden>Код из приложения
+          <input type="text" id="a-code" inputmode="numeric" autocomplete="one-time-code"
+                 pattern="[0-9]*" maxlength="6" placeholder="6 цифр">
+        </label>
         <button type="submit" class="btn btn-primary btn-wide">Войти</button>
         <p class="type-feedback err" id="login-error"></p>
       </form>
-      <p class="reset-note" style="margin-top:14px">Пароль лежит на сервере в файле
-        <code>savely-data/admin.txt</code>. Его нет ни в коде, ни в репозитории.</p>
+      <p class="reset-note" style="margin-top:14px">Вход по паролю и одноразовому коду
+        (Google Authenticator). Пароль хранится хешем в <code>savely-data/admin.json</code>,
+        не в коде и не в репозитории.</p>
     </div>
   </div>
 </section>
@@ -100,12 +111,13 @@
   </main>
 </div>
 
-<script defer src="js/theme.js?v=280"></script>
-<script defer src="js/icons.js?v=280"></script>
-<script defer src="js/cat.js?v=280"></script>
-<script defer src="js/motion.js?v=280"></script>
-<script defer src="js/util.js?v=280"></script>
-<script defer src="js/admin.js?v=280"></script>
+<script defer src="js/theme.js?v=281"></script>
+<script defer src="js/icons.js?v=281"></script>
+<script defer src="js/cat.js?v=281"></script>
+<script defer src="js/motion.js?v=281"></script>
+<script defer src="js/util.js?v=281"></script>
+<script defer src="js/qr.js?v=281"></script>
+<script defer src="js/admin.js?v=281"></script>
 
 </body>
 </html>

@@ -36,7 +36,7 @@ import mailer
 # Теперь это видно одним curl /health: цифра совпала с ?v= на странице —
 # приложение перезапущено; не совпала или её нет вовсе — в памяти старый
 # код, надо нажать «Перезапустить приложение» в панели хостинга.
-ASSET_VERSION = 280
+ASSET_VERSION = 281
 
 PORT = int(os.environ.get("SAVELY_PORT", "4210"))
 # За nginx сервер слушает только localhost — снаружи он не должен быть виден
@@ -79,8 +79,14 @@ HISTORY_IN_PROMPT = 6
 def build_prompt(payload):
     prof = payload.get("profile") or {}
     dic = (prof.get("dictionary") or [])[:DICT_IN_PROMPT]
+    # Профиль у гостя целиком подконтролен клиенту. Режем каждое поле, иначе
+    # один вызов раздувается до платного мегапромпта (аудит: длина не
+    # ограничивалась). Слово/перевод короткие по природе — потолок с запасом.
+    def _clip(v, n):
+        return str(v or "")[:n]
     dic_str = "; ".join(
-        f"{d.get('w')} — {d.get('t')} [{d.get('status')}]" for d in dic
+        f"{_clip(d.get('w'), 40)} — {_clip(d.get('t'), 120)} [{_clip(d.get('status'), 16)}]"
+        for d in dic
     ) or "пока пусто"
     # Имя ученика провайдеру НЕ отправляем. Политика конфиденциальности
     # обещает: «уходит текст сообщения — без имени, почты и любых других
@@ -90,9 +96,9 @@ def build_prompt(payload):
     lines = [
         PERSONA,
         "",
-        f"Ученик (обращайся на «ты», по имени не называй): уровень {prof.get('level', '?')} "
-        f"({prof.get('levelName', '')}), словарный запас ~{prof.get('vocab', '?')} слов, "
-        f"звание «{prof.get('rank', 'Котёнок')}» ({prof.get('xp', 0)} очков).",
+        f"Ученик (обращайся на «ты», по имени не называй): уровень {str(prof.get('level', '?'))[:8]} "
+        f"({str(prof.get('levelName', ''))[:40]}), словарный запас ~{str(prof.get('vocab', '?'))[:8]} слов, "
+        f"звание «{str(prof.get('rank', 'Котёнок'))[:40]}» ({str(prof.get('xp', 0))[:12]} очков).",
         f"Словарь ученика: {dic_str}",
     ]
     if payload.get("voice"):
@@ -1962,10 +1968,9 @@ class Api:
 
     @staticmethod
     def admin_login(h, p):
-        token, err = db.admin_login(p.get("password"), p.get("_ip"))
-        if not token:
-            return {"ok": False, "error": err}
-        return {"ok": True, "token": token}
+        # db.admin_login возвращает готовый ответ: token, либо needEnroll/
+        # needCode с подсказкой клиенту (пароль + одноразовый код TOTP).
+        return db.admin_login(p.get("password"), p.get("code"), p.get("_ip"))
 
     @staticmethod
     def admin_logout(h, p):
@@ -2450,6 +2455,11 @@ class Api:
     CHAT_DAILY_SOLO = 15      # одиночке без репетитора: чат оставляем, но
                               # скромно — за его нейросеть никто не платит
     CHAT_DAILY_GUEST = 15     # гостю с витрины на адрес в сутки — попробовать хватает
+    # Общий потолок ВСЕХ гостевых чатов в сутки, единым счётчиком без адреса.
+    # Дневной лимит на IP спуфится ротацией X-Real-IP (аудит), а это —
+    # последний рубеж расхода на Claude с витрины: 200 демо-вызовов в сутки
+    # хватает для знакомства, но безлимит с одного клиента исключён.
+    CHAT_DAILY_GUEST_GLOBAL = 200
 
     TTS_DAILY = 300     # озвучек на ученика в сутки; урок съедает ~50
 
@@ -2503,6 +2513,13 @@ class Api:
                              "Карточки и тренировки со мной всегда — пойдём туда? 🐈"}
         # Дневной потолок проверяем ДО списания месячной квоты: отказ
         # не должен съедать сообщение из месяца.
+        # Гость — единственный, кого не держит именной счётчик use_chat.
+        # Кроме дневного лимита на (спуфимый) адрес ставим ОБЩИЙ потолок
+        # гостевых вызовов в сутки: его ротацией заголовка не обойти.
+        if not row and not db.rate_hit("chat-guest-global", Api.CHAT_DAILY_GUEST_GLOBAL, 86400):
+            return {"ok": True, "limitReached": True,
+                    "reply": "Мяу! Сегодня меня уже много спрашивали — загляни завтра "
+                             "или заведи свой кабинет, там я болтаю без очереди. 🐈"}
         day_key = ("chat-day|%d" % row["id"]) if row else ("chat-guest|%s" % p.get("_ip"))
         day_limit = (Api.CHAT_DAILY_STUDENT if row and row["tutor_id"]
                      else Api.CHAT_DAILY_SOLO if row else Api.CHAT_DAILY_GUEST)

@@ -305,14 +305,39 @@ async function load() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  // Двухшаговый вход: пароль -> одноразовый код (TOTP). При первом входе
+  // сервер присылает needEnroll с секретом — показываем QR для привязки в
+  // Google Authenticator; дальше — needCode на каждый вход.
+  const revealCode = () => {
+    const row = $("a-code-row");
+    if (row) { row.hidden = false; const i = $("a-code"); if (i) i.focus(); }
+  };
+  const showEnroll = (otpauth, secret) => {
+    const box = $("a-enroll");
+    if (box) box.hidden = false;
+    const sec = $("a-secret");
+    if (sec) sec.textContent = secret || "";
+    const qr = $("a-qr");
+    if (qr && typeof qrSvg === "function" && otpauth) qr.innerHTML = qrSvg(otpauth, { level: "M" });
+    revealCode();
+  };
   $("login-form").addEventListener("submit", async e => {
     e.preventDefault();
     $("login-error").textContent = "";
-    const res = await api("/api/admin/login", { password: $("a-pass").value });
-    if (!res.ok) { $("login-error").textContent = res.error || "Не получилось."; return; }
-    localStorage.setItem(AKEY, res.token);
-    $("a-pass").value = "";
-    load();
+    const body = { password: $("a-pass").value };
+    const code = $("a-code") ? $("a-code").value.trim() : "";
+    if (code) body.code = code;
+    const res = await api("/api/admin/login", body);
+    if (res.ok) {
+      localStorage.setItem(AKEY, res.token);
+      $("a-pass").value = "";
+      if ($("a-code")) $("a-code").value = "";
+      load();
+      return;
+    }
+    if (res.needEnroll) { showEnroll(res.otpauth, res.secret); $("login-error").textContent = res.error || ""; return; }
+    if (res.needCode)  { revealCode(); $("login-error").textContent = res.error || ""; return; }
+    $("login-error").textContent = res.error || "Не получилось.";
   });
 
   $("logout-btn").addEventListener("click", async () => {

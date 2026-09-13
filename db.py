@@ -3,7 +3,10 @@
 SQLite — файл savely.db рядом со скриптом. Для 50 учеников этого с запасом;
 при переезде на сервер меняется только строка подключения.
 """
+import base64
 import hashlib
+import hmac
+import struct
 import json
 import os
 import secrets
@@ -3222,88 +3225,161 @@ def raise_student_limit(tutor_id, extra=1):
 # админка видит всех репетиторов, всех детей и всю переписку.
 ADMIN_SESSION_TTL = 8 * 3600
 
-# Неудачные попытки входа считаем В БАЗЕ, а не в памяти процесса.
-#
-# Здесь стоял словарь _ADMIN_FAILS = {"count": 0, "until": None} — ровно
-# та грабля, из-за которой в этом же файле лимит частоты давно переехал
-# в таблицу rate_hits (см. комментарий у rate_hit). На хостинге mod_wsgi
-# держит НЕСКОЛЬКО процессов: у каждого свой пустой счётчик, и «три
-# неудачи — закрыто на 15 минут» срабатывало максимум в одном из них.
-# Перезапуск или ротация воркера обнуляли и его. При этом ручка
-# /api/admin/login не была вписана и в _HIT_LIMITS, то есть второго
-# заслона не было вовсе — а за админкой все репетиторы, все дети и их
-# личные коды.
-#
-# Считаем ПО АДРЕСУ, а не глобально. Общий счётчик выглядит строже, но
-# им же любой прохожий тремя запросами закрывал бы вход владельцу на
-# 15 минут. Складываем в ту же таблицу rate_hits: механизм уже есть,
-# чистится сам, переживает перезапуск.
-ADMIN_FAIL_LIMIT = 5
-ADMIN_FAIL_WINDOW = 900          # 15 минут
-_ADMIN_FAIL_KEY = "admin-login-fail|"
+# Вход в админку: пароль + одноразовый код (TOTP, Google Authenticator).
+# За админкой все репетиторы, все дети и их личные коды — поэтому одного
+# пароля мало. Аудит показал: клиентский заголовок X-Real-IP на боевом
+# хостинге подделывается, а прежний замок и лимит частоты считались ПО
+# ЭТОМУ адресу — то есть ротацией заголовка обходились полностью, давая
+# неограниченный перебор пароля. Отсюда два решения:
+#   1) замок ГЛОБАЛЬНЫЙ, без адреса в ключе — подделывать нечего;
+#   2) TOTP вторым фактором: даже подобранный/утёкший пароль без кода из
+#      приложения не пускает. Это и есть «вообще не попасть».
+# Пароль хранится ХЕШЕМ (pbkdf2), а не открытым текстом. Старый файл
+# admin.txt с паролем в открытую поддерживаем для миграции: при первом
+# верном входе он превращается в admin.json с хешем.
+ADMIN_FAIL_LIMIT = 10            # неудач за окно до глобального замка
+ADMIN_FAIL_WINDOW = 900         # 15 минут
+_ADMIN_FAIL_KEY = "admin-login-fail"   # БЕЗ адреса: замок общий, неспуфимый
 
 
-def _admin_fail_key(who):
-    return _ADMIN_FAIL_KEY + (str(who or "?")[:64])
+def _admin_dir():
+    return os.path.dirname(os.path.abspath(DB_PATH))
 
 
-def admin_fail_note(who):
-    """Записать неудачную попытку входа в админку."""
-    conn().execute("INSERT INTO rate_hits (k, ts) VALUES (?, ?)",
-                   (_admin_fail_key(who), time.time()))
-    conn().commit()
+def _admin_cfg_path():
+    return os.path.join(_admin_dir(), "admin.json")
 
 
-def admin_fail_clear(who):
-    conn().execute("DELETE FROM rate_hits WHERE k=?", (_admin_fail_key(who),))
-    conn().commit()
+def _admin_txt_path():
+    return os.path.join(_admin_dir(), "admin.txt")
 
 
-def admin_password():
-    path = os.path.join(os.path.dirname(os.path.abspath(DB_PATH)), "admin.txt")
+def _admin_load_cfg():
+    """Конфиг админки: {pass_hash, pass_salt, totp_secret, totp_active}.
+    Нет файла — пустой dict."""
     try:
-        with open(path, "r", encoding="utf-8") as f:
+        with open(_admin_cfg_path(), "r", encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return {}
+
+
+def _admin_save_cfg(cfg):
+    """Пишем конфиг с правами 600: в нём хеш пароля и секрет TOTP."""
+    path = _admin_cfg_path()
+    fd = os.open(path + ".new", os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
+        json.dump(cfg, f, ensure_ascii=False)
+    os.replace(path + ".new", path)
+    try:
+        os.chmod(path, 0o600)
+    except OSError:
+        pass
+
+
+def _admin_legacy_password():
+    """Старый пароль открытым текстом из admin.txt (для миграции)."""
+    try:
+        with open(_admin_txt_path(), "r", encoding="utf-8") as f:
             return f.read().strip()
     except OSError:
         return ""
 
 
-def admin_lock_left(who=""):
-    """Сколько секунд вход закрыт для этого адреса. 0 — открыт."""
+def admin_configured():
+    """Настроена ли админка вообще (есть хеш или старый admin.txt)."""
+    cfg = _admin_load_cfg()
+    return bool(cfg.get("pass_hash")) or bool(_admin_legacy_password())
+
+
+def _admin_check_password(password):
+    pw = str(password or "")
+    if not pw:
+        return False
+    cfg = _admin_load_cfg()
+    if cfg.get("pass_hash") and cfg.get("pass_salt"):
+        calc, _ = hash_password(pw, cfg["pass_salt"])
+        return secrets.compare_digest(calc, cfg["pass_hash"])
+    # ещё не мигрировано — сверяем со старым открытым паролем
+    legacy = _admin_legacy_password()
+    if legacy:
+        return secrets.compare_digest(pw.encode("utf-8"), legacy.encode("utf-8"))
+    return False
+
+
+def _admin_migrate_password(password):
+    """После верного входа: если пароль ещё не в хеше — захешировать."""
+    cfg = _admin_load_cfg()
+    if cfg.get("pass_hash"):
+        return
+    h, salt = hash_password(str(password))
+    cfg["pass_hash"] = h
+    cfg["pass_salt"] = salt
+    _admin_save_cfg(cfg)
+
+
+# ---- TOTP (RFC 6238), чистый stdlib ----
+
+def _new_totp_secret():
+    return base64.b32encode(secrets.token_bytes(20)).decode("ascii").rstrip("=")
+
+
+def totp_now(secret, t=None, step=30, digits=6):
+    if t is None:
+        t = time.time()
+    key = base64.b32decode(secret + "=" * ((8 - len(secret) % 8) % 8), casefold=True)
+    msg = struct.pack(">Q", int(t // step))
+    h = hmac.new(key, msg, hashlib.sha1).digest()
+    off = h[-1] & 0x0F
+    code = (struct.unpack(">I", h[off:off + 4])[0] & 0x7FFFFFFF) % (10 ** digits)
+    return str(code).zfill(digits)
+
+
+def totp_verify(secret, code, window=1):
+    """Сверка с окном ±window шагов — на случай расхождения часов."""
+    code = str(code or "").strip()
+    if not (secret and code.isdigit() and len(code) == 6):
+        return False
+    now = time.time()
+    for w in range(-window, window + 1):
+        if secrets.compare_digest(totp_now(secret, t=now + w * 30), code):
+            return True
+    return False
+
+
+def _otpauth(secret):
+    return ("otpauth://totp/wordcat.ru:admin?secret=%s"
+            "&issuer=wordcat.ru&digits=6&period=30" % secret)
+
+
+# ---- замок (глобальный, неспуфимый) ----
+
+def admin_fail_note():
+    conn().execute("INSERT INTO rate_hits (k, ts) VALUES (?, ?)",
+                   (_ADMIN_FAIL_KEY, time.time()))
+    conn().commit()
+
+
+def admin_fail_clear():
+    conn().execute("DELETE FROM rate_hits WHERE k=?", (_ADMIN_FAIL_KEY,))
+    conn().commit()
+
+
+def admin_lock_left():
+    """Сколько секунд вход в админку закрыт (глобально). 0 — открыт."""
     c = conn()
-    key = _admin_fail_key(who)
     edge = time.time() - ADMIN_FAIL_WINDOW
-    c.execute("DELETE FROM rate_hits WHERE k=? AND ts<?", (key, edge))
+    c.execute("DELETE FROM rate_hits WHERE k=? AND ts<?", (_ADMIN_FAIL_KEY, edge))
     c.commit()
     rows = c.execute("SELECT COUNT(*) n, MIN(ts) oldest FROM rate_hits WHERE k=?",
-                     (key,)).fetchone()
+                     (_ADMIN_FAIL_KEY,)).fetchone()
     if (rows["n"] or 0) < ADMIN_FAIL_LIMIT:
         return 0
     left = ADMIN_FAIL_WINDOW - (time.time() - (rows["oldest"] or 0))
     return int(left) if left > 0 else 0
 
 
-def admin_login(password, who=""):
-    """(токен, ошибка). Перебор пароля админки блокируется жёстче, чем у
-    репетитора: тут одна попытка стоит доступа ко всей базе.
-
-    who — адрес клиента, приходит из server.py. Пустой означает «локальный
-    запуск»: там процесс один и считать по адресу нечего."""
-    real = admin_password()
-    if not real:
-        return None, "Админка не настроена: нет файла admin.txt."
-    left = admin_lock_left(who)
-    if left:
-        return None, "Вход закрыт. Попробуй через %d сек." % left
-    # Сравниваем байты, а не строки: compare_digest на строке с кириллицей
-    # бросает TypeError, и пароль на русском просто не работал бы
-    if not secrets.compare_digest(str(password or "").encode("utf-8"), real.encode("utf-8")):
-        admin_fail_note(who)
-        left = admin_lock_left(who)
-        if left:
-            return None, "Слишком много попыток. Вход закрыт на %d сек." % left
-        return None, "Неверный пароль."
-    admin_fail_clear(who)
+def _admin_issue_token():
     token = new_token()
     conn().execute("INSERT INTO admin_sessions (token, created_at) VALUES (?,?)",
                    (token, now()))
@@ -3311,7 +3387,62 @@ def admin_login(password, who=""):
                    ((datetime.now(timezone.utc) - timedelta(seconds=ADMIN_SESSION_TTL))
                     .isoformat(timespec="seconds"),))
     conn().commit()
-    return token, None
+    return token
+
+
+def admin_login(password, code=None, who=""):
+    """Вход в админку: пароль + TOTP. Возвращает dict.
+
+    Формы ответа:
+      {"ok": True, "token": ...}
+      {"ok": False, "error": ...}
+      {"ok": False, "needEnroll": True, "secret":..., "otpauth":...}  — первый
+          вход: пароль верный, но TOTP ещё не привязан; клиент показывает QR
+          и просит код из приложения.
+      {"ok": False, "needCode": True}  — пароль верный, нужен код.
+
+    who больше не влияет на замок (он глобальный) — оставлен для совместимости.
+    """
+    if not admin_configured():
+        return {"ok": False, "error": "Админка не настроена: нет пароля."}
+    left = admin_lock_left()
+    if left:
+        return {"ok": False, "error": "Вход закрыт. Попробуй через %d сек." % left}
+    if not _admin_check_password(password):
+        admin_fail_note()
+        left = admin_lock_left()
+        return {"ok": False,
+                "error": ("Слишком много попыток. Вход закрыт на %d сек." % left)
+                         if left else "Неверный пароль."}
+    # пароль верный — при необходимости мигрируем его в хеш
+    _admin_migrate_password(password)
+    cfg = _admin_load_cfg()
+
+    if not cfg.get("totp_active"):
+        # первый вход: заводим секрет (pending) и показываем для привязки
+        secret = cfg.get("totp_secret") or _new_totp_secret()
+        cfg["totp_secret"] = secret
+        cfg["totp_active"] = False
+        _admin_save_cfg(cfg)
+        if not code:
+            return {"ok": False, "needEnroll": True, "secret": secret,
+                    "otpauth": _otpauth(secret),
+                    "error": "Заведи код в Google Authenticator и введи его — один раз."}
+        if not totp_verify(secret, code):
+            return {"ok": False, "needEnroll": True, "secret": secret,
+                    "otpauth": _otpauth(secret), "error": "Код не сходится, попробуй ещё."}
+        cfg["totp_active"] = True
+        _admin_save_cfg(cfg)          # привязка завершена
+    else:
+        if not code:
+            return {"ok": False, "needCode": True,
+                    "error": "Введи код из Google Authenticator."}
+        if not totp_verify(cfg["totp_secret"], code):
+            admin_fail_note()
+            return {"ok": False, "needCode": True, "error": "Код не сходится."}
+
+    admin_fail_clear()
+    return {"ok": True, "token": _admin_issue_token()}
 
 
 def admin_check(token):
