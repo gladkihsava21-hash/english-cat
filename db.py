@@ -809,10 +809,15 @@ def email_taken_by_student(email):
 
 
 def set_student_password(student_id, password):
+    """Меняем пароль и ротируем токен: аудит нашёл, что смена пароля
+    ученика токен не трогала, и утёкший токен продолжал работать вечно.
+    Возвращаем новый токен — текущему устройству, чтобы не разлогинить."""
     ph, salt = hash_password(password)
-    conn().execute("UPDATE students SET pass_hash=?, pass_salt=? WHERE id=?",
-                   (ph, salt, student_id))
+    token = new_token()
+    conn().execute("UPDATE students SET pass_hash=?, pass_salt=?, token=? WHERE id=?",
+                   (ph, salt, token, student_id))
     conn().commit()
+    return token
 
 
 def set_student_email(student_id, email):
@@ -1994,16 +1999,24 @@ def get_tutor_by_recovery(code):
 
 
 def set_tutor_password(tutor_id, password):
-    """Меняем пароль и выдаём новый токен: старые сессии должны отвалиться,
-    иначе смена пароля после утечки ничего не даёт."""
+    """Меняем пароль, выдаём новый токен И новый код восстановления.
+
+    Токен ротируем — старые сессии обязаны отвалиться, иначе смена пароля
+    после утечки ничего не даёт. Код восстановления ротируем по той же
+    причине: аудит нашёл, что set_tutor_password его не трогал, и код,
+    показанный при регистрации (или добытый по токену через /api/tutor/
+    recovery), оставался вечным чёрным ходом — им можно сбросить пароль
+    когда угодно потом. Теперь смена пароля закрывает и этот путь.
+    Возвращаем (token, recovery), чтобы владелец пересохранил новый код."""
     pass_hash, salt = hash_password(password)
     token = new_token()
+    recovery = new_recovery_code()
     conn().execute(
-        "UPDATE tutors SET pass_hash=?, pass_salt=?, token=?, failed_logins=0,"
-        " locked_until=NULL, pass_changed_at=? WHERE id=?",
-        (pass_hash, salt, token, now(), tutor_id))
+        "UPDATE tutors SET pass_hash=?, pass_salt=?, token=?, recovery_code=?,"
+        " failed_logins=0, locked_until=NULL, pass_changed_at=? WHERE id=?",
+        (pass_hash, salt, token, recovery, now(), tutor_id))
     conn().commit()
-    return token
+    return token, recovery
 
 
 WEAK_PASSWORDS = {

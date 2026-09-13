@@ -151,6 +151,11 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
       localStorage.setItem("savelyTutorToken", res.token);
+      // Старый код восстановления сгорел вместе со сменой пароля —
+      // показываем новый, чтобы записанный на бумажке заменили.
+      if (res.recoveryCode && typeof showRecoveryCode === "function") {
+        showRecoveryCode(res.recoveryCode);
+      }
       msg.className = "type-feedback ok";
       msg.textContent = res.note || "Пароль изменён.";
       setTimeout(close, 1400);

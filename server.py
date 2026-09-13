@@ -36,7 +36,7 @@ import mailer
 # Теперь это видно одним curl /health: цифра совпала с ?v= на странице —
 # приложение перезапущено; не совпала или её нет вовсе — в памяти старый
 # код, надо нажать «Перезапустить приложение» в панели хостинга.
-ASSET_VERSION = 281
+ASSET_VERSION = 282
 
 PORT = int(os.environ.get("SAVELY_PORT", "4210"))
 # За nginx сервер слушает только localhost — снаружи он не должен быть виден
@@ -409,6 +409,8 @@ _HIT_LIMITS = {
     # Проверка кода: перебрать шесть цифр — миллион вариантов, но пробовать
     # их надо где-то, и здесь. Счётчик попыток на сам код тоже есть.
     "/api/tutor/reset/check": (10, 600),
+    "/api/tutor/password/reset": (10, 600),   # перебор кода восстановления
+    "/api/tutor/password": (10, 600),
     "/api/chat": (120, 300),
     "/api/tts": (240, 300),
     # Каждый вызов читает файл с диска и кодирует до 8 МБ в base64.
@@ -1668,8 +1670,10 @@ class Api:
         if other and other["id"] != row["id"]:
             return {"ok": False, "error": "На эту почту уже есть другой аккаунт."}
         db.set_student_email(row["id"], email)
-        db.set_student_password(row["id"], password)
-        return {"ok": True, "email": email}
+        token = db.set_student_password(row["id"], password)
+        # токен сменился (ротация при установке пароля) — отдаём новый,
+        # клиент кладёт его в localStorage вместо старого
+        return {"ok": True, "email": email, "token": token}
 
     @staticmethod
     def student_adopt(h, p):
@@ -1903,9 +1907,10 @@ class Api:
         problem = db.password_problem(p.get("newPassword"))
         if problem:
             return {"ok": False, "error": problem}
-        token = db.set_tutor_password(tutor["id"], str(p.get("newPassword")))
-        return {"ok": True, "token": token,
-                "note": "Пароль изменён. На других устройствах придётся войти заново."}
+        token, recovery = db.set_tutor_password(tutor["id"], str(p.get("newPassword")))
+        return {"ok": True, "token": token, "recoveryCode": recovery,
+                "note": "Пароль изменён. На других устройствах придётся войти заново. "
+                        "Код восстановления обновлён — сохрани новый."}
 
     @staticmethod
     def tutor_password_reset(h, p):
@@ -1917,8 +1922,11 @@ class Api:
         problem = db.password_problem(p.get("newPassword"))
         if problem:
             return {"ok": False, "error": problem}
-        token = db.set_tutor_password(row["id"], str(p.get("newPassword")))
-        return {"ok": True, "token": token, "tutor": db.tutor_public(row)}
+        token, recovery = db.set_tutor_password(row["id"], str(p.get("newPassword")))
+        # старый recovery-код только что сгорел вместе со сменой пароля —
+        # отдаём новый, чтобы владелец пересохранил
+        return {"ok": True, "token": token, "recoveryCode": recovery,
+                "tutor": db.tutor_public(db.get_tutor_by_id(row["id"]))}
 
     @staticmethod
     def tutor_recovery_code(h, p):

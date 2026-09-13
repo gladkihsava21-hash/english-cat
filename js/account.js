@@ -486,6 +486,9 @@ function wireAccount(online) {
       savePass.disabled = false;
       if (!res.ok) { msg.textContent = res.error || "Не получилось."; return; }
       $("ac-password").value = "";
+      // Токен ротировался на сервере при установке пароля — сохраняем
+      // новый, иначе следующий запрос уйдёт со старым и разлогинит.
+      if (res.token) localStorage.setItem("savelyStudentToken", res.token);
       msg.className = "ac-note ac-ok";
       msg.textContent = "Готово. Теперь можно входить почтой и паролем с любого устройства.";
       if (accountData) { accountData.hasPassword = true; accountData.email = res.email; }
