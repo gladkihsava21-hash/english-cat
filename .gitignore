@@ -10,3 +10,5 @@ tools/out/contact-sheet-*.jpg
 savely-data/
 tools/cache/
 tools/out/qr-*.png
+# резервные копии словаря — локальный хлам, в репо им не место
+js/*.bak*

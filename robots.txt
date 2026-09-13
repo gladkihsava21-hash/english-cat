@@ -4,3 +4,5 @@
 # на секретный адрес. Роботам достаточно знать, что API индексировать не надо.
 User-agent: *
 Disallow: /api/
+
+Sitemap: https://wordcat.ru/sitemap.xml
