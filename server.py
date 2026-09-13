@@ -36,7 +36,7 @@ import mailer
 # Теперь это видно одним curl /health: цифра совпала с ?v= на странице —
 # приложение перезапущено; не совпала или её нет вовсе — в памяти старый
 # код, надо нажать «Перезапустить приложение» в панели хостинга.
-ASSET_VERSION = 278
+ASSET_VERSION = 279
 
 PORT = int(os.environ.get("SAVELY_PORT", "4210"))
 # За nginx сервер слушает только localhost — снаружи он не должен быть виден
@@ -417,6 +417,16 @@ _HIT_LIMITS = {
 }
 
 # Потолок на тело запроса — см. do_POST и wsgi.py.
+# Заголовки безопасности, общие для server.py и wsgi.py (импортируется там).
+# nosniff — не угадывать тип в обход Content-Type; SAMEORIGIN — не дать
+# встроить админку/панель в чужой невидимый iframe (кликджекинг); no-referrer
+# — не утекать адрес с токеном в ?join= на сторонние сайты через Referer.
+SECURITY_HEADERS = [
+    ("X-Content-Type-Options", "nosniff"),
+    ("X-Frame-Options", "SAMEORIGIN"),
+    ("Referrer-Policy", "no-referrer"),
+]
+
 MAX_BODY_BYTES = 12 * 1024 * 1024
 
 # Сколько неразобранных снимков тетради держим на ученика — см. student_photo_upload.
@@ -2929,6 +2939,13 @@ class Handler(SimpleHTTPRequestHandler):
         path = urlparse(self.path).path
         if path.endswith((".css", ".js", ".html")) or path == "/":
             self.send_header("Cache-Control", "no-store, must-revalidate")
+        # Заголовки безопасности на КАЖДЫЙ ответ. Дублируют .htaccess не зря:
+        # статику на бою отдаёт Apache сам (и там работает .htaccess), а
+        # ответы приложения идут отсюда/из wsgi — nginx впереди может срезать
+        # чужие заголовки, поэтому свои ставим у источника. Только безопасные
+        # под прокси; HSTS/CSP отдельным выверенным шагом.
+        for k, v in SECURITY_HEADERS:
+            self.send_header(k, v)
         super().end_headers()
 
     def do_GET(self):

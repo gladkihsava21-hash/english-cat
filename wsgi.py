@@ -55,6 +55,10 @@ MIME = {
 }
 
 CORS = [("Access-Control-Allow-Origin", "*")]
+# Заголовки безопасности — тот же список, что в server.py, чтобы правда
+# была одна. Добавляем ко ВСЕМ ответам приложения: nginx впереди может
+# срезать заголовки Apache, поэтому свои ставим прямо в WSGI-ответе.
+SEC = server.SECURITY_HEADERS
 
 
 def _json(start_response, obj, status="200 OK"):
@@ -69,13 +73,13 @@ def _json(start_response, obj, status="200 OK"):
         ]
         if obj.get("_cache"):
             headers.append(("Cache-Control", "private, max-age=%d" % int(obj["_cache"])))
-        start_response(status, headers + CORS)
+        start_response(status, headers + CORS + SEC)
         return [body]
     body = json.dumps(obj, ensure_ascii=False).encode("utf-8")
     start_response(status, [
         ("Content-Type", "application/json; charset=utf-8"),
         ("Content-Length", str(len(body))),
-    ] + CORS)
+    ] + CORS + SEC)
     return [body]
 
 
@@ -109,7 +113,7 @@ def _static(path, start_response):
     ]
     if ext in (".css", ".js", ".html"):
         headers.append(("Cache-Control", "no-store, must-revalidate"))
-    start_response("200 OK", headers)
+    start_response("200 OK", headers + SEC)
     return [body]
 
 

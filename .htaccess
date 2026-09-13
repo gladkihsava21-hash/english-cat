@@ -14,6 +14,32 @@
     </IfModule>
 </FilesMatch>
 
+# Внутренние документы и скрипты наружу не отдаём. SESSION.md и AGENTS.md
+# отдавались по прямой ссылке с кодом 200 — это подробная карта проекта
+# (архитектура, прошлые дыры, имена колонок с хешами паролей). Денилист
+# по расширению закрывает и их, и .sh/.conf/.bak, и подобное. .py сюда
+# не берём: wsgi.py обязан обслуживаться; лишние .py гасит RewriteRule.
+<FilesMatch "\.(md|markdown|sh|conf|cfg|ini|bak|jsonl|toml|yml|yaml|sample|example)$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+# Резервные копии словаря (js/words.js.bak-*): матчим .bak в любом месте
+# имени, не только на конце.
+<FilesMatch "\.bak">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
 Options -Indexes
 
 # Админку не должно быть в поиске
@@ -46,7 +72,7 @@ DirectoryIndex index.html
     # Apache показал бы их простым текстом.
     # Внутреннюю переадресацию ниже это не задевает — там путь длиннее
     # (/wsgi.py/api/...), а здесь шаблон закрыт на конце.
-    RewriteRule ^(server|db|wsgi)\.py$ - [R=404,L]
+    RewriteRule ^(server|db|wsgi|mailer)\.py$ - [R=404,L]
 
     # В Python уходит только API. Всё остальное — статика, её Apache
     # отдаёт сам: быстрее, и сайт продолжает открываться, даже если
@@ -81,4 +107,15 @@ DirectoryIndex index.html
     <FilesMatch "\.(css|js|woff2|png|jpg|svg)$">
         Header always set Cache-Control "public, max-age=31536000, immutable"
     </FilesMatch>
+
+    # Заголовки безопасности. Ставим и здесь (статику Apache отдаёт сам,
+    # минуя Python), и в ответах приложения (server.py/wsgi.py) — заодно
+    # проверяем curl'ом, что nginx впереди их не срезает. Тут только
+    # безопасные под прокси: nosniff, запрет на встраивание в чужой iframe
+    # (кликджекинг админки/панели), скрытие Referer. HSTS/CSP/редирект на
+    # HTTPS — отдельным выверенным шагом: под nginx→Apache наивный редирект
+    # даёт петлю, а сырой CSP ломает инлайн.
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set Referrer-Policy "no-referrer"
 </IfModule>
