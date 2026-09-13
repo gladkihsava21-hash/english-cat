@@ -112,10 +112,18 @@ DirectoryIndex index.html
     # минуя Python), и в ответах приложения (server.py/wsgi.py) — заодно
     # проверяем curl'ом, что nginx впереди их не срезает. Тут только
     # безопасные под прокси: nosniff, запрет на встраивание в чужой iframe
-    # (кликджекинг админки/панели), скрытие Referer. HSTS/CSP/редирект на
-    # HTTPS — отдельным выверенным шагом: под nginx→Apache наивный редирект
-    # даёт петлю, а сырой CSP ломает инлайн.
+    # (кликджекинг админки/панели), скрытие Referer.
     Header always set X-Content-Type-Options "nosniff"
     Header always set X-Frame-Options "SAMEORIGIN"
     Header always set Referrer-Policy "no-referrer"
+
+    # HSTS. Редирект http→https уже включён в панели хостинга; этот заголовок
+    # закрывает оставшуюся щель — первый заход по http до редиректа, где и
+    # ловят SSL-strip. Браузер, получив HSTS по https, дальше сам ходит
+    # только по https. Срок пока 30 дней (не год): сертификат на Timeweb
+    # продлевается автоматически и не нами; если однажды не продлится, длинный
+    # HSTS запер бы людей. Поднять после первого пережитого автопродления.
+    # preload не ставим намеренно — отдельный необратимый шаг.
+    # CSP по-прежнему отдельно: сырой ломает инлайн-стили и скрипты.
+    Header always set Strict-Transport-Security "max-age=2592000; includeSubDomains"
 </IfModule>

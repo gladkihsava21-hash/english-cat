@@ -433,6 +433,13 @@ SECURITY_HEADERS = [
     ("X-Content-Type-Options", "nosniff"),
     ("X-Frame-Options", "SAMEORIGIN"),
     ("Referrer-Policy", "no-referrer"),
+    # HSTS: браузер, раз получив это по https, дальше сам не ходит по http —
+    # закрывает перехват на первом заходе (SSL-strip). Срок пока 30 дней, а
+    # не год: сертификат на Timeweb продлевается автоматически не нами, и
+    # если он однажды не продлится, длинный HSTS запер бы людей без доступа.
+    # Поднять до года после того, как переживём хотя бы одно автопродление.
+    # preload (вшивание в браузеры) НЕ ставим — это отдельный необратимый шаг.
+    ("Strict-Transport-Security", "max-age=2592000; includeSubDomains"),
 ]
 
 MAX_BODY_BYTES = 12 * 1024 * 1024
