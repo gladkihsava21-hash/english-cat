@@ -40,6 +40,20 @@
     </IfModule>
 </FilesMatch>
 
+# Секреты админки поимённо. Денить все .json нельзя — manifest.json обязан
+# отдаваться. admin.json (хеш пароля + секрет TOTP) и admin.txt (старый
+# пароль) лежат вне webroot и так, но денилист — второй рубеж на случай,
+# если файл окажется рядом с кодом (дефолт SAVELY_DB, копия).
+<FilesMatch "^admin\.(json|txt)$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
 Options -Indexes
 
 # Админку не должно быть в поиске

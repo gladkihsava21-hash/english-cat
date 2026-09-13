@@ -556,6 +556,18 @@ def rate_hit(key, limit, window):
         return True
 
 
+def rate_refund(key):
+    """Убрать одну свежую отметку лимита. Нужно, когда обращение записали,
+    а работа не состоялась (провайдер ИИ упал): гость не должен из-за
+    чужого сбоя терять место в дневном потолке."""
+    c = conn()
+    row = c.execute("SELECT rowid FROM rate_hits WHERE k=? ORDER BY ts DESC LIMIT 1",
+                    (key,)).fetchone()
+    if row:
+        c.execute("DELETE FROM rate_hits WHERE rowid=?", (row["rowid"],))
+        c.commit()
+
+
 def rate_sweep(older_than=3600):
     """Уборка старых отметок. Дёргается редко — раз в сотню запросов."""
     try:
@@ -3348,6 +3360,25 @@ def totp_now(secret, t=None, step=30, digits=6):
     return str(code).zfill(digits)
 
 
+def _totp_step(t=None, step=30):
+    return int((time.time() if t is None else t) // step)
+
+
+def totp_verify_step(secret, code, window=1):
+    """Как totp_verify, но возвращает НОМЕР 30-сек шага, на котором код
+    сошёлся (для защиты от повтора), либо None. Проверяем ближний шаг
+    первым, чтобы вернуть самый свежий из подходящих."""
+    code = str(code or "").strip()
+    if not (secret and code.isdigit() and len(code) == 6):
+        return None
+    base = _totp_step()
+    for w in (0, 1, -1)[:1 + 2 * window]:
+        st = base + w
+        if secrets.compare_digest(totp_now(secret, t=st * 30), code):
+            return st
+    return None
+
+
 def totp_verify(secret, code, window=1):
     """Сверка с окном ±window шагов — на случай расхождения часов."""
     code = str(code or "").strip()
@@ -3418,16 +3449,26 @@ def admin_login(password, code=None, who=""):
     """
     if not admin_configured():
         return {"ok": False, "error": "Админка не настроена: нет пароля."}
-    left = admin_lock_left()
-    if left:
-        return {"ok": False, "error": "Вход закрыт. Попробуй через %d сек." % left}
-    if not _admin_check_password(password):
+
+    # Пароль проверяем ВСЕГДА, и замок применяем ТОЛЬКО к неверному паролю.
+    # Первая версия запирала вход глобально при любом провале — и ред-тим
+    # показал регресс: аноним без пароля десятью неверными попытками
+    # закрывал вход для всех, включая владельца, и держал так бесконечно.
+    # Теперь верный пароль замок игнорирует и снимает: владельца, который
+    # пароль знает, чужие провалы запереть не могут. Перебор же тормозят
+    # pbkdf2 (дорогая проверка на каждую попытку) и TOTP — угаданный пароль
+    # без кода из приложения всё равно бесполезен. pbkdf2 считаем и на
+    # верном, и на неверном, поэтому по времени ответа их не различить.
+    pw_ok = _admin_check_password(password)
+    if not pw_ok:
         admin_fail_note()
         left = admin_lock_left()
         return {"ok": False,
-                "error": ("Слишком много попыток. Вход закрыт на %d сек." % left)
+                "error": ("Слишком много неверных попыток. Подожди %d сек." % left)
                          if left else "Неверный пароль."}
-    # пароль верный — при необходимости мигрируем его в хеш
+
+    # пароль верный — снимаем замок от чужих провалов и мигрируем в хеш
+    admin_fail_clear()
     _admin_migrate_password(password)
     cfg = _admin_load_cfg()
 
@@ -3442,19 +3483,29 @@ def admin_login(password, code=None, who=""):
                     "otpauth": _otpauth(secret),
                     "error": "Заведи код в Google Authenticator и введи его — один раз."}
         if not totp_verify(secret, code):
+            admin_fail_note()   # перебор кода на привязке тоже тормозим
             return {"ok": False, "needEnroll": True, "secret": secret,
                     "otpauth": _otpauth(secret), "error": "Код не сходится, попробуй ещё."}
         cfg["totp_active"] = True
+        cfg["totp_used_step"] = _totp_step()     # анти-replay: см. ниже
         _admin_save_cfg(cfg)          # привязка завершена
     else:
         if not code:
             return {"ok": False, "needCode": True,
                     "error": "Введи код из Google Authenticator."}
-        if not totp_verify(cfg["totp_secret"], code):
+        step = totp_verify_step(cfg["totp_secret"], code)
+        if step is None:
             admin_fail_note()
             return {"ok": False, "needCode": True, "error": "Код не сходится."}
+        # Анти-replay: тот же код (тот же 30-сек шаг) второй раз не пройдёт —
+        # подсмотренный код в его 90-секундном окне переиграть нельзя.
+        if step <= (cfg.get("totp_used_step") or 0):
+            admin_fail_note()
+            return {"ok": False, "needCode": True,
+                    "error": "Этот код уже использован — дождись следующего."}
+        cfg["totp_used_step"] = step
+        _admin_save_cfg(cfg)
 
-    admin_fail_clear()
     return {"ok": True, "token": _admin_issue_token()}
 
 
