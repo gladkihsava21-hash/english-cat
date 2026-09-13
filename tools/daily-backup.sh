@@ -112,6 +112,35 @@ print('  проверка: репетиторов %d, учеников %d' % (n,
   exit 1
 fi
 
+# --- Шифрование копии ---
+# База — это имена детей, почты, прогресс и хеши паролей. На общем
+# хостинге копии лежат в домашней папке рядом с чужими аккаунтами и
+# уезжают в чей-то бэкап хостера. Поэтому шифруем — если владелец положил
+# пароль в savely-data/backup-pass.txt (одна строка, права 600).
+#
+# openssl AES-256, ключ из пароля через pbkdf2 (перебор дорог). Пароль
+# НЕ в командной строке (виден в ps), а из файла: pass file:...
+# Нет файла с паролем — работаем как раньше, копия открытая, но громко
+# предупреждаем: бэкап важнее приватности копии, молча вставать нельзя.
+#
+# Восстановление:
+#   openssl enc -d -aes-256-cbc -pbkdf2 -pass file:PASS -in daily-N.db.enc -out restored.db
+PASS_FILE="$DATA/backup-pass.txt"
+if [[ -f "$PASS_FILE" ]] && command -v openssl >/dev/null 2>&1; then
+  ENC="$OUT.enc"
+  if openssl enc -aes-256-cbc -pbkdf2 -salt \
+        -pass "file:$PASS_FILE" -in "$OUT" -out "$ENC" 2>/dev/null; then
+    chmod 600 "$ENC"
+    rm -f "$OUT"                 # открытую копию не оставляем
+    OUT="$ENC"
+    echo "  копия зашифрована (AES-256)"
+  else
+    echo "!! openssl не смог зашифровать — оставляю открытую копию" >&2
+  fi
+else
+  echo "  ВНИМАНИЕ: копия НЕ шифрована. Положи пароль в $PASS_FILE (chmod 600), чтобы шифровать."
+fi
+
 # Ротация старых копий. Всё, что старше KEEP_DAYS, удаляем.
 #
 # Маска здесь раньше была одна — «savely-*.db.gz», — и шапка скрипта
@@ -149,13 +178,14 @@ rotate_old() {
 }
 
 rotate_old "$DEST" "savely-*.db.gz" "photos-*.tar.gz" \
-                   "pre-deploy-*.db" "pre-design-*.db" "savely-pre-*.db"
+                   "pre-deploy-*.db" "pre-design-*.db" "savely-pre-*.db" \
+                   "pre-deploy-*.db.enc" "savely-pre-*.db.enc"
 
 # Вторая куча — рядом с живой базой. Её не убирал вообще никто: ротация
 # смотрела только в свою папку. daily-?.db не трогаем даже по возрасту:
 # у той ротации свой механизм (семь файлов с перезаписью по дню недели),
 # и удалять их отсюда значило бы драться с ним.
-rotate_old "$DATA" "pre-deploy-*.db" "backup-*.db"
+rotate_old "$DATA" "pre-deploy-*.db" "backup-*.db" "pre-deploy-*.db.enc"
 
 # Размер берём настоящий, а не du. du показывает занятые блоки, и сразу
 # после .backup он на этой файловой системе возвращает единицы: копия на
@@ -164,4 +194,4 @@ rotate_old "$DATA" "pre-deploy-*.db" "backup-*.db"
 # как «база не скопировалась».
 SIZE=$(wc -c < "$OUT" | tr -d ' ')
 echo "Копия за день $DOW: $OUT ($((SIZE / 1024)) КБ)"
-echo "Всего копий в ротации: $(find "$DEST" -name 'daily-?.db' | wc -l | tr -d ' ') из 7"
+echo "Всего копий в ротации: $(find "$DEST" \( -name 'daily-?.db' -o -name 'daily-?.db.enc' \) | wc -l | tr -d ' ') из 7"
