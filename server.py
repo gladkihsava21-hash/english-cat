@@ -36,7 +36,7 @@ import mailer
 # Теперь это видно одним curl /health: цифра совпала с ?v= на странице —
 # приложение перезапущено; не совпала или её нет вовсе — в памяти старый
 # код, надо нажать «Перезапустить приложение» в панели хостинга.
-ASSET_VERSION = 279
+ASSET_VERSION = 280
 
 PORT = int(os.environ.get("SAVELY_PORT", "4210"))
 # За nginx сервер слушает только localhost — снаружи он не должен быть виден
@@ -1336,6 +1336,11 @@ class Api:
         board = db.get_board(p.get("boardId"))
         if not board:
             return {"ok": False, "error": "Доска не найдена."}
+        # Урок — платная услуга. Если у владельца доски доступ истёк, доска
+        # закрыта для всех: и для самого репетитора, и для учеников. Аудит:
+        # раньше board_sync авторизовал по токену и не смотрел на оплату.
+        if not db.tutor_active(board["tutor_id"]):
+            return {"ok": False, "error": "Доступ на паузе — репетитор ещё не продлил подписку."}
 
         author, can_write = "", False
         tutor = db.get_tutor_by_token(p.get("token"))
@@ -1457,6 +1462,8 @@ class Api:
         book = db.get_book(p.get("bookId") or 0)
         if not book:
             return {"ok": False, "error": "Книга не найдена."}
+        if not db.tutor_active(book["tutor_id"]):
+            return {"ok": False, "error": "Доступ на паузе — репетитор ещё не продлил подписку."}
         allowed = False
         tutor = db.get_tutor_by_token(p.get("token"))
         if tutor and tutor["id"] == book["tutor_id"]:
@@ -1494,6 +1501,9 @@ class Api:
         board = db.get_board(p.get("boardId"))
         if not board:
             return None, None
+        # Звонок — часть урока: у неоплатившего владельца доски урока нет.
+        if not db.tutor_active(board["tutor_id"]):
+            return board, None
         tutor = db.get_tutor_by_token(p.get("token"))
         if tutor and tutor["id"] == board["tutor_id"]:
             return board, "t" + str(tutor["id"])
@@ -1667,6 +1677,10 @@ class Api:
         tutor = db.get_tutor_by_code(p.get("code"))
         if not tutor:
             return {"ok": False, "error": "Такой ссылки не существует."}
+        if not db.tutor_active(tutor["id"]):
+            return {"ok": False, "error":
+                    "Репетитор пока не открыл доступ — напиши ему, "
+                    "он продлит подписку, и ссылка заработает."}
         allowed, limit = db.can_add_student(tutor)
         if not allowed:
             return {"ok": False, "error":
@@ -1711,6 +1725,10 @@ class Api:
         if len(name) < 2:
             # это экран УЧЕНИКА — обращаемся на «ты» и подсказываем пример
             return {"ok": False, "error": "Напиши имя — хотя бы две буквы. Можно просто «Ваня»."}
+        if not db.tutor_active(tutor["id"]):
+            return {"ok": False, "error":
+                    "Репетитор пока не открыл доступ — напиши ему, "
+                    "он продлит подписку, и ссылка заработает."}
         allowed, limit = db.can_add_student(tutor)
         if not allowed:
             # было «занято всё %d мест» (рассогласование) и «попроси ЕЁ» —
@@ -2066,6 +2084,8 @@ class Api:
         tutor = db.get_tutor_by_token(p.get("token"))
         if not tutor:
             return {"ok": False, "error": "unauthorized"}
+        if db.access_state(tutor) == "expired":
+            return {"ok": False, "error": "Доступ на паузе — репетитор ещё не продлил подписку."}
         url = str(p.get("url", "")).strip()
         if url:
             # Только http(s) и только абсолютный адрес. Без этой проверки
@@ -2086,6 +2106,8 @@ class Api:
         tutor = db.get_tutor_by_token(p.get("token"))
         if not tutor:
             return {"ok": False, "error": "unauthorized"}
+        if db.access_state(tutor) == "expired":
+            return {"ok": False, "error": "Доступ на паузе — репетитор ещё не продлил подписку."}
         row = db.get_tutor_by_id(tutor["id"])
         if not (row["lesson_url"] if "lesson_url" in row.keys() else ""):
             return {"ok": False, "error": "Сначала добавьте ссылку на свою комнату."}
@@ -2099,6 +2121,8 @@ class Api:
         tutor = db.get_tutor_by_token(p.get("token"))
         if not tutor:
             return {"ok": False, "error": "unauthorized"}
+        if db.access_state(tutor) == "expired":
+            return {"ok": False, "error": "Доступ на паузе — репетитор ещё не продлил подписку."}
         work = p.get("work")
         remind = p.get("remind")
         db.set_notify(tutor["id"],
@@ -2161,6 +2185,11 @@ class Api:
             return {"ok": False, "error":
                     "Фото тетради смотрит репетитор, а у тебя его пока нет. "
                     "Попроси у своего репетитора ссылку-приглашение."}
+
+        if not db.tutor_active(row["tutor_id"]):
+            return {"ok": False, "error":
+                    "Занятия на паузе — репетитор ещё не продлил подписку. "
+                    "Как продлит, снова можно будет присылать тетрадь."}
 
         # id домашки читаем заранее — он нужен для проверки предела ниже.
         # Полная сверка владельца остаётся там, где была.
@@ -2354,6 +2383,10 @@ class Api:
         allowed = False
         tutor = db.get_tutor_by_token(p.get("token"))
         if tutor and tutor["id"] == row["tutor_id"]:
+            # Репетитор видит фото тетрадей только пока платит: аудит нашёл,
+            # что photo_fetch (картинка по числовому id) шёл в обход оплаты.
+            if not db.tutor_active(tutor["id"]):
+                return {"ok": False, "error": "Доступ на паузе — репетитор ещё не продлил подписку."}
             allowed = True
         else:
             student = db.get_student_by_token(p.get("token"))
@@ -2435,6 +2468,9 @@ class Api:
             return {"ok": False, "error": "unauthorized"}
         if not row["tutor_id"]:
             return {"ok": False, "error": "solo"}
+        if not db.tutor_active(row["tutor_id"]):
+            # клиент по этому коду молча уходит на браузерный синтез
+            return {"ok": False, "error": "paused"}
         text = " ".join(str(p.get("text") or "").split())
         # «Слово» — включая словарные фразы («take it with a grain of salt»),
         # исключая предложения: те длиннее и им хватает браузерного голоса.
@@ -2458,6 +2494,13 @@ class Api:
         # Ученика узнаём по токену. Без токена — гость с витрины: его держит
         # общий rate limit, отдельного счётчика на него не завести.
         row = db.get_student_by_token(p.get("token")) if p.get("token") else None
+        # Ученик привязан к репетитору, а тот не оплатил — ИИ на паузе.
+        # Тренажёр и домашки у ученика остаются, платит за них никто не
+        # должен: это клиентские функции. Дорогой Claude — нет.
+        if row and row["tutor_id"] and not db.tutor_active(row["tutor_id"]):
+            return {"ok": True, "limitReached": True,
+                    "reply": "Мур… пока занятия на паузе, я вздремну. "
+                             "Карточки и тренировки со мной всегда — пойдём туда? 🐈"}
         # Дневной потолок проверяем ДО списания месячной квоты: отказ
         # не должен съедать сообщение из месяца.
         day_key = ("chat-day|%d" % row["id"]) if row else ("chat-guest|%s" % p.get("_ip"))

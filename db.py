@@ -3129,6 +3129,19 @@ def paid_seconds_left(row):
     return max(0, (end - datetime.now(timezone.utc)).total_seconds())
 
 
+def tutor_active(tutor_id):
+    """Оплачен ли доступ репетитора прямо сейчас (paid или trial).
+    expired -> False. Единая точка правды для рантайм-ручек урока и для
+    ученических ИИ-ручек: аудит нашёл, что доска, звонок, книга, фото и
+    озвучка шли в обход заслона оплаты (verified_tutor стоял только на
+    ручках самого репетитора). Берём строку по id, а не доверяем
+    переданной: токен мог принадлежать ученику, а решает доступ репетитор."""
+    if not tutor_id:
+        return False
+    row = conn().execute("SELECT * FROM tutors WHERE id=?", (tutor_id,)).fetchone()
+    return bool(row) and access_state(row) != "expired"
+
+
 def access_state(row):
     """Что сейчас с доступом: 'paid' | 'trial' | 'expired'."""
     if paid_seconds_left(row) > 0:
