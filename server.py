@@ -36,7 +36,7 @@ import mailer
 # Теперь это видно одним curl /health: цифра совпала с ?v= на странице —
 # приложение перезапущено; не совпала или её нет вовсе — в памяти старый
 # код, надо нажать «Перезапустить приложение» в панели хостинга.
-ASSET_VERSION = 277
+ASSET_VERSION = 278
 
 PORT = int(os.environ.get("SAVELY_PORT", "4210"))
 # За nginx сервер слушает только localhost — снаружи он не должен быть виден
@@ -2979,6 +2979,9 @@ class Handler(SimpleHTTPRequestHandler):
             # заставка. Отдельный каталог, а не img/: видео нельзя пускать
             # в офлайн-кэш, и по каталогу это проще отличить (см. sw.js).
             ("video/", (".mp4", ".jpg")),
+            # Озвучка слов носителями (tools/build_audio.py). Манифест —
+            # авторы и лицензии записей, открытые данные, как у картинок.
+            ("audio/", (".mp3", ".json")),
         )
         return any(name.startswith(d) and name.endswith(e) for d, e in rules)
 
