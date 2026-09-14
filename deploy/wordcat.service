@@ -1,0 +1,22 @@
+# Приложение wordcat: наш server.py как есть — stdlib, без зависимостей.
+# Слушает только localhost, наружу смотрит nginx.
+[Unit]
+Description=wordcat.ru application server
+After=network.target
+
+[Service]
+User=wordcat
+WorkingDirectory=/opt/wordcat/app
+Environment=SAVELY_DB=/opt/wordcat/data/savely.db
+Environment=SAVELY_PORT=4210
+ExecStart=/usr/bin/python3 /opt/wordcat/app/server.py
+Restart=always
+RestartSec=3
+# Пишем только в данные и бэкапы — код на проде неприкосновенен
+ReadWritePaths=/opt/wordcat/data /opt/wordcat/backups
+ProtectSystem=strict
+ProtectHome=true
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

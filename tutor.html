@@ -32,7 +32,7 @@
   <meta name="twitter:card" content="summary_large_image">
   <link rel="preload" href="css/fonts/nunito-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="css/fonts/inter-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="css/fonts.css?v=284">
+  <link rel="stylesheet" href="css/fonts.css?v=285">
   <!-- Тему ставим ДО первой отрисовки, отдельным крошечным скриптом.
        Всё остальное грузится с defer, а defer выполняется после разбора
        страницы — то есть уже после того, как браузер её покажет. Если
@@ -48,13 +48,13 @@
       document.documentElement.dataset.theme = t;
     } catch (e) { /* приватный режим — просто останется дневная */ }
   </script>
-  <link rel="stylesheet" href="css/tokens.css?v=284">
-  <link rel="stylesheet" href="css/style.css?v=284">
-  <link rel="stylesheet" href="css/savely.css?v=284">
-  <link rel="stylesheet" href="css/tutor.css?v=284">
-<link rel="stylesheet" href="css/motion.css?v=284">
-<link rel="stylesheet" href="css/a11y.css?v=284">
-<link rel="stylesheet" href="css/cat.css?v=284">
+  <link rel="stylesheet" href="css/tokens.css?v=285">
+  <link rel="stylesheet" href="css/style.css?v=285">
+  <link rel="stylesheet" href="css/savely.css?v=285">
+  <link rel="stylesheet" href="css/tutor.css?v=285">
+<link rel="stylesheet" href="css/motion.css?v=285">
+<link rel="stylesheet" href="css/a11y.css?v=285">
+<link rel="stylesheet" href="css/cat.css?v=285">
 </head>
 <body class="tutor-body">
 
@@ -140,8 +140,34 @@
         </div>
 
         <p class="fine-print">Код не приходит?
-          <button type="button" class="link-btn" id="rm-to-recovery">Войти по коду восстановления</button></p>
+          <button type="button" class="link-btn" id="rm-to-app">По коду из приложения</button> ·
+          <button type="button" class="link-btn" id="rm-to-recovery">По коду восстановления</button></p>
         <button type="button" class="link-btn auth-forgot" id="rm-back">← Вернуться ко входу</button>
+      </form>
+
+      <!-- Сброс по коду из приложения-аутентификатора. Привязывается при
+           регистрации; в отличие от письма и кода восстановления, телефон
+           обычно под рукой. -->
+      <form id="reset-app-form" class="hidden">
+        <p class="reset-note">Откройте приложение для кодов (Google Authenticator и т.п.),
+          найдите «wordcat.ru» и введите 6 цифр — они меняются каждые полминуты.</p>
+        <label>Email
+          <input type="email" id="ra-email" placeholder="you@example.com" required>
+        </label>
+        <label>Код из приложения
+          <input type="text" id="ra-code" placeholder="6 цифр" maxlength="6"
+                 inputmode="numeric" autocomplete="one-time-code" required>
+        </label>
+        <label>Новый пароль
+          <span class="pass-field">
+            <input type="password" id="ra-pass" placeholder="от 8 символов" required>
+            <button type="button" class="pass-eye" data-eye="ra-pass"
+                    aria-label="Показать пароль" aria-pressed="false"></button>
+          </span>
+        </label>
+        <button type="submit" class="btn btn-primary btn-wide">Сменить пароль</button>
+        <p class="type-feedback" id="ra-msg"></p>
+        <button type="button" class="link-btn auth-forgot" id="ra-back">← Вернуться ко входу</button>
       </form>
 
       <form id="reset-form" class="hidden">
@@ -225,6 +251,7 @@
       <div class="user-chip">
         <span id="tutor-name"></span>
         <button id="pass-btn" class="link-btn">пароль</button>
+        <button id="totp-btn" class="link-btn" title="Приложение для кодов — запасной ключ, если забудете пароль">приложение</button>
         <button id="logout-btn" class="link-btn">выйти</button>
       </div>
     </div>
@@ -585,6 +612,35 @@
   </div>
 </section>
 
+<!-- Привязка приложения для кодов сразу после подтверждения почты.
+     Это запасной ключ: если пароль забыт, новый ставится по коду из
+     приложения. Пропустить можно — тогда останутся письмо и код
+     восстановления; привязать позже можно из панели. -->
+<section id="screen-totp" class="screen hidden">
+  <div class="hero">
+    <h1>Запасной ключ</h1>
+    <p class="hero-sub">Если забудете пароль, доступ вернёт код из приложения на телефоне.
+      Займёт минуту, пригодится когда-нибудь точно.</p>
+    <div class="card auth-card">
+      <p class="reset-note">Откройте <b>Google Authenticator</b> (или любое приложение для
+        кодов) → «+» → «Сканировать QR-код» и наведите камеру. Не сканируется —
+        добавьте вручную ключ: <code id="totp-secret"></code></p>
+      <div id="totp-qr" class="qr" aria-label="QR для привязки приложения"></div>
+      <form id="totp-form">
+        <label>Код из приложения
+          <input type="text" id="totp-code" placeholder="6 цифр" maxlength="6"
+                 inputmode="numeric" autocomplete="one-time-code" required>
+        </label>
+        <button type="submit" class="btn btn-primary btn-wide">Привязать</button>
+        <p class="type-feedback err" id="totp-error"></p>
+      </form>
+      <p class="fine-print">Нет приложения под рукой?
+        <button type="button" class="link-btn" id="totp-skip">Пропустить</button> —
+        привязать можно потом, кнопка «приложение» в шапке панели.</p>
+    </div>
+  </div>
+</section>
+
 <section id="screen-verify" class="screen hidden">
   <div class="hero">
     <div class="cat-avatar cat-big"></div>
@@ -653,6 +709,40 @@
   </div>
 </div>
 
+<!-- Приложение для кодов: привязать / отвязать. Отвязка — только с
+     текущим паролем, чтобы украденный токен не снимал запасной ключ. -->
+<div id="totp-modal" class="modal hidden">
+  <div class="modal-card">
+    <h3>Приложение для кодов</h3>
+    <p class="reset-note" id="tm-state"></p>
+    <div id="tm-setup-box" class="hidden">
+      <p class="reset-note">Google Authenticator → «+» → «Сканировать QR-код».
+        Вручную — ключ: <code id="tm-secret"></code></p>
+      <div id="tm-qr" class="qr" aria-label="QR для привязки"></div>
+      <label>Код из приложения
+        <input type="text" id="tm-code" placeholder="6 цифр" maxlength="6"
+               inputmode="numeric" autocomplete="one-time-code">
+      </label>
+      <button type="button" class="btn btn-primary btn-wide" id="tm-confirm">Привязать</button>
+    </div>
+    <div id="tm-disable-box" class="hidden">
+      <label>Текущий пароль — чтобы отвязать
+        <span class="pass-field">
+          <input type="password" id="tm-pass" autocomplete="current-password">
+          <button type="button" class="pass-eye" data-eye="tm-pass"
+                  aria-label="Показать пароль" aria-pressed="false"></button>
+        </span>
+      </label>
+      <button type="button" class="btn btn-ghost btn-wide" id="tm-disable">Отвязать приложение</button>
+    </div>
+    <p class="type-feedback" id="tm-msg"></p>
+    <div class="quiz-buttons">
+      <button type="button" class="btn btn-ghost" id="tm-close">Закрыть</button>
+      <button type="button" class="btn btn-primary" id="tm-start">Привязать приложение</button>
+    </div>
+  </div>
+</div>
+
 <div id="recovery-modal" class="modal hidden">
   <div class="modal-card">
     <h3>Сохраните код восстановления</h3>
@@ -679,26 +769,26 @@
     <a href="https://t.me/KOTSAVELII" target="_blank" rel="noopener">@KOTSAVELII</a></p>
 </footer>
 
-<script defer src="js/theme.js?v=284"></script>
-<script defer src="js/icons.js?v=284"></script>
-<script defer src="js/cat.js?v=284"></script>
-<script defer src="js/motion.js?v=284"></script>
-<script defer src="js/util.js?v=284"></script>
-<script defer src="js/levels.js?v=284"></script>
+<script defer src="js/theme.js?v=285"></script>
+<script defer src="js/icons.js?v=285"></script>
+<script defer src="js/cat.js?v=285"></script>
+<script defer src="js/motion.js?v=285"></script>
+<script defer src="js/util.js?v=285"></script>
+<script defer src="js/levels.js?v=285"></script>
 <!-- Словаря здесь НЕТ намеренно: на экране входа он не нужен вовсе,
      а нужен внутри панели — собрать домашку. Загружается в openPanel
      через ensureWords(LEVELS), и именно ЦЕЛИКОМ: домашку составляют по
      любому уровню, а уровня ученика на этой странице нет (app.js тут не
      подключён). Ученику при этом едут только его уровни — см. index.html. -->
-<script defer src="js/images.js?v=284"></script>
-<script defer src="js/word-photos.js?v=284"></script>
-<script defer src="js/qr.js?v=284"></script>
-<script defer src="js/tutor.js?v=284"></script>
-<script defer src="js/tutor-tasks.js?v=284"></script>
-<script defer src="js/tutor-photos.js?v=284"></script>
-<script defer src="js/tutor-auth.js?v=284"></script>
-<script defer src="js/tutor-verify.js?v=284"></script>
-<script defer src="js/tutor-boards.js?v=284"></script>
-<script defer src="js/tutor-nav.js?v=284"></script>
+<script defer src="js/images.js?v=285"></script>
+<script defer src="js/word-photos.js?v=285"></script>
+<script defer src="js/qr.js?v=285"></script>
+<script defer src="js/tutor.js?v=285"></script>
+<script defer src="js/tutor-tasks.js?v=285"></script>
+<script defer src="js/tutor-photos.js?v=285"></script>
+<script defer src="js/tutor-auth.js?v=285"></script>
+<script defer src="js/tutor-verify.js?v=285"></script>
+<script defer src="js/tutor-boards.js?v=285"></script>
+<script defer src="js/tutor-nav.js?v=285"></script>
 </body>
 </html>

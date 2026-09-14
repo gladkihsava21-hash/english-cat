@@ -36,7 +36,7 @@ import mailer
 # Теперь это видно одним curl /health: цифра совпала с ?v= на странице —
 # приложение перезапущено; не совпала или её нет вовсе — в памяти старый
 # код, надо нажать «Перезапустить приложение» в панели хостинга.
-ASSET_VERSION = 284
+ASSET_VERSION = 285
 
 PORT = int(os.environ.get("SAVELY_PORT", "4210"))
 # За nginx сервер слушает только localhost — снаружи он не должен быть виден
@@ -410,6 +410,9 @@ _HIT_LIMITS = {
     # их надо где-то, и здесь. Счётчик попыток на сам код тоже есть.
     "/api/tutor/reset/check": (10, 600),
     "/api/tutor/password/reset": (10, 600),   # перебор кода восстановления
+    "/api/tutor/totp/reset": (6, 900),         # 6-значный код: перебор режем жёстко
+    "/api/tutor/totp/confirm": (10, 600),
+    "/api/tutor/totp/disable": (10, 600),
     "/api/tutor/password": (10, 600),
     "/api/chat": (120, 300),
     "/api/tts": (240, 300),
@@ -1936,6 +1939,68 @@ class Api:
         return {"ok": True, "token": token, "recoveryCode": recovery,
                 "tutor": db.tutor_public(db.get_tutor_by_id(row["id"]))}
 
+    # ---------- приложение-аутентификатор репетитора ----------
+    # Запасной ключ на случай забытого пароля, не второй фактор на вход.
+    # Привязка/отвязка — по токену и подтверждённой почте (оплата не
+    # нужна: безопасность аккаунта не должна зависеть от подписки).
+
+    @staticmethod
+    def _tutor_for_totp(p):
+        tutor = db.get_tutor_by_token(p.get("token"))
+        if not tutor:
+            return None, {"ok": False, "error": "unauthorized"}
+        if not db.is_verified(tutor):
+            return None, {"ok": False, "error": "need_verify"}
+        return tutor, None
+
+    @staticmethod
+    def tutor_totp_setup(h, p):
+        """Завести секрет и показать QR. Активируется только после confirm."""
+        tutor, err = Api._tutor_for_totp(p)
+        if err:
+            return err
+        secret = db.tutor_totp_begin(tutor["id"])
+        return {"ok": True, "secret": secret,
+                "otpauth": db.totp_otpauth(secret, tutor["email"])}
+
+    @staticmethod
+    def tutor_totp_confirm(h, p):
+        """Первый верный код — привязка завершена."""
+        tutor, err = Api._tutor_for_totp(p)
+        if err:
+            return err
+        if not db.tutor_totp_confirm(tutor["id"], p.get("code")):
+            return {"ok": False, "error": "Код не сходится. Проверьте время на телефоне и введите свежий код."}
+        return {"ok": True, "tutor": db.tutor_public(db.get_tutor_by_id(tutor["id"]))}
+
+    @staticmethod
+    def tutor_totp_disable(h, p):
+        """Отвязать — только с текущим паролем: украденный токен не должен
+        уметь снять запасной ключ."""
+        tutor, err = Api._tutor_for_totp(p)
+        if err:
+            return err
+        if not db.check_password(str(p.get("password", "")), tutor["pass_hash"], tutor["pass_salt"]):
+            return {"ok": False, "error": "Текущий пароль неверный."}
+        db.tutor_totp_disable(tutor["id"])
+        return {"ok": True, "tutor": db.tutor_public(db.get_tutor_by_id(tutor["id"]))}
+
+    @staticmethod
+    def tutor_totp_reset(h, p):
+        """Забыл пароль — новый по коду из приложения. Ошибка одна и та же
+        для чужой почты и для неверного кода: форма не должна выдавать,
+        есть ли у нас такой клиент."""
+        email = str(p.get("email", "")).strip().lower()
+        row = db.get_tutor_by_email(email) if email else None
+        if not row or not db.tutor_totp_check(row, p.get("code")):
+            return {"ok": False, "error": "Код не подошёл."}
+        problem = db.password_problem(p.get("newPassword"))
+        if problem:
+            return {"ok": False, "error": problem}
+        token, recovery = db.set_tutor_password(row["id"], str(p.get("newPassword")))
+        return {"ok": True, "token": token, "recoveryCode": recovery,
+                "tutor": db.tutor_public(db.get_tutor_by_id(row["id"]))}
+
     @staticmethod
     def tutor_recovery_code(h, p):
         tutor = db.get_tutor_by_token(p.get("token"))
@@ -2909,6 +2974,10 @@ ROUTES = {
     "/api/tutor/password": Api.tutor_password_change,
     "/api/tutor/password/reset": Api.tutor_password_reset,
     "/api/tutor/recovery": Api.tutor_recovery_code,
+    "/api/tutor/totp/setup": Api.tutor_totp_setup,
+    "/api/tutor/totp/confirm": Api.tutor_totp_confirm,
+    "/api/tutor/totp/disable": Api.tutor_totp_disable,
+    "/api/tutor/totp/reset": Api.tutor_totp_reset,
     "/api/student/reading": Api.student_reading,
     "/api/student/photo": Api.student_photo_upload,
     "/api/student/photo/list": Api.student_photo_list,
