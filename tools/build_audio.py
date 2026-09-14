@@ -250,10 +250,14 @@ def convert(raw_path, out_path):
 # ------------------------------------------------------------------ emit
 
 def write_word_audio_js(manifest):
+    """Значение — ревизия файла (manifest[w]["rev"], по умолчанию 1).
+    Клиент добавляет к URL ?r=<rev>: nginx Timeweb отдаёт статику с
+    кэшем на год, и замена синтеза живой записью под тем же именем без
+    ревизии не доехала бы до учеников год."""
     words = sorted(manifest)
     lines, line = [], "  "
     for w in words:
-        piece = '"%s": 1, ' % w
+        piece = '"%s": %d, ' % (w, int(manifest[w].get("rev") or 1))
         if len(line) + len(piece) > 98:
             lines.append(line.rstrip())
             line = "  "
@@ -267,6 +271,7 @@ def write_word_audio_js(manifest):
         "// audio/words/<слово>.mp3, где не-[a-z0-9-] заменены на «_»\n"
         "// (та же замена в speakNative в js/exercises.js).\n"
         "// Авторы и лицензии — audio/words/manifest.json и credits.html.\n"
+        "// Значение — ревизия файла: speakNative добавляет ?r=<ревизия> к URL.\n"
         "const WORD_AUDIO = {\n" + body + "\n};\n")
     with open(WORD_AUDIO_JS, "w", encoding="utf-8") as fh:
         fh.write(text)
@@ -372,8 +377,12 @@ def main(argv=None):
                 stats["broken"] += 1
                 continue
             meta = info.get("extmetadata") or {}
+            # Живая запись поверх синтеза: имя файла то же, ревизия выше —
+            # иначе браузеры с годовым кэшем nginx ещё год слышали бы синтез.
+            prev = manifest.get(w) or {}
             manifest[w] = {
                 "file": safe_name(w) + ".mp3",
+                "rev": int(prev.get("rev") or 1) + (1 if prev else 0),
                 "variant": variant or "en",
                 "commons_file": fname,
                 "author": wikimedia.author_of(info),

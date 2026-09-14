@@ -3,6 +3,7 @@
 // audio/words/<слово>.mp3, где не-[a-z0-9-] заменены на «_»
 // (та же замена в speakNative в js/exercises.js).
 // Авторы и лицензии — audio/words/manifest.json и credits.html.
+// Значение — ревизия файла: speakNative добавляет ?r=<ревизия> к URL.
 const WORD_AUDIO = {
   "a bird's eye view": 1, "a blessing in disguise": 1, "a change of heart": 1,
   "a couch potato": 1, "a drop in the ocean": 1, "a golden opportunity": 1, "a hot potato": 1,

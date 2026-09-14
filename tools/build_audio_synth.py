@@ -264,6 +264,7 @@ def main(argv=None):
             continue
         manifest[w] = {
             "file": build_audio.safe_name(w) + ".mp3",
+            "rev": 1,
             "variant": "us" if a.voice_name.startswith("en_US") or a.engine == "kokoro" and a.voice.startswith("a") else "uk",
             "synthetic": True,
             "kind": kind,
