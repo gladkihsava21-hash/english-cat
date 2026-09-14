@@ -1944,6 +1944,21 @@ function runType(rounds, opts = {}) {
       if (done) return;
       const val = input.value.trim();
       if (!val) return;
+      // Защита от протыкивания. Ответ ждём латиницей (английское слово или
+      // фраза), а пришло без единой латинской буквы — это либо включённая
+      // русская раскладка, либо тык наугад («свсв»). Не засчитываем вовсе:
+      // не портим расписание слова (statUpdate) и не закрываем подход/домашку
+      // мусором. done остаётся false — можно исправить и ответить честно.
+      const target = r.answer || r.sample || "";
+      if (/[a-z]/i.test(target) && !/[a-z]/i.test(val)) {
+        const fb0 = document.getElementById("type-feedback");
+        fb0.className = "type-feedback err";
+        fb0.textContent = /[а-яё]/i.test(val)
+          ? "Это по-русски. Впиши слово английскими буквами — похоже, включена русская раскладка."
+          : "Впиши ответ английскими буквами.";
+        input.select();
+        return;
+      }
       done = true;
       exRoundAnswer(performance.now() - shownAt, 0);
       const ok = r.check ? r.check(val) : normEn(val) === normEn(r.answer);

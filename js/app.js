@@ -2329,6 +2329,22 @@ document.getElementById("add-word-form").addEventListener("submit", e => {
   const en = document.getElementById("add-word-en").value.trim();
   const ru = document.getElementById("add-word-ru").value.trim();
   if (!en || !ru) return;
+  // Английское слово — латиницей. В поле «слово по-английски» часто по
+  // ошибке попадает кириллица (сбитая раскладка или перепутаны поля) —
+  // такое в словарь не пускаем: карточка «свсв → дорога» ничему не учит
+  // и ломает упражнения. Показываем подсказку в том же блоке, где живёт
+  // «в базе есть перевод».
+  const box = document.getElementById("add-word-hint");
+  if (!/[a-z]/i.test(en) || /[а-яё]/i.test(en)) {
+    if (box) {
+      box.classList.remove("hidden");
+      box.textContent = /[а-яё]/i.test(en)
+        ? "Слово по-английски пишется латиницей. Похоже, включена русская раскладка."
+        : "В поле «слово по-английски» нужны английские буквы.";
+    }
+    document.getElementById("add-word-en").focus();
+    return;
+  }
   // Если слово нашлось в базе — забираем заодно пример и уровень:
   // карточка без примера учит хуже, а уровень нужен подбору заданий.
   const hit = typeof wordInfo === "function" ? wordInfo(en) : null;
