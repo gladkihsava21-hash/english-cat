@@ -121,6 +121,13 @@ DirectoryIndex index.html
     <FilesMatch "\.(css|js|woff2|png|jpg|svg)$">
         Header always set Cache-Control "public, max-age=31536000, immutable"
     </FilesMatch>
+    # Озвучка и плитки слов: имя файла = слово, без версии в URL.
+    # Синтезированную запись позже может сменить живая под тем же именем,
+    # поэтому не «навечно», а месяц. Без always: только на 2xx, чтобы
+    # пропавший файл (404) не запоминался браузером на месяц.
+    <FilesMatch "\.(mp3|webp)$">
+        Header set Cache-Control "public, max-age=2592000"
+    </FilesMatch>
 
     # Заголовки безопасности. Ставим и здесь (статику Apache отдаёт сам,
     # минуя Python), и в ответах приложения (server.py/wsgi.py) — заодно

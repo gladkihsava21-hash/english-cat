@@ -46,6 +46,8 @@ def parse_args(argv):
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--only", default="", help="через запятую: собрать только эти слова")
+    p.add_argument("--credits", action="store_true",
+                   help="только пересобрать credits.html из готовых манифестов (без сети и картинок)")
     p.add_argument("--offline", action="store_true", help="только кэш, в сеть не ходить")
     p.add_argument("--refresh", action="store_true", help="перекачать, игнорируя кэш")
     # 336 = 168 CSS-пикселей × 2 — ровно под retina. 168 это фото во
@@ -225,10 +227,38 @@ def audio_credit_block():
     if not audio:
         return ""
     by_author = {}
+    synth = 0
     for m in audio.values():
+        if m.get("synthetic"):
+            synth += 1
         key = (m.get("author") or "Wikimedia Commons", m.get("license") or "",
                m.get("license_url") or "")
         by_author[key] = by_author.get(key, 0) + 1
+    live = len(audio) - synth
+    synth_note = ""
+    if synth:
+        # Текст — из манифеста: имя голоса, автор и лицензия как записаны
+        # сборщиком, а не общая фраза (у другого голоса другая лицензия).
+        by_voice = {}
+        for m in audio.values():
+            if m.get("synthetic"):
+                key = (m.get("voice") or "?", m.get("author") or "", m.get("license") or "",
+                       m.get("license_url") or "", m.get("source") or "")
+                by_voice[key] = by_voice.get(key, 0) + 1
+        parts = []
+        for (voice, author, lic, lic_url, src), n in sorted(by_voice.items(), key=lambda kv: -kv[1]):
+            lic_html = esc(lic)
+            if lic_url:
+                lic_html = '<a href="%s" rel="license noopener" target="_blank">%s</a>' % (esc(lic_url), lic_html)
+            name = esc(voice)
+            if src:
+                name = '<a href="%s" rel="noopener" target="_blank">%s</a>' % (esc(src), name)
+            parts.append("%s — %s, %s (%d)" % (name, esc(author), lic_html, n))
+        synth_note = (
+            "  <p>Слова, на которые записи носителя на Commons нет (%d), озвучены\n"
+            "    нейросинтезом с открытыми весами: %s. Такие файлы помечены в\n"
+            "    манифесте полем <code>synthetic</code>.</p>\n"
+            % (synth, "; ".join(parts)))
     rows = []
     for (author, lic, lic_url), n in sorted(by_author.items(),
                                             key=lambda kv: -kv[1]):
@@ -246,14 +276,14 @@ def audio_credit_block():
     в mp3, тишина по краям срезана, громкость выровнена; оригинал каждой
     записи и её автор перечислены в открытом манифесте
     <a href="audio/words/manifest.json" rel="noopener" target="_blank">audio/words/manifest.json</a>.</p>
-  <p><b>Всего записей: %d.</b> Авторы по числу записей:</p>
+%s  <p><b>Всего файлов: %d</b> (живых записей — %d). Авторы по числу записей:</p>
   <table>
     <thead><tr><th>Автор</th><th>Лицензия</th><th>Записей</th></tr></thead>
     <tbody>
 %s
     </tbody>
   </table>
-""" % (len(audio), "\n".join(rows))
+""" % (synth_note, len(audio), live, "\n".join(rows))
 
 
 def write_credits(path, manifest, words_meta):
@@ -668,6 +698,19 @@ def main(argv=None):
     os.makedirs(OUT_DIR, exist_ok=True)
 
     manifest_path = os.path.join(IMG_DIR, "manifest.json")
+    if args.credits:
+        if args.only or args.drop:
+            sys.exit("--credits пересобирает только credits.html; с --only/--drop не сочетается")
+        # Озвучка (build_audio*.py) меняет audio/words/manifest.json, а
+        # credits.html пишется только отсюда — даём пересобрать страницу,
+        # не трогая плитки и не ходя в сеть.
+        old = {}
+        if os.path.exists(manifest_path):
+            old = json.load(open(manifest_path, encoding="utf-8")).get("words", {})
+        old = merge_stock(old)
+        write_credits(CREDITS, old, words_meta)
+        print("credits.html пересобран: %d картинок + блок озвучки." % len(old))
+        return 0
     if args.drop:
         # снять уже собранные плитки, забракованные глазами
         old, prev_tile = {}, None

@@ -308,8 +308,11 @@ def main(argv=None):
         resolved = load_json(RESOLVE_CACHE, {})
         resolve_existing(fetcher, words, resolved)
 
+        # Синтез (build_audio_synth.py) — временная затычка: появилась
+        # живая запись на Commons — она главнее и перекрывает synthetic.
         todo = [w for w in words
-                if w not in manifest and resolved.get(w)]
+                if (w not in manifest or manifest[w].get("synthetic"))
+                and resolved.get(w)]
         print("есть запись на Commons, ещё не скачано: %d" % len(todo))
         if args.limit:
             todo = todo[:args.limit]

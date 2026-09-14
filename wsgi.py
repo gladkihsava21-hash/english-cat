@@ -52,6 +52,12 @@ MIME = {
     ".json": "application/json; charset=utf-8",
     ".png": "image/png",
     ".ico": "image/x-icon",
+    ".jpg": "image/jpeg",
+    ".svg": "image/svg+xml",
+    ".webp": "image/webp",
+    ".woff2": "font/woff2",
+    ".mp3": "audio/mpeg",
+    ".txt": "text/plain; charset=utf-8",
 }
 
 # Только свой домен: API зовут страницы самого сайта, и звёздочка тут

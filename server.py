@@ -220,6 +220,11 @@ ALICE_CHECK_MODEL = (_YA.get("check_model") or "yandexgpt/latest").strip()
 # озвучку, не трогая чат и проверки. tts_endpoint переопределяется для
 # локальных тестов (мок вместо облака).
 ALICE_TTS_VOICE = (_YA.get("voice") or "alena").strip()
+# Английские слова — английским голосом. alena (и остальные из списка) —
+# русские голоса, и английское слово они читают с русским акцентом:
+# владелец услышал «не носитель». В SpeechKit есть en-US «john»; для
+# латиницы берём его (voice_en в конфиге переопределяет).
+ALICE_TTS_VOICE_EN = (_YA.get("voice_en") or "john").strip()
 ALICE_TTS_ON = (_YA.get("tts", "1").strip() != "0")
 ALICE_TTS_ENDPOINT = (_YA.get("tts_endpoint")
                       or "https://tts.api.cloud.yandex.net/tts/v3/utteranceSynthesis").strip()
@@ -2569,7 +2574,15 @@ class Api:
             return {"ok": False, "error": "not_a_word"}
         if not db.rate_hit("tts-day|%d" % row["id"], Api.TTS_DAILY, 86400):
             return {"ok": False, "error": "limit"}
-        audio = tts_for(text)
+        try:
+            audio = tts_for(text)
+        except (OSError, ValueError, KeyError, TypeError) as exc:
+            # SpeechKit отказал (сеть, 4xx на голос, кривой JSON) — это не
+            # наш 500: одна запись в errors, суточная попытка возвращается,
+            # клиент по любому JSON уходит на браузерный синтез.
+            report_error("/api/tts", exc, {"text": text}, status=502)
+            db.rate_refund("tts-day|%d" % row["id"])
+            return {"ok": False, "error": "tts_failed"}
         if not audio:
             return {"ok": False, "error": "empty"}
         # немой кэш браузера: одно и то же слово в подходе звучит трижды
@@ -2659,12 +2672,22 @@ def _tts_cache_trim(d):
         pass
 
 
+def tts_voice_for(text):
+    """Голос по письменности текста: латиница без кириллицы -> английский
+    голос (john), иначе русский (alena). Один и тот же выбор и в синтезе,
+    и в ключе кэша — иначе слово, озвученное когда-то русским голосом,
+    так и лежало бы в кэше с акцентом."""
+    if re.search(r"[A-Za-z]", text) and not re.search(r"[А-Яа-яЁё]", text):
+        return ALICE_TTS_VOICE_EN
+    return ALICE_TTS_VOICE
+
+
 def alice_tts(text):
     """Синтез mp3 через SpeechKit v3. Ответ — поток JSON-строк с кусками
     аудио в base64; склеиваем. Возвращает байты mp3 или бросает."""
     body = json.dumps({
         "text": text,
-        "hints": [{"voice": ALICE_TTS_VOICE}],
+        "hints": [{"voice": tts_voice_for(text)}],
         "outputAudioSpec": {"containerAudio": {"containerAudioType": "MP3"}},
         "loudnessNormalizationType": "LUFS",
     }).encode("utf-8")
@@ -2697,20 +2720,34 @@ def tts_for(text):
     if not text:
         return None
     d = _tts_cache_dir()
-    name = hashlib.sha1((ALICE_TTS_VOICE + "|" + text).encode("utf-8")).hexdigest() + ".mp3"
+    name = hashlib.sha1((tts_voice_for(text) + "|" + text).encode("utf-8")).hexdigest() + ".mp3"
     path = os.path.join(d, name)
     try:
         with open(path, "rb") as f:
-            return f.read()
+            data = f.read()
+        if data:
+            return data
+        # Пустой файл (диск кончился посреди записи) — промах, а не ответ:
+        # иначе слово отдавало бы b"" вечно, а клиент по «empty» выключал
+        # бы серверную озвучку целиком.
+        os.remove(path)
     except OSError:
         pass
     audio = alice_tts(text)
-    try:
-        with open(path, "wb") as f:
-            f.write(audio)
-        _tts_cache_trim(d)
-    except OSError:
-        pass                       # диск переполнен — звук всё равно отдаём
+    if audio:
+        # Атомарно: под mod_wsgi несколько процессов, и open("wb") на
+        # общем пути обнулил бы файл, который сосед как раз читает.
+        tmp = "%s.%d.tmp" % (path, os.getpid())
+        try:
+            with open(tmp, "wb") as f:
+                f.write(audio)
+            os.replace(tmp, path)
+            _tts_cache_trim(d)
+        except OSError:
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass               # диск переполнен — звук всё равно отдаём
     return audio
 
 
