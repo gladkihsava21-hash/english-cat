@@ -226,6 +226,17 @@ def audio_credit_block():
         return ""
     if not audio:
         return ""
+    # Предложения диктанта (tools/build_sent_audio.py) — отдельный манифест,
+    # тот же голос; в таблицу авторов их считаем вместе со словами.
+    sent = {}
+    try:
+        with open(os.path.join(PROJECT_DIR, "audio", "sent", "manifest.json"), encoding="utf-8") as fh:
+            sent = json.load(fh)
+    except (OSError, ValueError):
+        pass
+    audio = dict(audio)
+    for key, m in sent.items():
+        audio["sent:" + key] = dict(m, synthetic=True, kind="sentence")
     by_author = {}
     synth = 0
     for m in audio.values():
@@ -254,11 +265,16 @@ def audio_credit_block():
             if src:
                 name = '<a href="%s" rel="noopener" target="_blank">%s</a>' % (esc(src), name)
             parts.append("%s — %s, %s (%d)" % (name, esc(author), lic_html, n))
+        sent_note = ""
+        if sent:
+            sent_note = (" Предложения-примеры для диктанта (%d, уровни %s) озвучены тем же\n"
+                         "    голосом: <a href=\"audio/sent/manifest.json\" rel=\"noopener\" target=\"_blank\">audio/sent/manifest.json</a>."
+                         % (len(sent), esc(", ".join(sorted(set(m.get("level", "?") for m in sent.values()))))))
         synth_note = (
             "  <p>Слова, на которые записи носителя на Commons нет (%d), озвучены\n"
             "    нейросинтезом с открытыми весами: %s. Такие файлы помечены в\n"
-            "    манифесте полем <code>synthetic</code>.</p>\n"
-            % (synth, "; ".join(parts)))
+            "    манифесте полем <code>synthetic</code>.%s</p>\n"
+            % (synth - len(sent), "; ".join(parts), sent_note))
     rows = []
     for (author, lic, lic_url), n in sorted(by_author.items(),
                                             key=lambda kv: -kv[1]):
@@ -276,14 +292,14 @@ def audio_credit_block():
     в mp3, тишина по краям срезана, громкость выровнена; оригинал каждой
     записи и её автор перечислены в открытом манифесте
     <a href="audio/words/manifest.json" rel="noopener" target="_blank">audio/words/manifest.json</a>.</p>
-%s  <p><b>Всего файлов: %d</b> (живых записей — %d). Авторы по числу записей:</p>
+%s  <p><b>Всего файлов: %d</b> (живых записей — %d, предложений — %d). Авторы по числу записей:</p>
   <table>
     <thead><tr><th>Автор</th><th>Лицензия</th><th>Записей</th></tr></thead>
     <tbody>
 %s
     </tbody>
   </table>
-""" % (synth_note, len(audio), live, "\n".join(rows))
+""" % (synth_note, len(audio), live, len(sent), "\n".join(rows))
 
 
 def write_credits(path, manifest, words_meta):
