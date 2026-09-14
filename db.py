@@ -243,6 +243,13 @@ MIGRATIONS = [
     ("tutors", "locked_until", "TEXT"),
     ("tutors", "recovery_code", "TEXT"),
     ("tutors", "pass_changed_at", "TEXT"),
+    # Приложение-аутентификатор репетитора: запасной ключ на случай
+    # забытого пароля (не второй фактор на вход). Секрет base32, флаг
+    # активации после первого верного кода, номер последнего принятого
+    # 30-сек шага — чтобы подсмотренный код нельзя было переиграть.
+    ("tutors", "totp_secret", "TEXT"),
+    ("tutors", "totp_active", "INTEGER DEFAULT 0"),
+    ("tutors", "totp_used_step", "INTEGER DEFAULT 0"),
     ("tutors", "email_verified", "INTEGER DEFAULT 0"),
     ("tutors", "verify_code", "TEXT"),
     ("tutors", "verify_sent_at", "TEXT"),
@@ -1742,6 +1749,7 @@ def tutor_public(row):
         "lessonLive": lesson_state(row)["live"],
         "notifyWork": notify_on(row, "work"),
         "notifyRemind": notify_on(row, "remind"),
+        "totpActive": bool(row["totp_active"]) if "totp_active" in keys else False,
     }
 
 
@@ -2008,6 +2016,56 @@ def get_tutor_by_recovery(code):
         return None
     return conn().execute(
         "SELECT * FROM tutors WHERE recovery_code=?", (code,)).fetchone()
+
+
+# ---------- приложение-аутентификатор репетитора ----------
+# Запасной ключ, а не второй фактор: вход по паролю как был, а если пароль
+# забыт — новый ставится по коду из приложения (вместо письма/кода
+# восстановления, которые к тому моменту теряются). Привязывается при
+# регистрации, можно позже из панели; можно отвязать.
+
+def tutor_totp_begin(tutor_id):
+    """Завести (или перезавести) секрет. До confirm он не активен: пока
+    репетитор не ввёл первый верный код, приложение не привязано."""
+    secret = _new_totp_secret()
+    conn().execute("UPDATE tutors SET totp_secret=?, totp_active=0, totp_used_step=0 WHERE id=?",
+                   (secret, tutor_id))
+    conn().commit()
+    return secret
+
+
+def tutor_totp_confirm(tutor_id, code):
+    """Первый код сошёлся — привязка завершена."""
+    row = get_tutor_by_id(tutor_id)
+    if not row or not row["totp_secret"]:
+        return False
+    step = totp_verify_step(row["totp_secret"], code)
+    if step is None:
+        return False
+    conn().execute("UPDATE tutors SET totp_active=1, totp_used_step=? WHERE id=?",
+                   (step, tutor_id))
+    conn().commit()
+    return True
+
+
+def tutor_totp_disable(tutor_id):
+    conn().execute("UPDATE tutors SET totp_secret=NULL, totp_active=0, totp_used_step=0 WHERE id=?",
+                   (tutor_id,))
+    conn().commit()
+
+
+def tutor_totp_check(row, code):
+    """Сверка кода привязанного приложения с защитой от повтора:
+    тот же 30-сек шаг второй раз не принимается."""
+    keys = row.keys()
+    if "totp_active" not in keys or not row["totp_active"] or not row["totp_secret"]:
+        return False
+    step = totp_verify_step(row["totp_secret"], code)
+    if step is None or step <= (row["totp_used_step"] or 0):
+        return False
+    conn().execute("UPDATE tutors SET totp_used_step=? WHERE id=?", (step, row["id"]))
+    conn().commit()
+    return True
 
 
 def set_tutor_password(tutor_id, password):
@@ -3392,8 +3450,15 @@ def totp_verify(secret, code, window=1):
 
 
 def _otpauth(secret):
-    return ("otpauth://totp/wordcat.ru:admin?secret=%s"
-            "&issuer=wordcat.ru&digits=6&period=30" % secret)
+    return totp_otpauth(secret, "admin")
+
+
+def totp_otpauth(secret, account):
+    """Ссылка для приложения-аутентификатора. account — что покажется в
+    приложении подписью (почта репетитора); в URL её надо экранировать."""
+    from urllib.parse import quote
+    return ("otpauth://totp/wordcat.ru:%s?secret=%s"
+            "&issuer=wordcat.ru&digits=6&period=30" % (quote(str(account)), secret))
 
 
 # ---- замок (глобальный, неспуфимый) ----

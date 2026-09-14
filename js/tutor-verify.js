@@ -115,8 +115,30 @@ document.addEventListener("DOMContentLoaded", () => {
         "Код не подошёл. Проверьте шесть цифр из письма или запросите новый.";
       return;
     }
-    location.reload();
+    // Почта подтверждена — предлагаем привязать приложение для кодов
+    // (запасной ключ на случай забытого пароля). Пропустить можно.
+    if (typeof showTotpSetup === "function") showTotpSetup();
+    else location.reload();
   });
+
+  // ----- экран привязки приложения после подтверждения почты -----
+  const totpForm = $$("totp-form");
+  if (totpForm) totpForm.addEventListener("submit", async e => {
+    e.preventDefault();
+    const err = $$("totp-error");
+    err.textContent = "";
+    let res;
+    try {
+      res = await api("/api/tutor/totp/confirm", { token: token(), code: $$("totp-code").value.trim() });
+    } catch (ex) { res = null; }
+    if (!res || !res.ok) {
+      err.textContent = (res && res.error) || "Не дозвонились до сервера. Попробуйте ещё раз.";
+      return;
+    }
+    location.reload();   // привязано — в панель
+  });
+  const skip = $$("totp-skip");
+  if (skip) skip.addEventListener("click", () => location.reload());
 
   const resend = $$("verify-resend");
   if (resend) resend.addEventListener("click", async () => {
@@ -453,4 +475,28 @@ function renderOnboarding() {
     try { localStorage.setItem(onboardHiddenKey(), "1"); } catch (e) { /* приватный режим */ }
     slot.innerHTML = "";
   });
+}
+
+
+/** Экран привязки приложения для кодов (после подтверждения почты).
+ *  Просим у сервера секрет, рисуем QR на месте (js/qr.js) — секрет никуда
+ *  наружу не уходит. Если сервер не ответил — просто в панель: привязать
+ *  можно потом из шапки. */
+async function showTotpSetup() {
+  const scr = document.getElementById("screen-totp");
+  const ver = document.getElementById("screen-verify");
+  if (!scr) { location.reload(); return; }
+  let res;
+  try {
+    res = await api("/api/tutor/totp/setup", { token: localStorage.getItem("savelyTutorToken") });
+  } catch (e) { res = null; }
+  if (!res || !res.ok) { location.reload(); return; }
+  const sec = document.getElementById("totp-secret");
+  if (sec) sec.textContent = res.secret || "";
+  const qr = document.getElementById("totp-qr");
+  if (qr && typeof qrSvg === "function" && res.otpauth) qr.innerHTML = qrSvg(res.otpauth, { level: "M" });
+  if (ver) ver.classList.add("hidden");
+  scr.classList.remove("hidden");
+  const inp = document.getElementById("totp-code");
+  if (inp) inp.focus();
 }
