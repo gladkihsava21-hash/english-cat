@@ -31,6 +31,8 @@ function setSpeechRate(rate) { TTS_RATE = rate; }
  * не положена, работает браузерная, как раньше. */
 const ALICE_AUDIO = new Map();      // текст -> objectURL; живёт до перезагрузки
 let aliceNow = null;                // что звучит сейчас — глушим перед новым
+const NATIVE_AUDIO = new Map();     // слово -> Audio (запись носителя)
+let nativeNow = null;
 
 function speakAlice(text, opts) {
   if (!window.SAVELY_TTS) return false;
@@ -42,6 +44,7 @@ function speakAlice(text, opts) {
   const rate = (opts && opts.rate) || TTS_RATE;
   const play = url => {
     if (aliceNow) { try { aliceNow.pause(); } catch (e) { /* уже молчит */ } }
+    if (nativeNow) { try { nativeNow.pause(); } catch (e) { /* уже молчит */ } }
     if (TTS_OK) { try { speechSynthesis.cancel(); } catch (e) { /* пусто */ } }
     const a = new Audio(url);
     // «Медленно» в упражнениях — замедляем сам файл; тона браузер держит
@@ -71,13 +74,50 @@ function speakAlice(text, opts) {
   return true;
 }
 
+/* Запись живого носителя (audio/words/, собирает tools/build_audio.py).
+ * Главнее любого синтеза: если на слово есть файл — играем его.
+ * Список слов приходит из js/word-audio.js (WORD_AUDIO), самих файлов
+ * это не грузит: mp3 качается при первом нажатии и оседает в кэше. */
+function speakNative(text, opts) {
+  if (!window.WORD_AUDIO) return false;
+  const clean = String(text || "").trim().toLowerCase();
+  if (!WORD_AUDIO[clean]) return false;
+  if (nativeNow) { try { nativeNow.pause(); } catch (e) { /* уже молчит */ } }
+  if (aliceNow) { try { aliceNow.pause(); } catch (e) { /* уже молчит */ } }
+  if (TTS_OK) { try { speechSynthesis.cancel(); } catch (e) { /* пусто */ } }
+  let a = NATIVE_AUDIO.get(clean);
+  if (!a) {
+    // та же замена символов, что в safe_name() у сборщика
+    a = new Audio("audio/words/" + clean.replace(/[^a-z0-9-]+/g, "_") + ".mp3");
+    if (NATIVE_AUDIO.size > 400) NATIVE_AUDIO.clear();
+    NATIVE_AUDIO.set(clean, a);
+  }
+  // «Медленно» — замедляем сам файл, как у серверной озвучки
+  a.playbackRate = ((opts && opts.rate) || TTS_RATE) < 0.8 ? 0.72 : 1;
+  a.currentTime = 0;
+  nativeNow = a;
+  // Файл не доехал (нет сети, кэш пуст) — молча падаем в синтез,
+  // кнопка звука не имеет права «не работать»
+  a.play().catch(() => {
+    NATIVE_AUDIO.delete(clean);
+    if (speakAlice(clean, opts)) return;
+    speakBrowser(clean, opts);
+  });
+  return true;
+}
+
 function speak(text, opts) {
+  if (speakNative(text, opts)) return;
   if (speakAlice(text, opts)) return;
   speakBrowser(text, opts);
 }
 
 function speakBrowser(text, opts) {
   if (!TTS_OK) return;
+  // Живой голос замолкает, когда начинает говорить синтез, — иначе они
+  // накладываются, если нажать фразу сразу после слова.
+  if (nativeNow) { try { nativeNow.pause(); } catch (e) { /* уже молчит */ } }
+  if (aliceNow) { try { aliceNow.pause(); } catch (e) { /* уже молчит */ } }
   // Android Chrome (и WebView) молча глотает utterance в двух случаях:
   // сразу после cancel() и когда синтез завис в paused. Репетитор прислала
   // видео: кнопка звука на карточке слова «не работает» — это ровно оно.

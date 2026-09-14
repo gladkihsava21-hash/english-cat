@@ -207,6 +207,55 @@ def esc(text):
             .replace(">", "&gt;").replace('"', "&quot;"))
 
 
+def audio_credit_block():
+    """Сводная атрибуция озвучки (tools/build_audio.py).
+
+    Живёт в генераторе КАРТИНОК не от хорошей жизни: credits.html целиком
+    перезаписывается здесь, и блок, добавленный любым другим способом,
+    следующий прогон молча стёр бы — ровно как когда-то блок CEFR-J.
+    Записей тысячи, а авторов десятки, поэтому таблица — по авторам,
+    пофайловый список остаётся в audio/words/manifest.json (он открыт).
+    """
+    path = os.path.join(PROJECT_DIR, "audio", "words", "manifest.json")
+    try:
+        with open(path, encoding="utf-8") as fh:
+            audio = json.load(fh)
+    except (OSError, ValueError):
+        return ""
+    if not audio:
+        return ""
+    by_author = {}
+    for m in audio.values():
+        key = (m.get("author") or "Wikimedia Commons", m.get("license") or "",
+               m.get("license_url") or "")
+        by_author[key] = by_author.get(key, 0) + 1
+    rows = []
+    for (author, lic, lic_url), n in sorted(by_author.items(),
+                                            key=lambda kv: -kv[1]):
+        lic_html = esc(lic)
+        if lic_url:
+            lic_html = '<a href="%s" rel="license noopener" target="_blank">%s</a>' % (
+                esc(lic_url), lic_html)
+        rows.append("    <tr><td>%s</td><td>%s</td><td class=\"cr-num\">%d</td></tr>"
+                    % (esc(author), lic_html, n))
+    return """
+  <h2>Озвучка слов</h2>
+  <p>Произношения слов — записи живых носителей с
+    <a href="https://commons.wikimedia.org/" rel="noopener" target="_blank">Wikimedia Commons</a>
+    (свободные лицензии: public domain, CC0, CC BY, CC BY-SA). Файлы пережаты
+    в mp3, тишина по краям срезана, громкость выровнена; оригинал каждой
+    записи и её автор перечислены в открытом манифесте
+    <a href="audio/words/manifest.json" rel="noopener" target="_blank">audio/words/manifest.json</a>.</p>
+  <p><b>Всего записей: %d.</b> Авторы по числу записей:</p>
+  <table>
+    <thead><tr><th>Автор</th><th>Лицензия</th><th>Записей</th></tr></thead>
+    <tbody>
+%s
+    </tbody>
+  </table>
+""" % (len(audio), "\n".join(rows))
+
+
 def write_credits(path, manifest, words_meta):
     rows = []
     for word, m in sorted(manifest.items()):
@@ -234,7 +283,7 @@ def write_credits(path, manifest, words_meta):
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Источники картинок — Савелий, кот-репетитор английского</title>
+  <title>Источники картинок и озвучки — Савелий, кот-репетитор английского</title>
   <meta name="robots" content="noindex">
   <link rel="stylesheet" href="css/tokens.css">
   <link rel="stylesheet" href="css/style.css">
@@ -255,6 +304,7 @@ def write_credits(path, manifest, words_meta):
     .credits th { font-weight: 700; white-space: nowrap; color: var(--ink-soft); }
     .credits td { color: var(--ink-soft); }
     .cr-pic { width: 64px; }
+    .cr-num { white-space: nowrap; }
     .cr-pic img { display: block; width: 64px; height: 64px; object-fit: cover; border-radius: 12px;
       background: var(--surface-alt); }
     .cr-word b { display: block; color: var(--ink); font-size: var(--text-body-sm, 18px); }
@@ -272,7 +322,7 @@ def write_credits(path, manifest, words_meta):
 </head>
 <body>
 <main class="credits">
-  <h1>Источники картинок</h1>
+  <h1>Источники картинок и озвучки</h1>
   <p>Фотографии на карточках слов взяты с
     <a href="https://commons.wikimedia.org/" rel="noopener" target="_blank">Wikimedia Commons</a>
     (свободные лицензии: public domain, CC0, CC BY, CC BY-SA) и с фотостока
@@ -305,10 +355,12 @@ def write_credits(path, manifest, words_meta):
 %s
     </tbody>
   </table>
+%s
 </main>
 </body>
 </html>
-""" % (len(manifest), datetime.datetime.now().strftime("%d.%m.%Y"), "\n".join(rows))
+""" % (len(manifest), datetime.datetime.now().strftime("%d.%m.%Y"), "\n".join(rows),
+       audio_credit_block())
     with open(path, "w", encoding="utf-8") as fh:
         fh.write(html)
 
