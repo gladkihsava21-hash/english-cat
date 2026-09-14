@@ -4014,8 +4014,12 @@ def log_error(endpoint, message, trace="", status=500,
         c.execute(
             "INSERT INTO errors (created_at, endpoint, status, message, traceback,"
             " tutor_id, student_id, ip) VALUES (?,?,?,?,?,?,?,?)",
+            # message = «Тип: str(exc)», а str(exc) у ValueError/KeyError
+            # нередко цитирует ввод пользователя (текст чата, имя файла).
+            # 300 символов хватает, чтобы понять, что случилось, и мало,
+            # чтобы таблица errors стала копилкой чужих сообщений.
             (now(), str(endpoint or "")[:120], int(status or 500),
-             str(message or "")[:1000], str(trace or "")[:8000],
+             " ".join(str(message or "").split())[:300], str(trace or "")[:4000],
              tutor_id, student_id, str(ip or "")[:64] or None),
         )
         # Уборка тем же запросом. Отдельного расписания на хостинге нет,
