@@ -68,16 +68,43 @@ def all_words_by_level():
     return out
 
 
+def all_phrases():
+    """Фразы словаря (js/phrases.js): speak() получает их как есть."""
+    src = open(os.path.join(ROOT, "js", "phrases.js"), encoding="utf-8").read()
+    return [w.strip().lower() for w in re.findall(r'\{ w: "([^"]+)"', src)]
+
+
+def all_irregular():
+    """Тройки неправильных глаголов — ровно той строкой, которую озвучивает
+    тренажёр (js/exercises.js: speak(`${v}, ${p}, ${pp}`)), иначе клиент
+    не найдёт запись по ключу."""
+    src = open(os.path.join(ROOT, "js", "irregular.js"), encoding="utf-8").read()
+    rows = re.findall(r'\{ v: "([^"]+)", p: "([^"]+)", pp: "([^"]+)"', src)
+    return ["%s, %s, %s" % (v, p, pp) for v, p, pp in rows]
+
+
+def utterance(key):
+    """Что читать вслух для ключа манифеста. Ключ — строка клиента как
+    есть; «was/were» синтезу нельзя (прочтёт «слэш»)."""
+    return key.replace("/", " or ") + "."
+
+
+def max_seconds(key):
+    """Порог «заикания»: одно слово — 3 с, каждое следующее +1 с."""
+    return 3.0 + 1.0 * (len(key.replace(",", " ").split()) - 1)
+
+
 CARRIER = "The next word is %s."
-MAX_WORD_SEC = 3.0   # дольше — синтез «заикнулся» (повторил слово), бракуем
+CARRIER_SPACES = 4   # пробелов-фонем в носителе до нашего текста
 
 
 class Piper:
-    """Слово читается в конце фразы-носителя и вырезается по выравниванию
+    """Текст читается в конце фразы-носителя и вырезается по выравниванию
     фонем. Изолированное короткое слово («film.») Piper-medium повторяет
-    3-4 раза — VITS «заикается» на коротком входе; в конце фразы читает
-    один раз, с нормальной нисходящей интонацией. Вырезаем с последнего
-    пробела-фонемы; его тишину срезает convert(). Нужен пакет onnx
+    3-4 раза — VITS «заикается» на коротком входе (medium-голоса и на
+    «get up.»); в конце фразы читает один раз, с нормальной нисходящей
+    интонацией. Вырезаем с четвёртого пробела-фонемы (конец носителя);
+    его тишину срезает convert(). Нужен пакет onnx
     (pip install piper-tts[alignment])."""
 
     def __init__(self, model):
@@ -86,15 +113,20 @@ class Piper:
         self.np = np
         self.voice = PiperVoice.load(model, include_alignments=True)
 
-    def synth(self, word, wav_path):
-        chunk = list(self.voice.synthesize(CARRIER % word, include_alignments=True))[0]
+    def synth(self, key, wav_path):
+        chunk = list(self.voice.synthesize(CARRIER % utterance(key)[:-1] + ".",
+                                           include_alignments=True))[0]
         al = chunk.phoneme_alignments
         if not al:
             raise RuntimeError("piper без выравнивания фонем — установлен ли onnx?")
-        idx = max(i for i, a in enumerate(al) if a.phoneme == " ")
-        start = int(sum(a.num_samples for a in al[:idx]))
+        # носитель «The next word is » — 4 пробела-фонемы; всё после
+        # четвёртого — наш текст (и фраза из нескольких слов тоже)
+        spaces = [i for i, a in enumerate(al) if a.phoneme == " "]
+        if len(spaces) < CARRIER_SPACES:
+            raise RuntimeError("носитель разобран неожиданно: %d пробелов" % len(spaces))
+        start = int(sum(a.num_samples for a in al[:spaces[CARRIER_SPACES - 1]]))
         audio = chunk.audio_float_array[start:]
-        if len(audio) / chunk.sample_rate > MAX_WORD_SEC:
+        if len(audio) / chunk.sample_rate > max_seconds(key):
             raise RuntimeError("заикание: %.1f с" % (len(audio) / chunk.sample_rate))
         pcm = (self.np.clip(audio, -1, 1) * 32767).astype("<i2").tobytes()
         with wave.open(wav_path, "wb") as wf:
@@ -130,14 +162,14 @@ class KokoroEngine:
         self.espeak_voice = "en" if british else "en-us"
         self.lang = "en-gb" if british else "en-us"
 
-    def synth(self, word, wav_path):
-        ipa = "".join("".join(s) for s in self.ph.phonemize(self.espeak_voice, word + "."))
+    def synth(self, key, wav_path):
+        ipa = "".join("".join(s) for s in self.ph.phonemize(self.espeak_voice, utterance(key)))
         ipa = "".join(c for c in ipa if c in self.vocab)
         if not ipa.strip("."):
             raise RuntimeError("espeak не дал фонем")
         samples, sr = self.k.create(ipa, voice=self.voice, speed=1.0, lang=self.lang,
                                     is_phonemes=True)
-        if len(samples) / sr > MAX_WORD_SEC:
+        if len(samples) / sr > max_seconds(key):
             raise RuntimeError("заикание: %.1f с" % (len(samples) / sr))
         self.sf.write(wav_path, samples, sr)
 
@@ -161,8 +193,11 @@ def main(argv=None):
     ap.add_argument("--license", required=True, help="лицензия голоса (как в MODEL_CARD)")
     ap.add_argument("--license-url", default="")
     ap.add_argument("--source", required=True, help="ссылка на модель/датасет")
-    ap.add_argument("--levels", default="", help="только эти уровни, через запятую")
-    ap.add_argument("--only", default="", help="только эти слова, через запятую")
+    ap.add_argument("--kinds", default="words,phrases,irregular",
+                    help="что озвучивать: words (js/words-*.js), phrases (js/phrases.js), "
+                         "irregular (тройки из js/irregular.js), через запятую")
+    ap.add_argument("--levels", default="", help="только эти уровни слов, через запятую")
+    ap.add_argument("--only", default="", help="только эти ключи, через запятую (или «;», если в ключах запятые)")
     ap.add_argument("--limit", type=int, default=0, help="не больше N новых слов")
     ap.add_argument("--dry", action="store_true", help="только посчитать, ничего не рендерить")
     a = ap.parse_args(argv)
@@ -171,22 +206,35 @@ def main(argv=None):
     manifest = build_audio.load_json(MANIFEST, {})
     levels = all_words_by_level()
     want_levels = set(x.strip().upper() for x in a.levels.split(",") if x.strip())
-    only = set(x.strip().lower() for x in a.only.split(",") if x.strip())
+    # в ключах троек глаголов есть запятые — тогда разделитель «;»
+    only = set(x.strip().lower() for x in a.only.split(";" if ";" in a.only else ",") if x.strip())
 
+    kinds = set(x.strip() for x in a.kinds.split(",") if x.strip())
+    candidates = []                      # (kind, ключ) в порядке источников
+    if "words" in kinds:
+        for lvl, words in levels.items():
+            if want_levels and lvl not in want_levels:
+                continue
+            candidates += [("word", w) for w in words]
+    if "phrases" in kinds:
+        candidates += [("phrase", w) for w in all_phrases()]
+    if "irregular" in kinds:
+        candidates += [("irregular", w) for w in all_irregular()]
     seen, todo = set(), []
-    for lvl, words in levels.items():
-        if want_levels and lvl not in want_levels:
+    for kind, w in candidates:
+        if (only and w not in only) or w in seen:
             continue
-        for w in words:
-            if (only and w not in only) or w in seen:
-                continue
-            seen.add(w)
-            if w in manifest:           # запись уже есть (живая или синтез) — не трогаем
-                continue
-            todo.append(w)
+        seen.add(w)
+        if w in manifest:               # запись уже есть (живая или синтез) — не трогаем
+            continue
+        todo.append((kind, w))
     if a.limit:
         todo = todo[:a.limit]
-    print("без записи: %d слов%s" % (len(todo), " (ограничено --limit)" if a.limit else ""))
+    by_kind = {}
+    for kind, _ in todo:
+        by_kind[kind] = by_kind.get(kind, 0) + 1
+    print("без записи: %d (%s)%s" % (len(todo), ", ".join("%s %d" % kv for kv in sorted(by_kind.items())),
+                                    " (ограничено --limit)" if a.limit else ""))
     if a.dry or not todo:
         return 0
 
@@ -195,7 +243,7 @@ def main(argv=None):
     rejects = []
     tmpdir = tempfile.mkdtemp(prefix="synth-")
     wav = os.path.join(tmpdir, "w.wav")
-    for n, w in enumerate(todo, 1):
+    for n, (kind, w) in enumerate(todo, 1):
         out_path = os.path.join(OUT_DIR, build_audio.safe_name(w) + ".mp3")
         if os.path.exists(out_path):
             stats["orphan"] += 1
@@ -218,6 +266,7 @@ def main(argv=None):
             "file": build_audio.safe_name(w) + ".mp3",
             "variant": "us" if a.voice_name.startswith("en_US") or a.engine == "kokoro" and a.voice.startswith("a") else "uk",
             "synthetic": True,
+            "kind": kind,
             "voice": a.voice_name,
             "author": a.author,
             "license": a.license,
