@@ -422,6 +422,8 @@
 }
 .speed-pill.on { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
 .speed-pill:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.dict-voice { display: flex; justify-content: flex-end; }
+.flashcard .audio-row { margin-top: 8px; }
 
 /* Замечания к своему предложению: список под полем ввода. Не «ошибки» —
    ученик мог написать и хорошо, просто оформил не так. */

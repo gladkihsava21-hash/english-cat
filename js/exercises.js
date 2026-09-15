@@ -186,7 +186,78 @@ function speakSentence(text, opts) {
   return true;
 }
 
+/* ---- выбор голоса: «Диктор» или «Устройство» ----
+ * Диктор — наши записи (живые носители и один синтезированный голос),
+ * одинаковые на любом телефоне. Устройство — синтез самого браузера:
+ * кому-то привычнее голос своего айфона, а на некоторых телефонах он
+ * лучше. Выбор — на устройство, не в аккаунт: хранится там же, где
+ * настройки голоса кота (savelyVoicePrefs, js/voice.js), полем source.
+ * Переключатель показываем, только когда выбирать есть из чего: и
+ * записи, и синтез браузера на месте. */
+function voiceSource() {
+  if (typeof VOICE_PREFS !== "undefined" && VOICE_PREFS && VOICE_PREFS.source) {
+    return VOICE_PREFS.source === "device" ? "device" : "rec";
+  }
+  try {
+    const p = JSON.parse(localStorage.getItem("savelyVoicePrefs") || "{}");
+    return p.source === "device" ? "device" : "rec";
+  } catch (e) { return "rec"; }
+}
+
+function setVoiceSource(src) {
+  const val = src === "device" ? "device" : "rec";
+  // В памяти voice.js держит тот же объект и при своём сохранении
+  // перезаписывает ключ целиком — пишем и туда, иначе выбор бы терялся.
+  if (typeof VOICE_PREFS !== "undefined" && VOICE_PREFS) VOICE_PREFS.source = val;
+  try {
+    const p = JSON.parse(localStorage.getItem("savelyVoicePrefs") || "{}");
+    p.source = val;
+    localStorage.setItem("savelyVoicePrefs", JSON.stringify(p));
+  } catch (e) { /* приватный режим — выбор живёт до перезагрузки */ }
+}
+
+function voiceChoiceAvailable() {
+  return TTS_OK && wordAudioReady();
+}
+
+function voicePillsHTML() {
+  if (!voiceChoiceAvailable()) return "";
+  return `<div class="speed-pills voice-pills" role="group" aria-label="Голос озвучки">
+      <button type="button" class="speed-pill voice-pill" data-voice="rec"
+              title="Записи: одинаково на любом устройстве">Диктор</button>
+      <button type="button" class="speed-pill voice-pill" data-voice="device"
+              title="Голос, встроенный в телефон или браузер">Устройство</button>
+    </div>`;
+}
+
+/* Подсветить выбранное во ВСЕХ переключателях на странице: в словаре и
+ * в упражнении их может быть два сразу. onPick — переслушать тем голосом,
+ * который только что выбрали, как у кнопок скорости. */
+function wireVoicePills(root, onPick) {
+  if (!root) return;
+  const markAll = () => document.querySelectorAll(".voice-pill").forEach(b => {
+    const on = b.dataset.voice === voiceSource();
+    b.classList.toggle("on", on);
+    b.setAttribute("aria-pressed", on ? "true" : "false");
+  });
+  root.querySelectorAll(".voice-pill").forEach(b => b.addEventListener("click", e => {
+    e.stopPropagation();
+    setVoiceSource(b.dataset.voice);
+    markAll();
+    if (onPick) onPick();
+  }));
+  markAll();
+}
+
+function mountVoicePills(host, onPick) {
+  if (!host) return;
+  host.innerHTML = voicePillsHTML();
+  host.classList.toggle("hidden", !host.innerHTML);
+  wireVoicePills(host, onPick);
+}
+
 function speak(text, opts) {
+  if (voiceSource() === "device" && TTS_OK) { speakBrowser(text, opts); return; }
   if (speakNative(text, opts)) return;
   if (speakSentence(text, opts)) return;
   if (speakAlice(text, opts)) return;
@@ -344,6 +415,10 @@ document.getElementById("flash-audio").addEventListener("click", e => {
   e.stopPropagation();
   speak(document.getElementById("flash-word").textContent);
 });
+mountVoicePills(document.getElementById("flash-voice"),
+  () => speak(document.getElementById("flash-word").textContent));
+// В словаре переслушивать нечего — строки со словами у каждой свои кнопки
+mountVoicePills(document.getElementById("dict-voice"), null);
 
 // полная запись слова из базы (словарные записи хранят только w/t/ex)
 function wordInfo(w) {
@@ -1870,12 +1945,16 @@ function runMCQ(rounds, opts = {}) {
         ${r.art ? `<div class="word-art word-art-mid" style="background:${wordTint(r.artCat)}">${r.art}</div>` : ""}
         <div class="${opts.smallPrompt ? "quiz-word quiz-word-small" : "quiz-word"}">${
           r.promptHTML || esc(r.prompt || "")}</div>
-        ${r.audioText ? `<button class="btn btn-ghost btn-small" id="mcq-audio">${iconInline("sound", 16)} Прослушать</button>` : ""}
+        ${r.audioText ? `<div class="audio-row">
+            <button class="btn btn-ghost btn-small" id="mcq-audio">${iconInline("sound", 16)} Прослушать</button>
+            ${voicePillsHTML()}
+          </div>` : ""}
         <div class="mcq-options" id="mcq-options"></div>
       </div>`;
     if (r.audioText) {
       const play = () => speak(r.audioText);
       document.getElementById("mcq-audio").addEventListener("click", play);
+      wireVoicePills(stage(), play);
       exLater(play, 350);   // ушёл за эти 350 мс — чужому экрану не звучит
     }
     const box = document.getElementById("mcq-options");
@@ -2056,6 +2135,7 @@ function runType(rounds, opts = {}) {
               <button type="button" class="speed-pill" data-rate="0.92">Обычно</button>
               <button type="button" class="speed-pill" data-rate="0.62">Медленно</button>
             </div>
+            ${voicePillsHTML()}
           </div>` : ""}
         ${opts.textarea
           ? `<textarea class="type-input type-area" id="type-input" rows="3"
@@ -2075,7 +2155,7 @@ function runType(rounds, opts = {}) {
       document.getElementById("type-audio").addEventListener("click", play);
       // Кнопки скорости: выбранная подсвечена, нажатие сразу переслушивает —
       // иначе пришлось бы жать две кнопки подряд, чтобы услышать разницу.
-      const pills = [...document.querySelectorAll(".speed-pill")];
+      const pills = [...document.querySelectorAll(".speed-pill:not(.voice-pill)")];
       const mark = () => pills.forEach(b =>
         b.classList.toggle("on", Math.abs(+b.dataset.rate - TTS_RATE) < 0.01));
       pills.forEach(b => b.addEventListener("click", () => {
@@ -2084,6 +2164,7 @@ function runType(rounds, opts = {}) {
         play();
       }));
       mark();
+      wireVoicePills(stage(), play);
       exLater(play, 350);   // ушёл за эти 350 мс — чужому экрану не звучит
     }
     const input = document.getElementById("type-input");
@@ -3701,7 +3782,14 @@ const EX_RUNNERS = {
           fb.insertAdjacentElement("afterend", after);
           const sayBtn = buttons.querySelector("#irr-say");
           // Три формы подряд, с паузами: их и заучивают вслух цепочкой.
-          if (sayBtn) sayBtn.addEventListener("click", () => speak(`${r.v}, ${r.p}, ${r.pp}`));
+          const sayTriple = () => speak(`${r.v}, ${r.p}, ${r.pp}`);
+          if (sayBtn) {
+            sayBtn.addEventListener("click", sayTriple);
+            const vp = document.createElement("div");
+            vp.className = "audio-row";
+            buttons.before(vp);
+            mountVoicePills(vp, sayTriple);
+          }
           buttons.querySelector("#irr-next").addEventListener("click", next);
           buttons.querySelector("#irr-next").focus();
         };

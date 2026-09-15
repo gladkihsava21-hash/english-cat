@@ -495,6 +495,9 @@
           <button class="chip dict-filter" data-f="learning" type="button">учу</button>
           <button class="chip dict-filter" data-f="learned" type="button">выучено</button>
         </div>
+        <!-- Выбор голоса озвучки: заполняет mountVoicePills (js/exercises.js),
+             пусто и скрыто, если выбирать не из чего. -->
+        <div class="dict-voice hidden" id="dict-voice"></div>
 
         <!-- Папки. Отдельный ряд, а не общий с «новые / учу / выучено»:
              это другой вопрос к словарю. Те фильтруют по тому, насколько
@@ -613,6 +616,7 @@
               <div class="word-art word-art-big" id="flash-art"></div>
               <div class="quiz-word" id="flash-word" lang="en">apple</div>
               <button class="btn btn-ghost btn-small" id="flash-audio" type="button"><span data-icon="sound" data-icon-size="18"></span> Произношение</button>
+              <div class="audio-row hidden" id="flash-voice"></div>
               <p class="flip-hint">нажми на карточку, чтобы перевернуть</p>
             </div>
             <div class="flashcard-face flashcard-back" aria-hidden="true">
