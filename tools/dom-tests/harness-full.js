@@ -77,6 +77,21 @@ const load = f => {
  "js/phrases.js","js/grammar.js","js/wordform.js",
  "js/grammarcheck.js","js/irregular.js"].forEach(load);
 
+// Списки озвученных предложений (js/sent-audio-*.js) в браузере едут
+// лениво, а jsdom для <script src> не зовёт ни onload, ни onerror —
+// loadScriptOnce повис бы навсегда, а с ним и вход в «На слух», который
+// его ждёт. Стенд отвечает как сервер без файла — отказом: это штатная
+// ветка «на этот уровень записей нет», и она обязана работать. Файлы с
+// диска нарочно не берём: есть они или нет, зависит от того, прогнали ли
+// сборку, а тест должен проходить одинаково. Тест, которому список нужен,
+// кладёт window.SENT_AUDIO сам (test-sent-audio.js).
+w.eval(`(function () {
+  const orig = loadScriptOnce;
+  window.loadScriptOnce = src => /sent-audio-/.test(src)
+    ? Promise.reject(new Error("стенд: нет файла " + src))
+    : orig(src);
+})();`);
+
 w.eval(`
   state.user = { name: "Тест", id: 1 };
   state.level = "A2";

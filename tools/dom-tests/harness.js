@@ -63,6 +63,21 @@ const load = f => {
  "js/achievements.js","js/exercises.js","js/games.js"].forEach(load);
 load("js/irregular.js");   // обычно едет лениво — тут просто кладём сразу
 
+// Списки озвученных предложений (js/sent-audio-*.js) в браузере едут
+// лениво, а jsdom для <script src> не зовёт ни onload, ни onerror —
+// loadScriptOnce повис бы навсегда, а с ним и вход в «На слух», который
+// его ждёт. Стенд отвечает как сервер без файла — отказом: это штатная
+// ветка «на этот уровень записей нет», и она обязана работать. Тест,
+// которому список нужен, кладёт window.SENT_AUDIO сам (test-sent-audio.js).
+// Остальные ленивые файлы стенд не трогает: их либо положили выше, либо
+// тест подменяет сам (test-words-split.js).
+w.eval(`(function () {
+  const orig = loadScriptOnce;
+  window.loadScriptOnce = src => /sent-audio-/.test(src)
+    ? Promise.reject(new Error("стенд: нет файла " + src))
+    : orig(src);
+})();`);
+
 // Вошедший ученик с непустым словарём: без него openExercise покажет заслон
 w.eval(`
   state.user = { name: "Тест", id: 1 };

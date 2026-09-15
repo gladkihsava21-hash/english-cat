@@ -43,6 +43,14 @@ def normalize(text):
     return " ".join(str(text or "").split())
 
 
+# Пробелы, на которых Python str.split() и JS \s расходятся: BOM пробел
+# только в JS, NEL и U+001C–U+001F — только в Python. sentAudioKey в
+# js/exercises.js повторяет таблицу Python, но такому символу в примере
+# всё равно не место: он невидим, а любая правка нормализации на одной из
+# сторон снова разведёт хэши. Предложение с ним не озвучиваем и ругаемся.
+ODD_WS = "\ufeff\x85\x1c\x1d\x1e\x1f"
+
+
 def fnv1a64(text):
     """FNV-1a 64 бит, hex. В js/exercises.js та же формула на BigInt."""
     h = 0xcbf29ce484222325
@@ -59,8 +67,12 @@ def sentences_by_level():
         lvl = re.search(r"words-([A-C][12])\.js", f).group(1)
         src = open(f, encoding="utf-8").read()
         seen, rows = set(), []
-        for ex in re.findall(r'\bex: "((?:[^"\\]|\\.)*)"', src):
-            ex = normalize(ex.replace('\\"', '"'))
+        for raw in re.findall(r'\bex: "((?:[^"\\]|\\.)*)"', src):
+            if any(c in raw for c in ODD_WS):
+                print("пропуск (невидимый пробел %s): %r" % (
+                    ",".join("U+%04X" % ord(c) for c in ODD_WS if c in raw), raw), file=sys.stderr)
+                continue
+            ex = normalize(raw.replace('\\"', '"'))
             if not ex or ex in seen:
                 continue
             seen.add(ex)
@@ -75,10 +87,20 @@ def max_seconds(text):
 
 
 def write_presence_js(manifest):
-    """js/sent-audio-<УРОВЕНЬ>.js — хэши, которые есть, по уровням."""
+    """js/sent-audio-<УРОВЕНЬ>.js — хэши, которые есть, по уровням.
+
+    Уровень — тот, где предложение ВСТРЕЧАЕТСЯ (sentences_by_level), а не
+    тот, под которым его записали впервые (manifest["level"]): общее для
+    A2 и B1 предложение из прогона B1 иначе попадало в список одного B1,
+    и ученик A1, который грузит A1–A2, не находил запись, которая есть.
+    Файл пишем только уровням, которые прогоняли: список из трёх чужих
+    хэшей открыл бы диктант уровню, где записей по сути нет."""
+    rendered = {m["level"] for m in manifest.values()}
     by_level = {}
-    for key, m in manifest.items():
-        by_level.setdefault(m["level"], []).append(key)
+    for lvl, rows in sentences_by_level().items():
+        keys = sorted({fnv1a64(t) for t in rows if fnv1a64(t) in manifest})
+        if keys and lvl in rendered:
+            by_level[lvl] = keys
     for lvl, keys in by_level.items():
         path = os.path.join(ROOT, "js", "sent-audio-%s.js" % lvl)
         with open(path, "w", encoding="utf-8") as fh:

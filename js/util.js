@@ -177,6 +177,76 @@ function ensurePhrases() {
   return loadScriptOnce("js/phrases.js");
 }
 
+/* ---- Озвучка предложений диктанта (audio/sent/) ----
+ *
+ * Предложения-примеры записаны файлами (tools/build_sent_audio.py), но
+ * не на всех уровнях: A1–B1 — 35 МБ, все шесть — 140. Какие именно есть,
+ * говорит js/sent-audio-<УРОВЕНЬ>.js — строка хэшей через пробел; сами
+ * mp3 это не грузит, файл качается при первом speak(). Список едет по
+ * уровням и лениво, как словарь: тот же набор уровней (wordsLevels), та
+ * же loadScriptOnce.
+ *
+ * Уровня может не быть ВООБЩЕ — ученик C2, а записаны A1–B1. Это не
+ * ошибка, а «на этот уровень записей нет», поэтому отказ загрузки НЕ
+ * роняет промис: один 404 закрывал бы диктант целиком, хотя без файла он
+ * умеет говорить синтезом. Отказавший уровень запоминаем и второй раз не
+ * просим — за время жизни страницы 404 не изменится, а loadScriptOnce
+ * после ошибки забывает запрос и слал бы его на каждый вход в упражнение.
+ *
+ * «Нет» ставим и тогда, когда файл пришёл, но уровня не определил:
+ * обрезанная на полпути заливка или битый файл — это 200 и load
+ * (синтаксическая ошибка onerror не даёт), и без пометки sentAudioReady()
+ * оставался бы false навсегда, а вход в диктант звал бы нас по кругу в
+ * микрозадачах — вкладка висла на «Достаю озвучку…». */
+const _sentAudioMissing = new Set();
+const _sentAudioSets = {};    // уровень -> {src, set}: строка разобрана один раз
+
+function sentAudioLevelHas(l) {
+  return !!(window.SENT_AUDIO && typeof SENT_AUDIO[l] === "string");
+}
+
+/** Все нужные уровни либо загружены, либо известно, что их нет. */
+function sentAudioReady(levels) {
+  const want = (levels && levels.length) ? levels : wordsLevels();
+  return want.every(l => sentAudioLevelHas(l) || _sentAudioMissing.has(l));
+}
+
+function ensureSentAudio(levels) {
+  const want = (levels && levels.length) ? levels : wordsLevels();
+  const need = want.filter(l => !sentAudioLevelHas(l) && !_sentAudioMissing.has(l));
+  if (!need.length) return Promise.resolve(sentAudioLoaded(want));
+  return Promise.all(need.map(l =>
+    loadScriptOnce("js/sent-audio-" + l + ".js")
+      .then(() => { if (!sentAudioLevelHas(l)) _sentAudioMissing.add(l); })
+      .catch(() => { _sentAudioMissing.add(l); return false; })
+  )).then(() => sentAudioLoaded(want));
+}
+
+/** Есть ли записи хотя бы на один из нужных уровней. По этому диктант
+ *  решает, слышно ли его без синтеза речи (canHear в js/exercises.js). */
+function sentAudioLoaded(levels) {
+  const want = (levels && levels.length) ? levels : wordsLevels();
+  return want.some(l => sentAudioLevelHas(l) && SENT_AUDIO[l].trim() !== "");
+}
+
+/** Записано ли это предложение. Хэш считает sentAudioKey (js/exercises.js,
+ *  рядом с проигрывателем — там же, где сборщик велит его искать);
+ *  здесь только список. Строку уровня разбираем в Set один раз: диктант
+ *  спрашивает на каждое предложение, а хэшей на уровень — тысячи. */
+function sentAudioHas(text) {
+  if (!window.SENT_AUDIO || typeof sentAudioKey !== "function") return false;
+  const key = sentAudioKey(text);
+  if (!key) return false;
+  for (const l in SENT_AUDIO) {
+    const src = SENT_AUDIO[l];
+    if (typeof src !== "string") continue;
+    let c = _sentAudioSets[l];
+    if (!c || c.src !== src) c = _sentAudioSets[l] = { src, set: new Set(src.split(" ").filter(Boolean)) };
+    if (c.set.has(key)) return true;
+  }
+  return false;
+}
+
 // ===== Модальные окна =====
 //
 // Их на сайте шесть, и до этого места ни одно не было диалогом в том

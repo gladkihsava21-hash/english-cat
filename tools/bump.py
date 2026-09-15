@@ -47,9 +47,17 @@ def current():
 # A1 и A2 всё же кладём заранее: с них начинают почти все, и они самые
 # лёгкие (104 КБ в gzip на двоих). Ученик, поставивший сайт приложением и
 # сразу ушедший в офлайн, получит хотя бы начальные уровни.
+#
+# Списки озвученных предложений диктанта (js/sent-audio-<УРОВЕНЬ>.js,
+# tools/build_sent_audio.py) — все уровни, что уже отрендерены, A1–B2: в
+# отличие от словаря они крошечные (14–30 КБ), а без списка диктант офлайн
+# не знает, что записи есть, и молчит там, где мог бы играть из кэша.
+# Отрендерят C1/C2 — дописать сюда.
 LAZY = ["js/words-A1.js", "js/words-A2.js",
         "js/phrases.js", "js/wordform.js", "js/grammar.js",
-        "js/ipa.js", "js/grammarcheck.js", "js/leveltest.js", "js/irregular.js"]
+        "js/ipa.js", "js/grammarcheck.js", "js/leveltest.js", "js/irregular.js",
+        "js/sent-audio-A1.js", "js/sent-audio-A2.js", "js/sent-audio-B1.js",
+        "js/sent-audio-B2.js"]
 
 
 def assets_from_pages():
@@ -62,6 +70,12 @@ def assets_from_pages():
             if path not in seen:
                 seen.append(path)
     for path in LAZY:
+        # Файла может ещё не быть — списки озвучки собираются отдельным
+        # долгим прогоном. В кэш-лист он всё равно идёт: sw.js кладёт
+        # ASSETS через allSettled, промах одного файла установку не
+        # срывает, а появившийся файл подхватит обработчик fetch.
+        if not (ROOT / path).exists():
+            print(f"предупреждение: {path} нет в рабочем дереве — в списке sw.js останется")
         if path not in seen:
             seen.append(path)
     return seen

@@ -30,7 +30,11 @@
     ? noMotion()
     : matchMedia("(prefers-reduced-motion: reduce)").matches);
 
-  const canSpeak = () => typeof TTS_OK !== "undefined" && TTS_OK;
+  // Слова играются записями (WORD_AUDIO) и без синтеза речи — спрашиваем
+  // движок (canHear), а не голый TTS_OK; без движка — как раньше.
+  const canSpeak = () => (typeof canHear === "function"
+    ? canHear("word")
+    : typeof TTS_OK !== "undefined" && TTS_OK);
 
   /** Экран «слов не хватает».
    *

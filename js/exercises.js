@@ -26,13 +26,29 @@ function setSpeechRate(rate) { TTS_RATE = rate; }
 /* ---- озвучка словаря голосом Алисы (SpeechKit) ----
  * Только СЛОВА и словарные фразы: они короткие, сервер держит вечный
  * кэш, и каждое уникальное слово покупается один раз на всех. Предложения
- * (диктант) остаются на браузерном синтезе. Флаг window.SAVELY_TTS
+ * (диктант) — записями audio/sent/ там, где они сделаны (speakSentence),
+ * иначе браузерным синтезом. Флаг window.SAVELY_TTS
  * приходит синхронизацией и false у одиночек — им серверная озвучка
  * не положена, работает браузерная, как раньше. */
 const ALICE_AUDIO = new Map();      // текст -> objectURL; живёт до перезагрузки
 let aliceNow = null;                // что звучит сейчас — глушим перед новым
 const NATIVE_AUDIO = new Map();     // слово -> Audio (запись носителя)
 let nativeNow = null;
+const SENT_AUDIO_EL = new Map();    // хэш предложения -> Audio (audio/sent/)
+
+/* Список записанных слов — const WORD_AUDIO в js/word-audio.js. Проверять
+ * его через window.WORD_AUDIO нельзя: верхнеуровневый const в обычном
+ * скрипте свойством window не становится, и такая проверка была ложью
+ * всегда — speakNative отвечал «файла нет» на каждое слово, и двенадцать
+ * тысяч записей лежали мёртвым грузом, пока всё читал синтез. Только typeof. */
+function wordAudioReady() {
+  return typeof WORD_AUDIO !== "undefined" && !!WORD_AUDIO;
+}
+
+/* Есть ли запись у этого слова — тот же ключ, что берёт speakNative. */
+function wordAudioHas(text) {
+  return wordAudioReady() && !!WORD_AUDIO[String(text || "").trim().toLowerCase()];
+}
 
 function speakAlice(text, opts) {
   if (!window.SAVELY_TTS) return false;
@@ -79,7 +95,7 @@ function speakAlice(text, opts) {
  * Список слов приходит из js/word-audio.js (WORD_AUDIO), самих файлов
  * это не грузит: mp3 качается при первом нажатии и оседает в кэше. */
 function speakNative(text, opts) {
-  if (!window.WORD_AUDIO) return false;
+  if (!wordAudioReady()) return false;
   const clean = String(text || "").trim().toLowerCase();
   if (!WORD_AUDIO[clean]) return false;
   if (nativeNow) { try { nativeNow.pause(); } catch (e) { /* уже молчит */ } }
@@ -87,8 +103,14 @@ function speakNative(text, opts) {
   if (TTS_OK) { try { speechSynthesis.cancel(); } catch (e) { /* пусто */ } }
   let a = NATIVE_AUDIO.get(clean);
   if (!a) {
-    // та же замена символов, что в safe_name() у сборщика
-    a = new Audio("audio/words/" + clean.replace(/[^a-z0-9-]+/g, "_") + ".mp3");
+    // та же замена символов, что в safe_name() у сборщика. Значение в
+    // WORD_AUDIO — ревизия файла: nginx хостинга отдаёт mp3 с кэшем на
+    // год, и замена синтеза живой записью под тем же именем без ?r=
+    // доехала бы до учеников через год. Первая ревизия — без хвоста,
+    // чтобы уже закэшированные записи не качались заново.
+    const rev = Number(WORD_AUDIO[clean]) || 1;
+    a = new Audio("audio/words/" + clean.replace(/[^a-z0-9-]+/g, "_") + ".mp3"
+                  + (rev > 1 ? "?r=" + rev : ""));
     if (NATIVE_AUDIO.size > 400) NATIVE_AUDIO.clear();
     NATIVE_AUDIO.set(clean, a);
   }
@@ -106,8 +128,67 @@ function speakNative(text, opts) {
   return true;
 }
 
+/* Хэш предложения — имя файла в audio/sent/. ОБЯЗАН совпадать байт в байт
+ * с fnv1a64() в tools/build_sent_audio.py: нормализация «trim + любая
+ * пробельная последовательность в один пробел» (без lowercase —
+ * предложение читается как написано), FNV-1a 64 бит по байтам UTF-8,
+ * 16 шестнадцатеричных знаков. Константы собираем из строк, а не
+ * литералами 0x…n: литерал BigInt в браузере без BigInt — синтаксическая
+ * ошибка на весь файл, а так старый браузер просто получает "" и читает
+ * предложения синтезом.
+ *
+ * Что считать пробелом — по таблице Python str.split(), которой пользуется
+ * сборщик, а не по \s: JS считает пробелом U+FEFF, Python — нет; Python
+ * считает пробелами U+001C–U+001F и U+0085, JS — нет. Один такой символ,
+ * вставленный в пример из документа, — и хэш другой: запись есть, а
+ * предложение молча уходит в синтез. Поэтому не trim(), а тот же класс
+ * с обоих концов. */
+const SENT_WS = /(?:[^\S\ufeff]|[\x1c-\x1f\x85])+/g;
+function sentAudioKey(text) {
+  if (typeof BigInt === "undefined" || typeof TextEncoder === "undefined") return "";
+  const clean = String(text || "").replace(SENT_WS, " ").replace(/^ | $/g, "");
+  const prime = BigInt("0x100000001b3");
+  const mask = BigInt("0xffffffffffffffff");
+  let h = BigInt("0xcbf29ce484222325");
+  for (const b of new TextEncoder().encode(clean)) {
+    h ^= BigInt(b);
+    h = (h * prime) & mask;
+  }
+  return h.toString(16).padStart(16, "0");
+}
+
+/* Предложение диктанта записью (audio/sent/, tools/build_sent_audio.py).
+ * Как speakNative, но ключ — хэш, а список записанного едет по уровням
+ * (ensureSentAudio в util.js) и к входу в диктант уже загружен. */
+function speakSentence(text, opts) {
+  if (typeof sentAudioHas !== "function" || !sentAudioHas(text)) return false;
+  const key = sentAudioKey(text);
+  if (nativeNow) { try { nativeNow.pause(); } catch (e) { /* уже молчит */ } }
+  if (aliceNow) { try { aliceNow.pause(); } catch (e) { /* уже молчит */ } }
+  if (TTS_OK) { try { speechSynthesis.cancel(); } catch (e) { /* пусто */ } }
+  let a = SENT_AUDIO_EL.get(key);
+  if (!a) {
+    a = new Audio("audio/sent/" + key + ".mp3");
+    // Предложение весит втрое больше слова — потолок кэша ниже
+    if (SENT_AUDIO_EL.size > 60) SENT_AUDIO_EL.clear();
+    SENT_AUDIO_EL.set(key, a);
+  }
+  a.playbackRate = ((opts && opts.rate) || TTS_RATE) < 0.8 ? 0.72 : 1;
+  a.currentTime = 0;
+  // Тот же «слот», что у записи слова: кто заговорит следующим, тот и
+  // заглушит — предложение не звучит поверх слова и наоборот
+  nativeNow = a;
+  a.play().catch(() => {
+    SENT_AUDIO_EL.delete(key);
+    if (speakAlice(text, opts)) return;
+    speakBrowser(text, opts);
+  });
+  return true;
+}
+
 function speak(text, opts) {
   if (speakNative(text, opts)) return;
+  if (speakSentence(text, opts)) return;
   if (speakAlice(text, opts)) return;
   speakBrowser(text, opts);
 }
@@ -958,7 +1039,8 @@ const EXERCISES = [
   { id: "scramble", group: "words", icon: "scramble", name: "Собери слово", desc: "Составь слово из букв" },
   { id: "defmatch", group: "words", icon: "defmatch", name: "Определения", desc: "Слово ↔ определение (англ.)" },
 
-  // --- на слух: работает только при синтезе речи ---
+  // --- на слух: слова — записями (WORD_AUDIO), предложения — записями там,
+  //     где они есть (SENT_AUDIO), остальное синтезом; см. canHear ---
   { id: "listening", group: "audio", icon: "listening", name: "Аудирование", desc: "Услышь и выбери слово", audio: true },
   { id: "dictation", group: "audio", icon: "dictation", name: "Диктант", desc: "Услышь и напиши фразу", audio: true },
 
@@ -1239,6 +1321,55 @@ function renderLevelNudge() {
   });
 }
 
+/* Есть ли чем озвучить — по видам.
+ *
+ * Раньше мерилом был один TTS_OK: нет speechSynthesis — «На слух» закрыт,
+ * кнопки «Послушать» спрятаны. Теперь у слов, словарных фраз и троек
+ * глаголов всегда есть запись (WORD_AUDIO), синтез им не нужен; у
+ * предложений диктанта — запись на тех уровнях, где она сделана
+ * (SENT_AUDIO, грузится на входе в упражнение и из хаба). Синтез остаётся
+ * запасным путём для всего.
+ *   "listening" — слова; "dictation" — предложения;
+ *   всё остальное ("word": тройки глаголов, игры) — слова. */
+function canHear(kind) {
+  if (TTS_OK) return true;
+  if (kind === "dictation") {
+    if (typeof sentAudioLoaded !== "function") return false;
+    // В папке и домашке предложение без записи диктуется самим словом
+    // (см. dictation()), так что записей слов достаточно; точный отбор —
+    // по каждому раунду там же.
+    return sentAudioLoaded(dictationLevels()) || (dictationScoped() && wordAudioReady());
+  }
+  return wordAudioReady();
+}
+
+/* Диктант идёт по назначенным словам (папка, галочки, домашка), а не по
+ * уровню. Одно место для трёх, кто это спрашивает: сам dictation(), гейт
+ * canHear и dictationLevels. */
+function dictationScoped() {
+  trainingDictionary();               // нормализует homeworkScope
+  return (homeworkScope && homeworkScope.length > 0) || !isTrainingWholeDict();
+}
+
+/* Уровни, из которых диктант возьмёт предложения: по ним грузим списки
+ * записей и по ним же гейт судит «слышно ли». Уровневый режим — свой и
+ * следующий, ровно как levelPool. Судить по wordsLevels() нельзя: у
+ * ученика B2 в них есть полный список A1, и гейт открывал диктант из
+ * B2+C1, где записей не было, — беззвучный, ровно тот, что раньше
+ * закрывал !TTS_OK. Папка и домашка — уровни самих слов: репетитор задаёт
+ * слова любого уровня, и до C1 у ученика A2 wordsLevels() не дотянется;
+ * слову без уровня (старая запись словаря) — уровни ученика. */
+function dictationLevels() {
+  if (typeof studyLevel !== "function" || typeof LEVELS === "undefined") return [];
+  const lvl = studyLevel();
+  const mine = [lvl, LEVELS[Math.min(LEVELS.indexOf(lvl) + 1, LEVELS.length - 1)]];
+  if (!dictationScoped()) return mine;
+  const words = trainingDictionary();
+  const own = new Set(words.map(d => d.level).filter(l => LEVELS.includes(l)));
+  if (words.some(d => !LEVELS.includes(d.level))) wordsLevels().forEach(l => own.add(l));
+  return [...own];
+}
+
 /* Подсказка, когда в браузере нет английской озвучки.
  *
  * Старый текст говорил «открой сайт в Chrome или Safari» — и упирался
@@ -1329,7 +1460,14 @@ function renderPracticeHub() {
     // телефона, где браузер без озвучки, казалось, что раздела нет
     // вообще (репетитор так и написала). Теперь раздел виден всегда,
     // а без озвучки под заголовком написано почему и что делать.
-    const noAudio = g.id === "audio" && !TTS_OK;
+    // «Без озвучки» — когда не слышно НИ ОДНОГО упражнения раздела: слова
+    // играются записями и без синтеза, так что из Telegram аудирование
+    // работает, а диктант — там, где предложения записаны; точный заслон
+    // по нему стоит на входе (openExercise), когда список уже загружен.
+    const noAudio = g.id === "audio" && !list.some(ex => canHear(ex.id));
+    // Список записанных предложений заказываем уже отсюда: он крошечный,
+    // и к нажатию на «Диктант» будет на месте — без экрана ожидания.
+    if (g.id === "audio" && typeof ensureSentAudio === "function") ensureSentAudio(dictationLevels());
     const sec = document.createElement("section");
     sec.className = "ex-group";
     sec.innerHTML = `
@@ -1380,10 +1518,30 @@ function openExercise(id) {
     </div>
     <div id="ex-stage"></div>`;
 
+  // Предложения диктанта записаны не на всех уровнях, и список того, что
+  // есть, едет отдельным файлом на уровень. Ждём его ДО заслона «нет
+  // озвучки» и до первого speak(): иначе заслон судил бы вслепую, а первое
+  // предложение подхода уходило бы в синтез или в тишину. Промис не
+  // отвергается никогда: уровень без записей — это «нет», а не ошибка.
+  // Уровни — те, откуда диктант возьмёт предложения (dictationLevels), а
+  // не wordsLevels(): домашке из слов C1 нужен список C1. Аудирование
+  // играет слова — ему список предложений не нужен.
+  const sentLv = id === "dictation" ? dictationLevels() : null;
+  if (sentLv && typeof sentAudioReady === "function" && !sentAudioReady(sentLv)) {
+    stage().innerHTML = `
+      <div class="empty-state">
+        <div class="cat-avatar cat-mid" data-cat="hello"></div>
+        <h2>Достаю озвучку…</h2>
+      </div>`;
+    if (typeof paintCats === "function") paintCats(stage());
+    ensureSentAudio(sentLv).then(() => { if (exStillHere(token)) openExercise(id); });
+    return;
+  }
+
   // Без озвучки «На слух» закрыт не только в хабе, но и на входе: с доски
   // и из домашки упражнение открывается мимо хаба, и ученик писал диктант
   // вслепую, а репетитору уходило «0 из 5».
-  if (ex && ex.audio && !TTS_OK) {
+  if (ex && ex.audio && !canHear(ex.id)) {
     stage().innerHTML = audioHelpHTML();
     wireAudioHelp(stage());
     return;
@@ -2618,19 +2776,32 @@ const EX_RUNNERS = {
     // и Ирина писала «диктант не подстраивается под назначенные слова».
     //
     // Без назначения раздел уровневый: предложения выбирает система.
-    trainingDictionary();               // нормализует homeworkScope
-    const scoped = (homeworkScope && homeworkScope.length > 0) || !isTrainingWholeDict();
+    const scoped = dictationScoped();
+    // Без синтеза диктуем только то, на что есть запись: гейт на входе
+    // судит по уровням, а записана ли фраза — вопрос к каждой в
+    // отдельности (уровень могли записать наполовину). Для уровня это
+    // условие пригодности (fit), а не фильтр после отбора: levelPool режет
+    // пул до 60 ещё до нас, и при записанной десятой части уровня после
+    // отбора не оставалось бы ничего. В папке и домашке слово, чьё
+    // предложение не записано, диктуем самим словом: «именно эти слова»
+    // важнее целой фразы, а запись слова есть всегда. Совсем неслышное —
+    // вон; не осталось ничего — та же подсказка, что на входе.
+    const recorded = p => typeof sentAudioHas === "function" && sentAudioHas(p.ex);
     let pool;
     if (scoped) {
       const own = trainPool(60);
       if (!own.length) { exFinish(0, 0, "В выбранных папках пока пусто — добавь слова в словаре."); return; }
-      pool = pickFresh("dict:scope", own, 5, p => p.ex || p.w);
+      const heard = TTS_OK ? own : own
+        .map(p => (p.ex && recorded(p)) ? p : (wordAudioHas(p.w) ? { ...p, ex: "" } : null))
+        .filter(Boolean);
+      pool = pickFresh("dict:scope", heard, 5, p => p.ex || p.w);
     } else {
       const lvl = studyLevel();
-      const all = levelPool(60, ["ex"]);
-      if (!all.length) { exFinish(0, 0, "Пока нет подходящих предложений — загляни в другое упражнение."); return; }
+      const all = levelPool(60, ["ex"], TTS_OK ? null : recorded);
+      if (!all.length && TTS_OK) { exFinish(0, 0, "Пока нет подходящих предложений — загляни в другое упражнение."); return; }
       pool = pickFresh("dict:" + lvl, all, 5, p => p.ex);
     }
+    if (!pool.length) { stage().innerHTML = audioHelpHTML(); wireAudioHelp(stage()); return; }
     runType(pool.map(p => {
       const sentence = !!p.ex;
       const text = sentence ? p.ex : p.w;
@@ -3521,7 +3692,9 @@ const EX_RUNNERS = {
           }
           const buttons = document.createElement("div");
           buttons.className = "quiz-buttons";
-          buttons.innerHTML = (TTS_OK
+          // Тройка «go, went, gone» записана той же строкой, что звучит
+          // здесь, — кнопка нужна и без синтеза речи
+          buttons.innerHTML = (canHear("word")
             ? '<button type="button" class="btn btn-ghost" id="irr-say">Послушать</button>' : "")
             + '<button type="button" class="btn btn-primary" id="irr-next">Дальше →</button>';
           after.appendChild(buttons);
