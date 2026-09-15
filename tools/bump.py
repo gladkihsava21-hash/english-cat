@@ -49,15 +49,14 @@ def current():
 # сразу ушедший в офлайн, получит хотя бы начальные уровни.
 #
 # Списки озвученных предложений диктанта (js/sent-audio-<УРОВЕНЬ>.js,
-# tools/build_sent_audio.py) — все уровни, что уже отрендерены, A1–B2: в
+# tools/build_sent_audio.py) — все уровни, A1–C2: в
 # отличие от словаря они крошечные (14–30 КБ), а без списка диктант офлайн
 # не знает, что записи есть, и молчит там, где мог бы играть из кэша.
-# Отрендерят C1/C2 — дописать сюда.
 LAZY = ["js/words-A1.js", "js/words-A2.js",
         "js/phrases.js", "js/wordform.js", "js/grammar.js",
         "js/ipa.js", "js/grammarcheck.js", "js/leveltest.js", "js/irregular.js",
         "js/sent-audio-A1.js", "js/sent-audio-A2.js", "js/sent-audio-B1.js",
-        "js/sent-audio-B2.js"]
+        "js/sent-audio-B2.js", "js/sent-audio-C1.js", "js/sent-audio-C2.js"]
 
 
 def assets_from_pages():
