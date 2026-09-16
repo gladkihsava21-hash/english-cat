@@ -578,6 +578,20 @@ async function openStudent(id) {
           `<span class="learned-word">${esc(d.w)} <i>${esc(d.t)}</i></span>`).join("")}</div>
       </details>` : ""}
 
+    ${dict.length ? `
+      <details class="stu-weak stu-dict" style="margin-top:14px">
+        <summary>Весь словарь ученика (${dict.length})</summary>
+        <input type="search" id="stu-dict-search" class="type-input stu-dict-search"
+               placeholder="Найти слово…" aria-label="Поиск по словарю ученика">
+        <div class="weak-list" id="stu-dict-list">${dict.map(d => {
+          const st = d.status === "learned" ? "выучено"
+                   : d.status === "learning" ? "учит" : "новое";
+          const key = (d.w + " " + (d.t || "")).toLowerCase();
+          return `<span class="learned-word dict-word" data-s="${esc(key)}">${esc(d.w)} <i>${esc(d.t || "")}</i> <b class="dw dw-${d.status || "new"}">${st}</b></span>`;
+        }).join("")}</div>
+        <p class="muted-small" id="stu-dict-none" hidden>Ничего не нашлось.</p>
+      </details>` : ""}
+
     <p class="stat-label" style="margin-top:18px">Заметка (видите только вы)</p>
     <textarea id="stu-note" class="type-input type-area" rows="3"
       placeholder="Например: пропускает вторники, догнать времена">${esc(s.note || "")}</textarea>
@@ -588,6 +602,23 @@ async function openStudent(id) {
     <p class="type-feedback" id="note-msg"></p>`;
 
   openModal("stu-modal");
+
+  // Поиск по словарю ученика: у сильных учеников слов сотни, глазами не
+  // найдёшь. Прячем несовпавшие карточки, не перерисовывая список.
+  const dsearch = $("stu-dict-search");
+  if (dsearch) {
+    const dlist = $("stu-dict-list"), dnone = $("stu-dict-none");
+    dsearch.addEventListener("input", () => {
+      const q = dsearch.value.trim().toLowerCase();
+      let shown = 0;
+      dlist.querySelectorAll(".dict-word").forEach(el => {
+        const hit = !q || (el.dataset.s || "").includes(q);
+        el.hidden = !hit;
+        if (hit) shown++;
+      });
+      if (dnone) dnone.hidden = shown > 0;
+    });
+  }
 
   // Уровень вручную: селект сохраняет сразу, ученик получит его при
   // следующей синхронизации (просьба совладельца — тест иногда врёт,

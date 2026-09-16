@@ -41,6 +41,13 @@
 .weak-word i { color: var(--muted); font-weight: 600; }
 .weak-word b { color: var(--red); }
 
+/* Полный словарь ученика в карточке: поиск + метка статуса слова. */
+.stu-dict-search { width: 100%; margin: 8px 0; }
+.dw { font-weight: 800; font-size: 11px; }
+.dw-learned { color: #2f9e57; }
+.dw-learning { color: var(--accent-dark); }
+.dw-new { color: var(--muted); }
+
 .stu-del { margin-top: 12px; font-size: var(--text-caption); }
 .link-btn.danger { color: var(--red); font-weight: 800; }
 
