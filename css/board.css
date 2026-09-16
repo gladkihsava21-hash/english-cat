@@ -25,7 +25,11 @@
   cursor: crosshair;
 }
 #board-canvas.grabbing { cursor: grabbing; }
-#board-canvas.picking  { cursor: default; }
+/* С инструментом «выделить» форму курсора ставит hoverCursor из
+   js/board.js по тому, что под мышью: ладонь на пустом месте, крест
+   на объекте, уголок на ручке размера. Здесь только запасной вид —
+   до первого движения мыши. */
+#board-canvas.picking  { cursor: grab; }
 
 /* ---------- общие кнопки доски ---------- */
 .bd-btn {
@@ -186,6 +190,34 @@
   max-width: calc(100vw - 24px);
 }
 .bd-zoom { min-width: 62px; font-variant-numeric: tabular-nums; }
+
+/* Ползунок масштаба. Рисуем сами: системный выглядит чужеродно рядом
+   с кнопками доски, а на телефоне ещё и толстый. Прячем его на узких
+   экранах — там масштаб меняют щипком, а место в панели дороже. */
+.bd-zoom-range {
+  -webkit-appearance: none; appearance: none;
+  width: 104px; height: 22px;
+  background: none; cursor: pointer;
+}
+.bd-zoom-range::-webkit-slider-runnable-track {
+  height: 4px; border-radius: 2px; background: var(--line-control);
+}
+.bd-zoom-range::-moz-range-track {
+  height: 4px; border-radius: 2px; background: var(--line-control);
+}
+.bd-zoom-range::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 14px; height: 14px; margin-top: -5px;
+  border-radius: 50%; border: 2px solid var(--surface);
+  background: var(--accent);
+}
+.bd-zoom-range::-moz-range-thumb {
+  width: 14px; height: 14px;
+  border-radius: 50%; border: 2px solid var(--surface);
+  background: var(--accent);
+}
+.bd-zoom-range:focus-visible { outline: none; box-shadow: var(--focus-ring); border-radius: 12px; }
+@media (max-width: 720px) { .bd-zoom-range { display: none; } }
 
 /* ---------- панель слов ---------- */
 .bd-panel {

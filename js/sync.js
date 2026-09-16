@@ -473,6 +473,38 @@ async function reportBoardResult(cardId, info) {
     const pct = info.total ? info.correct / info.total : 0;
     const paper = info.rushed ? "note3" : pct >= 0.8 ? "note2" : pct >= 0.5 ? "note" : "note3";
     const who = (state && state.user && state.user.name) ? state.user.name : "Ученик";
+
+    // Разбор. Карточку под него репетитор положил вместе с заданием
+    // (js/board.js, renderTaskChips) — находим её по id и вписываем, что
+    // именно не получилось. Это и есть то, ради чего урок: не «верно 5
+    // из 8», а какие пять слов разбирать прямо сейчас.
+    //
+    // Когда карточки разбора нет (доска старая, задание положено до
+    // этой версии), работает прежнее поведение: плашка-стикер лесенкой.
+    const review = (s0.objects || []).find(o => o.id === "rev-" + cardId && o.kind === "note");
+    if (review) {
+      const wrong = Array.isArray(info.wrong) ? info.wrong : [];
+      const lines = wrong.map(x => "· " + x.w + (x.t ? " — " + x.t : ""));
+      const more = (info.wrongTotal || wrong.length) - wrong.length;
+      if (more > 0) lines.push("· и ещё " + more);
+      const body = [
+        "Разбор · " + (card.text || "Тренировка"),
+        who + " · " + info.when + (info.rushed ? " · слишком быстро" : ""),
+        info.scoreLine || ("Верно " + info.correct + " из " + info.total),
+        wrong.length ? "Ошибки:" : (info.total ? "Ошибок нет — можно дальше." : ""),
+      ].filter(Boolean).concat(lines).join("\n");
+      const text = body.length > 590 ? body.slice(0, 587) + "…" : body;
+      // Высота под содержимое: короткий разбор не должен занимать
+      // пол-доски, длинный — обрезаться на середине списка.
+      const rows = text.split("\n").length + wrong.length * 0.3;
+      const upd = { ...review, color: paper, text,
+                    h: Math.max(104, Math.min(430, Math.round(28 + rows * 20))) };
+      const res = await api("/api/board/sync",
+        { token, boardId: b.board.id, since: s0.rev,
+          changes: [{ ...card, result: info.text }, upd], deletes: [] });
+      return !!res.ok;
+    }
+
     const note = {
       id: "res-" + cardId + "-" + Date.now().toString(36),
       kind: "note",

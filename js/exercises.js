@@ -1032,6 +1032,20 @@ function pickDistinctT(pool, n) {
  *  терялись именно они. */
 let exMissed = [];
 
+/** Ошибки подхода для разбора на доске — ВСЕ, а не только новые слова.
+ *
+ *  exMissed рядом копит другое: слова, которых нет в словаре ученика,
+ *  чтобы предложить их добавить. Для разбора этого мало — репетитору
+ *  нужно видеть и знакомые слова, на которых ученик споткнулся, иначе
+ *  разбирать нечего именно там, где ошибка обиднее всего. */
+let exWrong = [];
+function noteWrongForBoard(w, d) {
+  const key = String(w || "").trim().toLowerCase();
+  if (!key || exWrong.some(x => x.w.toLowerCase() === key)) return;
+  const info = (!d && typeof wordInfo === "function") ? wordInfo(w) : null;
+  exWrong.push({ w: String(w), t: (d && d.t) || (info && info.t) || "" });
+}
+
 /** verified=false — ответ верный, но не доказывает знания (пару нашли
  *  перебором после промахов): в knew идёт, в checked — нет, то есть
  *  домашку такое слово не закрывает. */
@@ -1053,6 +1067,7 @@ function noteLevelAnswer(w, d, ok) {
 function statUpdate(w, ok, verified = true) {
   const d = state.dictionary.find(x => x.w.toLowerCase() === String(w).toLowerCase());
   if (verified) noteLevelAnswer(w, d, ok);
+  if (!ok) noteWrongForBoard(w, d);
   if (!d) {
     // Слова нет в словаре. Ошибку запоминаем — предложим добавить.
     if (!ok) {
@@ -1726,6 +1741,7 @@ function openExercise(id) {
     // прокликивания считала время по чужому началу — и могла как
     // напрасно снять очки, так и напрасно их оставить.
     exMissed = [];
+    exWrong = [];
     exRoundReset();
     stage().innerHTML = `
       <div class="empty-state">
@@ -1740,6 +1756,7 @@ function openExercise(id) {
   }
 
   exMissed = [];   // копилка ошибок — своя на каждый подход
+  exWrong = [];    // разбор на доску — тоже
   exRoundReset();  // время и ответы — тоже на подход
   EX_RUNNERS[id]();
 }
@@ -1798,6 +1815,10 @@ function exFinish(correct, total, note = "") {
     if (typeof reportBoardResult === "function") {
       reportBoardResult(boardCard, {
         text: resText, correct, total, rushed, when: hhmm,
+        // Разбор: что не получилось. Больше дюжины строк на доску
+        // не влезет и не нужно — разбирают не весь подход, а слабые места.
+        wrong: exWrong.slice(0, 12).map(x => ({ w: x.w, t: x.t })),
+        wrongTotal: exWrong.length,
       });
     }
     // Возврат на доску — сам, но с запасным ходом: window.close()

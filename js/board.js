@@ -50,6 +50,10 @@ const ctx = canvas.getContext("2d");
    тема меняет их сама. Здесь только имена. */
 const COLORS = ["ink", "red", "blue", "green", "orange", "violet"];
 const NOTE_COLORS = ["note", "note2", "note3"];
+// Маркер — свой набор. Чернила ручки под полупрозрачной широкой полосой
+// превращали подчёркнутое слово в тёмное пятно; текстовыделителю нужны
+// светлые яркие краски (просьба владельца).
+const MARK_COLORS = ["mark1", "mark2", "mark3", "mark4", "mark5"];
 const cssColor = name => getComputedStyle(document.documentElement)
   .getPropertyValue("--bd-" + name).trim() || "#000";
 
@@ -573,6 +577,16 @@ function bounds(o) {
 /** Служебные объекты: их нельзя выделить, стереть или двигать. */
 const isService = o => o.kind === "ping" || o.kind === "bg";
 
+/** Что стирает ластик: только нарисованное от руки и подписи.
+ *
+ *  Картинка, страница учебника, карточка слова, задание и его разбор —
+ *  это ПОЛОЖЕННОЕ на доску содержимое, а не чернила. Стереть их случайным
+ *  движением руки посреди урока (жалоба владельца) — потеря, которую на
+ *  ходу не восстановишь: книгу надо снова искать и листать до страницы.
+ *  Убрать их всё равно можно — выделить и нажать Delete, то есть намеренно. */
+const ERASABLE = ["pen", "marker", "rect", "ellipse", "arrow", "line", "text"];
+const erasable = o => ERASABLE.includes(o.kind);
+
 function hitTest(wx, wy) {
   // Сверху вниз: последним нарисованное ловится первым — так и ожидают
   const list = [...BD.objects.values()].sort((a, b) => (b.rev || 0) - (a.rev || 0));
@@ -812,8 +826,8 @@ canvas.addEventListener("pointerdown", e => {
   }
 
   if (BD.tool === "eraser") {
-    const hit = hitTest(w.x, w.y);
-    if (hit && !hit.locked) remove(hit.id);
+    eraseHintShown = false;      // новый подход ластика — объясняем снова
+    eraseAt(w.x, w.y);
     drawing = { erase: true };
     return;
   }
@@ -907,10 +921,9 @@ canvas.addEventListener("pointermove", e => {
     return;
   }
 
-  if (!drawing) return;
+  if (!drawing) { hoverCursor(w.x, w.y); return; }
   if (drawing.erase) {
-    const hit = hitTest(w.x, w.y);
-    if (hit && !hit.locked) remove(hit.id);
+    eraseAt(w.x, w.y);
     return;
   }
   if (drawing.kind === "pen" || drawing.kind === "marker") {
@@ -956,6 +969,19 @@ canvas.addEventListener("pointerup", () => {
  *  BD.objects, иначе его не было бы видно во время рисования. В BD.dirty
  *  он при этом не попадал: штрих оставался призраком — автор его видит,
  *  ученик нет, и после перезагрузки он исчезает. */
+/** Стереть то, что под ластиком. Объяснение — один раз за подход
+ *  ластика: иначе тост мигал бы на каждом движении руки по картинке. */
+let eraseHintShown = false;
+function eraseAt(wx, wy) {
+  const hit = hitTest(wx, wy);
+  if (!hit || hit.locked) return;
+  if (erasable(hit)) { remove(hit.id); return; }
+  if (!eraseHintShown) {
+    eraseHintShown = true;
+    toast("Ластик стирает рисунок и подписи. Картинку или карточку — нажми на неё и Delete.", 4200);
+  }
+}
+
 function finishStroke() {
   if (!drawing) return;
   if (drawing.erase) { drawing = null; return; }
@@ -971,10 +997,48 @@ function finishStroke() {
   put(o);
 }
 
-/* Колесо: зум к курсору, а не к центру — иначе нужное место убегает. */
+/** Курсор под мышью: что здесь можно сделать.
+ *
+ *  Владелец: «не даёт мышку на фигурах» — с инструментом «выделить»
+ *  курсор оставался обычной стрелкой везде, и понять, что нарисованный
+ *  прямоугольник вообще можно схватить, было неоткуда. Теперь форма
+ *  курсора и есть ответ: стрелка с крестом — двигается, палец —
+ *  нажимается, уголок — тянется за размер, ладонь — пустое место. */
+function hoverCursor(wx, wy) {
+  if (BD.tool !== "select") return;          // рисующим инструментам не мешаем
+  let cur = "grab";
+  const lk = hitLockButton(wx, wy);
+  const rz = !lk && hitResizeHandle(wx, wy);
+  const hit = !lk && !rz && hitTest(wx, wy);
+  if (lk) cur = "pointer";
+  else if (rz && !rz.locked) cur = "nwse-resize";
+  else if (hit) {
+    // Нажимается: задание у ученика, карточка слова (переворот), текст
+    // и стикер (дописать). Закреплённое не двигается — курсор честно
+    // показывает, что тянуть бесполезно.
+    if (hit.locked) cur = "not-allowed";
+    else if (hit.kind === "task" || hit.kind === "word") cur = "pointer";
+    else cur = "move";
+  }
+  if (canvas.dataset.cur !== cur) {
+    canvas.dataset.cur = cur;
+    canvas.style.cursor = cur;
+  }
+}
+
+/* Колесо: зум к курсору, а не к центру — иначе нужное место убегает.
+ *
+ *  deltaY приходит в РАЗНЫХ единицах: пиксели (трекпад, большинство мышей),
+ *  строки (deltaMode 1 — Firefox и часть мышей под Windows) и страницы
+ *  (deltaMode 2). Считали всегда как пиксели, поэтому у мыши со «строками»
+ *  один щелчок колеса давал deltaY=3 и масштаб менялся на полпроцента:
+ *  «колесо не работает». Приводим к пикселям и берём шаг от щелчка. */
 canvas.addEventListener("wheel", e => {
   e.preventDefault();
-  const factor = e.ctrlKey ? 1 - e.deltaY * 0.01 : 1 - e.deltaY * 0.0016;
+  const unit = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? innerHeight : 1;
+  const px = Math.max(-240, Math.min(240, e.deltaY * unit));
+  // ctrl+колесо (щипок на трекпаде) — резче, это жест «приблизь»
+  const factor = Math.pow(e.ctrlKey ? 1.006 : 1.0028, -px);
   zoomAt(e.clientX, e.clientY, factor);
 }, { passive: false });
 
@@ -986,8 +1050,15 @@ function zoomAt(sx, sy, factor) {
   const after = toWorld(sx, sy);
   BD.view.x += (after.x - before.x) * k;
   BD.view.y += (after.y - before.y) * k;
-  $("bd-zoom").textContent = Math.round(k * 100) + "%";
+  showZoom(k);
   paint();
+}
+
+/** Подпись и ползунок — одно число в двух местах, обновляем вместе. */
+function showZoom(k) {
+  $("bd-zoom").textContent = Math.round(k * 100) + "%";
+  const slider = $("bd-zoom-range");
+  if (slider && document.activeElement !== slider) slider.value = Math.round(k * 100);
 }
 
 /* Два пальца: масштаб и сдвиг одновременно — как в любой карте. */
@@ -1052,12 +1123,14 @@ $("bd-editor-input").addEventListener("keydown", e => {
 /* ---------- панели ---------- */
 function buildStyleBar() {
   const colors = $("bd-colors");
-  COLORS.concat(NOTE_COLORS).forEach(name => {
+  COLORS.concat(NOTE_COLORS, MARK_COLORS).forEach(name => {
     const b = document.createElement("button");
-    // Помечаем, к чему цвет: чернила рисуют линию, бумага красит стикер.
-    // Раньше все девять кружков лежали вперемешку, и выбрать «жёлтый»
-    // для ручки было нельзя — он оказывался цветом стикера.
-    b.dataset.kind = NOTE_COLORS.includes(name) ? "note" : "ink";
+    // Помечаем, к чему цвет: чернила рисуют линию, бумага красит стикер,
+    // маркер светит поверх написанного. Раньше все кружки лежали
+    // вперемешку, и выбрать «жёлтый» для ручки было нельзя — он
+    // оказывался цветом стикера.
+    b.dataset.kind = NOTE_COLORS.includes(name) ? "note"
+                   : MARK_COLORS.includes(name) ? "mark" : "ink";
     b.className = "bd-swatch" + (name === BD.color ? " active" : "");
     b.style.background = cssColor(name);
     b.title = name;
@@ -1100,7 +1173,7 @@ const TOOL_STYLE = {
   note:    { colors: "note", sizes: false },
   text:    { colors: "ink", sizes: false },
   pen:     { colors: "ink", sizes: true },
-  marker:  { colors: "ink", sizes: true },
+  marker:  { colors: "mark", sizes: true },
   rect:    { colors: "ink", sizes: true },
   ellipse: { colors: "ink", sizes: true },
   arrow:   { colors: "ink", sizes: true },
@@ -1117,7 +1190,8 @@ function syncStyleBar() {
   });
   // Инструмент сменился, а выбранный цвет из чужого набора — берём
   // первый подходящий, иначе рисовали бы цветом бумаги по холсту.
-  const list = conf.colors === "note" ? NOTE_COLORS : COLORS;
+  const list = conf.colors === "note" ? NOTE_COLORS
+             : conf.colors === "mark" ? MARK_COLORS : COLORS;
   if (conf.colors && !list.includes(BD.color)) {
     BD.color = list[0];
     document.querySelectorAll(".bd-swatch").forEach(sw =>
@@ -1130,6 +1204,10 @@ document.querySelectorAll(".bd-tool[data-tool]").forEach(b => {
     BD.tool = b.dataset.tool;
     document.querySelectorAll(".bd-tool[data-tool]").forEach(x => x.classList.toggle("active", x === b));
     canvas.classList.toggle("picking", BD.tool === "select");
+    // Форму курсора для «выделить» ставит hoverCursor по месту; для
+    // рисующих инструментов возвращаем прицел из css.
+    canvas.dataset.cur = "";
+    canvas.style.cursor = "";
     syncStyleBar();
   });
 });
@@ -1168,8 +1246,13 @@ $("bd-zoom-in").addEventListener("click", () => zoomAt(innerWidth / 2, innerHeig
 $("bd-zoom-out").addEventListener("click", () => zoomAt(innerWidth / 2, innerHeight / 2, 1 / 1.2));
 $("bd-zoom").addEventListener("click", () => {
   BD.view = { x: 0, y: 0, k: 1 };
-  $("bd-zoom").textContent = "100%";
+  showZoom(1);
   paint();
+});
+// Ползунок масштаба: тянем — доска растёт из центра экрана, а не из угла.
+$("bd-zoom-range").addEventListener("input", e => {
+  const want = Math.max(0.15, Math.min(5, Number(e.target.value) / 100));
+  zoomAt(innerWidth / 2, innerHeight / 2, want / BD.view.k);
 });
 $("bd-fit").addEventListener("click", fitToContent);
 
@@ -1211,7 +1294,7 @@ function fitToContent() {
   BD.view.k = k;
   BD.view.x = L + availW / 2 - ((x1 + x2) / 2) * k;
   BD.view.y = TOP + availH / 2 - ((y1 + y2) / 2) * k;
-  $("bd-zoom").textContent = Math.round(k * 100) + "%";
+  showZoom(k);
   paint();
 }
 
@@ -1458,9 +1541,19 @@ function renderTaskChips() {
     b.textContent = name;
     b.addEventListener("click", () => {
       const at = toWorld(innerWidth / 2, innerHeight / 2);
-      put({ id: uid(), kind: "task", x: at.x - 130, y: at.y - 45,
+      const cardId = uid();
+      put({ id: cardId, kind: "task", x: at.x - 130, y: at.y - 45,
             w: 260, h: 90, color: "blue", size: 3, text: name, text2: id });
-      toast("Задание легло на доску — ученик нажмёт и начнёт.");
+      // Разбор кладём СРАЗУ, пустым: место под него занято ещё до того,
+      // как ученик начал, и на уроке видно, куда смотреть после. Когда
+      // ученик закончит, его браузер впишет сюда счёт и список ошибок
+      // (reportBoardResult в js/sync.js находит эту карточку по id).
+      put({ id: "rev-" + cardId, kind: "note",
+            x: at.x + 150, y: at.y - 45, w: 250, h: 104,
+            color: "note", size: 3,
+            text: "Разбор · " + name + "\nЖдём: ученик ещё не проходил." });
+      BD.selected = cardId;
+      toast("Задание и карточка разбора на доске — ученик нажмёт и начнёт.");
     });
     box.appendChild(b);
   });
