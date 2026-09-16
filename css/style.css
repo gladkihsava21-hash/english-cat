@@ -202,6 +202,15 @@ body {
   padding: 11px 14px; border: 2px solid var(--border); border-radius: 12px; outline: none; background: var(--surface);
 }
 .add-word-row input:focus { border-color: var(--accent); }
+/* Выбор папки прямо в строке добавления слова. Тот же вид, что у полей,
+   но select не растягиваем — он узкий по содержимому. */
+.add-word-folder {
+  font-family: inherit; font-size: var(--text-caption); padding: 11px 12px;
+  border: 2px solid var(--border); border-radius: 12px; outline: none;
+  background: var(--surface); color: inherit; cursor: pointer; max-width: 100%;
+}
+.add-word-folder:focus { border-color: var(--accent); }
+.add-word-newfolder { flex: 1; min-width: 140px; }
 .dict-list { display: flex; flex-direction: column; gap: 8px; }
 .dict-row {
   display: flex; align-items: center; gap: 14px; background: var(--surface); border: 1px solid var(--border);

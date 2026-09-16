@@ -1790,7 +1790,29 @@ document.getElementById("refresh-words-btn").addEventListener("click", () => {
 
 // ===== Словарь =====
 function addToDictionary(word) {
-  if (state.dictionary.some(d => d.w.toLowerCase() === word.w.toLowerCase())) return;
+  // Папки, с которыми слово просят добавить (форма добавления с выбором
+  // папки, домашка репетитора). Заводим их в общем списке, чтобы папка
+  // существовала, даже если слово в ней окажется единственным.
+  const folders = Array.isArray(word.folders)
+    ? [...new Set(word.folders.map(f => String(f || "").trim()).filter(Boolean))]
+    : [];
+  const registerFolders = fs => {
+    if (!fs.length) return;
+    state.folders = state.folders || [];
+    fs.forEach(f => { if (!state.folders.includes(f)) state.folders.push(f); });
+  };
+  // Слово уже есть — не дубль, но папку добавить полезно: «положить
+  // существующее слово в тему» это ровно то же действие «добавить с папкой».
+  const existing = state.dictionary.find(d => d.w.toLowerCase() === word.w.toLowerCase());
+  if (existing) {
+    if (folders.length) {
+      existing.folders = [...new Set([...(existing.folders || []), ...folders])];
+      registerFolders(folders);
+      saveState();
+      updateChrome();
+    }
+    return;
+  }
   const rec = {
     w: word.w, t: word.t, ex: word.ex || "", level: word.level || state.level,
     status: "new", knew: 0, forgot: 0,
@@ -1799,6 +1821,7 @@ function addToDictionary(word) {
     // неделю, когда до него дойдёт очередь (см. srsQueue).
     addedAt: new Date().toISOString().slice(0, 10),
   };
+  if (folders.length) { rec.folders = folders; registerFolders(folders); }
   if (typeof srsInit === "function") srsInit(rec);
   state.dictionary.push(rec);
   saveState();
@@ -1982,6 +2005,10 @@ function renderFolders() {
       renderDictionary();
     });
   }
+
+  // Тот же список папок — в форму добавления слова, чтобы новую тему,
+  // заведённую здесь, было сразу видно и там.
+  if (typeof renderAddWordFolders === "function") renderAddWordFolders();
 }
 
 /** «1 слово / 2 слова / 5 слов». Такие же помощники есть в exercises.js
@@ -2345,6 +2372,18 @@ document.getElementById("add-word-form").addEventListener("submit", e => {
     document.getElementById("add-word-en").focus();
     return;
   }
+  // Папка, если выбрана. «__new__» — создаём папку из соседнего поля.
+  let folder = "";
+  const sel = document.getElementById("add-word-folder");
+  const nf = document.getElementById("add-word-newfolder");
+  if (sel) {
+    if (sel.value === "__new__") {
+      const name = (nf && nf.value || "").trim();
+      if (name && typeof createFolder === "function") { createFolder(name); folder = name; }
+    } else if (sel.value) {
+      folder = sel.value;
+    }
+  }
   // Если слово нашлось в базе — забираем заодно пример и уровень:
   // карточка без примера учит хуже, а уровень нужен подбору заданий.
   const hit = typeof wordInfo === "function" ? wordInfo(en) : null;
@@ -2354,12 +2393,46 @@ document.getElementById("add-word-form").addEventListener("submit", e => {
     ex: hit && hit.ex ? hit.ex : "",
     cat: hit ? hit.cat : undefined,
     level: hit && hit.level ? hit.level : state.level,
+    folders: folder ? [folder] : [],
   });
   document.getElementById("add-word-en").value = "";
   document.getElementById("add-word-ru").value = "";
+  if (nf) { nf.value = ""; nf.classList.add("hidden"); }
   addWordHint();
+  renderAddWordFolders();          // папка могла появиться — обновим список
+  if (sel && folder) sel.value = folder;   // оставляем выбранной: часто кладут несколько слов подряд в одну тему
   renderDictionary();
 });
+
+/** Заполняет выбор папки в форме добавления слова: «без папки», список
+ *  папок, «+ новая папка». Своё поле для новой папки, без системного
+ *  prompt — как и везде в словаре. */
+function renderAddWordFolders() {
+  const sel = document.getElementById("add-word-folder");
+  if (!sel) return;
+  const prev = sel.value;
+  const names = typeof allFolders === "function" ? allFolders() : [];
+  sel.innerHTML =
+    `<option value="">без папки</option>`
+    + names.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join("")
+    + `<option value="__new__">+ новая папка…</option>`;
+  // Сохраняем прежний выбор, если папка ещё существует
+  if (prev === "__new__" || prev === "" || names.includes(prev)) sel.value = prev;
+  const nf = document.getElementById("add-word-newfolder");
+  if (nf) nf.classList.toggle("hidden", sel.value !== "__new__");
+}
+
+// Переключение поля «новая папка»: показываем, когда в выборе «+ новая папка».
+{
+  const sel = document.getElementById("add-word-folder");
+  if (sel) sel.addEventListener("change", () => {
+    const nf = document.getElementById("add-word-newfolder");
+    if (!nf) return;
+    const isNew = sel.value === "__new__";
+    nf.classList.toggle("hidden", !isNew);
+    if (isNew) nf.focus();
+  });
+}
 
 /* «Тренировать →» уважает выбранный фильтр.
  *
