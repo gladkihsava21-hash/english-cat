@@ -7,7 +7,7 @@
   <meta name="robots" content="noindex, nofollow">
   <link rel="preload" href="css/fonts/nunito-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="css/fonts/inter-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="css/fonts.css?v=292">
+  <link rel="stylesheet" href="css/fonts.css?v=293">
   <script>
     try {
       var t = localStorage.getItem("savelyTheme");
@@ -16,9 +16,9 @@
       document.documentElement.dataset.theme = t;
     } catch (e) { /* приватный режим */ }
   </script>
-  <link rel="stylesheet" href="css/tokens.css?v=292">
-  <link rel="stylesheet" href="css/style.css?v=292">
-  <link rel="stylesheet" href="css/board.css?v=292">
+  <link rel="stylesheet" href="css/tokens.css?v=293">
+  <link rel="stylesheet" href="css/style.css?v=293">
+  <link rel="stylesheet" href="css/board.css?v=293">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
 </head>
 <body class="board-body">
@@ -88,8 +88,10 @@
     <button class="bd-tool" id="bd-img" title="Картинка: файл, Ctrl+V или перетащи"
             data-icon="picture" data-icon-size="22"></button>
     <div class="bd-sep"></div>
-    <button class="bd-tool bd-tool-words" id="bd-words" title="Слова ученика (W)"
-            data-icon="words" data-icon-size="22"></button>
+    <!-- Книга, а не «Аа»: за этой кнопкой не только слова, но и задания
+         с учебниками, и «Аа» читалось как текстовый инструмент. -->
+    <button class="bd-tool bd-tool-words" id="bd-words" title="Слова, задания, книжки (W)"
+            data-icon="book" data-icon-size="22"></button>
   </div>
 
   <!-- Цвет и толщина: часть той же панели, отделены линией -->
@@ -111,6 +113,11 @@
   <div class="bd-sep-h"></div>
   <button class="bd-btn" id="bd-zoom-out" title="Мельче"
           data-icon="zoomOut" data-icon-size="19"></button>
+  <!-- Ползунок масштаба: колесо мыши у всех настроено по-своему, а тут
+       видно, где ты сейчас, и можно дотянуть до нужного одним движением. -->
+  <input type="range" class="bd-zoom-range" id="bd-zoom-range"
+         min="15" max="300" step="1" value="100"
+         aria-label="Масштаб доски" title="Масштаб">
   <button class="bd-btn bd-zoom" id="bd-zoom" title="Вернуть 100%">100%</button>
   <button class="bd-btn" id="bd-zoom-in" title="Крупнее"
           data-icon="zoomIn" data-icon-size="19"></button>
@@ -157,6 +164,13 @@
   </div>
 </div>
 
+<!-- Панель демонстрации, как в Zoom: видно, что показ идёт, и есть
+     своя кнопка «Остановить» — системную плашку браузера легко потерять. -->
+<div class="screen-bar" id="screen-bar" hidden>
+  <span class="screen-bar-dot"></span> Вы демонстрируете экран
+  <button class="bd-btn screen-bar-stop" id="screen-bar-stop">Остановить показ</button>
+</div>
+
 <p class="bd-toast" id="bd-toast" hidden></p>
 <input type="file" id="bd-img-file" accept="image/*" hidden>
 <input type="file" id="bd-book-file" accept="application/pdf,.pdf" hidden>
@@ -174,6 +188,7 @@
 <div class="bd-call" id="bd-call" hidden>
   <div class="bd-call-videos">
     <video id="call-remote" autoplay playsinline></video>
+    <video id="call-remote-cam" autoplay playsinline hidden></video>
     <video id="call-local" autoplay playsinline muted></video>
   </div>
   <button class="btn btn-primary bd-call-dial" id="call-dial" hidden>
@@ -214,13 +229,13 @@
   </div>
 </div>
 
-<script defer src="js/icons.js?v=292"></script>
-<script defer src="js/util.js?v=292"></script>
+<script defer src="js/icons.js?v=293"></script>
+<script defer src="js/util.js?v=293"></script>
 <!-- Образы слов: фотография или эмодзи-заглушка — те же файлы,
      что у ученика, панель слов показывает их превью. -->
-<script defer src="js/images.js?v=292"></script>
-<script defer src="js/word-photos.js?v=292"></script>
-<script defer src="js/board.js?v=292"></script>
-<script defer src="js/call.js?v=292"></script>
+<script defer src="js/images.js?v=293"></script>
+<script defer src="js/word-photos.js?v=293"></script>
+<script defer src="js/board.js?v=293"></script>
+<script defer src="js/call.js?v=293"></script>
 </body>
 </html>

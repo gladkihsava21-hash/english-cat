@@ -2564,6 +2564,7 @@ def _clean_board_object(o):
         # апдейт трёх чисел, а не полмегабайта на каждый опрос.
         out["bookId"] = int(num(o.get("bookId", 0), 0, 10**9))
         out["page"] = max(1, int(num(o.get("page", 1), 1, 10000)))
+        out["locked"] = 1 if o.get("locked") else 0   # закреплять можно и книжку
         out["pages"] = max(1, int(num(o.get("pages", 1), 1, 10000)))
         out["text"] = str(o.get("text", ""))[:120]   # название для подписи
         if not out["bookId"]:
@@ -2576,6 +2577,10 @@ def _clean_board_object(o):
         src = str(o.get("src", ""))
         if len(src) > BOARD_MAX_IMAGE:
             return None
+        # Фиксация: закреплённую картинку нельзя сдвинуть или стереть,
+        # пока замок не снят, — страница учебника не должна уезжать
+        # из-под руки, которая по ней пишет.
+        out["locked"] = 1 if o.get("locked") else 0
         if not (src.startswith("data:image/jpeg;base64,")
                 or src.startswith("data:image/png;base64,")
                 or src.startswith("data:image/webp;base64,")):
@@ -2722,7 +2727,11 @@ CALL_MSG_MAX = 32_000         # SDP с полным списком кодеко�
 
 def call_send(board_id, sender, kind, data):
     """Положить сигнальное сообщение. Возвращает False, если не влезло."""
-    if kind not in ("offer", "answer", "ice", "bye"):
+    # needfix — просьба пересобрать соединение (шлёт не-звонивший;
+    # без него в белом списке авто-ремонт с его стороны молча умирал),
+    # screen — «я включил/выключил показ экрана», получатель по нему
+    # раскладывает пришедшие видеодорожки: какая экран, какая лицо.
+    if kind not in ("offer", "answer", "ice", "bye", "needfix", "screen"):
         return False
     blob = json.dumps(data or {}, ensure_ascii=False)
     if len(blob) > CALL_MSG_MAX:

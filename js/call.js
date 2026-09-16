@@ -92,6 +92,12 @@ function handleCallMsg(m) {
   // сеть). Чинит всегда позвонивший — у двух одновременных починок
   // офферы сталкиваются лбами.
   if (m.kind === "needfix" && CALL.state === "live" && CALL.isCaller) return tryRepair();
+  if (m.kind === "screen") {
+    CALL.remoteScreen = !!(m.data && m.data.on);
+    layoutRemote();
+    setCallState(CALL.remoteScreen ? "вам показывают экран" : "соединено");
+    return;
+  }
 }
 
 /* ---------- медиа ----------
@@ -121,8 +127,15 @@ function buildPeer() {
     if (e.candidate) callSend("ice", e.candidate.toJSON());
   };
   pc.ontrack = e => {
-    const v = $("call-remote");
-    if (v.srcObject !== e.streams[0]) v.srcObject = e.streams[0];
+    // Дорожки копим сами: при демонстрации экрана их ДВЕ видео (лицо
+    // и экран), и раскладку решает сигнал "screen", а не порядок прихода.
+    if (!CALL.remoteTracks) CALL.remoteTracks = [];
+    if (!CALL.remoteTracks.includes(e.track)) CALL.remoteTracks.push(e.track);
+    e.track.onended = () => {
+      CALL.remoteTracks = (CALL.remoteTracks || []).filter(t => t !== e.track);
+      layoutRemote();
+    };
+    layoutRemote();
   };
   pc.onconnectionstatechange = () => {
     if (!CALL.pc) return;
@@ -345,6 +358,11 @@ function endCall(sendBye) {
   $("bd-ring").hidden = true;
   $("call-remote").srcObject = null;
   $("call-local").srcObject = null;
+  const mini = $("call-remote-cam");
+  if (mini) { mini.hidden = true; mini.srcObject = null; }
+  $("screen-bar").hidden = true;
+  CALL.remoteTracks = [];
+  CALL.remoteScreen = false;
   setCallState(big ? "звонок завершён" : "");
   refreshDial();
 }
@@ -354,7 +372,7 @@ function endCall(sendBye) {
    ТОМ ЖЕ соединении (replaceTrack) — у ученика картинка меняется сама,
    без нового звонка. Сервер видео по-прежнему не видит: и камера, и
    экран идут напрямую между браузерами, ничего не записывается. */
-const SCREEN = { track: null };
+const SCREEN = { track: null, sender: null };
 
 function screenSupported() {
   return !!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia);
@@ -396,17 +414,21 @@ async function startScreenShare() {
   } catch (e) { return; }               // передумал в системном окне — не ошибка
   const track = stream.getVideoTracks()[0];
   if (!track) return;
-  const sender = await videoSender();
-  if (!sender) {
+  // Экран уходит ОТДЕЛЬНЫМ вторым треком, камера продолжает идти своей
+  // дорожкой — у второй стороны видны и страница, и лицо (как в Zoom).
+  // Раньше replaceTrack подменял лицо экраном, и учитель «исчезал».
+  try {
+    SCREEN.sender = CALL.pc.addTrack(track, new MediaStream([track]));
+    await sendFreshOffer();
+  } catch (e) {
     track.stop();
     toast("Не получилось начать показ. Попробуйте перезвонить.");
     return;
   }
   SCREEN.track = track;
-  await sender.replaceTrack(track);
-  $("call-local").srcObject = new MediaStream([track]);
-  $("call-local").classList.remove("novideo");
+  await callSend("screen", { on: true });
   $("call-screen").classList.add("on");
+  $("screen-bar").hidden = false;
   setCallState("вы показываете экран");
   // «Прекратить показ» в плашке браузера должен работать как наша кнопка
   track.onended = () => stopScreenShare(false);
@@ -419,15 +441,14 @@ async function stopScreenShare(silent) {
   track.onended = null;
   try { track.stop(); } catch (e) { /* уже остановлен */ }
   $("call-screen").classList.remove("on");
+  $("screen-bar").hidden = true;
   if (!CALL.pc) return;
-  const sender = CALL.pc.getSenders().find(s => s.track === track)
-    || CALL.pc.getSenders().find(s => s.track && s.track.kind === "video");
-  const cam = CALL.stream && CALL.stream.getVideoTracks()[0];
-  if (sender) {
-    try { await sender.replaceTrack(cam || null); } catch (e) { /* конец звонка */ }
-  }
-  $("call-local").srcObject = CALL.stream;
-  $("call-local").classList.toggle("novideo", !cam);
+  try {
+    if (SCREEN.sender) CALL.pc.removeTrack(SCREEN.sender);
+    SCREEN.sender = null;
+    await sendFreshOffer();
+  } catch (e) { /* конец звонка */ }
+  await callSend("screen", { on: false });
   if (!silent) setCallState("соединено");
 }
 
@@ -462,6 +483,28 @@ function toggleTrack(kindName, btn) {
   tracks.forEach(t => { t.enabled = on; });
   btn.classList.toggle("off", !on);
   if (kindName === "video") $("call-local").classList.toggle("novideo", !on);
+}
+
+/** Разложить удалённые дорожки по окнам.
+ *
+ *  Обычный звонок: всё видео+звук — в большое окно. Идёт показ экрана:
+ *  ПОСЛЕДНЯЯ видеодорожка (экран добавляется вторым треком) — в большое
+ *  окно, первая (лицо) — в мини-окно рядом с моим превью. Так у ученика
+ *  видны и страница, и учитель — как в Zoom (просьба владельца: раньше
+ *  replaceTrack просто подменял лицо экраном).  */
+function layoutRemote() {
+  const vids = (CALL.remoteTracks || []).filter(t => t.kind === "video" && t.readyState === "live");
+  const auds = (CALL.remoteTracks || []).filter(t => t.kind === "audio");
+  const big = $("call-remote"), mini = $("call-remote-cam");
+  if (CALL.remoteScreen && vids.length >= 2) {
+    big.srcObject = new MediaStream([vids[vids.length - 1], ...auds]);
+    mini.srcObject = new MediaStream([vids[0]]);
+    mini.hidden = false;
+  } else {
+    big.srcObject = new MediaStream([...(vids.length ? [vids[0]] : []), ...auds]);
+    mini.hidden = true;
+    mini.srcObject = null;
+  }
 }
 
 /* ---------- видеоурок: большой режим ----------
@@ -630,6 +673,8 @@ function callBoot() {
     if (CALL.state === "idle") startCall();
     refreshDial();
   });
+  const sbStop = $("screen-bar-stop");
+  if (sbStop) sbStop.addEventListener("click", () => stopScreenShare(false));
   makeCallDraggable();
   callPollLoop();
   // Пришли по вкладке «Урок»: сразу большой режим. Звонка ещё нет —

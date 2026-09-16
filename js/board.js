@@ -467,16 +467,24 @@ function drawText(text, x, y, maxW, lh, color, weight) {
   ctx.fillStyle = color;
   ctx.font = `${weight} ${Math.round(lh * 0.86)}px Nunito, system-ui, sans-serif`;
   ctx.textBaseline = "top";
-  let line = "", ty = y;
-  for (const word of String(text).split(/\s+/)) {
-    const test = line ? line + " " + word : word;
-    if (ctx.measureText(test).width > maxW && line) {
-      ctx.fillText(line, x, ty);
-      ty += lh;
-      line = word;
-    } else line = test;
+  let ty = y;
+  // Абзацы: Enter в редакторе — это \n, и он ОБЯЗАН остаться абзацем
+  // на доске. Раньше split(/\s+/) съедал переносы вместе с пробелами,
+  // и стикер превращал любой список в сплошную строку.
+  for (const para of String(text).split("\n")) {
+    let line = "";
+    const words = para.split(/[ \t]+/).filter(Boolean);
+    if (!words.length) { ty += lh; continue; }   // пустая строка = отступ
+    for (const word of words) {
+      const test = line ? line + " " + word : word;
+      if (ctx.measureText(test).width > maxW && line) {
+        ctx.fillText(line, x, ty);
+        ty += lh;
+        line = word;
+      } else line = test;
+    }
+    if (line) { ctx.fillText(line, x, ty); ty += lh; }
   }
-  if (line) ctx.fillText(line, x, ty);
 }
 
 /** У каких объектов есть смысл тянуть размер за уголок. Линии и штрихи
@@ -490,12 +498,52 @@ function drawSelection(o) {
   ctx.setLineDash([6 / BD.view.k, 4 / BD.view.k]);
   ctx.strokeRect(b.x - 6, b.y - 6, b.w + 12, b.h + 12);
   ctx.setLineDash([]);
-  if (resizable(o)) {
+  if (resizable(o) && !o.locked) {
     // Уголок-ручка: квадратик в правом нижнем углу рамки
     const r = 7 / BD.view.k;
     ctx.fillStyle = cssColor("green");
     ctx.fillRect(b.x + b.w + 6 - r, b.y + b.h + 6 - r, r * 2, r * 2);
   }
+  if (lockable(o)) drawLockButton(o);
+}
+
+/** Замок на рамке выделения: у картинок и книжек. Закреплённый объект
+ *  не двигается, не тянется и не стирается — страница учебника лежит
+ *  как приклеенная, пока замок не снят тем же нажатием. */
+const lockable = o => o.kind === "image" || o.kind === "book";
+
+function lockButtonPos(o) {
+  const b = bounds(o);
+  return { x: b.x - 6, y: b.y - 6 };     // левый верхний угол рамки
+}
+
+function drawLockButton(o) {
+  const p = lockButtonPos(o);
+  const r = 9 / BD.view.k;
+  ctx.fillStyle = o.locked ? cssColor("green") : cssColor("paper");
+  ctx.strokeStyle = cssColor("green");
+  ctx.lineWidth = 1.6 / BD.view.k;
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, r, 0, 7);
+  ctx.fill(); ctx.stroke();
+  // сам замочек: корпус + дужка
+  const ink = o.locked ? cssColor("paper") : cssColor("green");
+  const u = r / 9;
+  ctx.strokeStyle = ink; ctx.fillStyle = ink;
+  ctx.lineWidth = 1.6 * u;
+  ctx.beginPath();
+  ctx.arc(p.x, p.y - 1.5 * u, 3 * u, Math.PI, 0);   // дужка
+  ctx.stroke();
+  ctx.fillRect(p.x - 3.6 * u, p.y - 1 * u, 7.2 * u, 5.4 * u);  // корпус
+}
+
+function hitLockButton(wx, wy) {
+  if (!BD.selected) return null;
+  const o = BD.objects.get(BD.selected);
+  if (!o || !lockable(o)) return null;
+  const p = lockButtonPos(o);
+  if (Math.hypot(wx - p.x, wy - p.y) < 14 / BD.view.k) return o;
+  return null;
 }
 
 /** Попал ли указатель в уголок-ручку выделенного объекта. */
@@ -699,8 +747,14 @@ canvas.addEventListener("pointerdown", e => {
   if (BD.tool === "select") {
     // Уголок выделенного проверяем ДО хит-теста: ручка висит за рамкой
     // объекта, и попадание по ней — это точно про размер, а не про выбор.
+    const lk = hitLockButton(w.x, w.y);
+    if (lk) {
+      put({ ...lk, locked: lk.locked ? 0 : 1 });
+      toast(lk.locked ? "Откреплено — можно двигать." : "Закреплено: не сдвинется и не сотрётся.");
+      return;
+    }
     const rz = hitResizeHandle(w.x, w.y);
-    if (rz) {
+    if (rz && !rz.locked) {
       resizing = { id: rz.id, orig: { ...rz }, b: bounds(rz) };
       return;
     }
@@ -741,7 +795,7 @@ canvas.addEventListener("pointerdown", e => {
         pendingTask = { task: hit, x: e.clientX, y: e.clientY };
         return;
       }
-      moving = { id: hit.id, dx: w.x, dy: w.y, orig: { ...hit } };
+      if (!hit.locked) moving = { id: hit.id, dx: w.x, dy: w.y, orig: { ...hit } };
     } else {
       // Двойной тап по пустому месту — указка «смотри сюда»: у второго
       // участника в этой точке пульсирует кольцо. Жест, а не инструмент:
@@ -759,7 +813,7 @@ canvas.addEventListener("pointerdown", e => {
 
   if (BD.tool === "eraser") {
     const hit = hitTest(w.x, w.y);
-    if (hit) remove(hit.id);
+    if (hit && !hit.locked) remove(hit.id);
     drawing = { erase: true };
     return;
   }
@@ -856,7 +910,7 @@ canvas.addEventListener("pointermove", e => {
   if (!drawing) return;
   if (drawing.erase) {
     const hit = hitTest(w.x, w.y);
-    if (hit) remove(hit.id);
+    if (hit && !hit.locked) remove(hit.id);
     return;
   }
   if (drawing.kind === "pen" || drawing.kind === "marker") {
@@ -1082,6 +1136,21 @@ document.querySelectorAll(".bd-tool[data-tool]").forEach(b => {
 
 document.addEventListener("keydown", e => {
   if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
+  // Ctrl/Cmd+D — дубликат выделенного со сдвигом (как в Миро): готовую
+  // карточку или фигуру быстрее размножить, чем рисовать заново.
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "d") {
+    const o = BD.selected && BD.objects.get(BD.selected);
+    if (o && !isService(o)) {
+      e.preventDefault();
+      const copy = { ...o, id: uid(), rev: 0, locked: 0 };
+      if (copy.pts) copy.pts = copy.pts.map((v, i) => v + 16);
+      else { copy.x += 16; copy.y += 16; }
+      put(copy);
+      BD.selected = copy.id;
+      paint();
+    }
+    return;
+  }
   const map = { v: "select", p: "pen", m: "marker", e: "eraser", s: "note",
                 t: "text", r: "rect", o: "ellipse", a: "arrow" };
   const key = e.key.toLowerCase();
