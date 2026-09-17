@@ -124,6 +124,68 @@ function gcVowelSound(word) {
   return "aeiou".includes(w[0]);
 }
 
+/* Служебные слова: артикли, местоимения, предлоги, союзы, числительные.
+   Они не глаголы и не существительные, но встречаются в каждой фразе —
+   без них проверка «все ли слова мне знакомы» не прошла бы никогда. */
+const GC_FUNCTION_WORDS = new Set(["a", "an", "the", "this", "that", "these", "those",
+  "i", "you", "he", "she", "it", "we", "they", "me", "him", "her", "us", "them",
+  "my", "your", "his", "its", "our", "their", "mine", "yours", "hers", "ours",
+  "myself", "yourself", "himself", "herself", "itself", "ourselves", "themselves",
+  "and", "or", "but", "so", "because", "if", "when", "while", "before", "after",
+  "since", "until", "although", "though", "than", "as", "that", "which", "who",
+  "whom", "whose", "what", "where", "why", "how", "in", "on", "at", "to", "from",
+  "of", "for", "with", "without", "about", "into", "onto", "over", "under",
+  "between", "among", "through", "during", "by", "up", "down", "out", "off",
+  "near", "against", "per", "not", "no", "yes", "very", "too", "also", "only",
+  "just", "still", "already", "always", "never", "often", "sometimes", "usually",
+  "now", "then", "today", "tomorrow", "yesterday", "here", "there", "every",
+  "each", "some", "any", "all", "both", "few", "many", "much", "more", "most",
+  "less", "least", "other", "another", "same", "such", "own", "one", "two",
+  "three", "four", "five", "six", "seven", "eight", "nine", "ten", "first",
+  "second", "third", "last", "next", "please", "well", "really", "quite",
+  "s", "t", "don", "doesn", "didn", "isn", "aren", "wasn", "weren", "can",
+  "won", "hasn", "haven", "couldn", "wouldn", "shouldn", "let"]);
+
+/** Глагол ли слово в любой школьной форме. Список — js/verbs.js
+ *  (tools/build_verbs.py); не загрузился — правило молчит. */
+function gcIsVerb(w) {
+  return typeof EN_VERBS !== "undefined" && EN_VERBS.has(w);
+}
+
+/* Слова словаря сайта: WORDS грузится по уровням ученика. Собираем один
+   раз и запоминаем — на каждое предложение перебирать 11 тысяч записей
+   незачем. */
+let _gcLex = null;
+let _gcLexLevels = 0;
+function gcLexicon() {
+  const levels = (typeof WORDS !== "undefined" && WORDS) ? Object.keys(WORDS).length : 0;
+  if (_gcLex && levels === _gcLexLevels) return _gcLex;
+  const set = new Set();
+  if (typeof WORDS !== "undefined" && WORDS) {
+    Object.values(WORDS).forEach(list => (list || []).forEach(x => {
+      String(x.w || "").toLowerCase().split(/\s+/).forEach(part => set.add(part));
+    }));
+  }
+  if (typeof state !== "undefined" && state && Array.isArray(state.dictionary)) {
+    state.dictionary.forEach(d => String(d.w || "").toLowerCase()
+      .split(/\s+/).forEach(part => set.add(part)));
+  }
+  _gcLex = set;
+  _gcLexLevels = levels;
+  return set;
+}
+
+/** Знакомо ли нам слово. «Знакомо» — служебное, глагол или слово нашего
+ *  словаря (с поправкой на множественное число и притяжательное). */
+function gcKnownWord(w) {
+  if (GC_FUNCTION_WORDS.has(w) || gcIsVerb(w)) return true;
+  const lex = gcLexicon();
+  if (lex.has(w)) return true;
+  const stems = [w.replace(/'s$/, ""), w.replace(/ies$/, "y"), w.replace(/es$/, ""),
+    w.replace(/s$/, ""), w.replace(/ed$/, ""), w.replace(/ing$/, "")];
+  return stems.some(s => s !== w && s.length > 2 && (lex.has(s) || gcIsVerb(s)));
+}
+
 /** Разбор текста. Возвращает список замечаний; пустой список означает
  *  «правила молчат», а НЕ «текст безупречен» — так и пишем ученику. */
 function grammarCheck(text) {
@@ -460,6 +522,107 @@ function grammarCheck(text) {
     add(asWritten(i) + " " + v, asWritten(i) + " " + form,
         `Подлежащее в единственном числе — глагол получает -s: ${w} ${form}.`);
   });
+
+  // --- 15. В предложении нет сказуемого ---
+  //
+  // Методист написала «Dialysis structural medical procedure to clean your
+  // kidney from toxic chemicals» — пропущено «is a», а разбор промолчал:
+  // все слова были написаны верно. Теперь смотрим, есть ли в предложении
+  // личная форма глагола. Инфинитив с to сказуемым не считается — ровно
+  // на нём и держалась ошибка.
+  //
+  // Молчим при любом сомнении: короткие фразы (там законно без глагола —
+  // «Nice to meet you»), вопросы, восклицания и предложения, где есть
+  // хоть одно незнакомое нам слово — вдруг это и был глагол.
+  if (typeof EN_VERBS !== "undefined") {
+    raw.split(/(?<=[.!?])\s+|\n+/).forEach(chunk => {
+      const piece = chunk.trim();
+      if (!piece || /[?!]\s*$/.test(piece)) return;
+      // Кавычка-ёлочка в примерах словаря ломала разбор: «there’s»
+      // распадалось на there и s, и предложение оставалось без глагола.
+      const toks = (piece.toLowerCase().replace(/[\u2018\u2019]/g, "'").match(/[a-z']+/g) || []);
+      if (toks.length < 5) return;
+      const aux = w => GC_IRREGULAR_BE.has(w) || GC_MODALS.includes(w)
+                    || ["have", "has", "had", "do", "does", "did", "ought",
+                        "'s", "'re", "'ve", "'ll", "'d"].includes(w);
+      const SUBJ = ["i", "you", "we", "they", "he", "she", "it", "who"];
+      // Повелительное наклонение: «Plug the lamp into the socket» — глагол
+      // стоит первым и может быть нам незнаком. Такие фразы пропускаем
+      // целиком: отличить приказ от обрывка без разбора нельзя.
+      if (!GC_FUNCTION_WORDS.has(toks[0]) && !gcIsVerb(toks[0])
+          && ["the", "a", "an", "my", "your", "his", "her", "our", "their",
+              "this", "that", "these", "those", "it", "them", "me", "us"].includes(toks[1])) return;
+      const finite = toks.some((w, i) => {
+        // -ed и -ing: даже незнакомое слово с таким хвостом почти всегда
+        // глагольная форма. Ошибиться в эту сторону безопасно: правило
+        // просто промолчит.
+        // -s: «the catalyst speeds up» — незнакомое слово с известной
+        // основой тоже считаем глаголом (и заодно молчим на множественном
+        // числе: промолчать дешевле, чем обвинить зря).
+        // Слово сразу после подлежащего-местоимения — почти всегда
+        // сказуемое: «we boogie», «they hike».
+        // Догадки по хвосту слова (-s, -ed, -ing) принимаем только НЕ в
+        // самом конце фразы: сказуемое там почти не стоит, а вот хвост
+        // «… from toxic chemicals» есть у каждого второго предложения — и
+        // из-за него правило молчало бы всегда. Точные глаголы из списка
+        // засчитываем в любом месте.
+        const early = i <= toks.length - 3;
+        const stemKnown = early && w.length > 3 && /s$/.test(w) && !/ss$/.test(w)
+          && (gcKnownWord(w.replace(/(ie|e)?s$/, "")) || gcKnownWord(w.replace(/s$/, "")));
+        const afterSubject = i > 0 && SUBJ.includes(toks[i - 1]) && !GC_FUNCTION_WORDS.has(w);
+        // Знакомое слово, за которым идёт дополнение, наречие на -ly,
+        // предлог или определитель, — почти всегда сказуемое: «barks
+        // loudly», «scares me», «censor rude words».
+        const nxt = toks[i + 1];
+        const beforeObject = !!nxt && gcKnownWord(w) && !GC_FUNCTION_WORDS.has(w)
+          && (["me", "us", "him", "her", "them", "it", "you"].includes(nxt)
+              || /ly$/.test(nxt)
+              || ["in", "on", "at", "from", "of", "for", "with", "by", "into",
+                  "about", "over", "under", "through", "near", "against"].includes(nxt));
+        // Определитель после слова НЕ признак глагола: «my brother a good
+        // student» — как раз та фраза без сказуемого, которую мы ищем.
+        const looksVerb = gcIsVerb(w) || beforeObject
+          || (early && w.length > 4 && /(ed|ing)$/.test(w))
+          || stemKnown || afterSubject;
+        if (!looksVerb && !aux(w)) return false;
+        if (toks[i - 1] === "to" && !aux(w)) return false;  // to clean — не сказуемое
+        // «the work», «my study» — после определителя это существительное.
+        // К be, have, do и модальным не относится: «that was», «this is».
+        if (!aux(w) && ["a", "an", "the", "my", "your", "his", "her", "our", "their",
+             "this", "that", "no", "every", "some", "any"].includes(toks[i - 1])) return false;
+        return true;
+      });
+      // Отдельный, более надёжный признак: в предложении нет НИ ОДНОГО
+      // слова из списка глаголов, а существительное стоит прямо перед
+      // артиклем — «my brother a good student», «the conveyor a machine».
+      // Так выглядит пропущенное is, и догадки по хвостам слов тут не
+      // мешают: они для этой фразы ничего не находят.
+      const PREP_G = ["in", "on", "at", "from", "of", "for", "with", "by", "into",
+        "about", "over", "under", "through", "without", "after", "before"];
+      const strictVerb = toks.some((w, i) => {
+        if (!gcIsVerb(w)) return false;
+        if (toks[i - 1] === "to" && !aux(w)) return false;
+        // «for moving things», «after leaving school» — это герундий,
+        // сказуемым он не бывает.
+        if (/ing$/.test(w) && PREP_G.includes(toks[i - 1])) return false;
+        if (!aux(w) && ["a", "an", "the", "my", "your", "his", "her", "our",
+             "their", "this", "that", "no"].includes(toks[i - 1])) return false;
+        return true;
+      });
+      const nounThenArticle = toks.some((w, i) =>
+        !GC_FUNCTION_WORDS.has(w) && !gcIsVerb(w) && gcKnownWord(w)
+        // Слово с глагольным хвостом перед артиклем — это сказуемое
+        // («booked a haircut»), а не пропущенное is.
+        && !/(ed|ing|s)$/.test(w)
+        && ["a", "an"].includes(toks[i + 1]));
+      if (finite && !(!strictVerb && nounThenArticle)) return;
+      if (!toks.every(gcKnownWord)) return;                // незнакомое слово — молчим
+      const short = piece.length > 46 ? piece.slice(0, 44).trim() + "…" : piece;
+      add(short, "",
+          "Похоже, в предложении нет сказуемого: пропущен глагол. "
+          + "«X is a procedure», «X cleans» — без is или без глагола фраза не складывается.");
+    });
+  }
 
   return notes;
 }

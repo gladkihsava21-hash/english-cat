@@ -395,6 +395,12 @@ function ensureLevelTest() {
 /** Разбор своего текста по правилам — нужен одному упражнению
  *  («Свои предложения»), поэтому грузится по месту. */
 function ensureGrammarCheck() {
-  if (typeof grammarCheck !== "undefined") return Promise.resolve(true);
-  return loadScriptOnce("js/grammarcheck.js");
+  // Вместе с правилами — список глаголов (js/verbs.js, tools/build_verbs.py):
+  // без него правило «в предложении нет сказуемого» молчит, потому что
+  // отличить редкий глагол от существительного ему больше нечем.
+  const verbs = (typeof EN_VERBS !== "undefined")
+    ? Promise.resolve(true)
+    : loadScriptOnce("js/verbs.js").catch(() => false);
+  if (typeof grammarCheck !== "undefined") return verbs;
+  return Promise.all([loadScriptOnce("js/grammarcheck.js"), verbs]).then(() => true);
 }

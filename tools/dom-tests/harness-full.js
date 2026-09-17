@@ -75,7 +75,9 @@ const load = f => {
  // это переживать. Загрузи мы всё — эта ветка не проверялась бы никогда.
  "js/words-A1.js", "js/words-A2.js", "js/words-B1.js",
  "js/phrases.js","js/grammar.js","js/wordform.js",
- "js/grammarcheck.js","js/irregular.js"].forEach(load);
+ // js/verbs.js в браузере приезжает вместе с правилами (ensureGrammarCheck):
+ // без него молчит проверка «в предложении нет сказуемого».
+ "js/verbs.js","js/grammarcheck.js","js/irregular.js"].forEach(load);
 
 // Списки озвученных предложений (js/sent-audio-*.js) в браузере едут
 // лениво, а jsdom для <script src> не зовёт ни onload, ни onerror —

@@ -54,7 +54,8 @@ def current():
 # не знает, что записи есть, и молчит там, где мог бы играть из кэша.
 LAZY = ["js/words-A1.js", "js/words-A2.js",
         "js/phrases.js", "js/wordform.js", "js/grammar.js",
-        "js/ipa.js", "js/grammarcheck.js", "js/leveltest.js", "js/irregular.js",
+        "js/ipa.js", "js/grammarcheck.js", "js/verbs.js", "js/leveltest.js",
+        "js/irregular.js",
         "js/sent-audio-A1.js", "js/sent-audio-A2.js", "js/sent-audio-B1.js",
         "js/sent-audio-B2.js", "js/sent-audio-C1.js", "js/sent-audio-C2.js"]
 
@@ -136,7 +137,25 @@ def split_words():
     return r.returncode == 0
 
 
+def build_verbs():
+    """Список глаголов для разбора грамматики. Собирается из словаря, а
+    значит устаревает вместе с ним: новые слова добавили — js/verbs.js
+    обязан знать про их формы, иначе правило «нет сказуемого» начнёт
+    ошибаться на свежих словах."""
+    script = ROOT / "tools" / "build_verbs.py"
+    if not script.exists():
+        return True
+    r = subprocess.run([sys.executable, str(script)], capture_output=True, text=True)
+    sys.stdout.write(r.stdout)
+    sys.stderr.write(r.stderr)
+    return r.returncode == 0
+
+
 def main():
+    if not build_verbs():
+        print()
+        print("Версия НЕ поднята: не собрался список глаголов (js/verbs.js).")
+        return 1
     if not split_words():
         print()
         print("Версия НЕ поднята: словарь не разрезался по уровням.")

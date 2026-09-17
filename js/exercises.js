@@ -498,6 +498,24 @@ const TR_FUNCTION = new Set(["a", "an", "the", "is", "are", "am", "was", "were",
   "do", "does", "did", "have", "has", "had", "will", "would", "to", "of"]);
 
 /** Разные формы одного слова: help / helped / helping. */
+/** Расстояние Левенштейна — сколько правок отделяет одно слово от
+ *  другого. Нужно, чтобы назвать опечатку по имени: «uniformity»
+ *  написано как «unifomaty». Слова короткие, поэтому хватает двух
+ *  строк вместо матрицы. */
+function editDistance(a, b) {
+  if (a === b) return 0;
+  let prev = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i];
+    for (let j = 1; j <= b.length; j++) {
+      cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1,
+                        prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    }
+    prev = cur;
+  }
+  return prev[b.length];
+}
+
 function sameStem(a, b) {
   if (a === b) return true;
   const cut = w => w.replace(/(ing|ed|es|s)$/, "");
@@ -3076,78 +3094,143 @@ const EX_RUNNERS = {
   },
 
   personal() {
-    // Три слова уровня, а не из словаря: раздел уровневый (схема методиста).
-    const pool = levelPool(3);
-    const words = pool.map(p => p.w);
-    stage().innerHTML = `
-      <div class="card word-quiz-card">
-        <p class="quiz-label">Напиши 1–3 предложения о себе, используя все три слова:</p>
-        <div class="quiz-word quiz-word-small">${words.map(esc).join(" · ")}</div>
-        <p class="muted-small">${pool.map(p => `${esc(p.w)} — ${esc(p.t)}`).join(" · ")}</p>
-        <textarea class="type-input type-area" id="pers-input" rows="4"
-          autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
-          placeholder="My day was..."></textarea>
-        <div class="quiz-buttons">
-          <button class="btn btn-primary" id="pers-check">Проверить</button>
-        </div>
-        <p class="type-feedback" id="pers-feedback" role="status" aria-live="polite"></p>
-      </div>`;
-    let scored = false;   // за подход считаем один раз
-    document.getElementById("pers-check").addEventListener("click", () => {
-      const raw = document.getElementById("pers-input").value.trim();
-      const val = normEn(raw);
-      if (!val) return;
-      // Слово ищем целиком, с окончаниями (cars, played), а не подстрокой:
-      // «car» засчитывался за «scar» и «care», то есть слово считалось
-      // использованным, хотя его в тексте не было.
-      const toks = raw.toLowerCase().match(/[a-z']+/g) || [];
-      const used = pool.filter(p => {
-        const w = p.w.toLowerCase();
-        return w.includes(" ") ? val.includes(w) : toks.some(t => t === w || sameStem(t, w));
+    // Подход из трёх заходов, а не один: «Дальше →» даёт новую тройку
+    // слов, и выходить-заходить ради следующего задания больше не надо
+    // (методист: «он даёт написать только одно предложение, и дальше не
+    // идёт»). Итог считаем по всем заходам разом.
+    const ROUNDS = 3;
+    // Слова — из словаря ученика (папка, отмеченные, домашка — через
+    // trainPool), а не из уровня: методист тренировала свои 60 слов, а
+    // упражнение подсовывало dialysis и longitude, которых у неё нет.
+    // Уровневыми добираем, только если своих не хватило на подход.
+    const own = trainPool(60, ["t"]);
+    const need = ROUNDS * 3;
+    const bank = own.length >= need ? own
+      : own.concat(levelPool(need - own.length, ["t"]).filter(
+          x => !own.some(o => o.w.toLowerCase() === x.w.toLowerCase())));
+    if (bank.length < 3) {
+      exFinish(0, 0, "Нужно хотя бы три слова — добавь их в словарь.");
+      return;
+    }
+    // pickFresh помнит показанное между подходами: без него одни и те же
+    // слова возвращались круг за кругом («конвейер он мне тренировал,
+    // апбит оставил»).
+    const picked = pickFresh("pers", bank, Math.min(need, bank.length), p => p.w.toLowerCase());
+    const triples = [];
+    for (let i = 0; i < picked.length; i += 3) {
+      const t = picked.slice(i, i + 3);
+      if (t.length === 3) triples.push(t);
+    }
+    if (!triples.length) triples.push(picked.slice(0, 3));
+
+    let round = 0;
+    let score = 0;
+
+    const renderRound = () => {
+      const pool = triples[round];
+      const words = pool.map(p => p.w);
+      stage().innerHTML = `
+        ${exProgress(round, triples.length)}
+        <div class="card word-quiz-card">
+          <p class="quiz-label">Напиши 1–3 предложения о себе, используя все три слова:</p>
+          <div class="quiz-word quiz-word-small">${words.map(esc).join(" · ")}</div>
+          <p class="muted-small">${pool.map(p => `${esc(p.w)} — ${esc(p.t)}`).join(" · ")}</p>
+          <textarea class="type-input type-area" id="pers-input" rows="4"
+            autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+            placeholder="My day was..."></textarea>
+          <div class="quiz-buttons">
+            <button class="btn btn-primary" id="pers-check">Проверить</button>
+          </div>
+          <p class="type-feedback" id="pers-feedback" role="status" aria-live="polite"></p>
+        </div>`;
+      let scored = false;   // за заход считаем один раз
+      document.getElementById("pers-check").addEventListener("click", () => {
+        const raw = document.getElementById("pers-input").value.trim();
+        const val = normEn(raw);
+        if (!val) return;
+        // Слово ищем целиком, с окончаниями (cars, played), а не подстрокой:
+        // «car» засчитывался за «scar» и «care», то есть слово считалось
+        // использованным, хотя его в тексте не было.
+        const toks = raw.toLowerCase().match(/[a-z']+/g) || [];
+        const used = pool.filter(p => {
+          const w = p.w.toLowerCase();
+          return w.includes(" ") ? val.includes(w) : toks.some(t => t === w || sameStem(t, w));
+        });
+        const missing = pool.filter(p => !used.includes(p));
+        const fb = document.getElementById("pers-feedback");
+        // Грамматику смотрим сами — набором правил на частые школьные
+        // ошибки (js/grammarcheck.js). Это не полный разбор языка, поэтому
+        // «замечаний нет» мы формулируем как «явных ошибок не вижу»,
+        // а не «всё верно»: соврать ученику дороже, чем промолчать.
+        const notes = typeof grammarCheck === "function" ? grammarCheck(raw) : [];
+        if (missing.length) {
+          // Раньше на этом месте разбор обрывался, и ученик слышал только
+          // «не хватает слова» — методист: «он не считал, он считал
+          // только спеллинг». Теперь замечания по грамматике показываем
+          // и здесь, а опечатку в самом слове называем по имени.
+          fb.className = "type-feedback err";
+          fb.textContent = "Не хватает: " + missing.map(p => {
+            const near = nearestToken(toks, p.w.toLowerCase());
+            return near ? `${p.w} (написано «${near}»)` : p.w;
+          }).join(", ");
+          showNotes(notes, false);
+          return;
+        }
+        // Три слова есть — но предложение ли это? «cat, dog, run» через
+        // запятую формально проходит проверку выше, а задание тут другое.
+        // Считаем слова: три заданных плюс хотя бы подлежащее, глагол и
+        // артикль — меньше шести слов в честном ответе не бывает.
+        const wordCount = (raw.match(/[A-Za-z']+/g) || []).length;
+        if (wordCount < pool.length + 3) {
+          fb.className = "type-feedback err";
+          fb.textContent = "Пока это список слов. Составь из них предложения — "
+            + "кто что делает.";
+          return;
+        }
+        // Слова засчитываем ТОЛЬКО дойдя сюда. Раньше statUpdate стоял выше
+        // проверки «не хватает» — и одно написанное слово отмечало его как
+        // вспомненное, заново на каждое нажатие. А так как домашка по словам
+        // закрывается по checked >= 1, её можно было сдать, не написав ни
+        // одного предложения.
+        if (scored) return;
+        scored = true;
+        used.forEach(p => statUpdate(p.w, true));
+        if (!notes.length) { award(30); score += 1; }   // чистый текст — заход засчитан
+        else award(15);                                 // слова на месте — половина
+        fb.className = "type-feedback " + (notes.length ? "err" : "ok");
+        fb.textContent = notes.length
+          ? `Все три слова на месте, но по грамматике есть замечания (${notes.length}):`
+          : "Все три слова на месте, и явных ошибок я не вижу — мур-р!";
+        showNotes(notes, true, raw);
+        document.getElementById("pers-check").disabled = true;
       });
-      const missing = pool.filter(p => !used.includes(p));
+    };
+
+    /** Слово из ответа, похожее на заданное: ученик написал «unifomaty»
+     *  вместо «uniformity», а мы отвечали просто «не хватает слова» —
+     *  и человек искал в тексте то, что он там уже написал. */
+    const nearestToken = (toks, word) => {
+      let best = null, bestD = 99;
+      const limit = word.length > 6 ? 3 : 2;
+      toks.forEach(t => {
+        if (Math.abs(t.length - word.length) > limit) return;
+        const d = editDistance(t, word);
+        if (d > 0 && d <= limit && d < bestD) { best = t; bestD = d; }
+      });
+      return best;
+    };
+
+    /** Разбор и кнопки под ним. finished — заход засчитан, значит ведём
+     *  дальше; иначе ученик правит текст и жмёт «Проверить» снова. */
+    const showNotes = (notes, finished, raw) => {
       const fb = document.getElementById("pers-feedback");
-      if (missing.length) {
-        fb.className = "type-feedback err";
-        fb.textContent = "Не хватает: " + missing.map(p => p.w).join(", ");
-        return;
-      }
-      // Три слова есть — но предложение ли это? «cat, dog, run» через
-      // запятую формально проходит проверку выше, а задание тут другое.
-      // Считаем слова: три заданных плюс хотя бы подлежащее, глагол и
-      // артикль — меньше шести слов в честном ответе не бывает.
-      const wordCount = (raw.match(/[A-Za-z']+/g) || []).length;
-      if (wordCount < pool.length + 3) {
-        fb.className = "type-feedback err";
-        fb.textContent = "Пока это список слов. Составь из них предложения — "
-          + "кто что делает.";
-        return;
-      }
-      // Слова засчитываем ТОЛЬКО дойдя сюда. Раньше statUpdate стоял выше
-      // проверки «не хватает» — и одно написанное слово отмечало его как
-      // вспомненное, заново на каждое нажатие. А так как домашка по словам
-      // закрывается по checked >= 1, её можно было сдать, не написав ни
-      // одного предложения.
-      if (scored) return;
-      scored = true;
-      used.forEach(p => statUpdate(p.w, true));
-      // Грамматику смотрим сами — набором правил на частые школьные
-      // ошибки (js/grammarcheck.js). Это не полный разбор языка, поэтому
-      // «замечаний нет» мы формулируем как «явных ошибок не вижу»,
-      // а не «всё верно»: соврать ученику дороже, чем промолчать.
-      const notes = typeof grammarCheck === "function" ? grammarCheck(raw) : [];
-      const aiOn = typeof aiKnownOff === "function" && !aiKnownOff()
-                && typeof sendToSavely === "function";
-      if (!notes.length) award(30);          // за чистый текст полная награда
-      else award(15);                        // слова на месте — половина
-      fb.className = "type-feedback " + (notes.length ? "err" : "ok");
-      fb.textContent = notes.length
-        ? `Все три слова на месте, но по грамматике есть замечания (${notes.length}):`
-        : "Все три слова на месте, и явных ошибок я не вижу — мур-р!";
+      const old = stage().querySelector(".pers-after");
+      if (old) old.remove();
       // Всё, что появляется после проверки, собираем в один блок и
       // вставляем разом: insertAdjacentElement("afterend") кладёт каждый
       // следующий элемент ПЕРЕД предыдущим, и кнопки уезжали выше разбора.
       const after = document.createElement("div");
+      after.className = "pers-after";
       if (notes.length) {
         const list = document.createElement("ul");
         list.className = "gc-list";
@@ -3155,35 +3238,56 @@ const EX_RUNNERS = {
           const li = document.createElement("li");
           // Через textContent по частям: это текст ученика, в innerHTML
           // ему делать нечего.
-          const was = document.createElement("s");
-          was.textContent = n.bad;
-          const now = document.createElement("b");
-          now.textContent = n.good;
-          li.append(was, " → ", now, " — " + n.why);
+          if (n.good) {
+            const was = document.createElement("s");
+            was.textContent = n.bad;
+            const now = document.createElement("b");
+            now.textContent = n.good;
+            li.append(was, " → ", now, " — " + n.why);
+          } else {
+            // Замечания без готовой замены («нет сказуемого»): стрелка
+            // в никуда сбивала бы с толку.
+            const was = document.createElement("i");
+            was.textContent = "«" + n.bad + "»";
+            li.append(was, " — " + n.why);
+          }
           list.appendChild(li);
         });
         after.appendChild(list);
+      }
+      if (!finished) {
+        const hint = document.createElement("p");
+        hint.className = "muted-small";
+        hint.textContent = notes.length
+          ? "Исправь и нажми «Проверить» ещё раз."
+          : "Допиши недостающие слова и нажми «Проверить».";
+        after.appendChild(hint);
+        fb.insertAdjacentElement("afterend", after);
+        return;
       }
       const tail = document.createElement("p");
       tail.className = "muted-small";
       tail.textContent = notes.length
         ? "Исправь и попробуй написать так же ещё раз — это лучший способ запомнить."
-        : "Проверяю частые ошибки: формы глагола, артикли, окончания, опечатки. "
-          + "Стиль и естественность звучания оценит репетитор.";
+        : "Проверяю частые ошибки: пропущенное сказуемое, формы глагола, артикли, "
+          + "окончания, опечатки. Стиль и естественность звучания оценит репетитор.";
       after.appendChild(tail);
+      const aiOn = typeof aiKnownOff === "function" && !aiKnownOff()
+                && typeof sendToSavely === "function";
+      const last = round >= triples.length - 1;
       const row = document.createElement("div");
       row.className = "quiz-buttons";
       row.innerHTML = (aiOn
         ? '<button type="button" class="btn btn-ghost" id="pers-ai">Разбор от Савелия</button>' : "")
-        + '<button type="button" class="btn btn-primary" id="pers-next">Дальше →</button>';
+        + `<button type="button" class="btn btn-primary" id="pers-next">${
+            last ? "Завершить" : "Дальше →"}</button>`;
       after.appendChild(row);
       fb.insertAdjacentElement("afterend", after);
-      document.getElementById("pers-check").disabled = true;
-      // Итог — по тому, что проверялось: слова на месте, но каждое
-      // замечание по грамматике — минус. Раньше всегда было «3 из 3 ·
-      // идеально», даже поверх разобранных ошибок.
-      const finish = () => exFinish(Math.max(0, pool.length - notes.length), pool.length);
-      row.querySelector("#pers-next").addEventListener("click", finish);
+      // Итог — по заходам без замечаний: «3 из 3» только у того, кто
+      // трижды написал без ошибок.
+      const finish = () => exFinish(score, triples.length);
+      const nextRound = () => { round += 1; renderRound(); };
+      row.querySelector("#pers-next").addEventListener("click", last ? finish : nextRound);
       const aiBtn = row.querySelector("#pers-ai");
       if (aiBtn) aiBtn.addEventListener("click", () => {
         // Уходим в чат с готовым вопросом: там свои лимиты и своя честная
@@ -3195,7 +3299,9 @@ const EX_RUNNERS = {
         if (typeof initChat === "function") initChat();
         sendToSavely("Проверь мои предложения: есть ли ошибки и звучат ли они естественно? Вот они:\n" + raw);
       });
-    });
+    };
+
+    renderRound();
   },
 
   blitz() {
