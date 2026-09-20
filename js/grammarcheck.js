@@ -63,6 +63,12 @@ const GC_COMMON_VERBS = [
   "leave", "become", "hold", "move", "share", "show", "turn", "answer",
   "decide", "explain", "join", "prefer", "receive", "return", "travel",
   "worry", "ride", "hear", "cook", "swim",
+  // rain и snow — самые частые погодные фразы «it rain», «it snow».
+  // В EN_VERBS их нет (в словаре перевод — существительное), поэтому
+  // «It rain a lot» ловило правило 15 с неверным диагнозом «нет
+  // сказуемого» вместо пропущенного -s. От ложного «make it rain»
+  // защищает проверка it-дополнения ниже.
+  "rain", "snow",
 ];
 
 /* Неисчисляемые существительные: с ними much (не many), а глагол — в
@@ -116,8 +122,16 @@ const GC_MISSPELL = {
  *  hour → an. Без него правило врало бы на самых частых словах. */
 function gcVowelSound(word) {
   const w = word.toLowerCase();
-  const consonantSound = ["university", "universe", "user", "unique", "uniform", "unit",
-    "european", "one", "once", "useful", "usual"];
+  // /juː/ в начале — согласный звук при гласной букве: a university,
+  // a European. Список — приставки, а не слова целиком: «univers»
+  // закрывает university, universe и universal разом. Голое «uni»
+  // брать нельзя: «uninhabited» читается с /ʌ/. «use»/«usu» не задевают
+  // «usher» (ush-) — проверено намеренно.
+  const consonantSound = ["univers", "unique", "uniform", "unit", "union",
+    "urine", "util", "use", "usu", "ubiquitous", "ukulele", "unic", "ufo",
+    "euro", "eulog", "euph", "eucalypt", "eureka", "one", "once"];
+  // Немая h — гласный звук при согласной букве: an hour, an honest man.
+  // «heir» закрывает heiress и heirloom, «honest» — honesty.
   const vowelSound = ["hour", "honest", "honour", "honor", "heir"];
   if (consonantSound.some(x => w.startsWith(x))) return false;
   if (vowelSound.some(x => w.startsWith(x))) return true;
@@ -340,6 +354,14 @@ function grammarCheck(text) {
     // настоящем: «He put peanut butter on his toast» — верное прошедшее,
     // а правило требовало «he puts».
     if (GC_PAST_SAME.includes(v)) return;
+    // «Did she call you?», «Does he like coffee?» — окончание ушло во
+    // вспомогательный глагол слева, сказуемое есть. Без этой проверки
+    // правило требовало «she calls» в правильном вопросе. Смотрим ровно
+    // на одно слово влево: «He does his homework» не затрагивается —
+    // там does стоит справа от местоимения и до v проверка не доходит
+    // (does нет в GC_COMMON_VERBS).
+    if (i > 0 && !boundary[i - 1]
+        && ["do", "does", "did", "don't", "doesn't", "didn't"].includes(lower[i - 1])) return;
     // it — не только подлежащее, но и дополнение: «Pull it open»,
     // «I like it very much». Подлежащим it бывает в начале предложения или
     // после союза; после глагола или предлога это объект, и -s глаголу за
@@ -362,8 +384,14 @@ function grammarCheck(text) {
     if (!["i", "we", "they", "you"].includes(w) || !sameSentence(i)) return;
     const v = lower[i + 1];
     if (!v || !v.endsWith("s")) return;
-    const base = v.slice(0, -1);
-    if (!GC_COMMON_VERBS.includes(base)) return;
+    // goes, does, watches образуются через -es, studies/tries — через
+    // -ies: раньше отрезали только «s», и «I goes» проходило мимо —
+    // «goe» в списке глаголов нет.
+    const bases = [v.slice(0, -1)];
+    if (v.endsWith("ies")) bases.push(v.slice(0, -3) + "y");
+    if (v.endsWith("es")) bases.push(v.slice(0, -2));
+    const base = bases.find(b => GC_COMMON_VERBS.includes(b));
+    if (!base) return;
     add(asWritten(i) + " " + v, asWritten(i) + " " + base,
         `Окончание -s бывает только у he / she / it. Правильно: ${w} ${base}.`);
   });
@@ -385,10 +413,15 @@ function grammarCheck(text) {
 
   // --- 8. Неправильные формы и частые опечатки ---
   lower.forEach(w => {
-    if (GC_WRONG_FORMS[w]) {
+    // Доступ ТОЛЬКО через hasOwnProperty: оба словаря — обычные объекты,
+    // и GC_WRONG_FORMS["constructor"] находил Object по цепочке
+    // прототипов. «constructor» — обычное слово нашего же словаря (C1),
+    // и ученик видел «constructor → function Object() { [native code] }».
+    // Та же мина ждала toString, valueOf и hasOwnProperty.
+    if (Object.prototype.hasOwnProperty.call(GC_WRONG_FORMS, w)) {
       add(w, GC_WRONG_FORMS[w], "Это неправильная форма — запомни её отдельно.");
     }
-    if (GC_MISSPELL[w]) {
+    if (Object.prototype.hasOwnProperty.call(GC_MISSPELL, w)) {
       add(w, GC_MISSPELL[w], "Опечатка в написании слова.");
     }
   });
@@ -447,6 +480,11 @@ function grammarCheck(text) {
     while (start > 0 && sameSentence(start - 1)) start--;
     const subject = lower.slice(start, i);
     if (!subject.length || !SINGULAR_START.includes(subject[0])) return;
+    // «A dog is never unfaithful», «A student can always write» — между
+    // подлежащим и наречием уже стоит be или модальный: сказуемое есть,
+    // а слово после наречия — прилагательное или второй глагол. Без этой
+    // проверки правило советовало «unfaithfuls».
+    if (subject.some(x => GC_IRREGULAR_BE.has(x) || GC_MODALS.includes(x))) return;
     // Признаки, при которых подлежащее уже не единственное или их два
     const risky = ["of", "and", "or", "people", "children", "men", "women", "both", "all", "many", "few"];
     if (subject.some(x => risky.includes(x))) return;
@@ -511,6 +549,20 @@ function grammarCheck(text) {
     if (!GC_SINGULAR_SUBJ.has(w) || !sameSentence(i)) return;
     const okSubject = i === 0 || boundary[i - 1] || GC_SUBJ_DET.has(lower[i - 1]);
     if (!okSubject) return;
+    // «Where does your brother live?» — окончание ушло во вспомогательный
+    // слева от подлежащего. Ищем do/does/did (с отрицаниями) влево, но
+    // не дальше своей клаузы: союз или wh-слово её закрывает, и чужой
+    // «did» из соседней части («…and my brother go») настоящую ошибку
+    // не спрячет.
+    let auxLeft = false;
+    for (let j = i - 1; j >= 0 && !boundary[j]; j--) {
+      if (GC_CLAUSE_START.has(lower[j])) break;
+      if (["do", "does", "did", "don't", "doesn't", "didn't"].includes(lower[j])) {
+        auxLeft = true;
+        break;
+      }
+    }
+    if (auxLeft) return;
     const v = lower[i + 1];
     if (!v || !GC_COMMON_VERBS.includes(v)) return;   // не уверены — молчим
     if (GC_IRREGULAR_BE.has(v) || GC_MODALS.includes(v) || GC_PAST_SAME.includes(v)) return;
@@ -600,7 +652,12 @@ function grammarCheck(text) {
       const PREP_G = ["in", "on", "at", "from", "of", "for", "with", "by", "into",
         "about", "over", "under", "through", "without", "after", "before"];
       const strictVerb = toks.some((w, i) => {
-        if (!gcIsVerb(w)) return false;
+        // GC_COMMON_VERBS рядом с EN_VERBS: «It rain a lot» — rain есть
+        // в школьном списке глаголов, но не в EN_VERBS (словарь перевёл
+        // его существительным). Без этого фраза получала второе, неверное
+        // замечание «нет сказуемого» рядом с верным «it rains». Школьный
+        // список — про глаголы, поэтому молчание здесь безопасно.
+        if (!gcIsVerb(w) && !GC_COMMON_VERBS.includes(w)) return false;
         if (toks[i - 1] === "to" && !aux(w)) return false;
         // «for moving things», «after leaving school» — это герундий,
         // сказуемым он не бывает.
