@@ -15,6 +15,17 @@ async function api(path, body) {
 
 let data = null;
 
+// Админские ручки возвращают свежие списки прямо в ответе — перерисовываем
+// из него, лишний запрос за данными не нужен. Вынесено из renderTutors:
+// тем же «пришло — перерисуй» пользуются модалки продления и удаления.
+const refresh = res => {
+  if (!res.ok) return;
+  data.tutors = res.tutors;
+  data.overview = res.overview;
+  renderOverview();
+  renderTutors();
+};
+
 function money(n) { return (n || 0).toLocaleString("ru-RU") + " ₽"; }
 
 function accessTag(t) {
@@ -130,8 +141,6 @@ function renderTutors() {
       </div>
     </div>`).join("");
 
-  const refresh = res => { if (res.ok) { data.tutors = res.tutors; data.overview = res.overview; renderOverview(); renderTutors(); } };
-
   document.querySelectorAll("[data-save]").forEach(b => b.addEventListener("click", async () => {
     const id = Number(b.dataset.save);
     refresh(await api("/api/admin/plan", {
@@ -141,12 +150,9 @@ function renderTutors() {
     }));
   }));
 
-  document.querySelectorAll("[data-pay]").forEach(b => b.addEventListener("click", async () => {
-    const days = prompt("На сколько дней продлить доступ?", "30");
-    if (days === null) return;
-    refresh(await api("/api/admin/pay", {
-      token: atoken(), tutorId: Number(b.dataset.pay), days: Number(days) || 0,
-    }));
+  document.querySelectorAll("[data-pay]").forEach(b => b.addEventListener("click", () => {
+    const t = data.tutors.find(x => x.id === Number(b.dataset.pay));
+    if (t) openPayModal(t);
   }));
 
   document.querySelectorAll("[data-verify], [data-unverify]").forEach(b => b.addEventListener("click", async () => {
@@ -158,15 +164,109 @@ function renderTutors() {
 
   // Удаление уносит учеников, домашки и фото — просим написать слово,
   // случайным кликом такое терять нельзя
-  document.querySelectorAll("[data-del]").forEach(b => b.addEventListener("click", async () => {
+  document.querySelectorAll("[data-del]").forEach(b => b.addEventListener("click", () => {
     const t = data.tutors.find(x => x.id === Number(b.dataset.del));
-    const word = prompt(`Удалить «${t.name}» вместе с ${t.students} учениками,\nдомашками и фото?\n\nНапишите УДАЛИТЬ для подтверждения:`);
-    if (!word) return;
-    const res = await api("/api/admin/delete", { token: atoken(), tutorId: t.id, confirm: word });
-    if (!res.ok) { alert(res.error || "Не получилось."); return; }
-    refresh(res);
+    if (t) openDelModal(t);
   }));
 }
+
+// ===== Модалки продления и удаления =====
+//
+// Здесь стояли prompt() и alert(). Системные диалоги запрещены
+// (AGENTS.md, §7): в prompt не видно, что набрал, и требования в нём не
+// объяснить, а alert на телефоне выглядит как сбой сайта. Вместо них —
+// формы в .modal-card через openModal/closeModal (роль, фокус, Escape),
+// ошибки — видимой строкой рядом с кнопкой.
+
+// Кому адресовано открытое окно: модалки две на всех репетиторов,
+// разметка одна — имя и число учеников подставляются при открытии.
+let _payTutor = null;
+let _delTutor = null;
+
+/** Сброс строки ошибки при открытии: иначе прошлая неудача встречает
+ *  владельца в следующем окне и читается как свежая. */
+function clearMsg(id) {
+  const msg = $(id);
+  msg.className = "type-feedback";
+  msg.textContent = "";
+}
+
+function showErr(id, text) {
+  const msg = $(id);
+  msg.className = "type-feedback err";
+  msg.textContent = text;
+}
+
+function openPayModal(t) {
+  _payTutor = t;
+  $("pay-who").textContent = `${t.name}: доступ продлится на указанное число дней.`;
+  $("pay-days").value = "30";
+  clearMsg("pay-msg");
+  openModal("pay-modal", { focus: "#pay-days" });
+}
+
+function openDelModal(t) {
+  _delTutor = t;
+  $("del-what").textContent =
+    `«${t.name}» уйдёт вместе с учениками (${t.students}), домашками и фото. Обратной дороги нет.`;
+  $("del-word").value = "";
+  // Кнопка заперта, пока не набрано слово целиком: это и есть
+  // подтверждение в два нажатия без системного confirm().
+  $("del-go").disabled = true;
+  clearMsg("del-msg");
+  openModal("del-modal", { focus: "#del-word" });
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  const payForm = $("pay-form"), delForm = $("del-form");
+  if (!payForm || !delForm) return;
+
+  $("pay-cancel").addEventListener("click", () => closeModal("pay-modal"));
+  payForm.addEventListener("submit", async e => {
+    e.preventDefault();
+    if (!_payTutor) return;
+    const days = Number($("pay-days").value) || 0;
+    if (days < 1) {
+      showErr("pay-msg", "Укажите число дней — не меньше одного.");
+      return;
+    }
+    clearMsg("pay-msg");
+    $("pay-msg").textContent = "Продлеваю…";
+    const res = await api("/api/admin/pay", {
+      token: atoken(), tutorId: _payTutor.id, days,
+    });
+    if (!res.ok) {
+      showErr("pay-msg", res.error || "Не получилось. Проверьте связь и попробуйте ещё раз.");
+      return;
+    }
+    closeModal("pay-modal");
+    refresh(res);
+  });
+
+  $("del-cancel").addEventListener("click", () => closeModal("del-modal"));
+  $("del-word").addEventListener("input", () => {
+    $("del-go").disabled = $("del-word").value.trim() !== "УДАЛИТЬ";
+  });
+  delForm.addEventListener("submit", async e => {
+    e.preventDefault();
+    if (!_delTutor) return;
+    const word = $("del-word").value.trim();
+    // Страховка от Enter в поле: кнопка без слова заперта, но отправку
+    // формы клавишей она не отменяет.
+    if (word !== "УДАЛИТЬ") return;
+    clearMsg("del-msg");
+    $("del-msg").textContent = "Удаляю…";
+    const res = await api("/api/admin/delete", {
+      token: atoken(), tutorId: _delTutor.id, confirm: word,
+    });
+    if (!res.ok) {
+      showErr("del-msg", res.error || "Не получилось. Проверьте связь и попробуйте ещё раз.");
+      return;
+    }
+    closeModal("del-modal");
+    refresh(res);
+  });
+});
 
 // ===== Ученики без репетитора =====
 

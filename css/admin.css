@@ -69,3 +69,9 @@
   line-height: 1.45; white-space: pre; overflow-x: auto; margin: 0 0 14px;
   padding: 12px 14px; background: var(--surface-alt); border-radius: 10px; color: var(--ink);
 }
+
+/* --- Модалки продления и удаления репетитора ---
+   Разметка — общая (.modal/.modal-card из tutor.css), здесь только
+   подпись поля: жирная, приглушённая, как у остальных форм админки. */
+.am-field { display: block; font-weight: 800; font-size: var(--text-caption); color: var(--muted); }
+.am-field .type-input { margin-top: 8px; }

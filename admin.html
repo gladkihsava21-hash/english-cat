@@ -37,6 +37,7 @@
 <link rel="stylesheet" href="css/cat.css?v=297">
 <link rel="stylesheet" href="css/a11y.css?v=297">
 <link rel="stylesheet" href="css/admin.css?v=297">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
 </head>
 <body>
 
@@ -109,6 +110,48 @@
     <p class="muted-note" id="err-lead">Загружаю…</p>
     <div id="errors"></div>
   </main>
+</div>
+
+<!-- Продление доступа. Раньше это был системный prompt(): в нём не видно,
+     что набрал, и объяснить в нём нечего — заменён формой по соглашению
+     проекта (AGENTS.md, §7). Ошибка показывается строкой в самом окне. -->
+<div id="pay-modal" class="modal hidden">
+  <div class="modal-card">
+    <h3>Продление доступа</h3>
+    <p class="reset-note" id="pay-who"></p>
+    <form id="pay-form">
+      <label class="am-field">На сколько дней
+        <input type="number" class="type-input" id="pay-days" min="1" max="3650"
+               step="1" value="30" inputmode="numeric" required>
+      </label>
+      <p class="type-feedback" id="pay-msg" role="alert"></p>
+      <div class="quiz-buttons">
+        <button type="button" class="btn btn-ghost" id="pay-cancel">Отмена</button>
+        <button type="submit" class="btn btn-primary">Продлить</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Удаление репетитора. Вместо prompt() с «напишите УДАЛИТЬ» — то же слово,
+     но в поле, где видно, что набрано, и кнопка заперта, пока слово не
+     совпало целиком: это подтверждение в два нажатия. -->
+<div id="del-modal" class="modal hidden">
+  <div class="modal-card">
+    <h3>Удалить репетитора</h3>
+    <p class="reset-note" id="del-what"></p>
+    <form id="del-form">
+      <label class="am-field">Напишите УДАЛИТЬ, чтобы подтвердить
+        <input type="text" class="type-input" id="del-word"
+               autocomplete="off" spellcheck="false">
+      </label>
+      <p class="type-feedback" id="del-msg" role="alert"></p>
+      <div class="quiz-buttons">
+        <button type="button" class="btn btn-ghost" id="del-cancel">Отмена</button>
+        <button type="submit" class="btn btn-ghost danger" id="del-go" disabled>Удалить</button>
+      </div>
+    </form>
+  </div>
 </div>
 
 <script defer src="js/theme.js?v=297"></script>
