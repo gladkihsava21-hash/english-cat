@@ -3157,7 +3157,8 @@ class Handler(SimpleHTTPRequestHandler):
         if name in ("", "index.html", "tutor.html", "admin.html", "credits.html",
                     "privacy.html", "offer.html", "board.html", "faq.html",
                     "manifest.json", "sw.js",
-                    "icon-192.png", "icon-512.png", "favicon.ico", "robots.txt"):
+                    "icon-192.png", "icon-512.png", "favicon.ico", "favicon.svg",
+                    "robots.txt", "sitemap.xml"):
             return True
         # Скрытые файлы и выход вверх — на любом уровне пути, а не только
         # в начале: «img/../db.py» и «img/.env» тоже мимо.

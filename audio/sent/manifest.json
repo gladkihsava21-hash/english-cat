@@ -16904,7 +16904,7 @@
   "level": "A1",
   "license": "Public domain",
   "license_url": "",
-  "source": "x",
+  "source": "https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_GB/cori/high",
   "synthetic": true,
   "text": "Give me a spoon, please.",
   "voice": "en_GB-cori-high"
@@ -49414,7 +49414,7 @@
   "level": "A1",
   "license": "Public domain",
   "license_url": "",
-  "source": "x",
+  "source": "https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_GB/cori/high",
   "synthetic": true,
   "text": "There is a picture on the wall.",
   "voice": "en_GB-cori-high"
@@ -63854,7 +63854,7 @@
   "level": "A1",
   "license": "Public domain",
   "license_url": "",
-  "source": "x",
+  "source": "https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_GB/cori/high",
   "synthetic": true,
   "text": "I drink orange juice.",
   "voice": "en_GB-cori-high"
@@ -77024,7 +77024,7 @@
   "level": "A1",
   "license": "Public domain",
   "license_url": "",
-  "source": "x",
+  "source": "https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_GB/cori/high",
   "synthetic": true,
   "text": "We play in the garden.",
   "voice": "en_GB-cori-high"
@@ -90884,7 +90884,7 @@
   "level": "A1",
   "license": "Public domain",
   "license_url": "",
-  "source": "x",
+  "source": "https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_GB/cori/high",
   "synthetic": true,
   "text": "The cat sits on the floor.",
   "voice": "en_GB-cori-high"
@@ -98714,7 +98714,7 @@
   "level": "A1",
   "license": "Public domain",
   "license_url": "",
-  "source": "x",
+  "source": "https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_GB/cori/high",
   "synthetic": true,
   "text": "The plate is on the table.",
   "voice": "en_GB-cori-high"

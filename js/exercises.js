@@ -2179,10 +2179,10 @@ function runType(rounds, opts = {}) {
         ${opts.textarea
           ? `<textarea class="type-input type-area" id="type-input" rows="3"
                autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
-               placeholder="${opts.placeholder || "Напиши по-английски…"}"></textarea>`
+               placeholder="${esc(opts.placeholder || "Напиши по-английски…")}"></textarea>`
           : `<input class="type-input" id="type-input"
                autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
-               placeholder="${opts.placeholder || "Введи слово…"}">`}
+               placeholder="${esc(opts.placeholder || "Введи слово…")}">`}
         <div class="quiz-buttons">
           ${r.hint ? `<button class="btn btn-ghost" id="type-hint">${esc(opts.hintLabel || "Подсказка")}</button>` : ""}
           <button class="btn btn-primary" id="type-check">Проверить</button>
