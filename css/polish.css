@@ -1,0 +1,233 @@
+/* Слой света и глубины: поверх savely.css и a11y.css, краски и формы
+ * прежние — меняется только то, как они поданы.
+ *
+ * Правила те же, что у всего проекта: ни одного шестнадцатеричного цвета
+ * (всё из tokens.css, объём — color-mix токенов), две тени, одна кривая,
+ * пастель только в декоре. Если этот файл не загрузился — сайт просто
+ * выглядит как раньше: здесь нет ничего, без чего вёрстка сломается.
+ */
+
+/* ==========================================================================
+   1. АТМОСФЕРА: БУМАГА НЕ ПЛОСКАЯ, В НЕЙ ЕСТЬ СВЕТ
+   --------------------------------------------------------------------------
+   Три больших размытых пятна из РАЗРЕШЁННОЙ для декора пастели. Днём они
+   читаются как свет из окна, ночью — как тлеющие угли: ночная пастель в
+   tokens.css уже приглушена, поэтому один блок работает на обе темы.
+   Пятна лежат под контентом и не двигаются — движущийся фон за текстом
+   утомляет за минуту чтения. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(52vw 52vw at 88% -6%,
+      color-mix(in oklab, var(--soft-mint) 26%, transparent), transparent 70%),
+    radial-gradient(44vw 44vw at -8% 34%,
+      color-mix(in oklab, var(--soft-sky) 22%, transparent), transparent 70%),
+    radial-gradient(60vw 60vw at 55% 112%,
+      color-mix(in oklab, var(--soft-lavender) 20%, transparent), transparent 70%);
+}
+/* Ночью пятна едва тлеют, а не светят: на тёмной бумаге и 12 % достаточно. */
+:root[data-theme="night"] body::before {
+  opacity: .5;
+}
+
+/* ==========================================================================
+   2. ГЕРОЙ: КОТ В КРУГУ СВЕТА
+   --------------------------------------------------------------------------
+   Персонаж по-прежнему «лежит на бумаге» — ни карточки, ни плашки под ним.
+   Но вокруг него есть свет: мягкий ореол из акцентной подложки, без края
+   и без тени. Глаз находит кота первым, и при этом нечему «съехать» —
+   у ореола нет геометрии. */
+.hero-cat {
+  position: relative;
+  margin-bottom: var(--space-24);
+}
+.hero-cat::before {
+  content: "";
+  position: absolute;
+  inset: 50% auto auto 50%;
+  width: 340px;
+  height: 340px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(circle,
+    color-mix(in oklab, var(--accent-soft) 88%, transparent) 0%,
+    color-mix(in oklab, var(--accent-soft) 34%, transparent) 46%,
+    transparent 68%);
+}
+.hero-cat .cat-avatar { position: relative; width: 224px; }
+:root[data-theme="night"] .hero-cat::before { opacity: .55; }
+
+/* Заголовок героя чуть плотнее к строке: на 92px междустрочие 1.06
+   рассыпалось, когда строка переносится на телефоне. */
+.hero h1 { letter-spacing: -0.025em; }
+
+/* Договор «Ты учишь. Я помню.» — это рукопожатие, а не абзац: даём ему
+   воздуха, чтобы читалось как реплика кота, а не как часть подводки. */
+.hero-deal {
+  margin: var(--space-12) 0 var(--space-32);
+}
+
+/* ==========================================================================
+   3. РОЛИК: СЦЕНА, А НЕ ПРЯМОУГОЛЬНИК
+   --------------------------------------------------------------------------
+   Блок «Как это работает» — единственное тёмное пятно на светлом экране,
+   это сцена. У неё панельное скругление, подъёмная тень и живая кнопка:
+   кольцо вокруг play дышит один раз в три секунды — приглашение нажать,
+   а не гирлянда. При reduced-motion анимацию глушит общее правило
+   tokens.css. */
+.intro-video,
+.intro-play,
+.intro-video video {
+  border-radius: var(--radius-panel);
+}
+.intro-play {
+  box-shadow: var(--shadow-lift);
+  transition: transform var(--dur-fast) var(--ease);
+}
+.intro-play:hover { transform: translateY(-2px); }
+.intro-play-mark {
+  transition: transform var(--dur-fast) var(--ease);
+}
+.intro-play:hover .intro-play-mark { transform: scale(1.07); }
+.intro-play-mark::before {
+  content: "";
+  position: absolute;
+  inset: -7px;
+  border-radius: 50%;
+  border: 2px solid color-mix(in oklab, var(--accent-fill) 70%, transparent);
+  animation: playPulse 3s var(--ease) infinite;
+}
+@keyframes playPulse {
+  0%   { transform: scale(.92); opacity: 0; }
+  35%  { opacity: .9; }
+  100% { transform: scale(1.28); opacity: 0; }
+}
+
+/* ==========================================================================
+   4. КАРТОЧКА ВХОДА: ПАНЕЛЬ, К КОТОРОЙ ПРИШЛИ
+   --------------------------------------------------------------------------
+   Форма регистрации — дверь в продукт. Карточный радиус (18) делал её
+   одной из многих; панельный (28) и подъёмная тень отличают «сюда» от
+   остальных карточек на экране. */
+.auth-card {
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-lift);
+  border-color: var(--line-soft);
+  padding: var(--space-32);
+}
+@media (max-width: 720px) {
+  .auth-card { padding: var(--space-24) var(--space-20); }
+}
+
+/* «Я ученик / Я репетитор» — вопрос, а не две кнопки. Сегмент-контроль:
+   общая подложка, активный сегмент — светлая таблетка с тенью.
+   Заодно закрыт найденный аудитом дефект: прежний активный сегмент ночью
+   давал 1,39:1 (--accent-dark не переворачивался). Теперь текст активного
+   — чернила по карточке: 11,5:1 днём и 11,6:1 ночью. */
+.role-switch {
+  background: var(--surface-alt);
+  border-radius: var(--radius-tag);
+  padding: var(--space-4);
+  gap: var(--space-4);
+}
+.role-btn {
+  border: var(--border-w) solid transparent;
+  border-radius: var(--radius-tag);
+  background: none;
+  color: var(--ink-soft);
+  font-weight: 700;
+}
+.role-btn:hover { color: var(--ink); border-color: transparent; }
+.role-btn.active {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow-soft);
+}
+
+/* Вкладки «Регистрация / Вход» — та же механика, один язык с ролями.
+   a11y.css красил активную вкладку в сплошной акцент с белым текстом:
+   этот слой идёт позже и заменяет заливку на светлую таблетку, поэтому
+   цвет текста обязан быть возвращён чернилам явно — иначе белый по белому. */
+.tabs {
+  background: var(--surface-alt);
+  border-radius: var(--radius-tag);
+  padding: var(--space-4);
+}
+.tab { border-radius: var(--radius-tag); border-color: transparent; }
+.tab.active {
+  background: var(--surface);
+  color: var(--ink);
+  border-color: transparent;
+  box-shadow: var(--shadow-soft);
+}
+.tab.active:hover {
+  background: var(--surface);
+  border-color: transparent;
+}
+
+/* ==========================================================================
+   5. КНОПКА: ОБЪЁМ БЕЗ НОВЫХ КРАСОК
+   --------------------------------------------------------------------------
+   Заливка фирменная (a11y.css), здесь — только свет: тонкий градиент от
+   осветлённой копии заливки к ней самой. Краска та же, читается глубина.
+   Наведение — подъём, нажатие — посадка: один словарь состояний. */
+.btn-primary {
+  background: linear-gradient(180deg,
+    color-mix(in oklab, var(--accent-fill) 86%, white) 0%,
+    var(--accent-fill) 60%);
+  transition: transform var(--dur-fast) var(--ease),
+              box-shadow var(--dur) var(--ease),
+              filter var(--dur-fast) var(--ease);
+}
+.btn-primary:hover {
+  background: linear-gradient(180deg,
+    color-mix(in oklab, var(--accent-fill) 82%, white) 0%,
+    color-mix(in oklab, var(--accent-fill) 92%, var(--ink)) 60%);
+  transform: translateY(-2px);
+  box-shadow: inset 0 0 0 1px var(--accent-line), var(--shadow-lift);
+}
+.btn-primary:active { transform: translateY(0); }
+
+/* ==========================================================================
+   6. ПОЯВЛЕНИЕ ГЕРОЯ: ОДИН ПОДЪЁМ, ПО ПОРЯДКУ
+   --------------------------------------------------------------------------
+   Блоки героя вступают каскадом — как riseIn у карточек в savely.css,
+   но для первого экрана. Один раз при загрузке; повторно не дёргаем. */
+.hero > * {
+  animation: riseIn var(--dur-slow) var(--ease) both;
+}
+.hero > *:nth-child(1) { animation-delay: 0s; }
+.hero > *:nth-child(2) { animation-delay: .06s; }
+.hero > *:nth-child(3) { animation-delay: .12s; }
+.hero > *:nth-child(4) { animation-delay: .18s; }
+.hero > *:nth-child(5) { animation-delay: .24s; }
+.hero > *:nth-child(6) { animation-delay: .30s; }
+.hero > *:nth-child(7) { animation-delay: .36s; }
+.hero > *:nth-child(8) { animation-delay: .42s; }
+
+/* ==========================================================================
+   7. ШАПКА: СТЕКЛО ПОПЛОТНЕЕ
+   --------------------------------------------------------------------------
+   Было 88 % бумаги и blur 12 — на пёстром фоне под шапкой текст просвечивал
+   и спорил с пунктами меню. 92 % и насыщенность: меню читается, воздух
+   остался. */
+.topbar {
+  background: color-mix(in srgb, var(--paper) 92%, transparent);
+  backdrop-filter: blur(16px) saturate(1.15);
+  -webkit-backdrop-filter: blur(16px) saturate(1.15);
+}
+
+/* ==========================================================================
+   8. ПОДВАЛ: МЯГКИЙ ПЕРЕХОД ОТ БУМАГИ
+   --------------------------------------------------------------------------
+   Подвал начинался рубленой горизонтальной гранью вторичного фона.
+   Градиент из той же краски снимает границу, а «холм» сверху остаётся. */
+.site-footer {
+  background: linear-gradient(180deg,
+    color-mix(in oklab, var(--surface-alt) 0%, transparent) 0%,
+    var(--surface-alt) 18%);
+}
