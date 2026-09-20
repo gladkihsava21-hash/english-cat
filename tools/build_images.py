@@ -262,7 +262,10 @@ def audio_credit_block():
             if lic_url:
                 lic_html = '<a href="%s" rel="license noopener" target="_blank">%s</a>' % (esc(lic_url), lic_html)
             name = esc(voice)
-            if src:
+            # Ссылку даём только настоящему URL: в манифесте озвучки встречалась
+            # заглушка "x" (ручной запуск рендера), и она уезжала в credits
+            # битой ссылкой.
+            if src and src.startswith("http"):
                 name = '<a href="%s" rel="noopener" target="_blank">%s</a>' % (esc(src), name)
             parts.append("%s — %s, %s (%d)" % (name, esc(author), lic_html, n))
         sent_note = ""
@@ -346,7 +349,7 @@ def write_credits(path, manifest, words_meta):
     .credits table { width: 100%%; border-collapse: collapse; margin-top: 24px;
       font-size: var(--text-caption, 16px); }
     .credits th, .credits td { text-align: left; padding: 10px 12px; vertical-align: middle;
-      border-bottom: var(--border-w, 1px) solid var(--line-soft, #E1E4DD); }
+      border-bottom: var(--border-w, 1px) solid var(--line-soft); }
     .credits th { font-weight: 700; white-space: nowrap; color: var(--ink-soft); }
     .credits td { color: var(--ink-soft); }
     .cr-pic { width: 64px; }
@@ -360,7 +363,7 @@ def write_credits(path, manifest, words_meta):
     @media (max-width: 640px) {
       .credits table, .credits thead, .credits tbody, .credits tr, .credits td, .credits th { display: block; }
       .credits thead { display: none; }
-      .credits tr { border-bottom: var(--border-w, 1px) solid var(--line-soft, #E1E4DD); padding: 12px 0; }
+      .credits tr { border-bottom: var(--border-w, 1px) solid var(--line-soft); padding: 12px 0; }
       .credits td { border: 0; padding: 2px 0; }
       .cr-pic img { width: 88px; height: 88px; }
     }

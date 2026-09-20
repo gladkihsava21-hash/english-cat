@@ -762,11 +762,15 @@ body { overflow-wrap: break-word; }
    и надпись с ними сталкивалась — нечитаемо становилось и то, и другое. */
 .intro-play-label {
   position: absolute; left: 0; right: 0; top: 0;
-  padding: 12px 16px 26px; color: #FFFFFF;
+  /* --cat-eye, а не --surface: видео-сцена тёмная в обеих темах, а --surface
+     ночью сам тёмный — подпись пропала бы. Глаз кота светлый всегда. */
+  padding: 12px 16px 26px; color: var(--cat-eye);
   font-size: var(--text-caption); font-weight: 700;
   background: linear-gradient(rgba(12, 30, 18, .82), transparent);
 }
-.intro-play:hover .intro-play-mark { background: #FFFFFF; }
+/* Кружок и так рисуется тоном --cat-eye (rgba выше — тот же #FCFBF7
+   с прозрачностью); при наведении он становится непрозрачным. */
+.intro-play:hover .intro-play-mark { background: var(--cat-eye); }
 .intro-play:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 .intro-video video { width: 100%; display: block; border-radius: var(--radius-card); }
 
@@ -841,8 +845,8 @@ a.nav-lesson { text-decoration: none; position: relative; }
 a.nav-lesson.live .nav-ico::after {
   content: ""; position: absolute; margin-left: 14px; margin-top: -2px;
   width: 9px; height: 9px; border-radius: 50%;
-  background: var(--green, #2e7d4f);
-  box-shadow: 0 0 0 2px var(--surface, #fff);
+  background: var(--green);
+  box-shadow: 0 0 0 2px var(--surface);
 }
 
 /* ===== «?» — вход в «Вопросы и ответы» =====

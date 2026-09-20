@@ -419,8 +419,8 @@
 /* Бейдж присутствия ученика: в узкой шапке он ломался на три строки
    и распирал панель. */
 .bd-live { white-space: nowrap; }
-.bd-live.away { color: var(--bd-orange, #b8860b); background: rgba(215, 160, 30, .14); }
-.bd-live.gone { color: var(--text-muted, #888); background: rgba(128, 128, 128, .12); }
+.bd-live.away { color: var(--bd-orange); background: rgba(215, 160, 30, .14); }
+.bd-live.gone { color: var(--ink-soft); background: rgba(128, 128, 128, .12); }
 .bd-panel-tasks { border-top: 1px solid var(--border); margin-top: 10px; padding-top: 10px; }
 
 /* Взведённая кнопка очистки: цвет вместо подписи — она теперь с иконкой */
@@ -454,20 +454,20 @@
 }
 .bd-call-videos { position: relative; }
 #call-remote {
-  width: 232px; height: 174px; border-radius: 10px; background: #1c1f1d;
+  width: 232px; height: 174px; border-radius: 10px; background: var(--bd-video);
   object-fit: cover; display: block;
 }
 #call-local {
   position: absolute; right: 6px; bottom: 6px;
-  width: 76px; height: 57px; border-radius: 8px; background: #2a2e2b;
+  width: 76px; height: 57px; border-radius: 8px; background: var(--bd-video-self);
   object-fit: cover; border: 2px solid var(--surface);
 }
 #call-local.novideo { opacity: 0; }
 .bd-call-row { display: flex; gap: 8px; justify-content: center; cursor: default; }
 .bd-call-row .bd-btn.off { opacity: .45; text-decoration: line-through; }
-.bd-call-end { color: #fff; background: var(--bd-red, #c4453c); border-color: transparent; }
+.bd-call-end { color: var(--bd-on-dark); background: var(--bd-red); border-color: transparent; }
 .bd-call-state {
-  margin: 0; text-align: center; font-size: 12px; color: var(--muted, #777);
+  margin: 0; text-align: center; font-size: 12px; color: var(--ink-soft);
 }
 
 /* Входящий звонок — по центру, мимо не пройдёшь */
@@ -503,7 +503,7 @@
 }
 .bd-share-menu button:hover { background: var(--accent-soft); }
 .bd-share-menu button.on { background: var(--accent-soft); color: var(--accent); font-weight: 700; }
-.bd-share-menu button.danger { color: var(--bd-red, #c4453c); }
+.bd-share-menu button.danger { color: var(--bd-red); }
 .bd-share-menu .bd-hint { margin: 4px 8px; }
 
 /* Книжки в панели */
@@ -538,12 +538,12 @@
 .bd-call.big {
   inset: 0; right: auto; bottom: auto; width: 100vw; height: 100vh;
   border-radius: 0; border: none; z-index: 55; cursor: default;
-  background: #161a17; padding: 14px; gap: 12px;
+  background: var(--bd-video-stage); padding: 14px; gap: 12px;
   justify-content: center; align-items: center;
 }
 .bd-call.big .bd-call-videos { flex: 1; width: 100%; min-height: 0; display: flex; }
 .bd-call.big #call-remote {
-  width: 100%; height: 100%; object-fit: contain; background: #10130f;
+  width: 100%; height: 100%; object-fit: contain; background: var(--bd-video-deep);
   border-radius: 14px;
 }
 .bd-call.big #call-local {
@@ -552,7 +552,7 @@
 }
 .bd-call.big .bd-call-row { padding-bottom: 6px; }
 .bd-call.big .bd-call-row .bd-btn { transform: scale(1.25); margin: 0 6px; }
-.bd-call.big .bd-call-state { color: #b9c2bb; font-size: 14px; }
+.bd-call.big .bd-call-state { color: var(--bd-video-ink); font-size: 14px; }
 .bd-call-dial {
   font-size: var(--text-body-lg, 19px); font-weight: 800;
   padding: 14px 34px; border-radius: 999px;
@@ -563,7 +563,7 @@
    экран большой, человек — рядом со своим превью, никто не исчезает */
 #call-remote-cam {
   position: absolute; left: 6px; bottom: 6px;
-  width: 76px; height: 57px; border-radius: 8px; background: #2a2e2b;
+  width: 76px; height: 57px; border-radius: 8px; background: var(--bd-video-self);
   object-fit: cover; border: 2px solid var(--surface);
 }
 .bd-call.big #call-remote-cam {
@@ -575,15 +575,15 @@
 .screen-bar {
   position: fixed; top: 60px; left: 50%; transform: translateX(-50%);
   z-index: 70; display: flex; align-items: center; gap: 10px;
-  background: var(--green, #2e7d4f); color: #fff;
+  background: var(--green); color: var(--bd-on-dark);
   border-radius: 999px; padding: 8px 10px 8px 16px;
   font-weight: 700; font-size: 14px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, .25);
 }
 .screen-bar-dot {
-  width: 9px; height: 9px; border-radius: 50%; background: #ff5f57;
+  width: 9px; height: 9px; border-radius: 50%; background: var(--bd-rec);
   animation: screen-pulse 1.6s ease-in-out infinite;
 }
 @keyframes screen-pulse { 50% { opacity: .35; } }
-.screen-bar-stop { background: rgba(255, 255, 255, .16); color: #fff; border-color: transparent; }
+.screen-bar-stop { background: rgba(255, 255, 255, .16); color: var(--bd-on-dark); border-color: transparent; }
 .screen-bar-stop:hover { background: rgba(255, 255, 255, .28); }
