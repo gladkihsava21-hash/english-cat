@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Аватарка Савелия — рендер</title>
+<link rel="stylesheet" href="../css/tokens.css">
+<link rel="stylesheet" href="../css/cat.css">
+<style>
+  /* Квадрат 1024×1024 под скриншот; кот — родной SVG сайта по центру.
+     Фон и аксессуар задаются query-параметрами: ?bg=mint|green&acc=cap|headset */
+  html, body { margin: 0; padding: 0; }
+  body { width: 1024px; height: 1024px; display: flex;
+         align-items: center; justify-content: center; overflow: hidden; }
+  body.bg-mint  { background: #dcefe2; }
+  body.bg-green { background: #2e7d4f; }
+  .cat-avatar { width: 660px; }
+  .cat-avatar svg { overflow: visible; display: block; }
+</style>
+</head>
+<body>
+<div class="cat-avatar" data-cat="happy" id="cat"></div>
+<script>
+  // Поза из адреса: ?pose=hello даёт спокойную улыбку с сайта
+  const _q0 = new URLSearchParams(location.search);
+  document.getElementById("cat").dataset.cat = _q0.get("pose") || "happy";
+</script>
+<script src="../js/cat.js"></script>
+<script>
+  const q = new URLSearchParams(location.search);
+  document.body.classList.add("bg-" + (q.get("bg") || "mint"));
+  paintCats(document);
+
+  /* Аксессуары рисуем В ТОЙ ЖЕ системе координат (viewBox 36×36),
+     тем же плоским стилем. Голова кота: центр ~x18, купол ~y7,
+     щёки ~y26, уши в верхних углах (~x7 и ~x29, вершины ~y4). */
+  const ACC = {
+    cap: `
+      <g>
+        <!-- конфедератка: квадратная доска ромбом + низ-шапочка + кисточка -->
+        <path d="M18 -3.6 L31 2.4 L18 8.4 L5 2.4 Z" fill="#2b2b2b"/>
+        <path d="M11.4 4.6 L18 7.6 L24.6 4.6 L24.6 8.2 C24.6 10.4 21.6 11.8 18 11.8 C14.4 11.8 11.4 10.4 11.4 8.2 Z" fill="#3a3a3a"/>
+        <path d="M31 2.4 L31 9.2" stroke="#caa94a" stroke-width=".9" stroke-linecap="round" fill="none"/>
+        <circle cx="31" cy="10.2" r="1.25" fill="#e3c05c"/>
+        <circle cx="18" cy="2.4" r=".8" fill="#caa94a"/>
+      </g>`,
+    headset: `
+      <g>
+        <!-- гарнитура: дужка над лбом, чашки на щеках, микрофон у рта -->
+        <path d="M4.2 20.5 C4.2 6.2 31.8 6.2 31.8 20.5" fill="none"
+              stroke="#2f4a3c" stroke-width="2.4" stroke-linecap="round"/>
+        <rect x="1.4" y="19" width="5.6" height="10" rx="2.8" fill="#2f4a3c"/>
+        <rect x="29" y="19" width="5.6" height="10" rx="2.8" fill="#2f4a3c"/>
+        <rect x="2.7" y="20.3" width="3" height="7.4" rx="1.5" fill="#446753"/>
+        <rect x="30.3" y="20.3" width="3" height="7.4" rx="1.5" fill="#446753"/>
+        <path d="M32 28.6 C32 32.6 28.4 33.8 25.2 33.8" fill="none"
+              stroke="#2f4a3c" stroke-width="1.6" stroke-linecap="round"/>
+        <ellipse cx="23.7" cy="33.8" rx="2.4" ry="1.6" fill="#2f4a3c"/>
+      </g>`,
+  };
+  const acc = q.get("acc");
+  if (acc && ACC[acc]) {
+    const svg = document.querySelector("#cat svg");
+    svg.insertAdjacentHTML("beforeend", ACC[acc]);
+  }
+  /* Кот «happy» слегка повёрнут анимацией — для аватарки замираем */
+  document.querySelectorAll("#cat *").forEach(el => {
+    el.style.animation = "none";
+    el.style.transition = "none";
+  });
+</script>
+</body>
+</html>
