@@ -823,7 +823,7 @@ function renderTasks() {
         <div class="task-head">
           <div>
             <b class="task-title">${esc(t.title)}</b>
-            <p class="muted-small">${esc(who)} · ${esc(what)}${t.dueDate ? " · до " + esc(t.dueDate) : ""}</p>
+            <p class="muted-small">${esc(who)} · ${esc(what)}${t.dueDate ? " · до " + esc(t.dueDate) : ""}${t.folder ? ` · папка «${esc(t.folder)}»` : ""}</p>
           </div>
           ${kind === "photo" ? "" : `<div class="task-stat">
             <b>${ready} / ${rows.length}</b>
@@ -964,6 +964,69 @@ function fillStudentSelect() {
     `<optgroup label="Ученики">${students.map(s =>
       `<option value="${s.id}">${esc(s.name)}</option>`).join("")}</optgroup>`;
   if (cur) sel.value = cur;
+}
+
+/* ===== Папка для слов домашки =====
+ * Репетитор выбирает, в какую папку словаря ученика упадут выданные слова.
+ * Папки берутся из словаря выбранного ученика — он приезжает целиком
+ * с detail=True (server.py, tutor_student_detail), отдельной ручки не
+ * нужно. Кэшируем по id: выдача двух домашек подряд не должна дёргать
+ * сервер на каждое открытие списка. */
+const hwFolderCache = {};
+
+function renderHwFolderSelect() {
+  const sel = $("hw-folder");
+  if (!sel) return;
+  const target = $("hw-student").value;              // "" | "g<id>" | "<id>"
+  // Для «всем» и группы чужих папок не показать: у разных учеников они
+  // свои. Там остаются «без папки» и «новая» — папка с таким именем
+  // заведётся у каждого адресата сама (addToDictionary у ученика).
+  const folders = target && !target.startsWith("g")
+    ? (hwFolderCache[target] || [])
+    : [];
+  const cur = sel.value;
+  sel.innerHTML = `<option value="">Без папки</option>`
+    + folders.map(f => `<option value="${esc(f)}">${esc(f)}</option>`).join("")
+    + `<option value="__new">+ Новая папка…</option>`;
+  // Выбор держим, только если такой вариант остался в списке
+  if (cur && [...sel.options].some(o => o.value === cur)) sel.value = cur;
+  syncHwFolderNew();
+}
+
+function syncHwFolderNew() {
+  const isNew = $("hw-folder").value === "__new";
+  $("hw-folder-new-row").classList.toggle("hidden", !isNew);
+  if (isNew) $("hw-folder-new").focus();
+}
+
+async function loadHwFolders() {
+  const target = $("hw-student").value;
+  if (!target || target.startsWith("g") || hwFolderCache[target]) {
+    renderHwFolderSelect();
+    return;
+  }
+  try {
+    const res = await api("/api/tutor/student", { token: token(), studentId: Number(target) });
+    // Папка записана у каждого слова (слово может лежать в нескольких
+    // папках) — собираем объединение, как allFolders() у ученика.
+    const names = new Set();
+    ((res.student && res.student.dictionary) || []).forEach(d =>
+      (d.folders || []).forEach(f => names.add(f)));
+    hwFolderCache[target] = [...names].sort((a, b) => a.localeCompare(b, "ru"));
+  } catch (e) { /* нет связи — останутся «без папки» и «новая» */ }
+  // Пока ждали ответ, ученика могли переключить — рисуем актуальное
+  renderHwFolderSelect();
+}
+
+$("hw-student").addEventListener("change", loadHwFolders);
+$("hw-folder").addEventListener("change", syncHwFolderNew);
+renderHwFolderSelect();
+
+/** Папка из формы: выбранное имя или набранное новое. Пусто — без папки. */
+function hwFolderValue() {
+  const sel = $("hw-folder");
+  if (!sel) return "";
+  return sel.value === "__new" ? $("hw-folder-new").value.trim() : sel.value;
 }
 
 function fillLevels() {
@@ -1117,6 +1180,7 @@ $("hw-send").addEventListener("click", async () => {
     game,
     tasksetId,
     words: picked,
+    folder: hwFolderValue(),
   });
   if (!res.ok) {
     msg.className = "type-feedback err";
@@ -1139,8 +1203,10 @@ $("hw-send").addEventListener("click", async () => {
   // к ней молча прицеплялся текст от предыдущей: ребёнок получал чужое
   // задание, а Ирина об этом не знала.
   picked = [];
-  ["hw-title", "hw-task", "hw-reading", "hw-due", "hw-own-en", "hw-own-ru"]
+  ["hw-title", "hw-task", "hw-reading", "hw-due", "hw-own-en", "hw-own-ru", "hw-folder-new"]
     .forEach(id => { const el = $(id); if (el) el.value = ""; });
+  // Папку тоже сбрасываем: она относилась к той домашке, а не к следующей
+  if ($("hw-folder")) { $("hw-folder").value = ""; syncHwFolderNew(); }
   renderWordPicker();
   renderPicked();
   loadStudents();

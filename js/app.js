@@ -1548,8 +1548,12 @@ function startHomeworkLesson(task) {
   }
   if (kind === "photo") { show("dashboard"); return; }   // сдаётся фото или чтением, открывать нечего
 
+  // Папка, которую репетитор выбрал при выдаче: все слова домашки ложатся
+  // в неё. У старых домашек поля нет — тогда слова без папки, как раньше.
+  const hwFolder = String(task.folder || "").trim();
   (task.words || []).forEach(w => addToDictionary({
     w: w.w, t: w.t, ex: w.ex || "", level: w.level || state.level,
+    folders: hwFolder ? [hwFolder] : undefined,
   }));
   if (typeof renderHomework === "function") renderHomework();
 

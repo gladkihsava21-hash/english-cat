@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<!-- Стенд полоски статуса звонка для скриншотов: настоящие css/board.css,
+     js/icons.js и js/call.js, звонок замокан (getStats без живого WebRTC
+     не проверить — см. test-call-stats.js для логики ступеней).
+     Параметры: ?tier=good|ok|bad&mic=off&cam=off&nomic=1&nocam=1
+     &screen=on&role=student&theme=night&idle=1
+     Не коммитить в прод: файл только для глаз, в bump/LAZY не входит. -->
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Полоска статуса звонка — стенд</title>
+  <link rel="stylesheet" href="../../css/fonts.css">
+  <script>
+    var Q = new URLSearchParams(location.search);
+    document.documentElement.dataset.theme = Q.get("theme") === "night" ? "night" : "day";
+  </script>
+  <link rel="stylesheet" href="../../css/tokens.css">
+  <link rel="stylesheet" href="../../css/style.css">
+  <link rel="stylesheet" href="../../css/board.css">
+</head>
+<body class="board-body">
+<canvas id="board-canvas"></canvas>
+
+<header class="bd-top">
+  <a class="bd-back" href="#" id="bd-back" title="Выйти с доски">←</a>
+  <div class="bd-title">
+    <span id="bd-name">Доска «Маша, вторник»</span>
+    <span class="bd-state" id="bd-state">сохранено</span>
+  </div>
+  <div class="call-strip" id="call-strip" hidden role="group" aria-label="Статус звонка">
+    <span class="call-chip" id="cs-mic" data-icon="mic" data-icon-size="16"></span>
+    <span class="call-chip" id="cs-cam" data-icon="camera" data-icon-size="16"></span>
+    <span class="call-chip" id="cs-screen" data-icon="screen" data-icon-size="16" hidden></span>
+    <span class="call-chip call-chip-link" id="cs-link">
+      <span id="cs-link-ico" data-icon="signal" data-icon-size="16"></span><b id="cs-link-word"></b>
+    </span>
+  </div>
+  <div class="screen-bar" id="screen-bar" hidden>
+    <span class="screen-bar-dot"></span> Вы демонстрируете экран
+    <button class="bd-btn screen-bar-stop" id="screen-bar-stop">Остановить показ</button>
+  </div>
+  <div class="bd-top-right">
+    <span class="bd-live" id="bd-live">ученик на доске</span>
+    <button class="bd-btn" id="bd-phone" title="Видеозвонок">
+      <span data-icon="phone" data-icon-size="18"></span><span class="bd-btn-label"> Звонок</span></button>
+    <button class="bd-btn" id="bd-png" title="Скачать картинкой">
+      <span data-icon="download" data-icon-size="18"></span><span class="bd-btn-label"> PNG</span></button>
+    <button class="bd-btn" id="bd-clear" title="Очистить доски"
+            data-icon="trash" data-icon-size="18"></button>
+    <button class="bd-btn" id="bd-theme" title="День и ночь"
+            data-icon="moon" data-icon-size="18"></button>
+  </div>
+</header>
+
+<div class="bd-call" id="bd-call" hidden>
+  <div class="bd-call-videos">
+    <video id="call-remote" autoplay playsinline></video>
+    <video id="call-remote-cam" autoplay playsinline hidden></video>
+    <video id="call-local" autoplay playsinline muted></video>
+  </div>
+  <button class="btn btn-primary bd-call-dial" id="call-dial" hidden>Позвонить</button>
+  <div class="bd-call-row">
+    <button class="bd-btn" id="call-mic" title="Микрофон"
+            data-icon="mic" data-icon-size="18"></button>
+    <button class="bd-btn" id="call-cam" title="Камера"
+            data-icon="camera" data-icon-size="18"></button>
+    <button class="bd-btn" id="call-screen" title="Показать экран"
+            data-icon="screen" data-icon-size="18"></button>
+    <button class="bd-btn" id="call-size" title="Развернуть видеоурок"
+            data-icon="zoomIn" data-icon-size="18"></button>
+    <button class="bd-btn" id="call-pip" title="Вынести видео поверх всех окон"
+            data-icon="fit" data-icon-size="18"></button>
+    <button class="bd-btn bd-call-end" id="call-end" title="Завершить">✕</button>
+  </div>
+  <p class="bd-call-state" id="call-state"></p>
+</div>
+
+<p class="bd-toast" id="bd-toast" hidden></p>
+
+<script>
+  // call.js ждёт от board.js трёх вещей; стенд подставляет их сам.
+  window.$ = id => document.getElementById(id);
+  window.toast = () => {};
+  window.BD = { role: Q.get("role") || "tutor", boardId: 0, token: "" };
+</script>
+<script src="../../js/icons.js"></script>
+<script src="../../js/call.js"></script>
+<script>
+  window.addEventListener("load", () => {
+    paintIcons();
+    if (Q.get("idle")) return;                    // звонка нет — полоски нет
+    CALL.state = "live";
+    const on = name => Q.get(name) !== "off";
+    const tr = en => ({ enabled: en, stop() {} });
+    CALL.stream = {
+      _a: Q.get("nomic") ? [] : [tr(on("mic"))],
+      _v: Q.get("nocam") ? [] : [tr(on("cam"))],
+      getAudioTracks() { return this._a; },
+      getVideoTracks() { return this._v; },
+      getTracks() { return this._a.concat(this._v); },
+    };
+    if (Q.get("screen") === "on") SCREEN.track = { stop() {}, onended: null };
+    const tiers = {
+      good: { rttMs: 48, lossPct: 0.4 },
+      ok:   { rttMs: 230, lossPct: 3.5 },
+      bad:  { rttMs: 520, lossPct: 12.4 },
+    };
+    const tier = Q.get("tier") || "good";
+    CALL.link = tiers[tier] ? Object.assign({}, tiers[tier], { tier }) : null;
+    // showCallPanel здесь не зовём: она кладёт CALL.stream в
+    // video.srcObject, а Chrome не примет объект вместо настоящего
+    // MediaStream. Для глаз достаточно открыть панель и полоску.
+    $("bd-call").hidden = false;
+    refreshCallStrip();
+    if (Q.get("screen") === "on") $("screen-bar").hidden = false;
+    if (Q.get("big")) $("bd-call").classList.add("big");
+    setCallState("соединено");
+    if (Q.get("debug")) {
+      const out = [];
+      const row = document.querySelector(".bd-call-row");
+      out.push("innerWidth=" + innerWidth);
+      out.push("row=" + JSON.stringify(row.getBoundingClientRect()));
+      row.querySelectorAll(".bd-btn").forEach(b =>
+        out.push(b.id + "=" + Math.round(b.getBoundingClientRect().left)
+                 + ".." + Math.round(b.getBoundingClientRect().right)));
+      const pre = document.createElement("pre");
+      pre.id = "dbg";
+      pre.textContent = out.join("\n");
+      document.body.appendChild(pre);
+    }
+  });
+</script>
+</body>
+</html>

@@ -34,6 +34,31 @@
     <span id="bd-name">Доска</span>
     <span class="bd-state" id="bd-state">сохраняю…</span>
   </div>
+  <!-- Полоска статуса звонка: микрофон, камера, показ экрана и качество
+       связи — сверху по центру, чтобы видеть «меня слышно?» с любого
+       места доски, а не только у углового окна видео. Абсолютно под
+       шапкой (css/board.css, .call-strip): когда шапка на узком экране
+       переносится в две строки, полоска уезжает вниз вместе с ней и
+       ничего не перекрывает. Видна только во время звонка; состояние
+       выставляет refreshCallStrip в js/call.js — из тех же мест, что
+       двигают кнопки в окне звонка. -->
+  <div class="call-strip" id="call-strip" hidden role="group" aria-label="Статус звонка">
+    <span class="call-chip" id="cs-mic" data-icon="mic" data-icon-size="16"></span>
+    <span class="call-chip" id="cs-cam" data-icon="camera" data-icon-size="16"></span>
+    <span class="call-chip" id="cs-screen" data-icon="screen" data-icon-size="16" hidden></span>
+    <span class="call-chip call-chip-link" id="cs-link">
+      <span id="cs-link-ico" data-icon="signal" data-icon-size="16"></span><b id="cs-link-word"></b>
+    </span>
+  </div>
+  <!-- Панель демонстрации, как в Zoom: видно, что показ идёт, и есть
+       своя кнопка «Остановить» — системную плашку браузера легко потерять.
+       Живёт внутри шапки под полоской статуса звонка: показ экрана
+       возможен только на живом звонке, где полоска уже видна, и две
+       плашки по центру на одной высоте наезжали бы друг на друга. -->
+  <div class="screen-bar" id="screen-bar" hidden>
+    <span class="screen-bar-dot"></span> Вы демонстрируете экран
+    <button class="bd-btn screen-bar-stop" id="screen-bar-stop">Остановить показ</button>
+  </div>
   <div class="bd-top-right">
     <span class="bd-live" id="bd-live" hidden>ученик на доске</span>
     <button class="bd-btn" id="bd-phone" title="Видеозвонок" hidden>
@@ -164,13 +189,6 @@
   </div>
 </div>
 
-<!-- Панель демонстрации, как в Zoom: видно, что показ идёт, и есть
-     своя кнопка «Остановить» — системную плашку браузера легко потерять. -->
-<div class="screen-bar" id="screen-bar" hidden>
-  <span class="screen-bar-dot"></span> Вы демонстрируете экран
-  <button class="bd-btn screen-bar-stop" id="screen-bar-stop">Остановить показ</button>
-</div>
-
 <p class="bd-toast" id="bd-toast" hidden></p>
 <input type="file" id="bd-img-file" accept="image/*" hidden>
 <input type="file" id="bd-book-file" accept="application/pdf,.pdf" hidden>
@@ -237,5 +255,8 @@
 <script defer src="js/word-photos.js?v=297"></script>
 <script defer src="js/board.js?v=297"></script>
 <script defer src="js/call.js?v=297"></script>
+<!-- Групповой урок идёт после call.js: пользуется его ICE_SERVERS,
+     getCallMedia и screenSupported. Личный звонок он не трогает. -->
+<script defer src="js/groupcall.js?v=297"></script>
 </body>
 </html>

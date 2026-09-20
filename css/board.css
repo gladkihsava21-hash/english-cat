@@ -470,6 +470,64 @@
   margin: 0; text-align: center; font-size: 12px; color: var(--ink-soft);
 }
 
+/* ---------- полоска статуса звонка ----------
+   Сверху по центру, вплотную под шапкой: значки микрофона, камеры, показа
+   экрана и качества связи (просьба владельца — кнопки этих режимов сидят
+   в угловом окне видео, а с середины доски по ним не понять, слышно тебя
+   или нет). Абсолютна внутри .bd-top: на узком экране шапка переносится
+   в две строки, и полоска уезжает вниз вместе с ней — фиксированная
+   высота в px здесь наезжала бы на перенесённые кнопки. */
+.call-strip {
+  position: absolute; left: 50%; top: calc(100% + 8px);
+  transform: translateX(-50%);
+  display: flex; align-items: center; gap: 2px;
+  background: var(--surface);
+  border: 1px solid var(--line-control);
+  border-radius: 999px;
+  padding: 3px 6px;
+  box-shadow: var(--shadow-soft);
+  white-space: nowrap;
+}
+.call-chip {
+  position: relative;
+  display: inline-flex; align-items: center; gap: 5px;
+  min-height: 26px; padding: 2px 8px;
+  border-radius: 999px;
+  color: var(--ink);
+  font-size: 12.5px; font-weight: 600;
+}
+/* «Выключено» — формой, а не одним цветом (соглашение): косая черта
+   поверх значка плюс приглушённый, но проверенный по контрасту цвет.
+   Именно --ink-soft, а не opacity на --ink: прозрачность считает контраст
+   по факту наложения и на тёмной сцене проваливается ниже нормы, а у
+   --ink-soft он задан токеном (5,5:1 днём, 6,2:1 ночью). */
+.call-chip.off { color: var(--ink-soft); }
+.call-chip.off::after {
+  content: ""; position: absolute; left: 5px; right: 5px; top: 50%;
+  height: 1.75px; border-radius: 1px; background: currentColor;
+  transform: translateY(-50%) rotate(-16deg);
+}
+/* Качество связи: ступень читается числом столбиков значка (js/icons.js,
+   signal) и словом рядом; цветом смысл не кодируем вовсе — палитра доски
+   не даёт красного, читаемого на обеих темах (--bd-red ночью на карточке
+   даёт 2,4:1), а придумывать цвет вне tokens.css нельзя. */
+.call-chip-link b { font-weight: 700; font-variant-numeric: tabular-nums; }
+.call-chip-link .sb1, .call-chip-link .sb2, .call-chip-link .sb3 { opacity: 1; }
+.call-chip-link.q-unknown .sb1,
+.call-chip-link.q-unknown .sb2,
+.call-chip-link.q-unknown .sb3 { opacity: .22; }
+.call-chip-link.q-ok .sb3 { opacity: .22; }
+.call-chip-link.q-bad .sb2,
+.call-chip-link.q-bad .sb3 { opacity: .22; }
+
+/* Во время звонка шапку (а с ней полоску статуса и панель демонстрации)
+   поднимаем над полноэкранным видеоуроком: большой режим — та же сцена
+   (z-index 55), и без этого индикаторы пропадали ровно там, где звонок
+   занимает весь экран. */
+.board-body.call-live .bd-top { z-index: 56; }
+/* Тост доски живёт на top: 70px — поднятой полоске на пути. */
+.board-body.call-live .bd-toast { top: 118px; }
+
 /* Входящий звонок — по центру, мимо не пройдёшь */
 .bd-ring {
   position: fixed; left: 50%; top: 26%; transform: translateX(-50%); z-index: 60;
@@ -550,8 +608,14 @@
   width: min(26vw, 220px); height: auto; aspect-ratio: 4 / 3;
   right: 14px; bottom: 14px; border-radius: 12px;
 }
-.bd-call.big .bd-call-row { padding-bottom: 6px; }
+.bd-call.big .bd-call-row { padding-bottom: 6px; flex-wrap: wrap; }
 .bd-call.big .bd-call-row .bd-btn { transform: scale(1.25); margin: 0 6px; }
+/* На телефоне увеличение убираем: transform раскладку не двигает, и шесть
+   кнопок по 1,25 визуально не влезали в 390 px — крайняя («Завершить»)
+   уезжала за край экрана. В обычном размере ряд помещается сам. */
+@media (max-width: 640px) {
+  .bd-call.big .bd-call-row .bd-btn { transform: none; margin: 0 2px; }
+}
 .bd-call.big .bd-call-state { color: var(--bd-video-ink); font-size: 14px; }
 .bd-call-dial {
   font-size: var(--text-body-lg, 19px); font-weight: 800;
@@ -571,10 +635,14 @@
   left: 14px; bottom: 14px; border-radius: 12px;
 }
 
-/* Панель демонстрации — зелёная строка сверху, как в Zoom */
+/* Панель демонстрации — зелёная строка сверху, как в Zoom.
+   Дочерняя у шапки и висит под полоской статуса звонка (её высота ~34 px
+   плюс зазор): показ экрана бывает только на живом звонке, где полоска
+   уже заняла место под шапкой. */
 .screen-bar {
-  position: fixed; top: 60px; left: 50%; transform: translateX(-50%);
+  position: absolute; top: calc(100% + 50px); left: 50%; transform: translateX(-50%);
   z-index: 70; display: flex; align-items: center; gap: 10px;
+  white-space: nowrap;              /* на телефоне текст ломался на три строки */
   background: var(--green); color: var(--bd-on-dark);
   border-radius: 999px; padding: 8px 10px 8px 16px;
   font-weight: 700; font-size: 14px;
@@ -587,3 +655,134 @@
 @keyframes screen-pulse { 50% { opacity: .35; } }
 .screen-bar-stop { background: rgba(255, 255, 255, .16); color: var(--bd-on-dark); border-color: transparent; }
 .screen-bar-stop:hover { background: rgba(255, 255, 255, .28); }
+
+/* ================= Групповой видеоурок (js/groupcall.js) =================
+   Сцена, сетка плиток и панель — всё на палитре видео (--bd-video-*),
+   чтобы не спорить с доской ни днём, ни ночью. */
+/* Сцена группового урока: полноэкранная подложка видео-режима. */
+#gc-stage {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  background: var(--bd-video-stage);
+}
+#gc-stage[hidden] { display: none; }
+
+.gc-grid {
+  flex: 1;
+  display: grid;
+  gap: var(--space-12);
+  padding: var(--space-16);
+  align-content: center;
+  justify-content: center;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 480px));
+}
+/* Один гость — крупно посередине; толпа — плотнее. */
+.gc-grid[data-n="2"] { grid-template-columns: minmax(280px, 720px); }
+.gc-grid[data-n="3"], .gc-grid[data-n="4"] { grid-template-columns: repeat(2, minmax(240px, 1fr)); }
+.gc-grid[data-n="5"], .gc-grid[data-n="6"] { grid-template-columns: repeat(3, minmax(200px, 1fr)); }
+
+.gc-tile {
+  position: relative;
+  border-radius: var(--radius-card);
+  overflow: hidden;
+  background: var(--bd-video);
+  aspect-ratio: 4 / 3;
+}
+.gc-tile video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+/* Своя плитка — зеркало: так привычнее (Zoom делает так же). */
+#gc-me video { transform: scaleX(-1); }
+.gc-name {
+  position: absolute;
+  left: var(--space-8);
+  bottom: var(--space-8);
+  padding: 2px var(--space-12);
+  border-radius: var(--radius-tag);
+  background: color-mix(in srgb, var(--bd-video-deep) 78%, transparent);
+  color: var(--bd-video-ink);
+  font-size: var(--text-caption);
+  font-weight: 600;
+}
+/* Нет видео — аватар-плашка, а не чёрный прямоугольник. */
+.gc-tile.gc-novideo video { visibility: hidden; }
+.gc-tile.gc-novideo::after {
+  content: "аудио";
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--bd-video-ink);
+  font-weight: 700;
+}
+
+/* Демонстрация экрана репетитора — сцена сверху, лица снизу. */
+#gc-screen {
+  flex: 2;
+  min-height: 0;
+  width: 100%;
+  object-fit: contain;
+  background: var(--bd-video-deep);
+}
+#gc-stage.gc-with-screen .gc-grid { flex: 1; }
+
+/* Панель управления — тот же язык, что у панели звонка. */
+.gc-bar {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-12);
+  padding: var(--space-12) var(--space-16) var(--space-16);
+}
+.gc-bar button {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: var(--border-w) solid transparent;
+  background: var(--bd-video-self);
+  color: var(--bd-video-ink);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--dur-fast) var(--ease);
+}
+.gc-bar button:hover { background: var(--bd-video); }
+.gc-bar button.off { background: var(--bd-rec); color: var(--bd-on-dark); }
+.gc-bar button.on { background: var(--accent); color: var(--on-accent); }
+.gc-bar .gc-danger { background: var(--bd-rec); color: var(--bd-on-dark); }
+.gc-bar .gc-danger:hover { filter: brightness(1.1); }
+.gc-bar .gc-danger svg { transform: rotate(135deg); }  /* трубка «положить» */
+
+/* Приглашение ученику: плашка сверху по центру, не модалка — урок не
+   должен перекрывать доску, на которую ребёнок, может, уже смотрит. */
+#gc-join {
+  position: fixed;
+  top: var(--space-16);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 61;
+  padding: var(--space-12) var(--space-24);
+  border-radius: var(--radius-btn);
+  border: var(--border-w) solid var(--accent-line);
+  background: var(--accent-fill);
+  color: var(--on-accent-fill);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--text-body-sm);
+  cursor: pointer;
+  box-shadow: var(--shadow-lift);
+  animation: riseIn var(--dur-slow) var(--ease) both;
+}
+#gc-join[hidden] { display: none; }
+
+@media (max-width: 720px) {
+  .gc-grid { grid-template-columns: repeat(2, 1fr); gap: var(--space-8); padding: var(--space-8); }
+  .gc-grid[data-n="2"] { grid-template-columns: 1fr; }
+  .gc-bar button { width: 52px; height: 52px; }  /* палец ребёнка */
+}

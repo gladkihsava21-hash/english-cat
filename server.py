@@ -1077,6 +1077,7 @@ class Api:
                 "dueDate": x["due_date"], "createdAt": x["created_at"],
                 "kind": db.homework_kind(x),
                 "game": (x["game"] if "game" in x.keys() else "") or "",
+                "folder": (x["folder"] if "folder" in x.keys() else "") or "",
                 "tasksetId": x["taskset_id"] if "taskset_id" in x.keys() else None,
                 "hasText": bool((x["task_text"] if "task_text" in x.keys() else "") or ""),
                 "hasReading": bool((x["reading_text"] if "reading_text" in x.keys() else "") or ""),
@@ -1238,6 +1239,9 @@ class Api:
             # прежнее поведение: ученик выбирает упражнение сам.
             game=game,
             taskset_id=taskset_id,
+            # Папка словаря ученика для этих слов. Необязательна: пустая
+            # строка — слова падают без папки, как раньше.
+            folder=str(p.get("folder") or ""),
         )
         return {"ok": True, "id": row["id"]}
 
@@ -1809,6 +1813,9 @@ class Api:
                 "taskText": x["task_text"] if "task_text" in k else "",
                 "readingText": x["reading_text"] if "reading_text" in k else "",
                 "game": (x["game"] if "game" in k else "") or "",
+                # Папка словаря, в которую ученик сложит слова домашки
+                # (startHomeworkLesson в js/app.js). Пусто — без папки.
+                "folder": (x["folder"] if "folder" in k else "") or "",
             }
             # Свой набор — целиком, вместе с домашкой: отдельная ручка ради
             # пары килобайт это лишний запрос на каждое открытие задания.

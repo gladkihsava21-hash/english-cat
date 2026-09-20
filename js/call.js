@@ -32,6 +32,9 @@ const CALL = {
   isCaller: false,      // кто строил соединение — тот его и чинит
   repairs: 0,           // сколько раз подряд чинили, не дождавшись связи
   fixTimer: 0,
+  link: null,           // последний замер качества: { rttMs, lossPct, tier }
+  linkPrev: null,       // счётчики пакетов прошлого замера (дельта потерь)
+  linkTimer: 0,         // setInterval замеров getStats
 };
 
 const ICE_SERVERS = [
@@ -283,6 +286,8 @@ async function answerCall() {
   await callSend("answer", { sdp: answer.sdp, type: answer.type });
   CALL.state = "live";
   CALL.offer = null;
+  startLinkMeter();
+  refreshCallStrip();
 }
 
 async function onAnswer(m) {
@@ -317,6 +322,8 @@ async function onAnswer(m) {
   CALL.pendingIce = [];
   CALL.state = "live";
   setCallState("соединяем…");
+  startLinkMeter();
+  refreshCallStrip();
 }
 
 async function onIce(m) {
@@ -346,6 +353,7 @@ function endCall(sendBye) {
   clearTimeout(CALL.timer);
   if (sendBye) callSend("bye", {});
   stopScreenShare(true);
+  stopLinkMeter();
   teardownPeer();
   if (CALL.stream) CALL.stream.getTracks().forEach(t => t.stop());
   CALL.stream = null;
@@ -365,6 +373,7 @@ function endCall(sendBye) {
   CALL.remoteScreen = false;
   setCallState(big ? "звонок завершён" : "");
   refreshDial();
+  refreshCallStrip();
 }
 
 /* ---------- показ экрана ----------
@@ -430,6 +439,7 @@ async function startScreenShare() {
   $("call-screen").classList.add("on");
   $("screen-bar").hidden = false;
   setCallState("вы показываете экран");
+  refreshCallStrip();
   // «Прекратить показ» в плашке браузера должен работать как наша кнопка
   track.onended = () => stopScreenShare(false);
 }
@@ -442,6 +452,7 @@ async function stopScreenShare(silent) {
   try { track.stop(); } catch (e) { /* уже остановлен */ }
   $("call-screen").classList.remove("on");
   $("screen-bar").hidden = true;
+  refreshCallStrip();
   if (!CALL.pc) return;
   try {
     if (SCREEN.sender) CALL.pc.removeTrack(SCREEN.sender);
@@ -456,6 +467,164 @@ function toggleScreenShare() {
   if (SCREEN.track) stopScreenShare(false);
   else startScreenShare();
 }
+
+/* ---------- качество связи ----------
+   Полоска статуса (см. refreshCallStrip ниже) показывает три ступени:
+   хорошо / средне / плохо. Браузерных событий «связь просела» нет —
+   меряем сами: RTCPeerConnection.getStats() каждые LINK_POLL_MS.
+
+   Пороги — из природы урока, а не абстрактной телефонии. Разговор
+   выдерживает заметную задержку, но ломается её темп: до ~150 мс
+   собеседники паузы не замечают (оценка ITU G.114), после ~350 мс
+   начинают перебивать друг друга. Потери Opus прячет сам (встроенная
+   коррекция ошибок) примерно до 2 %, к ~8 % речь слышно рассыпается.
+   Ступень — ХУДШАЯ из двух метрик: нулевые потери не спасают урок,
+   где каждый отвечает с секундной паузой. */
+const LINK_POLL_MS = 2500;   // реже — обрыв человек заметит раньше значка
+
+function callLinkTier(rttMs, lossPct) {
+  if (rttMs == null && lossPct == null) return "unknown";
+  const bad = (rttMs != null && rttMs > 350) || (lossPct != null && lossPct > 8);
+  const mid = (rttMs != null && rttMs > 150) || (lossPct != null && lossPct > 2);
+  return bad ? "bad" : mid ? "ok" : "good";
+}
+
+/* Сводка из отчёта getStats. Чистая функция: getStats без настоящего
+   соединения не проверить, поэтому разбор отчёта отделён от браузера
+   и покрыт тестом (tools/dom-tests/test-call-stats.js).
+
+   Задержка — по выбранной паре кандидатов: nominated+succeeded, а если
+   браузер nominated не проставляет (Firefox), то по любой succeeded.
+   Потери — ПРИРОСТ lost/(lost+received) по входящим дорожкам между двумя
+   замерами: счётчики накопительные с начала звонка, и свежий обрыв на
+   их фоне был бы сглажен до неузнаваемости. */
+function summarizeCallStats(entries, prev) {
+  let rttAny = null, rttNom = null, lost = 0, recv = 0;
+  for (const s of entries) {
+    if (!s || !s.type) continue;
+    if (s.type === "candidate-pair" && s.state === "succeeded"
+        && typeof s.currentRoundTripTime === "number") {
+      if (s.nominated) rttNom = s.currentRoundTripTime;
+      else rttAny = s.currentRoundTripTime;
+    }
+    if (s.type === "inbound-rtp") {
+      lost += s.packetsLost || 0;
+      recv += s.packetsReceived || 0;
+    }
+  }
+  const rttSec = rttNom != null ? rttNom : rttAny;
+  const rttMs = rttSec == null ? null : Math.round(rttSec * 1000);
+  let lossPct = null;
+  // prev === null на первом замере: дельты нет, считаем по накопленному —
+  // иначе первые LINK_POLL_MS значок молчал бы без причины.
+  const base = prev || { lost: 0, recv: 0 };
+  const dLost = lost - base.lost, dRecv = recv - base.recv;
+  if (dLost + dRecv > 0) lossPct = (dLost / (dLost + dRecv)) * 100;
+  lossPct = lossPct == null ? null : Math.round(lossPct * 10) / 10;
+  return { rttMs, lossPct, tier: callLinkTier(rttMs, lossPct),
+           sample: { lost, recv } };
+}
+
+async function measureCallLink() {
+  if (!CALL.pc || CALL.state !== "live") return;
+  let report;
+  try { report = await CALL.pc.getStats(); } catch (e) { return; }
+  // RTCStatsReport — Map-подобный; в массив, чтобы сводка оставалась
+  // чистой функцией и проверялась без браузера.
+  const link = summarizeCallStats([...report.values()], CALL.linkPrev);
+  CALL.linkPrev = link.sample;
+  CALL.link = link;
+  refreshCallStrip();
+}
+
+function startLinkMeter() {
+  stopLinkMeter();
+  measureCallLink();
+  CALL.linkTimer = setInterval(measureCallLink, LINK_POLL_MS);
+}
+
+function stopLinkMeter() {
+  clearInterval(CALL.linkTimer);
+  CALL.linkTimer = 0;
+  CALL.link = null;
+  CALL.linkPrev = null;
+}
+
+/* ---------- полоска статуса урока ----------
+   Значки микрофона, камеры, показа экрана и качества связи — сверху по
+   центру (board.html, #call-strip). Полоска только ПОКАЗЫВАТ: своей копии
+   состояния у неё нет, обновляется из тех же мест, что двигают кнопки
+   углового окна (toggleTrack, показ экрана, конец звонка). Нажатия на
+   значки ничего не переключают — органы управления одни, в окне звонка.
+
+   Текстовая строка #call-state остаётся, но за ней теперь только ФАЗЫ
+   («зовём…», «соединяем…», «восстанавливаю связь…»): состояние устройств
+   и качества носит полоска, и дублировать их текстом было бы двумя
+   источниками правды об одном. */
+function stripChip(id, opts) {
+  const el = $(id);
+  if (!el) return;
+  if (opts.hidden) { el.hidden = true; return; }
+  el.hidden = false;
+  el.classList.toggle("off", !opts.on);
+  el.title = opts.title;
+  el.setAttribute("aria-label", opts.title);
+}
+
+function refreshCallStrip() {
+  const strip = $("call-strip");
+  if (!strip) return;
+  const live = CALL.state !== "idle";
+  strip.hidden = !live;
+  // Класс на body поднимает шапку над полноэкранным видеоуроком
+  // (css/board.css): иначе в большом режиме полоска была бы под видео.
+  document.body.classList.toggle("call-live", live);
+  if (!live) return;
+  const mic = CALL.stream ? CALL.stream.getAudioTracks() : [];
+  const cam = CALL.stream ? CALL.stream.getVideoTracks() : [];
+  const peer = callPeerName();
+  stripChip("cs-mic", {
+    on: !!mic.length && mic[0].enabled,
+    title: !mic.length ? "Микрофона нет — " + peer + " вас не слышит"
+         : mic[0].enabled ? "Микрофон включён" : "Микрофон выключен",
+  });
+  stripChip("cs-cam", {
+    on: !!cam.length && cam[0].enabled,
+    title: !cam.length ? "Камеры нет — " + peer + " вас не видит"
+         : cam[0].enabled ? "Камера включена" : "Камера выключена",
+  });
+  // Показ экрана умеет только репетитор (кнопки у ученика нет), поэтому
+  // ученику значка нет вовсе: перечёркнутый значок, который нельзя
+  // включить, читается как «сломано».
+  stripChip("cs-screen", {
+    hidden: BD.role !== "tutor" || !screenSupported(),
+    on: !!SCREEN.track,
+    title: SCREEN.track ? "Вы показываете экран" : "Экран не показывается",
+  });
+  const el = $("cs-link");
+  if (el) {
+    const tier = CALL.link ? CALL.link.tier : "unknown";
+    const WORD = { good: "хорошая", ok: "средняя", bad: "плохая", unknown: "…" };
+    el.classList.remove("q-good", "q-ok", "q-bad", "q-unknown");
+    el.classList.add("q-" + tier);
+    const word = $("cs-link-word");
+    if (word) word.textContent = WORD[tier];
+    let text;
+    if (!CALL.link || (CALL.link.rttMs == null && CALL.link.lossPct == null)) {
+      text = "Замеряю качество связи…";
+    } else {
+      const parts = [];
+      if (CALL.link.rttMs != null) parts.push("задержка " + CALL.link.rttMs + " мс");
+      if (CALL.link.lossPct != null)
+        parts.push("потери " + String(CALL.link.lossPct).replace(".", ",") + "%");
+      text = "Связь " + WORD[tier] + ": " + parts.join(", ");
+    }
+    el.title = text;
+    el.setAttribute("aria-label", text);
+  }
+}
+
+
 
 /* ---------- панель ---------- */
 function setCallState(text) { $("call-state").textContent = text; }
@@ -472,6 +641,7 @@ function showCallPanel() {
   $("call-mic").disabled = !hasMic;
   $("call-cam").classList.remove("off");
   $("call-mic").classList.remove("off");
+  refreshCallStrip();
 }
 
 function toggleTrack(kindName, btn) {
@@ -483,6 +653,7 @@ function toggleTrack(kindName, btn) {
   tracks.forEach(t => { t.enabled = on; });
   btn.classList.toggle("off", !on);
   if (kindName === "video") $("call-local").classList.toggle("novideo", !on);
+  refreshCallStrip();
 }
 
 /** Разложить удалённые дорожки по окнам.

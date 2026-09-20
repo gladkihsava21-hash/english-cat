@@ -1,0 +1,9 @@
+En-us-jumper.ogg: лицензия вне белого списка (FAL)
+En-us-harness.ogg: лицензия вне белого списка (FAL)
+En-us-variable.ogg: лицензия вне белого списка (FAL)
+En-us-linear.ogg: лицензия вне белого списка (FAL)
+En-allegedly.ogg: подозрительная длительность 9.88с
+En-us-emulator.ogg: лицензия вне белого списка (FAL)
+En-us-accomplishment.ogg: лицензия вне белого списка (FAL)
+En-ligature.ogg: подозрительная длительность 24.10с
+En-braille.ogg: подозрительная длительность 1042.63с

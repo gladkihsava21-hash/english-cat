@@ -375,6 +375,21 @@
         </form>
 
         <div class="hw-selected" id="hw-selected"></div>
+
+        <!-- Папка в словаре ученика, куда упадут выданные слова. Варианты
+             подставляет js/tutor.js из словаря выбранного ученика; для
+             «всем» и группы показать чужие папки не из чего — там только
+             «без папки» или новая. Своя строка для названия, а не prompt():
+             системные диалоги в продукте запрещены. -->
+        <div class="vs-row">
+          <label for="hw-folder">Папка для слов (необязательно)</label>
+          <select id="hw-folder"></select>
+        </div>
+        <div class="vs-row hidden" id="hw-folder-new-row">
+          <label for="hw-folder-new">Название новой папки</label>
+          <input type="text" id="hw-folder-new" placeholder="Например: к контрольной" maxlength="30">
+        </div>
+
         <button class="btn btn-primary btn-wide" id="hw-send">Выдать домашку</button>
         <p class="type-feedback" id="hw-msg"></p>
       </div>

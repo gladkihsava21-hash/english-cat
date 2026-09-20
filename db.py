@@ -359,6 +359,11 @@ MIGRATIONS = [
     # для домашек БЕЗ слов (викторина, грамматика, словообразование):
     # у них нечего считать по словарю, а репетитор должен видеть «сдал 8/10».
     ("students", "task_results", "TEXT DEFAULT '{}'"),
+    # Папка словаря ученика, в которую упадут слова домашки. Пустая —
+    # прежнее поведение: слова ложатся без папки. Одна папка на ВСЮ
+    # домашку, а не поле в JSON каждого слова: папку выбирает репетитор
+    # при выдаче, и разным словам одной домашки разные папки не нужны.
+    ("homework", "folder", "TEXT DEFAULT ''"),
 ]
 
 
@@ -1269,11 +1274,11 @@ def delete_student_account(student_id):
 
 def create_homework(tutor_id, title, words, student_id=None, group_id=None,
                     due_date=None, task_text="", reading_text="", game="",
-                    taskset_id=None):
+                    taskset_id=None, folder=""):
     cur = conn().execute(
         "INSERT INTO homework (tutor_id, student_id, group_id, title, words, due_date,"
-        " created_at, task_text, reading_text, game, taskset_id)"
-        " VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+        " created_at, task_text, reading_text, game, taskset_id, folder)"
+        " VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
         (
             tutor_id,
             student_id,
@@ -1286,6 +1291,9 @@ def create_homework(tutor_id, title, words, student_id=None, group_id=None,
             str(reading_text or "")[:2000],
             str(game or "")[:32],
             taskset_id,
+            # Длина как у папок в словаре ученика (sync_student режет до 30):
+            # иначе папка из домашки не совпала бы с папкой, заведённой руками.
+            str(folder or "").strip()[:30],
         ),
     )
     conn().commit()
@@ -2731,7 +2739,9 @@ def call_send(board_id, sender, kind, data):
     # без него в белом списке авто-ремонт с его стороны молча умирал),
     # screen — «я включил/выключил показ экрана», получатель по нему
     # раскладывает пришедшие видеодорожки: какая экран, какая лицо.
-    if kind not in ("offer", "answer", "ice", "bye", "needfix", "screen"):
+    # hello — групповой урок (js/groupcall.js): участники объявляют
+    # «я здесь» каждые десять секунд; mesh держится на этом пульсе.
+    if kind not in ("offer", "answer", "ice", "bye", "needfix", "screen", "hello"):
         return False
     blob = json.dumps(data or {}, ensure_ascii=False)
     if len(blob) > CALL_MSG_MAX:

@@ -948,7 +948,13 @@ canvas.addEventListener("pointerup", () => {
   if (panning) { panning = null; return; }
   if (resizing) {
     const o = BD.objects.get(resizing.id);
-    if (o) { pushUndo({ type: "put", before: resizing.orig, id: o.id }); BD.dirty.set(o.id, o); scheduleSync(); }
+    if (o) {
+      // Ручной ресайз стикера отключает его авторост по высоте
+      if (o.kind === "note") noteManualH.add(o.id);
+      pushUndo({ type: "put", before: resizing.orig, id: o.id });
+      BD.dirty.set(o.id, o);
+      scheduleSync();
+    }
     resizing = null;
     return;
   }
@@ -1090,6 +1096,43 @@ canvas.addEventListener("touchmove", e => {
 canvas.addEventListener("touchend", () => { pinch = null; }, { passive: true });
 
 /* ---------- ввод текста ---------- */
+
+/* Стикер сам растёт под многострочный текст. Enter в редакторе давно
+   работает, а высота оставалась как при создании (120) — список из пяти
+   строк просто вылезал за край бумажки. Считаем строки той же раскладкой,
+   что рисует drawText (та же гарнитура, интерлиньяж 19 и поля 12), но без
+   рисования. Потолок 320: дальше остаётся ручной resize за уголок.
+   Сервер режет текст до 600 символов (_clean_board_object в db.py),
+   поэтому дальше не считаем: лишние символы до доски всё равно не доедут,
+   а стикер вырос бы под текст, которого нет. */
+const NOTE_LH = 19, NOTE_PAD = 12;
+const NOTE_MIN_H = 120, NOTE_MAX_H = 320, NOTE_TEXT_LIMIT = 600;
+
+function noteHeight(text, w) {
+  ctx.save();
+  ctx.font = "600 " + Math.round(NOTE_LH * 0.86) + "px Nunito, system-ui, sans-serif";
+  let lines = 0;
+  for (const para of String(text).slice(0, NOTE_TEXT_LIMIT).split("\n")) {
+    const words = para.split(/[ \t]+/).filter(Boolean);
+    if (!words.length) { lines++; continue; }   // пустая строка = отступ, как в drawText
+    let line = "";
+    for (const word of words) {
+      const t = line ? line + " " + word : word;
+      if (ctx.measureText(t).width > w - NOTE_PAD * 2 && line) { lines++; line = word; }
+      else line = t;
+    }
+    if (line) lines++;
+  }
+  ctx.restore();
+  return Math.max(NOTE_MIN_H, Math.min(NOTE_MAX_H, lines * NOTE_LH + NOTE_PAD * 2));
+}
+
+/* Высота, выбранная руками за уголок, важнее автороста: человек сам
+   сказал, каким стикеру быть, и прыгать вслед за текстом после этого
+   нельзя. Флаг живёт на клиенте, а не в объекте: сервер хранит доску
+   по белому списку полей (_clean_board_object) и чужие ключи выбросит. */
+const noteManualH = new Set();
+
 let editing = null;
 function openEditor(o) {
   editing = o;
@@ -1106,7 +1149,12 @@ $("bd-editor-ok").addEventListener("click", () => {
   if (!editing) return;
   const text = $("bd-editor-input").value.trim();
   if (!text) remove(editing.id, false);
-  else put({ ...BD.objects.get(editing.id), text });
+  else {
+    const o = { ...BD.objects.get(editing.id), text };
+    // Стикер подгоняем под текст, если его размер не выбирали руками
+    if (o.kind === "note" && !noteManualH.has(o.id)) o.h = noteHeight(text, o.w);
+    put(o);
+  }
   $("bd-editor").hidden = true;
   editing = null;
 });
@@ -1212,6 +1260,8 @@ document.querySelectorAll(".bd-tool[data-tool]").forEach(b => {
   });
 });
 
+// Какому закреплённому объекту уже объясняли про замок (см. Delete ниже)
+let delLockHintFor = "";
 document.addEventListener("keydown", e => {
   if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
   // Ctrl/Cmd+D — дубликат выделенного со сдвигом (как в Миро): готовую
@@ -1237,7 +1287,23 @@ document.addEventListener("keydown", e => {
   }
   if (key === "w") $("bd-words").click();
   if ((e.ctrlKey || e.metaKey) && key === "z") { e.preventDefault(); e.shiftKey ? doRedo() : doUndo(); }
-  if ((e.key === "Delete" || e.key === "Backspace") && BD.selected) { e.preventDefault(); remove(BD.selected); }
+  if ((e.key === "Delete" || e.key === "Backspace") && BD.selected) {
+    e.preventDefault();
+    const o = BD.objects.get(BD.selected);
+    // Закреплённое клавишей не сносим. Всё остальное замок уже бережёт —
+    // не двигается, не тянется, ластик его не трогает, — а Delete сносил:
+    // одна случайная клавиша посреди урока убирала приклеенную страницу
+    // учебника. Предупреждаем один раз на выделенный объект: прижатый
+    // Backspace иначе заспамил бы экран тостами (как ластик — раз за подход).
+    if (o && o.locked) {
+      if (delLockHintFor !== o.id) {
+        delLockHintFor = o.id;
+        toast("Закреплено — сначала сними замок у рамки, потом Delete.", 3600);
+      }
+      return;
+    }
+    remove(BD.selected);
+  }
 });
 
 $("bd-undo").addEventListener("click", doUndo);
@@ -1578,6 +1644,31 @@ $("bd-panel-close").addEventListener("click", () => { $("bd-panel").hidden = tru
 $("bd-search").addEventListener("input", renderWords);
 $("bd-student").addEventListener("change", () => loadWords($("bd-student").value));
 
+/* При обрыве сети панель раньше пустела молча: api() бросает по таймауту
+   20 с, а loadStudents/loadWords его не ловили — ни сообщения, ни способа
+   попробовать ещё раз. Теперь ошибка с кнопкой «Повторить» живёт прямо
+   в панели, там же, где её подсказки (системные диалоги в проекте
+   запрещены). Кнопку создаём здесь, а не в board.html: она нужна только
+   в случае сбоя. */
+const WORDS_HINT_OK = $("bd-words-hint").textContent.trim();
+let wordsRetryBtn = null;
+function wordsError(text, retry) {
+  $("bd-words-hint").textContent = text;
+  $("bd-word-list").innerHTML = "";
+  if (!wordsRetryBtn) {
+    wordsRetryBtn = document.createElement("button");
+    wordsRetryBtn.className = "bd-btn";
+    $("bd-words-hint").after(wordsRetryBtn);
+  }
+  wordsRetryBtn.textContent = "Повторить";
+  wordsRetryBtn.hidden = false;
+  wordsRetryBtn.onclick = retry;
+}
+function wordsOk() {
+  $("bd-words-hint").textContent = WORDS_HINT_OK;
+  if (wordsRetryBtn) wordsRetryBtn.hidden = true;
+}
+
 async function loadStudents() {
   if (BD.role !== "tutor") {
     // Ученику показываем его собственный словарь — он лежит в браузере
@@ -1589,24 +1680,43 @@ async function loadStudents() {
     renderWords();
     return;
   }
-  const res = await api("/api/tutor/students", { token: BD.token });
-  if (!res.ok) { $("bd-words-hint").textContent = "Не удалось загрузить учеников."; return; }
-  BD.students = res.students || [];
-  const sel = $("bd-student");
-  // words у ученика — это разбивка по статусам, а не число: в подпись
-  // берём общее количество, иначе в списке стоит «[object Object] слов».
-  const total = s => (s.words && typeof s.words === "object" ? s.words.total : s.words) || 0;
-  sel.innerHTML = BD.students.map(s =>
-    `<option value="${s.id}">${esc(s.name)} — ${total(s)} ${wordsPlural(total(s))}</option>`).join("");
-  if (BD.students.length) loadWords(BD.students[0].id);
-  else $("bd-words-hint").textContent = "У вас пока нет учеников.";
+  try {
+    const res = await api("/api/tutor/students", { token: BD.token });
+    if (!res.ok) {
+      wordsError("Не удалось загрузить учеников.", loadStudents);
+      return;
+    }
+    wordsOk();
+    BD.students = res.students || [];
+    const sel = $("bd-student");
+    // words у ученика — это разбивка по статусам, а не число: в подпись
+    // берём общее количество, иначе в списке стоит «[object Object] слов».
+    const total = s => (s.words && typeof s.words === "object" ? s.words.total : s.words) || 0;
+    sel.innerHTML = BD.students.map(s =>
+      `<option value="${s.id}">${esc(s.name)} — ${total(s)} ${wordsPlural(total(s))}</option>`).join("");
+    if (BD.students.length) loadWords(BD.students[0].id);
+    else $("bd-words-hint").textContent = "У вас пока нет учеников.";
+  } catch (e) {
+    wordsError("Нет связи — список учеников не загрузился.", loadStudents);
+  }
 }
 
 async function loadWords(studentId) {
-  const res = await api("/api/tutor/student", { token: BD.token, studentId: Number(studentId) });
-  if (!res.ok) { BD.words = []; renderWords(); return; }
-  BD.words = (res.student.dictionary || []).map(d => ({ w: d.w, t: d.t, cat: d.cat }));
-  renderWords();
+  try {
+    const res = await api("/api/tutor/student", { token: BD.token, studentId: Number(studentId) });
+    if (!res.ok) {
+      wordsError("Не удалось загрузить слова ученика.", () => loadWords(studentId));
+      return;
+    }
+    wordsOk();
+    BD.words = (res.student.dictionary || []).map(d => ({ w: d.w, t: d.t, cat: d.cat }));
+    renderWords();
+  } catch (e) {
+    // Словарь не обнуляем: список прошлого ученика поверх ошибки
+    // вводил бы в заблуждение, но и затирать его «Ничего не нашлось» —
+    // врать. Ошибку говорим словами в подсказке, список чистим.
+    wordsError("Нет связи — слова не загрузились.", () => loadWords(studentId));
+  }
 }
 
 function renderWords() {
