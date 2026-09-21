@@ -877,4 +877,4 @@ a.nav-lesson.live .nav-ico::after {
 }
 /* На доске — той же формы, что соседние кнопки панели: bd-btn задаёт
    размер и цвет, здесь только круглость и знак. */
-.help-btn-board { border-radius: 50%; width: 34px; padding: 0; font-weight: 900; }
+.help-btn-board { border-radius: 50%; width: 44px; min-width: 44px; padding: 0; font-weight: 900; }   /* конвенция 44px: палец ребёнка */

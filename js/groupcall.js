@@ -440,6 +440,8 @@ function gcToggle(kindName, btn) {
   const on = !tracks[0].enabled;
   tracks.forEach(t => { t.enabled = on; });
   btn.classList.toggle("off", !on);
+  // Скринридеру класс ничего не сказал бы: состояние — атрибутом.
+  btn.setAttribute("aria-pressed", String(on));
 }
 
 /* Демонстрация экрана в группе: тот же второй трек, что в 1:1, но в
@@ -467,6 +469,7 @@ async function gcScreenToggle(btn) {
   }
   await gcSend("screen", { on: true });
   btn.classList.add("on");
+  btn.setAttribute("aria-pressed", "true");
   track.onended = () => gcScreenStop();
 }
 
@@ -486,7 +489,7 @@ async function gcScreenStop() {
   GC_SCREEN.senders = [];
   await gcSend("screen", { on: false });
   const btn = $("gc-screen-btn");
-  if (btn) btn.classList.remove("on");
+  if (btn) { btn.classList.remove("on"); btn.setAttribute("aria-pressed", "false"); }
 }
 
 /* ---------- запуск ----------
@@ -503,10 +506,10 @@ function gcBoot() {
   stage.innerHTML = `
     <div class="gc-grid" id="gc-grid"></div>
     <div class="gc-bar">
-      <button type="button" id="gc-mic" title="Микрофон">${icon("mic")}</button>
-      <button type="button" id="gc-cam" title="Камера">${icon("video") || icon("screen")}</button>
+      <button type="button" id="gc-mic" title="Микрофон" aria-pressed="true">${icon("mic")}</button>
+      <button type="button" id="gc-cam" title="Камера" aria-pressed="true">${icon("video") || icon("screen")}</button>
       ${BD.role === "tutor" && screenSupported()
-        ? `<button type="button" id="gc-screen-btn" title="Показать экран">${icon("screen")}</button>` : ""}
+        ? `<button type="button" id="gc-screen-btn" title="Показать экран" aria-pressed="false">${icon("screen")}</button>` : ""}
       <button type="button" id="gc-leave" class="gc-danger" title="Выйти из урока">${icon("phone")}</button>
     </div>`;
   document.body.appendChild(stage);

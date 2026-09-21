@@ -1,0 +1,40 @@
+<!doctype html>
+<!-- Снимки экрана наград: подкладывает состояние ученика в localStorage
+     (формат — тот же, что пишет js/app.js), открывает сайт в iframe на всё
+     окно и переключает его на раздел «Награды». Тема — параметром:
+     ?theme=night. Снимки: см. конец SESSION.md /tools/dom-tests. -->
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<style>html,body{margin:0;height:100%}iframe{border:0;width:100%;height:100%;display:block}
+#out{position:fixed;left:0;bottom:0;background:#fff;color:#000;font:14px monospace;z-index:9;padding:4px}</style>
+</head>
+<body>
+<pre id="out"></pre>
+<script src="tmp-ach-seed.js"></script>
+<script>
+const params = new URLSearchParams(location.search);
+if (params.get("go")) { location.replace("/index.html"); }
+const f = document.createElement("iframe");
+f.src = "/index.html";
+// Chrome headless не делает окно уже 500px: разметку считает под 500,
+// а снимок режет слева. Поэтому узкий кадр собираем так: окно шире,
+// а iframe жёстко ?w=390 — снимок захватывает его целиком.
+const wpx = params.get("w");
+if (wpx) f.style.width = wpx + "px";
+f.addEventListener("load", () => {
+  // приложение само встало на главную; переводим на «Награды», как кнопка внизу
+  setTimeout(() => {
+    const w = f.contentWindow, d = f.contentDocument;
+    w.show("achievements");
+    if (!new URLSearchParams(location.search).get("debug")) return;
+    const q = sel => { const el = d.querySelector(sel); return el ? Math.round(el.getBoundingClientRect().width) : "нет"; };
+    document.getElementById("out").textContent =
+      "innerWidth=" + w.innerWidth + " grid=" + q(".ach-grid") + " card=" + q(".ach-card")
+      + " cols=" + w.getComputedStyle(d.querySelector(".ach-grid")).gridTemplateColumns;
+  }, 400);
+});
+document.body.appendChild(f);
+</script>
+</body>
+</html>

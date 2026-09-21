@@ -419,7 +419,7 @@
 /* Бейдж присутствия ученика: в узкой шапке он ломался на три строки
    и распирал панель. */
 .bd-live { white-space: nowrap; }
-.bd-live.away { color: var(--bd-orange); background: rgba(215, 160, 30, .14); }
+.bd-live.away { color: var(--ink-soft); background: rgba(215, 160, 30, .14); }   /* янтарная подложка остаётся сигналом; янтарный текст не проходил контраст (3,4:1) ни днём, ни ночью */
 .bd-live.gone { color: var(--ink-soft); background: rgba(128, 128, 128, .12); }
 .bd-panel-tasks { border-top: 1px solid var(--border); margin-top: 10px; padding-top: 10px; }
 
@@ -653,7 +653,7 @@
   animation: screen-pulse 1.6s ease-in-out infinite;
 }
 @keyframes screen-pulse { 50% { opacity: .35; } }
-.screen-bar-stop { background: rgba(255, 255, 255, .16); color: var(--bd-on-dark); border-color: transparent; }
+.screen-bar-stop { background: rgba(0, 0, 0, .22); color: var(--bd-on-dark); border-color: transparent; }   /* белая на светлом пятне давала 3,97:1; тёмная утопленность — 7,95:1, выглядит так же */
 .screen-bar-stop:hover { background: rgba(255, 255, 255, .28); }
 
 /* ================= Групповой видеоурок (js/groupcall.js) =================
@@ -764,6 +764,19 @@
 }
 .gc-bar button:hover { background: var(--bd-video); }
 .gc-bar button.off { background: var(--bd-rec); color: var(--bd-on-dark); }
+/* off — не только цветом: при дальтонизме серая и красная кнопки неотличимы.
+   Та же косая черта, что у полоски звонка (.call-chip.off). */
+.gc-bar button { position: relative; }
+.gc-bar button.off::after {
+  content: ""; position: absolute; left: 12px; right: 12px; top: 50%;
+  height: 2px; border-radius: 1px; background: currentColor;
+  transform: translateY(-50%) rotate(-16deg);
+}
+/* На тёмной сцене у кнопок нет глобального кольца (board не грузит savely.css). */
+.gc-bar button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--bd-video-stage), 0 0 0 4px var(--bd-video-ink);
+}
 .gc-bar button.on { background: var(--accent); color: var(--on-accent); }
 .gc-bar .gc-danger { background: var(--bd-rec); color: var(--bd-on-dark); }
 .gc-bar .gc-danger:hover { filter: brightness(1.1); }

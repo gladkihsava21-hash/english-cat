@@ -284,8 +284,12 @@ let authMode = "register";
 function setAuthMode(mode) {
   authMode = mode;
   const login = mode === "login";
-  document.querySelectorAll(".tab").forEach(t =>
-    t.classList.toggle("active", t.dataset.tab === mode));
+  document.querySelectorAll(".tab").forEach(t => {
+    const on = t.dataset.tab === mode;
+    t.classList.toggle("active", on);
+    // Активность вкладки — и состояние для скринридера, как у role-switch.
+    t.setAttribute("aria-pressed", String(on));
+  });
 
   // Имя спрашиваем только при регистрации: при входе человека опознаёт почта
   const nameRow = document.getElementById("name-row");
