@@ -12,7 +12,7 @@ if [[ ! -d node_modules/jsdom ]]; then
 fi
 
 fail=0
-for t in test-smoke.js test-words-split.js test-invariants.js test-fixes.js test-double.js test-irr.js test-personal.js test-sent-audio.js test-admin-modals.js test-hw-folder.js test-call-stats.js g-grammar-rules.js; do
+for t in test-smoke.js test-words-split.js test-invariants.js test-fixes.js test-double.js test-irr.js test-personal.js test-sent-audio.js test-admin-modals.js test-hw-folder.js test-call-stats.js test-achievements.js g-grammar-rules.js test-cat-exercise.js; do
   printf '%-22s ' "$t"
   if out=$(node "$t" 2>&1); then
     echo "${out##*$'\n'}"
