@@ -1970,6 +1970,66 @@ function exProgress(i, total) {
   return `<p class="test-counter">${i + 1} / ${total}</p>`;
 }
 
+/* ===== Кот отвечает на ответ =====
+ *
+ * «Кота нет в упражнениях. При ошибке он молчит, хотя это ровно тот момент,
+ * когда репетитор должен что-то сказать» (DESIGN.md, «Незакрытое»). Реакция
+ * живёт здесь, в общих движках, — одна точка на все упражнения, а не 29
+ * копий: кот встаёт рядом с разбором ответа (маленький, не модалка) и
+ * говорит одну короткую реплику. Вёрстку не перерисовывает: элемент
+ * вставляется между вариантами и разбором, который в этот момент и так
+ * появляется, — один предсказуемый сдвиг вместе с фидбеком, без скачков.
+ *
+ * Доступность: вся строка aria-hidden намеренно. Результат скринридеру уже
+ * сообщает сам разбор — role="status" у .type-feedback в runType и
+ * «— верно/неверно» в aria-label вариантов в runMCQ. Реплика кота —
+ * интонация, а не информация: озвучивать её второй раз означало бы
+ * читать ученику одно и то же дважды.
+ *
+ * Реплик мало и они не повторяются подряд: похвала, сказанная одними и
+ * теми же словами пятый раз за подход, обесценивается. Тон — как у реплик
+ * кота на итогах (exFinish) и у котика-соседа (js/motion.js, CAT_SAY):
+ * на «ты», по-доброму, эмодзи здесь уместны — это реплика персонажа. */
+const CAT_ANSWER_SAY = {
+  ok:   ["В точку! 🐾", "Мур, верно! 😸", "Так держать! 🐾", "Именно так 😸"],
+  oops: ["Ничего, запомним вместе 🐾", "Бывает. Ещё разок 😺",
+         "Не страшно — повторим 🐾", "Почти! Запомним 😸"],
+};
+let catSayLast = { ok: -1, oops: -1 };
+
+/** Кот + облачко сразу после anchor (фидбек или блок вариантов).
+ *  В «Парах» элемент переиспользуется: текст и поза обновляются на месте,
+ *  сетка не прыгает. */
+function catAnswerNote(anchor, ok) {
+  if (!anchor || !anchor.parentNode) return;
+  const kind = ok ? "ok" : "oops";
+  const pool = CAT_ANSWER_SAY[kind];
+  let n = Math.floor(Math.random() * pool.length);
+  if (pool.length > 1 && n === catSayLast[kind]) n = (n + 1) % pool.length;
+  catSayLast[kind] = n;
+  // Ошибка — не «грустный кот»: школьный промах поддерживают wink/hello,
+  // поза sad остаётся по-настоящему плохим новостям.
+  const pose = ok ? (Math.random() < 0.25 ? "love" : "happy")
+                  : (Math.random() < 0.5 ? "wink" : "hello");
+  let note = null;
+  for (const ch of anchor.parentNode.children) {
+    if (ch.classList && ch.classList.contains("cat-answer")) { note = ch; break; }
+  }
+  if (!note) {
+    note = document.createElement("div");
+    note.className = "cat-answer";
+    note.setAttribute("aria-hidden", "true");   // см. комментарий выше
+    note.innerHTML = '<span class="cat-avatar"></span><span class="cat-answer-say"></span>';
+    anchor.insertAdjacentElement("afterend", note);
+  }
+  const avatar = note.querySelector(".cat-avatar");
+  avatar.dataset.cat = pose;
+  if (avatar.querySelector("svg")) {
+    if (typeof setCatPose === "function") setCatPose(avatar, pose);
+  } else if (typeof paintCats === "function") paintCats(note);
+  note.querySelector(".cat-answer-say").textContent = pool[n];
+}
+
 // --- общий блок: вопросы с вариантами ---
 // rounds: {prompt, sub, audioText, options[], correct, statWord}
 function runMCQ(rounds, opts = {}) {
@@ -2050,7 +2110,7 @@ function runMCQ(rounds, opts = {}) {
         // увидеть. Получалась обратная полярность: ошибку кот
         // комментирует, верный ответ — нет. Для школьника это ровно
         // наоборот тому, что нужно.
-        if (ok) { exLater(next, 1100); return; }
+        if (ok) { catAnswerNote(box, true); exLater(next, 1100); return; }
 
         // Ошибка: правильный ответ висит, пока ученик сам не нажмёт «Дальше».
         // Был автопереход через 2800 мс — экран угоняло ровно в тот момент,
@@ -2076,6 +2136,9 @@ function runMCQ(rounds, opts = {}) {
         const nextBtn = row.querySelector("#mcq-next");
         nextBtn.addEventListener("click", next);
         nextBtn.focus();   // с клавиатуры продолжаем без лишнего Tab
+        // afterend сдвигает разбор и «Дальше» ниже: сначала поддержка кота
+        // под вариантами, потом объяснение. Разбор котом не перекрывается.
+        catAnswerNote(box, false);
       });
       box.appendChild(b);
     });
@@ -2149,6 +2212,9 @@ function runPairs(pairs, opts = {}) {
         const l = selL.el;
         setTimeout(() => { b.classList.remove("bad"); l.classList.remove("bad"); }, 450);
       }
+      // Под сеткой, одна и та же строка на весь подход: пары решаются
+      // быстро одна за другой, и кот комментирует на месте, не сдвигая её.
+      catAnswerNote(colL.parentNode, ok);
     });
     colR.appendChild(b);
   });
@@ -2271,7 +2337,7 @@ function runType(rounds, opts = {}) {
       // от 80% слов, то есть «верно» бывает с опечатками, и их надо увидеть.
       // Из-за этого экран вёл себя по-разному на разных ответах, и методист
       // написала «некоторые работают через Дальше, некоторые нет».
-      if (ok && !opts.textarea) { exLater(next, 900); return; }
+      if (ok && !opts.textarea) { catAnswerNote(fb, ok); exLater(next, 900); return; }
 
       // Дальше — только по кнопке. Сравнить свой ответ с правильным это
       // тоже разбор, и в диктанте, где предложение целиком, на него
@@ -2294,6 +2360,9 @@ function runType(rounds, opts = {}) {
       const nb = row.querySelector("#type-next");
       nb.addEventListener("click", next);
       nb.focus();
+      // Кот встаёт сразу под вердиктом (afterend сдвигает разбор ниже),
+      // текст разбора он не заменяет и не перекрывает.
+      catAnswerNote(fb, ok);
     };
     document.getElementById("type-check").addEventListener("click", check);
     input.addEventListener("keydown", e => {
