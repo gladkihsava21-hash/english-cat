@@ -125,6 +125,19 @@ const TRICKY_OK = [
   "The man who lives next door is a doctor.",
   "She is good at maths and physics.",
   "There were a lot of people at the concert.",
+  // омонимы-слова словаря (cant/wont/wan/whit — C1–C2) и составные
+  // подлежащие: раньше были ложными срабатываниями корпуса
+  "A wonted custom is hard to change.",
+  "He is wont to sing in the shower.",
+  "Her wan face worried us.",
+  "He was not a whit tired.",
+  "The old traders used a cant phrase.",
+  "Scientists studied E. coli in the lab.",
+  "The wolf and the dog share one genus.",
+  "The cat and my dog play together.",
+  "Books, tea and rain are a perfect trinity.",
+  "A broker helped my aunt find a flat.",
+  "My teacher helps my sister cook dinner.",
 ];
 TRICKY_OK.forEach(text => {
   const notes = grammarCheck(text);
@@ -165,6 +178,15 @@ const REAL_ERRORS = [
   ["It depends of the weather.", "02б"],
   ["I listen music every evening.", "02б"],
   ["I very like this song.", "02б"],
+  // Омонимы в контексте опечатки — правило 8б. «I cant imagine» —
+  // НЕ в списке тишины выше нарочно: это опечатка can't в модальном
+  // контексте (задание формулировало «I cant go» как ловимый случай),
+  // а не словарное cant.
+  ["I cant go to school today.", "08b"],
+  ["I cant imagine anything.", "08b"],
+  ["She wont come to the party.", "08b"],
+  ["I wan a new bike.", "08b"],
+  ["I go whit my friend to school.", "08b"],
   // Известные пропуски (правила таких конструкций не покрывают — это
   // осознанная цена принципа «лучше промолчать»).
   ["He don't like coffee.", null],           // he + don't: правила нет
@@ -186,6 +208,15 @@ REAL_ERRORS.forEach(([text, rule]) => {
   ok(hit, `${rule}: «${text}»` + (hit ? "" : ` → не поймано, замечания: ${JSON.stringify(notes)}`));
 });
 console.log(`  Итого по списку обязательных: ${caught}/${REAL_ERRORS.filter(x => x[1]).length}`);
+
+// «It rain» — ровно один диагноз: правило 15 не должно дублировать
+// неверное «нет сказуемого» рядом с верным «it rains» от правила 5.
+{
+  const rainNotes = grammarCheck("It rain a lot in autumn.");
+  ok(rainNotes.some(n => ruleOf(n) === "05") && !rainNotes.some(n => ruleOf(n) === "15"),
+     "«It rain»: одно замечание, и это правило 05 → "
+     + JSON.stringify(rainNotes.map(n => ruleOf(n) + ":" + n.bad)));
+}
 
 console.log("\n4. Мусор на входе — модуль не падает");
 const GARBAGE = [

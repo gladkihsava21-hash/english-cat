@@ -101,20 +101,23 @@ const GC_WRONG_FORMS = {
 };
 
 /* Частые опечатки и кальки — не грамматика, но ученик их повторяет
-   из работы в работу, а репетитор видит один раз в месяц. */
+   из работы в работу, а репетитор видит один раз в месяц.
+   cant, wont, wan и whit здесь НЕТ нарочно: это настоящие слова нашего
+   же словаря (C1–C2: жаргон, обычай, бледный, йота), их разбирает
+   контекстное правило 8б ниже. */
 const GC_MISSPELL = {
   becouse: "because", bacause: "because", becuase: "because",
-  wich: "which", whit: "with", freind: "friend", frend: "friend",
-  intresting: "interesting", intresting_: "interesting",
+  wich: "which", freind: "friend", frend: "friend",
+  intresting: "interesting",
   recieve: "receive", beleive: "believe", diffrent: "different",
   alot: "a lot", allot: "a lot", untill: "until", realy: "really",
-  dont: "don't", doesnt: "doesn't", didnt: "didn't", cant: "can't",
-  wont: "won't", isnt: "isn't", arent: "aren't", wasnt: "wasn't",
+  dont: "don't", doesnt: "doesn't", didnt: "didn't",
+  isnt: "isn't", arent: "aren't", wasnt: "wasn't",
   havent: "haven't", hasnt: "hasn't", im: "I'm", ive: "I've", dosent: "doesn't",
-  wan: "want", wnat: "want", teh: "the", adn: "and", taht: "that",
+  wnat: "want", teh: "the", adn: "and", taht: "that",
   goverment: "government", tommorow: "tomorrow", tomorow: "tomorrow",
   favourit: "favourite", favorit: "favorite", allways: "always",
-  bicycle_: "bicycle", enviroment: "environment", excercise: "exercise",
+  enviroment: "environment", excercise: "exercise",
 };
 
 /** Гласный ли ЗВУК в начале слова. Артикль выбирается по звуку, а не по
@@ -239,10 +242,20 @@ function grammarCheck(text) {
   const asWritten = i => words[i];
 
   // --- 1. Заглавная буква в начале предложения ---
-  (raw.match(/(^|[.!?]\s+)([a-z])/g) || []).forEach(m => {
-    const letter = m.trim().slice(-1);
-    add(letter, letter.toUpperCase(), "Предложение начинается с заглавной буквы.");
-  });
+  {
+    const capRx = /(^|[.!?]\s+)([a-z])/g;
+    let capM;
+    while ((capM = capRx.exec(raw))) {
+      // Точка после одиночной буквы — сокращение, а не конец
+      // предложения: «E. coli», «e. g.». Строчная за ней — норма,
+      // без этой проверки ругали научные названия из нашего словаря.
+      if (capM.index > 0 && raw[capM.index] === "."
+          && /[A-Za-z]/.test(raw[capM.index - 1])
+          && (capM.index < 2 || !/[A-Za-z]/.test(raw[capM.index - 2]))) continue;
+      const letter = capM[2];
+      add(letter, letter.toUpperCase(), "Предложение начинается с заглавной буквы.");
+    }
+  }
 
   // --- 2. Местоимение I всегда заглавное ---
   if (words.includes("i")) {
@@ -426,6 +439,41 @@ function grammarCheck(text) {
     }
   });
 
+  // --- 8б. Омонимы-опечатки: cant, wont, wan, whit ---
+  //
+  // Все четыре — и частые опечатки («I cant go»), и настоящие слова
+  // нашего же словаря C1–C2 («a cant phrase», «is wont to sing», «her
+  // wan face», «not a whit tired»). В общем списке выше они врали на
+  // примерах из словаря, поэтому здесь — с контекстом, а неясный
+  // контекст пропускаем.
+  const GC_HOMONYM_DET = ["a", "an", "the", "this", "that", "these", "those",
+    "my", "your", "his", "her", "its", "our", "their", "some", "no", "every"];
+  lower.forEach((w, i) => {
+    const prev = lower[i - 1], next = lower[i + 1];
+    const nextIsVerb = !!next && (gcIsVerb(next) || GC_COMMON_VERBS.includes(next));
+    const afterDet = GC_HOMONYM_DET.includes(prev);
+    // cant → can't: модальный контекст, за ним глагол. «The cant of
+    // thieves», «a cant phrase» — после определителя, молчим.
+    if (w === "cant" && nextIsVerb && !afterDet) {
+      add(asWritten(i), "can't", "Опечатка: can't пишется с апострофом.");
+    }
+    // wont → won't: то же, но словарное wont всегда идёт с to
+    // («He is wont to sing») — перед to молчим.
+    if (w === "wont" && nextIsVerb && next !== "to" && !afterDet) {
+      add(asWritten(i), "won't", "Опечатка: won't пишется с апострофом.");
+    }
+    // wan → want: после местоимения-подлежащего («I wan a dog»).
+    // «her wan face» — her здесь притяжательное, в списке его нет нарочно.
+    if (w === "wan" && ["i", "you", "he", "she", "we", "they"].includes(prev)) {
+      add(asWritten(i), "want", "Опечатка: want пишется с t на конце.");
+    }
+    // whit → with: словарное — только в обороте «not a whit», после
+    // артикля молчим.
+    if (w === "whit" && next && !["a", "an", "the", "every"].includes(prev)) {
+      add(asWritten(i), "with", "Опечатка: with пишется через th.");
+    }
+  });
+
   // --- 9. Двойное отрицание (русская калька «я не знаю ничего») ---
   const NEG = ["not", "don't", "doesn't", "didn't", "dont", "doesnt", "didnt", "never", "can't", "cant"];
   const negIdx = lower.findIndex(w => NEG.includes(w));
@@ -521,6 +569,10 @@ function grammarCheck(text) {
   // к ним тоже в единственном: «this information is», а не «are».
   lower.forEach((w, i) => {
     if (!GC_UNCOUNTABLE.has(w) || !sameSentence(i)) return;
+    // «Books, tea and rain are a perfect trinity» — подлежащее
+    // составное, множественное are законно. «and» прямо перед словом
+    // означает перечисление — молчим.
+    if (sameSentence(i - 1) && lower[i - 1] === "and") return;
     const v = lower[i + 1];
     if (v === "are") {
       add(asWritten(i) + " are", asWritten(i) + " is",
@@ -563,6 +615,19 @@ function grammarCheck(text) {
       }
     }
     if (auxLeft) return;
+    // Составное подлежащее: «The wolf and the dog share…» — без -s
+    // законно. «and» прямо перед словом или перед его определителем —
+    // это вторая половина перечисления, молчим.
+    if (sameSentence(i - 1)
+        && (lower[i - 1] === "and"
+            || (i > 1 && sameSentence(i - 2) && lower[i - 2] === "and"
+                && GC_SUBJ_DET.has(lower[i - 1])))) return;
+    // Голый инфинитив после help / let / make + объект: «A broker
+    // helped my aunt find a flat» — find не сказуемое при aunt,
+    // а инфинитив, и -s ему не положен.
+    if (i > 1 && sameSentence(i - 1) && sameSentence(i - 2)
+        && ["help", "helps", "helped", "let", "lets", "make", "makes", "made"]
+             .includes(lower[i - 2])) return;
     const v = lower[i + 1];
     if (!v || !GC_COMMON_VERBS.includes(v)) return;   // не уверены — молчим
     if (GC_IRREGULAR_BE.has(v) || GC_MODALS.includes(v) || GC_PAST_SAME.includes(v)) return;
