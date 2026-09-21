@@ -866,6 +866,8 @@
   <script defer src="js/photo.js?v=299"></script>
   <!-- После sync.js: профиль ходит на сервер через api() оттуда -->
   <script defer src="js/account.js?v=299"></script>
+  <!-- Порядок не важен: account.js зовёт хелперы только при отрисовке профиля -->
+  <script defer src="js/pwa-install.js?v=299"></script>
 <script>
   // офлайн-режим: сайт открывается без интернета и ставится на телефон
   if ("serviceWorker" in navigator && location.protocol !== "file:") {

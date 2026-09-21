@@ -163,8 +163,11 @@ function paintAccount(note) {
     acCodeCard(p, online),
     acLevelCard(p),
     acTutorCard(p, online),
+    typeof acInstallCard === "function" ? acInstallCard() : "",
     acDangerCard(p, online),
   ].join("");
+
+  if (typeof pwaInstallRefresh === "function") pwaInstallRefresh();
 
   if (typeof paintIcons === "function") paintIcons(box);
   wireAccount(online);
@@ -407,6 +410,7 @@ function acMsg(id, text, kind) {
 
 function wireAccount(online) {
   const $ = id => document.getElementById(id);
+  if (typeof wireInstallCard === "function") wireInstallCard();
 
   // --- завести настоящий аккаунт из локального ---
   const claim = $("ac-claim");

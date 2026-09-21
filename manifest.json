@@ -1,4 +1,5 @@
 {
+  "id": "./index.html",
   "name": "Савелий — кот-репетитор английского",
   "short_name": "Савелий",
   "description": "Английские слова, которые не выветрятся: карточки с повторением, разбор домашки по фото и кот, который спросит",
@@ -9,6 +10,7 @@
   "background_color": "#F6F5F0",
   "theme_color": "#F6F5F0",
   "lang": "ru",
+  "categories": ["education", "kids"],
   "icons": [
     {
       "src": "icon-192.png",
@@ -21,6 +23,29 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Тренировки",
+      "short_name": "Тренировки",
+      "description": "Сразу к упражнениям",
+      "url": "./index.html#train",
+      "icons": [{ "src": "icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Мой словарь",
+      "short_name": "Словарь",
+      "description": "Слова и папки",
+      "url": "./index.html#dictionary",
+      "icons": [{ "src": "icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Чат с Савелием",
+      "short_name": "Чат",
+      "description": "Спросить кота",
+      "url": "./index.html#chat",
+      "icons": [{ "src": "icon-192.png", "sizes": "192x192" }]
     }
   ]
 }

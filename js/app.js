@@ -3014,6 +3014,18 @@ function trainFromHash() {
 }
 addEventListener("hashchange", trainFromHash);
 
+/* Короткие хэши экранов (#train, #dictionary, #chat) — на них ссылаются
+   ярлыки установленного PWA-приложения (manifest.json → shortcuts).
+   Раньше такие ссылки открывали главную: ярлык «Чат» врал уже в момент
+   нажатия. Страж тот же, что у trainFromHash: гостю — приветствие. */
+const HASH_SCREENS = { train: "practice", dictionary: "dictionary", chat: "chat" };
+function screenFromHash() {
+  const target = HASH_SCREENS[(location.hash || "").replace(/^#/, "")];
+  if (!target || !state.user || !state.level) return;
+  show(target);
+}
+addEventListener("hashchange", screenFromHash);
+
 if (state.user && state.level) {
   show("dashboard");
   ensureWords().then(() => { renderDashboard(); }).catch(() => {});
@@ -3023,7 +3035,7 @@ if (state.user && state.level) {
   // и немедленный show("practice") падал ReferenceError-ом, убивая
   // заодно весь остаток загрузки. Словарь к DCL всё равно не готов,
   // так что мгновенность экрана не страдает.
-  document.addEventListener("DOMContentLoaded", trainFromHash);
+  document.addEventListener("DOMContentLoaded", () => { trainFromHash(); screenFromHash(); });
 } else if (state.user) {
   document.getElementById("test-hello").textContent =
     `${state.user.name}, посчитаем, сколько слов ты уже знаешь`;
