@@ -678,6 +678,12 @@
   align-content: center;
   justify-content: center;
   grid-template-columns: repeat(auto-fit, minmax(280px, 480px));
+  /* Строки — доли высоты сцены, а не по содержимому: иначе две плитки
+     720×540 (data-n="2") суммой выше экрана выпихивали панель кнопок
+     за пределы фиксированной сцены — выйти из урока было нечем.
+     Поймано первым живым прогоном. */
+  grid-auto-rows: minmax(0, 1fr);
+  min-height: 0;
 }
 /* Один гость — крупно посередине; толпа — плотнее. */
 .gc-grid[data-n="2"] { grid-template-columns: minmax(280px, 720px); }
@@ -690,6 +696,10 @@
   overflow: hidden;
   background: var(--bd-video);
   aspect-ratio: 4 / 3;
+  /* Рост — вверх до доли строки (см. .gc-grid): широкая колонка не
+             должна уметь растянуть плитку выше сцены. */
+  max-height: 100%;
+  justify-self: center;
 }
 .gc-tile video {
   width: 100%;

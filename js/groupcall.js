@@ -14,8 +14,11 @@
  * место. Настоящий SFU — отдельный проект и отдельная машина.
  *
  * Кто кому звонит, решается без дипломатии: пару всегда строит участник
- * с меньшим id (t2 < s7 значит репетитор строит). Встречные офферы
- * при пересборке разбирает вежливость: вежливый тот, чей id больше.
+ * с меньшим id, сравнение строковое. Так как "s..." < "t..." (буква s
+ * раньше t), репетитор никогда не строит — офферы шлют ученики; нагрузка
+ * дозвона при этом симметрична, а ответ всё равно даёт вторая сторона.
+ * Встречные офферы при пересборке разбирает вежливость: вежливый тот,
+ * чей id больше.
  *
  * Все групповые сообщения помечены { g:1, from } — личный звонок их
  * игнорирует, мы игнорируем его. Одновременно личный и групповой на
@@ -46,7 +49,9 @@ function gcMyName() {
   if (BD.role === "tutor") return "Репетитор";
   try {
     const st = JSON.parse(localStorage.getItem("savelyState") || "{}");
-    if (st.name) return String(st.name).slice(0, 30);
+    // Имя лежит в state.user (см. app.js): читали st.name и все ученики
+    // были безымянными «Ученик» — поймано первым живым прогоном.
+    if (st.user && st.user.name) return String(st.user.name).slice(0, 30);
   } catch (e) { /* приватный режим */ }
   return "Ученик";
 }
@@ -114,6 +119,11 @@ function gcOnHello(d) {
   }
   p.helloAt = Date.now();
   p.name = d.name || p.name;
+  // Репетитор кладёт в hello, идёт ли показ экрана: сообщение "screen"
+  // старше 30 секунд первый опрос отбрасывает как эхо, и вошедший на
+  // урок позже иначе получал вторую видеодорожку, не зная, что это
+  // экран, — показывал её вместо лица.
+  if (p.role === "tutor") { p.screen = !!d.screen; gcRenderTiles(); }
   // Нас ещё нет в уроке, а репетитор зовёт — покажем приглашение.
   if (!GC.active && p.role === "tutor") gcShowJoin();
   // Мы в уроке, а пир без соединения — строим, если мы меньший id.
@@ -153,6 +163,15 @@ function gcConnect(id) {
   else {
     pc.addTransceiver("video", { direction: "recvonly" });
     pc.addTransceiver("audio", { direction: "recvonly" });
+  }
+  // Показ экрана уже идёт, а ученик вошёл позже: новая пара обязана
+  // получить и экран, иначе поздние входящие видят урок без материала.
+  // Поймано живым прогоном: трек крепился только к парам, существовавшим
+  // на момент включения показа.
+  if (GC_SCREEN.track) {
+    try {
+      GC_SCREEN.senders.push(pc.addTrack(GC_SCREEN.track, new MediaStream([GC_SCREEN.track])));
+    } catch (e) { /* пара перестроится по hello */ }
   }
 
   pc.onicecandidate = e => {
@@ -270,6 +289,26 @@ function gcDropPeer(id, why) {
   gcRenderTiles();
 }
 
+/* getUserMedia изредка не отвечает ВООБЩЕ (мёртвое устройство, подвисший
+   аудиосервис браузера — воспроизводится и на живом Chrome): без предела
+   ожидания gcJoin висел навсегда — ни сцены, ни ошибки, кнопка мертва.
+   Ждём GC_MEDIA_MS и заходим без своих дорожек, как при отказе в доступе.
+   Поздний ответ гасим сами: иначе индикатор камеры горел бы без единого
+   потребителя — та же ловушка, что ловили в answerCall у личного звонка. */
+const GC_MEDIA_MS = 12000;
+
+async function gcGetMedia() {
+  const slow = getCallMedia();
+  const res = await Promise.race([
+    slow,
+    new Promise(r => setTimeout(() => r("timeout"), GC_MEDIA_MS)),
+  ]);
+  if (res !== "timeout") return res;
+  slow.then(s => { if (s) s.getTracks().forEach(t => t.stop()); });
+  toast("Камера не отвечает — вы на связи без неё: видите и слышите всех, вас не видно.", 5000);
+  return null;
+}
+
 /* ---------- вход и выход ---------- */
 async function gcJoin() {
   if (GC.active) return;
@@ -281,7 +320,7 @@ async function gcJoin() {
     toast(`Группа полная: максимум ${GC_MAX} человек. Больше домашний интернет не тянет.`);
     return;
   }
-  GC.stream = await getCallMedia();   // та же лестница «видео→звук→ничего»
+  GC.stream = await gcGetMedia();
   GC.active = true;
   $("gc-join").hidden = true;
   $("gc-stage").hidden = false;
@@ -289,17 +328,24 @@ async function gcJoin() {
   // доске не живут, и лишняя кнопка — лишний способ запутаться.
   const phone = $("bd-phone");
   if (phone) phone.hidden = true;
-  await gcSend("hello", { name: gcMyName() });
+  await gcSend("hello", { name: gcMyName(), screen: !!GC_SCREEN.track });
   clearInterval(GC.helloTimer);
-  GC.helloTimer = setInterval(() => gcSend("hello", { name: gcMyName() }), GC_HELLO_MS);
+  GC.helloTimer = setInterval(
+    () => gcSend("hello", { name: gcMyName(), screen: !!GC_SCREEN.track }),
+    GC_HELLO_MS);
   for (const id of GC.peers.keys()) gcConnect(id);
   gcRenderTiles();
   gcPollLoop();
 }
 
-function gcLeave(silent) {
+async function gcLeave(silent) {
   if (!GC.active) return;
   GC.active = false;
+  // Показ экрана гасим ПЕРВЫМ: он живёт отдельным захватом, и без этого
+  // после выхода браузер продолжал писать экран в никуда (индикатор
+  // записи горит, получателей нет), а у остальных висел флаг «экран
+  // показывают». Поймано живым прогоном.
+  if (GC_SCREEN.track) await gcScreenStop();
   if (!silent) gcSend("bye", {});
   clearInterval(GC.helloTimer);
   for (const id of [...GC.peers.keys()]) gcClosePeer(id);
@@ -347,7 +393,12 @@ function gcRenderTiles() {
     const vids = p.tracks.filter(t => t.kind === "video" && t.readyState === "live");
     const auds = p.tracks.filter(t => t.kind === "audio");
     // Экран репетитора — на сцену, лицо остаётся плиткой (как в 1:1).
-    const face = p.screen && vids.length >= 2 ? vids[0] : vids[vids.length - 1];
+    // Лицо — ПЕРВАЯ видеодорожка: камера добавляется в соединение первой,
+    // экран — второй (m-line порядок сохраняется). Брать последнюю при
+    // погашенном показе нельзя: экранная дорожка некоторое время живёт
+    // после removeTrack, но уже без кадров — плитка репетитора чернела.
+    // Поймано живым прогоном (videoWidth:0 у лица после выключения показа).
+    const face = vids[0];
     const v = tile.querySelector("video");
     const want = face || auds.length ? new MediaStream([...(face ? [face] : []), ...auds]) : null;
     if (v.srcObject !== want) v.srcObject = want;
@@ -355,7 +406,9 @@ function gcRenderTiles() {
     tile.classList.toggle("gc-novideo", !face);
     if (p.screen && vids.length >= 2) screenPeer = { p, track: vids[vids.length - 1] };
   }
-  // Сцена под демонстрацию экрана
+  // Сцена под демонстрацию экрана: встаёт ПЕРЕД сеткой (экран крупно
+  // сверху, лица снизу, панель в самом низу — как в Zoom), а не в конец:
+  // appendChild ставил её после панели кнопок.
   let stage2 = $("gc-screen");
   if (screenPeer) {
     if (!stage2) {
@@ -363,7 +416,7 @@ function gcRenderTiles() {
       stage2.id = "gc-screen";
       stage2.autoplay = true;
       stage2.playsInline = true;
-      stage.appendChild(stage2);
+      stage.insertBefore(stage2, stage.firstChild);
     }
     const ms = new MediaStream([screenPeer.track]);
     if (stage2.srcObject !== ms) stage2.srcObject = ms;
