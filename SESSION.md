@@ -2127,3 +2127,10 @@ beforeinstallprompt; в standalone или без события не показ�
 (2) winapp/ — тонкий WebView2-wrapper (Program.cs + build.ps1 → Savely.exe
 одним файлом): отдельный артефакт, не часть продукта (сборщика в кодовой
 базе как не было, так и нет); сборка на Windows-машине по README.
+
+**macapp/** — то же для macOS: Swift + WKWebView (системный swiftc, Xcode
+не нужен), собрано и запущено на машине владельца (процесс жив, окно
+открыто). Камера/микрофон для видеоуроков — WKSecurityOrigin-фиксация
+делегата (первый вариант со String молча не матчился — ловить такое
+только компилятором с чтением warnings). Ярлык приложения: icon.icns из
+icon-512.png через iconutil. Собранный .app в .gitignore.

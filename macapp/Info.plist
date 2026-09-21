@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleName</key><string>Савелий</string>
+	<key>CFBundleDisplayName</key><string>Савелий</string>
+	<key>CFBundleIdentifier</key><string>ru.wordcat.savely</string>
+	<key>CFBundleVersion</key><string>1.0.0</string>
+	<key>CFBundleShortVersionString</key><string>1.0.0</string>
+	<key>CFBundlePackageType</key><string>APPL</string>
+	<key>CFBundleExecutable</key><string>Savely</string>
+	<key>CFBundleIconFile</key><string>icon.icns</string>
+	<key>LSMinimumSystemVersion</key><string>12.0</string>
+	<key>NSPrincipalClass</key><string>NSApplication</string>
+	<!-- Без этих описаний macOS молча не даст камеру и микрофон,
+	     а видеоуроку они нужны. Текст увидит родитель в системном диалоге. -->
+	<key>NSCameraUsageDescription</key><string>Камера нужна для видеоуроков с репетитором.</string>
+	<key>NSMicrophoneUsageDescription</key><string>Микрофон нужен, чтобы репетитор слышал тебя на уроке.</string>
+</dict>
+</plist>
