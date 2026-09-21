@@ -25,9 +25,23 @@
     audio/words/manifest.json      слово -> файл, вариант, автор, лицензия
     js/word-audio.js               список слов с записью (как word-photos)
 
+Расширение: индекс kaikki.org (--kaikki). Трёх канонических имён мало —
+у Commons куда больше записей: Lingua Libre («File:LL-Q1860 (eng)-
+<диктор>-<слово>.wav»), en-au/en-ca/en-gb, варианты с суффиксом части
+речи. Индекс word -> [{audio, tags, mp3_url, ogg_url}] строится из дампа
+Викисловаря kaikki.org скриптом tools/kaikki_sounds.py (там же команда
+скачивания дампа) и по умолчанию ищется в tools/cache/kaikki_sounds.json
+(gitignored). Индексу НЕ верим в лицензии и URL: лицензия по-прежнему
+проверяется через extmetadata (индекс мог устареть — файл переименовали,
+лицензию сменили), качаем по url из imageinfo. Приоритет кандидатов:
+En-us > En > En-uk > LL-Q1860 (eng) > en-gb/ca/au > прочее; внутри
+одной ступени запись без суффикса «-noun/-verb» раньше.
+
 Запуск:
     python3 tools/build_audio.py                # весь словарь
     python3 tools/build_audio.py --limit 50     # смоук: до 50 новых слов
+    python3 tools/build_audio.py --kaikki       # кандидаты из индекса
+    python3 tools/build_audio.py --kaikki /tmp/native-audio/kaikki_sounds.json
     python3 tools/build_audio.py --offline      # только перегенерить
                                                 # манифест/js из готового
 
@@ -63,6 +77,94 @@ API = "https://commons.wikimedia.org/w/api.php"
 
 # Порядок = приоритет. us первым: транскрипции в js/ipa.js американские.
 VARIANTS = [("us", "En-us-%s.ogg"), ("", "En-%s.ogg"), ("uk", "En-uk-%s.ogg")]
+
+KAIKKI_INDEX = os.path.join(CACHE_DIR, "kaikki_sounds.json")
+
+# Суффикс части речи в имени файла («en-us-minute-noun.ogg»,
+# «LL-…-abstract (noun).wav»): та же запись слова, но внутри одной
+# ступени приоритета идёт после «чистого» имени.
+_POS_SUFFIX_RE = re.compile(r"[- ]\(?(?:noun|verb|adjective|adverb)\)?$")
+_KAIKKI_REGION_RE = re.compile(r"^en-(?:gb|ca|au)[- ]")
+
+
+def kaikki_priority(fname, word):
+    """(ступень, штраф за суффикс части речи) — меньше = приоритетнее.
+
+    Ступени: En-us > En > En-uk > Lingua Libre (только английская,
+    Q1860) > en-gb/ca/au > прочее. Точное сравнение с «en-<слово>»
+    отсекает региональные имена вида «en-scotland-…» от generic-ступени.
+    """
+    low = fname.lower()
+    stem = low.rsplit(".", 1)[0]
+    m = _POS_SUFFIX_RE.search(stem)
+    core = stem[:m.start()] if m else stem
+    pos = 1 if m else 0
+    if core == "en-us-" + word:
+        return (0, pos)
+    if core == "en-" + word:
+        return (1, pos)
+    if core == "en-uk-" + word:
+        return (2, pos)
+    if low.startswith("ll-q1860 (eng)-"):
+        return (3, pos)
+    if _KAIKKI_REGION_RE.match(core):
+        return (4, pos)
+    return (5, pos)
+
+
+def kaikki_variant(fname, tags):
+    """Вариант произношения для манифеста (us/en/uk/au/ca)."""
+    low = fname.lower()
+    if low.startswith("en-us"):
+        return "us"
+    if low.startswith(("en-uk", "en-gb")):
+        return "uk"
+    if low.startswith("en-au"):
+        return "au"
+    if low.startswith("en-ca"):
+        return "ca"
+    t = " ".join(tags).lower()
+    if "australia" in t:
+        return "au"
+    if "canada" in t:
+        return "ca"
+    if re.search(r"\buk\b|england|british|london|received-pronunciation", t):
+        return "uk"
+    if re.search(r"\bus\b|american", t):
+        return "us"
+    return "en"
+
+
+def load_kaikki_index(path):
+    """Индекс kaikki -> {word: [(variant, filename), ...] по приоритету}.
+
+    Записи Lingua Libre не на английском (LL-Q… не «(eng)») выкидываем:
+    это произношение слова на другом языке. Всё остальное оставляем —
+    лицензия отсеет лишнее на этапе extmetadata.
+    """
+    raw = load_json(path, None)
+    if raw is None:
+        sys.exit("нет индекса %s — собери его: python3 tools/kaikki_sounds.py "
+                 "<дамп kaikki.org> %s (см. docstring kaikki_sounds.py)"
+                 % (path, KAIKKI_INDEX))
+    out = {}
+    for word, entries in raw.items():
+        cands = []
+        seen = set()
+        for e in entries:
+            fname = (e.get("audio") or "").strip()
+            low = fname.lower()
+            if not fname or fname in seen:
+                continue
+            if low.startswith("ll-") and not low.startswith("ll-q1860 (eng)-"):
+                continue
+            seen.add(fname)
+            cands.append((kaikki_priority(fname, word),
+                          kaikki_variant(fname, e.get("tags") or []), fname))
+        cands.sort(key=lambda c: c[0])
+        if cands:
+            out[word] = [(variant, fname) for _, variant, fname in cands]
+    return out
 
 FFMPEG = os.path.expanduser("~/.local/bin/ffmpeg")
 FFPROBE = os.path.expanduser("~/.local/bin/ffprobe")
@@ -298,6 +400,11 @@ def main(argv=None):
                     help="без сети: перегенерить js/манифест из готового")
     ap.add_argument("--words", default="",
                     help="смоук: только эти слова, через запятую")
+    ap.add_argument("--kaikki", nargs="?", const=KAIKKI_INDEX, default=None,
+                    metavar="JSON",
+                    help="кандидаты из индекса kaikki.org (по умолчанию "
+                         "tools/cache/kaikki_sounds.json) вместо трёх "
+                         "канонических имён; лицензии всё равно с Commons API")
     args = ap.parse_args(argv)
 
     os.makedirs(OUT_DIR, exist_ok=True)
@@ -310,33 +417,38 @@ def main(argv=None):
 
     if not args.offline:
         fetcher = http_cache.Fetcher(CACHE_DIR, user_agent=UA)
-        resolved = load_json(RESOLVE_CACHE, {})
-        resolve_existing(fetcher, words, resolved)
+        # Кандидаты: слово -> [(вариант, имя файла на Commons)] в порядке
+        # приоритета. Классика — три канонических имени, существование
+        # проверено API; с --kaikki — записи из индекса дампа kaikki.org,
+        # существование выяснится само на этапе метаданных.
+        if args.kaikki:
+            index = load_kaikki_index(args.kaikki)
+            cand = {w: index[w] for w in words if w in index}
+        else:
+            resolved = load_json(RESOLVE_CACHE, {})
+            resolve_existing(fetcher, words, resolved)
+            patterns = dict(VARIANTS)
+            cand = {w: [(v, patterns[v] % w) for v in resolved[w]]
+                    for w in words if resolved.get(w)}
 
         # Синтез (build_audio_synth.py) — временная затычка: появилась
         # живая запись на Commons — она главнее и перекрывает synthetic.
         todo = [w for w in words
                 if (w not in manifest or manifest[w].get("synthetic"))
-                and resolved.get(w)]
+                and cand.get(w)]
         print("есть запись на Commons, ещё не скачано: %d" % len(todo))
         if args.limit:
             todo = todo[:args.limit]
 
         # метаданные пачками: лицензия решается до единого скачивания
-        need_meta = []
-        for w in todo:
-            for variant in resolved[w]:
-                pattern = dict((v, p) for v, p in VARIANTS)[variant]
-                need_meta.append(pattern % w)
+        need_meta = [fname for w in todo for _, fname in cand[w]]
         metas = batch_meta(fetcher, need_meta)
 
         stats = {"done": 0, "license": 0, "broken": 0, "fetch": 0}
         rejects = []
         for n, w in enumerate(todo, 1):
             got = None
-            for variant in resolved[w]:      # us -> generic -> uk
-                pattern = dict((v, p) for v, p in VARIANTS)[variant]
-                fname = pattern % w
+            for variant, fname in cand[w]:
                 info = metas.get(fname)
                 if not info:
                     continue
