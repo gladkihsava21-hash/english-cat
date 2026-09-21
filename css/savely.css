@@ -225,7 +225,7 @@ select { appearance: none; padding-right: 42px;
   text-align: center;
 }
 .site-footer .cat-avatar { width: 88px; margin-bottom: var(--space-16); }
-.site-footer .footer-line { font-size: var(--text-subheading); font-weight: 700; }
+.site-footer .footer-line { font-size: var(--text-subheading); font-weight: 700; font-family: var(--font-display); }
 .site-footer .footer-sub { font-size: var(--text-body-sm); color: var(--ink-soft); margin-top: var(--space-8); }
 .site-footer a, .tg-link { color: var(--accent); font-weight: 700; text-decoration: none; }
 .site-footer a:hover, .tg-link:hover { text-decoration: underline; }

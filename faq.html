@@ -30,6 +30,11 @@
        экран регистрации: живой кот, пузырь, мягкий каскад появления. Все
        цвета — из tokens.css, своих красок здесь нет. */
     body { background: var(--paper); color: var(--ink); }
+    /* Длинные ответы — Inter: Nunito (он из style.css на весь body) на
+       справочном тексте читается «детской книжкой», а это документ.
+       Nunito остаётся заголовкам и вопросам — они и есть голос кота. */
+    body, .fq-a-pad p, .fq-foot { font-family: var(--font-ui); }
+    h1, .fq-q { font-family: var(--font-display); }
     .fq-wrap { max-width: 720px; margin: 0 auto; padding: 28px 20px 72px; }
     .fq-back { display: inline-block; margin-bottom: 6px; color: var(--accent); font-weight: 700; }
     .fq-back:hover { text-decoration: none; }
@@ -55,7 +60,7 @@
     .fq-roles { display: flex; justify-content: center; margin-bottom: 22px; }
 
     /* Карточка вопроса. Кнопка на всю ширину — попадать легко и с телефона. */
-    .fq { background: var(--surface); border: 2px solid var(--border);
+    .fq { background: var(--surface); border: 1px solid var(--line-soft);
           border-radius: 16px; margin-bottom: 12px;
           transition: border-color var(--dur, .2s) var(--ease),
                       box-shadow var(--dur, .2s) var(--ease),
@@ -70,7 +75,7 @@
     .fq-q span:first-child { flex: 1; }
     /* Шеврон рисуем рамкой, чтобы не тащить сюда js/icons.js целиком. */
     .fq-chev { flex: none; width: 10px; height: 10px; margin-right: 4px;
-               border-right: 2.5px solid var(--muted); border-bottom: 2.5px solid var(--muted);
+               border-right: 2.5px solid var(--ink-soft); border-bottom: 2.5px solid var(--ink-soft);
                transform: rotate(45deg); transition: transform .3s var(--ease); }
     .fq.open .fq-chev { transform: rotate(225deg); }
 
@@ -107,7 +112,7 @@
     .fq-anim .fq:nth-child(10) { animation-delay: .39s }
     .fq-anim .fq-more          { animation-delay: .43s }
 
-    .fq-more { text-align: center; background: var(--surface); border: 2px solid var(--border);
+    .fq-more { text-align: center; background: var(--surface); border: 1px solid var(--line-soft);
                border-radius: 16px; padding: 22px 18px; margin-top: 26px; }
     .fq-more .cat-mid { width: 84px; height: 84px; }
     .fq-more h2 { font-weight: 900; margin: 10px 0 6px; }
@@ -115,9 +120,9 @@
     .fq-more a { color: var(--accent); font-weight: 700; }
     .fq-more a:hover { text-decoration: none; }
 
-    .fq-foot { text-align: center; color: var(--muted); font-size: var(--text-caption, 16px);
+    .fq-foot { text-align: center; color: var(--ink-soft); font-size: var(--text-caption, 16px);
                margin-top: 30px; }
-    .fq-foot a { color: var(--muted); }
+    .fq-foot a { color: var(--accent); font-weight: 700; }
     .fq-foot a:hover { color: var(--ink); }
 
     /* Телефон: 150-пиксельный кот на экране в 375 — это 40% ширины,

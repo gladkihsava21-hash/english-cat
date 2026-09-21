@@ -143,8 +143,12 @@ body::before {
 }
 .role-btn:hover { color: var(--ink); border-color: transparent; }
 .role-btn.active {
-  background: var(--surface);
-  color: var(--ink);
+  /* Активный сегмент — таблетка акцентной подложки с обводкой: по контракту
+     состояние не различают одним весом шрифта. --accent-deep на --accent-soft
+     — 7,2:1 днём, 6,6:1 ночью (та же пара в savely.css «Статусы»). */
+  background: var(--accent-soft);
+  color: var(--accent-deep);
+  border-color: var(--accent-line);
   box-shadow: var(--shadow-soft);
 }
 
@@ -159,14 +163,15 @@ body::before {
 }
 .tab { border-radius: var(--radius-tag); border-color: transparent; }
 .tab.active {
-  background: var(--surface);
-  color: var(--ink);
-  border-color: transparent;
+  /* Та же пара, что у активной роли выше: подложка + обводка, веса мало. */
+  background: var(--accent-soft);
+  color: var(--accent-deep);
+  border-color: var(--accent-line);
   box-shadow: var(--shadow-soft);
 }
 .tab.active:hover {
-  background: var(--surface);
-  border-color: transparent;
+  background: var(--accent-soft);
+  border-color: var(--accent-line);
 }
 
 /* ==========================================================================
@@ -230,4 +235,16 @@ body::before {
   background: linear-gradient(180deg,
     color-mix(in oklab, var(--surface-alt) 0%, transparent) 0%,
     var(--surface-alt) 18%);
+}
+
+/* ==========================================================================
+   9. МОБИЛЬНЫЙ ГЕРОЙ: ВОЗДУХ СВЕРХУ И БЕЗ ПРОВАЛА
+   --------------------------------------------------------------------------
+   Замер на 390: уши кота упирались в верх экрана, а под облачком висело
+   125px пустоты. Добавляем воздуха над котом и подтягиваем заголовок. */
+@media (max-width: 720px) {
+  #screen-welcome { padding-top: var(--space-40); }
+  .hero-cat { margin-bottom: var(--space-8); }
+  .speech-bubble { margin-top: var(--space-8); }
+  .hero h1 { margin-top: var(--space-16); }
 }
