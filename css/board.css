@@ -25,6 +25,7 @@
   cursor: crosshair;
 }
 #board-canvas.grabbing { cursor: grabbing; }
+#board-canvas.hand { cursor: grab; }
 /* С инструментом «выделить» форму курсора ставит hoverCursor из
    js/board.js по тому, что под мышью: ладонь на пустом месте, крест
    на объекте, уголок на ручке размера. Здесь только запасной вид —

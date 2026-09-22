@@ -751,8 +751,12 @@ canvas.addEventListener("pointerdown", e => {
   try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* не беда */ }
   const w = toWorld(e.clientX, e.clientY);
 
-  // Средняя кнопка и пробел — всегда перетаскивание полотна
-  if (e.button === 1 || e.shiftKey || BD.tool === "hand") {
+  // Средняя кнопка, правая кнопка, пробел и Shift — всегда перетаскивание
+  // полотна, в любом инструменте. Правая и пробел добавлены по жалобе
+  // «мышью доску не двигается»: человек после пера или текста тянет
+  // левой — и рисует вместо сдвига. Правая кнопка свободна всегда,
+  // контекстное меню на полотне поэтому глушим (ниже).
+  if (e.button === 1 || e.button === 2 || e.shiftKey || spaceHeld || BD.tool === "hand") {
     panning = { x: e.clientX, y: e.clientY, vx: BD.view.x, vy: BD.view.y };
     canvas.classList.add("grabbing");
     return;
@@ -1308,6 +1312,27 @@ document.addEventListener("keydown", e => {
 
 $("bd-undo").addEventListener("click", doUndo);
 $("bd-redo").addEventListener("click", doRedo);
+
+/* Пробел — временная «рука»: зажал — тянешь полотно даже с пером в руке.
+   preventDefault, чтобы пробел не прокручивал страницу и не нажимал
+   сфокусированную кнопку; в поле ввода (редактор стикера) не работаем —
+   там пробел это буква. */
+let spaceHeld = false;
+document.addEventListener("keydown", e => {
+  if (e.code !== "Space" || e.repeat) return;
+  const t = e.target;
+  if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA")) return;
+  spaceHeld = true;
+  canvas.classList.add("hand");
+  e.preventDefault();
+});
+document.addEventListener("keyup", e => {
+  if (e.code !== "Space") return;
+  spaceHeld = false;
+  canvas.classList.remove("hand");
+});
+// Правая кнопка занята сдвигом полотна — контекстное меню на нём не нужно.
+canvas.addEventListener("contextmenu", e => e.preventDefault());
 $("bd-zoom-in").addEventListener("click", () => zoomAt(innerWidth / 2, innerHeight / 2, 1.2));
 $("bd-zoom-out").addEventListener("click", () => zoomAt(innerWidth / 2, innerHeight / 2, 1 / 1.2));
 $("bd-zoom").addEventListener("click", () => {
