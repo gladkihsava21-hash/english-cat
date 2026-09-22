@@ -464,7 +464,16 @@
 }
 #call-local.novideo { opacity: 0; }
 .bd-call-row { display: flex; gap: 8px; justify-content: center; cursor: default; }
-.bd-call-row .bd-btn.off { opacity: .45; text-decoration: line-through; }
+/* «Выключено» — формой, а не бледностью: косая черта поверх значка плюс
+   --ink-soft вместо opacity. Было opacity .45 — это 2,4:1 на дневной
+   карточке и провал на тёмной сцене, а line-through по SVG не рисуется.
+   Тот же приём, что у .call-chip.off и .gc-bar button.off. */
+.bd-call-row .bd-btn.off { color: var(--ink-soft); position: relative; }
+.bd-call-row .bd-btn.off::after {
+  content: ""; position: absolute; left: 9px; right: 9px; top: 50%;
+  height: 2px; border-radius: 1px; background: currentColor;
+  transform: translateY(-50%) rotate(-16deg);
+}
 .bd-call-end { color: var(--bd-on-dark); background: var(--bd-red); border-color: transparent; }
 .bd-call-state {
   margin: 0; text-align: center; font-size: 12px; color: var(--ink-soft);

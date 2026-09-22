@@ -1,9 +1,14 @@
 #!/usr/bin/env python3
-"""Проверка tools/out/words-new.js перед подключением к сайту.
+"""Проверка свежего words-new.js перед подключением к сайту.
 
 Ничего не меняет — только читает и печатает отчёт. Запуск:
 
-    python3 tools/check_words.py
+    python3 tools/check_words.py путь/к/words-new.js
+
+Путь обязателен: файл по умолчанию (tools/out/words-new.js) удалён —
+импорт августа 2026 завершён (слова в js/words.js, коммит 49528e0d),
+и проверка с молчаливым путём годами шумела «1935 проблем» на словах,
+которые уже давно в базе. Явный путь — честная проверка нового файла.
 
 Что проверяет:
   * файл разбирается тем же разбором, что и js/words.js;
@@ -25,7 +30,6 @@ from wordpipe import existing, tatoeba
 TOOLS_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_DIR = os.path.dirname(TOOLS_DIR)
 WORDS_JS = os.path.join(PROJECT_DIR, "js", "words.js")
-NEW_JS = os.path.join(TOOLS_DIR, "out", "words-new.js")
 
 RECORD_RE = re.compile(
     r'\{\s*w:\s*"((?:[^"\\]|\\.)*)"\s*,\s*t:\s*"((?:[^"\\]|\\.)*)"\s*,'
@@ -38,7 +42,11 @@ LAT = re.compile(r"[A-Za-z]")
 
 
 def main():
-    path = sys.argv[1] if len(sys.argv) > 1 else NEW_JS
+    if len(sys.argv) < 2:
+        print("запуск: python3 tools/check_words.py путь/к/words-new.js")
+        print("(сначала собери файл: tools/build_words.py)")
+        return 1
+    path = sys.argv[1]
     if not os.path.exists(path):
         print("нет файла %s — сначала запусти tools/build_words.py" % path)
         return 1
