@@ -78,7 +78,7 @@
             data-icon="categories" data-icon-size="18"></button>
     <button class="bd-btn" id="bd-theme" title="День и ночь"
             data-icon="moon" data-icon-size="18"></button>
-    <a class="bd-btn help-btn help-btn-board" href="faq.html#board" title="Вопросы и ответы" aria-label="Вопросы и ответы">?</a>
+    <button class="bd-btn help-btn help-btn-board" id="bd-help-open" title="Как пользоваться доской" aria-label="Как пользоваться доской">?</button>
   </div>
 </header>
 
@@ -110,6 +110,11 @@
             data-icon="circle" data-icon-size="22"></button>
     <button class="bd-tool" data-tool="arrow" title="Стрелка (A)"
             data-icon="diagonal" data-icon-size="22"></button>
+    <!-- Лазерная указка: яркая точка за курсором, которую видит только
+         владелец (на доске ничего не остаётся). Отличие от указки-пинга
+         (двойной тап): пинг общий и гаснет через пару секунд. -->
+    <button class="bd-tool" data-tool="laser" title="Лазерная указка (L) — точку видите только вы"
+            data-icon="target" data-icon-size="22"></button>
     <button class="bd-tool" id="bd-img" title="Картинка: файл, Ctrl+V или перетащи"
             data-icon="picture" data-icon-size="22"></button>
     <div class="bd-sep"></div>
@@ -190,6 +195,45 @@
 </div>
 
 <p class="bd-toast" id="bd-toast" hidden></p>
+
+<!-- Шпаргалка по доске: открывается по «?» и не уводит со страницы —
+     вопрос «а как тут…» возникает посреди урока, а не до него.
+     Строки короткие, по жестам: длинную инструкцию никто не читает. -->
+<div class="bd-help" id="bd-help" hidden role="dialog" aria-modal="true" aria-labelledby="bd-help-title">
+  <div class="bd-help-card">
+    <h3 id="bd-help-title">Как пользоваться доской</h3>
+    <div class="bd-help-cols">
+      <section>
+        <h4>Полотно</h4>
+        <p><b>Двигать:</b> правая кнопка, зажатый пробел, средняя кнопка
+           или Shift + левая. В режиме «Выделить» (V) — просто левая по пустому месту.</p>
+        <p><b>Масштаб:</b> колесо мыши, ползунок внизу, кнопки ± и «показать всё».</p>
+        <p><b>Указка:</b> двойной тап по пустому месту — кольцо «смотри сюда»
+           видно обоим и гаснет само. Лазер (L) видишь только ты, пока не выйдешь из него.</p>
+      </section>
+      <section>
+        <h4>Инструменты</h4>
+        <p><b>Стикер и текст:</b> двойное нажатие — править; Enter — новая
+           строка; Ctrl+Enter — готово. Стикер растёт под текст сам.</p>
+        <p><b>Ластик</b> стирает только нарисованное от руки. Картинку, книгу
+           или задание убрать — выделить и Delete. Замок на рамке — не сдвинется.</p>
+        <p><b>Картинки:</b> Ctrl+V из буфера, кнопка в панели или перетащить файл на полотно.</p>
+      </section>
+      <section>
+        <h4>Урок</h4>
+        <p><b>Карточка задания</b> — одно нажатие: тренировка откроется
+           в новой вкладке, звонок останется здесь. Разбор приедет на доску сам.</p>
+        <p><b>Звонок:</b> микрофон, камера и показ экрана — кнопками внизу окна;
+           кто на связи и какая сеть — значками сверху.</p>
+      </section>
+    </div>
+    <div class="bd-editor-row">
+      <button class="bd-btn primary" id="bd-help-close">Понятно</button>
+      <a class="bd-btn" href="faq.html#board" target="_blank" rel="noopener">Подробнее в вопросах</a>
+    </div>
+  </div>
+</div>
+
 <input type="file" id="bd-img-file" accept="image/*" hidden>
 <input type="file" id="bd-book-file" accept="application/pdf,.pdf" hidden>
 
@@ -206,6 +250,17 @@
 <div class="bd-call" id="bd-call" hidden>
   <div class="bd-call-videos">
     <video id="call-remote" autoplay playsinline></video>
+    <!-- Состояние ВТОРОЙ стороны: микрофон/камера (перечёркнутые, когда
+         выключены) и пометка о её связи. Видно, только когда пришло
+         сообщение "media" — старые клиенты его не шлют, и пустые значки
+         не вводили бы в заблуждение. Обновляет refreshPeerMedia (js/call.js). -->
+    <div class="call-peer-media" id="call-peer-media" hidden>
+      <span class="call-chip" id="cpm-mic" data-icon="mic" data-icon-size="14"></span>
+      <span class="call-chip" id="cpm-cam" data-icon="camera" data-icon-size="14"></span>
+      <span class="call-chip call-chip-link" id="cpm-link" hidden>
+        <span data-icon="signal" data-icon-size="14"></span><b id="cpm-link-word"></b>
+      </span>
+    </div>
     <video id="call-remote-cam" autoplay playsinline hidden></video>
     <video id="call-local" autoplay playsinline muted></video>
   </div>

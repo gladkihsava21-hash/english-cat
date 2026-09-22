@@ -35,6 +35,8 @@ const CALL = {
   link: null,           // последний замер качества: { rttMs, lossPct, tier }
   linkPrev: null,       // счётчики пакетов прошлого замера (дельта потерь)
   linkTimer: 0,         // setInterval замеров getStats
+  remoteMedia: null,    // состояние ВТОРОЙ стороны: { mic, cam, link } из "media"
+  mediaSentSig: "",     // подпись последнего отправленного "media" (антидубль)
 };
 
 const ICE_SERVERS = [
@@ -100,6 +102,78 @@ function handleCallMsg(m) {
     layoutRemote();
     setCallState(CALL.remoteScreen ? "вам показывают экран" : "соединено");
     return;
+  }
+  // Вторая сторона сообщила о своих устройствах и связи: рисуем
+  // мини-значки поверх её видео (refreshPeerMedia). Свой копии состояния
+  // у значков нет — вся правда в CALL.remoteMedia.
+  if (m.kind === "media") {
+    const d = m.data || {};
+    CALL.remoteMedia = {
+      mic: d.mic !== false,
+      cam: d.cam !== false,
+      link: d.link || null,
+    };
+    refreshPeerMedia();
+    return;
+  }
+}
+
+/* ---------- состояние устройств: своё — второй стороне, чужое — на видео ----------
+   «Меня слышно?» — самый частый вопрос урока, и раньше на него нельзя
+   было ответить, не спросив вслух: каждый видел только СВОЮ полоску.
+   Теперь состояние ездит сообщением "media". Шлём только при смене
+   (подпись mediaSentSig): опрос звонка — не бесплатный, а каждая
+   лишняя запись в таблице — лишний байт на всех опрашивающих. */
+function callMyMedia() {
+  const a = CALL.stream ? CALL.stream.getAudioTracks() : [];
+  const v = CALL.stream ? CALL.stream.getVideoTracks() : [];
+  return { mic: !!(a.length && a[0].enabled), cam: !!(v.length && v[0].enabled) };
+}
+
+function callSendMedia() {
+  if (CALL.state === "idle") return;
+  const st = callMyMedia();
+  // Ступень связи прикладываем, когда замер уже был: второй стороне
+  // «у тебя плохая связь» важнее всего именно в момент просадки.
+  const tier = CALL.link && CALL.link.tier !== "unknown" ? CALL.link.tier : null;
+  const sig = st.mic + "|" + st.cam + "|" + tier;
+  if (sig === CALL.mediaSentSig) return;
+  CALL.mediaSentSig = sig;
+  callSend("media", tier ? { mic: st.mic, cam: st.cam, link: tier } : st);
+}
+
+function refreshPeerMedia() {
+  const box = $("call-peer-media");
+  if (!box) return;
+  const rm = CALL.remoteMedia;
+  if (CALL.state === "idle" || !rm) { box.hidden = true; return; }
+  box.hidden = false;
+  const peer = BD.role === "tutor" ? "ученика" : "репетитора";
+  stripChip("cpm-mic", {
+    on: rm.mic,
+    title: rm.mic ? `Микрофон включён у ${peer}` : `Микрофон выключен у ${peer}`,
+  });
+  stripChip("cpm-cam", {
+    on: rm.cam,
+    title: rm.cam ? `Камера включена у ${peer}` : `Камера выключена у ${peer}`,
+  });
+  // Связь второй стороны: значок со словом появляется, только когда есть
+  // о чём сказать (средняя или плохая) — «хорошая» пометкой не дублируем,
+  // она и так читается по отсутствию жалоб.
+  const link = $("cpm-link");
+  if (link) {
+    const show = rm.link === "ok" || rm.link === "bad";
+    link.hidden = !show;
+    if (show) {
+      link.classList.remove("q-good", "q-ok", "q-bad", "q-unknown");
+      link.classList.add("q-" + rm.link);
+      const word = rm.link === "bad" ? "плохая" : "средняя";
+      const wordEl = $("cpm-link-word");
+      if (wordEl) wordEl.textContent = word;
+      const text = `У ${peer} ${word} связь`;
+      link.title = text;
+      link.setAttribute("aria-label", text);
+    }
   }
 }
 
@@ -219,23 +293,37 @@ async function startCall() {
 
 /* ---------- входящий ---------- */
 async function renegotiate(offer) {
-  // Пересборка на живом звонке: строитель прислал новый оффер после
-  // перезапуска ICE (см. tryRepair) — отвечаем, не трогая панель.
+  // Пересборка на живом звонке: прислали новый оффер (починка ICE у
+  // строителя или включённый показ экрана) — отвечаем, не трогая панель.
   try {
+    // Если и мы в этот момент ждём ответ на свой оффер (включили показ
+    // экрана одновременно с чужой пересборкой), уступаем: откатываем
+    // свой, отвечаем на чужой, а свой шлём заново — иначе чужой оффер
+    // setRemoteDescription просто отверг бы, и одна из пересборок
+    // молча терялась. Дорожки от rollback не страдают: addTrack уже
+    // сделан, новый оффер их и опишет.
+    const hadLocal = CALL.pc.signalingState === "have-local-offer";
+    if (hadLocal) await CALL.pc.setLocalDescription({ type: "rollback" });
     await CALL.pc.setRemoteDescription(offer);
     const answer = await CALL.pc.createAnswer();
     await CALL.pc.setLocalDescription(answer);
     await callSend("answer", { sdp: answer.sdp, type: answer.type });
+    if (hadLocal) await sendFreshOffer();
   } catch (e) { /* пересборка не удалась — statechange разберётся */ }
 }
 
 function onOffer(m) {
   if (CALL.state === "live") {
-    // На живом звонке новый оффер шлют двое: строитель после починки ICE
-    // и репетитор, включающий показ экрана. Ученик отвечает на оффер
-    // всегда (правило «репетитор побеждает» уже действует при дозвоне),
-    // репетитор — только если соединение строил не он.
-    if (CALL.pc && (BD.role === "student" || !CALL.isCaller)) renegotiate(m.data);
+    // На живом звонке новый оффер может прислать ЛЮБАЯ сторона: позвонивший
+    // чинит соединение (tryRepair), а показ экрана теперь есть и у ученика —
+    // он тоже открывает пересборку. Раньше репетитор-строитель чужие офферы
+    // молча ронял, и демонстрация экрана ученика в этом случае не доходила.
+    // Встречные офферы (оба пересобирают в одну секунду) разбирает та же
+    // дипломатия, что при дозвоне: репетитор стоит на своём, ученик
+    // уступает и отвечает, а свой оффер пришлёт заново (см. renegotiate).
+    if (!CALL.pc) return;
+    if (CALL.pc.signalingState === "have-local-offer" && BD.role === "tutor") return;
+    renegotiate(m.data);
     return;
   }
   if (CALL.state === "calling") {
@@ -288,6 +376,7 @@ async function answerCall() {
   CALL.offer = null;
   startLinkMeter();
   refreshCallStrip();
+  callSendMedia();   // начальное «меня слышно/видно» для второй стороны
 }
 
 async function onAnswer(m) {
@@ -324,6 +413,7 @@ async function onAnswer(m) {
   setCallState("соединяем…");
   startLinkMeter();
   refreshCallStrip();
+  callSendMedia();   // начальное «меня слышно/видно» для второй стороны
 }
 
 async function onIce(m) {
@@ -371,16 +461,23 @@ function endCall(sendBye) {
   $("screen-bar").hidden = true;
   CALL.remoteTracks = [];
   CALL.remoteScreen = false;
+  CALL.remoteMedia = null;
+  CALL.mediaSentSig = "";
+  refreshPeerMedia();
   setCallState(big ? "звонок завершён" : "");
   refreshDial();
   refreshCallStrip();
 }
 
 /* ---------- показ экрана ----------
-   Репетитор вместо камеры отправляет экран: подменяем видеодорожку в
-   ТОМ ЖЕ соединении (replaceTrack) — у ученика картинка меняется сама,
-   без нового звонка. Сервер видео по-прежнему не видит: и камера, и
-   экран идут напрямую между браузерами, ничего не записывается. */
+   Показывающий вместо «только лица» отправляет и экран: отдельной
+   видеодорожкой в ТОМ ЖЕ соединении — у второй стороны картинка
+   появляется сама, без нового звонка. Сервер видео по-прежнему не
+   видит: и камера, и экран идут напрямую между браузерами, ничего не
+   записывается.
+   Показывать может любая сторона (ученику разрешили 22.09.2026: на
+   уроке бывает «смотри, что у меня не получается»), но ОДНА за раз —
+   см. страж в startScreenShare. */
 const SCREEN = { track: null, sender: null };
 
 function screenSupported() {
@@ -413,6 +510,13 @@ async function sendFreshOffer() {
 async function startScreenShare() {
   if (!CALL.pc || CALL.state !== "live") {
     toast("Сначала созвонитесь — экран показывается внутри звонка.");
+    return;
+  }
+  // Два экрана одновременно звонок не умеет: раскладка у принимающего
+  // одна (экран+лицо), и второй показ перемешал бы дорожки. Второй
+  // включивший честно ждёт, а не молча перебивает.
+  if (CALL.remoteScreen) {
+    toast("Сейчас экран показывает вторая сторона — сначала нужно остановить её показ.", 4000);
     return;
   }
   let stream;
@@ -535,6 +639,10 @@ async function measureCallLink() {
   CALL.linkPrev = link.sample;
   CALL.link = link;
   refreshCallStrip();
+  // Ступень сменилась — второй стороне это интересно («у тебя просела
+  // связь»). callSendMedia сам отсечёт дубль по подписи, так что каждые
+  // LINK_POLL_MS сообщение НЕ уходит — только реальные смены.
+  callSendMedia();
 }
 
 function startLinkMeter() {
@@ -593,11 +701,10 @@ function refreshCallStrip() {
     title: !cam.length ? "Камеры нет — " + peer + " вас не видит"
          : cam[0].enabled ? "Камера включена" : "Камера выключена",
   });
-  // Показ экрана умеет только репетитор (кнопки у ученика нет), поэтому
-  // ученику значка нет вовсе: перечёркнутый значок, который нельзя
-  // включить, читается как «сломано».
+  // Показ экрана есть у обеих сторон (с 22.09.2026 — и у ученика),
+  // значок прячем только там, где браузер его не умеет вовсе.
   stripChip("cs-screen", {
-    hidden: BD.role !== "tutor" || !screenSupported(),
+    hidden: !screenSupported(),
     on: !!SCREEN.track,
     title: SCREEN.track ? "Вы показываете экран" : "Экран не показывается",
   });
@@ -654,6 +761,7 @@ function toggleTrack(kindName, btn) {
   btn.classList.toggle("off", !on);
   if (kindName === "video") $("call-local").classList.toggle("novideo", !on);
   refreshCallStrip();
+  callSendMedia();   // вторая сторона должна увидеть «меня больше не слышно»
 }
 
 /** Разложить удалённые дорожки по окнам.
@@ -771,9 +879,10 @@ function callBoot() {
   $("call-end").addEventListener("click", () => endCall(true));
   $("call-mic").addEventListener("click", e => toggleTrack("audio", e.currentTarget));
   $("call-cam").addEventListener("click", e => toggleTrack("video", e.currentTarget));
-  // Показ экрана — репетитору: на уроке материал показывает учитель.
-  // Телефон ученика чужой экран и так развернёт двойным нажатием.
-  if (BD.role === "tutor" && screenSupported() && $("call-screen")) {
+  // Показ экрана — обеим сторонам: ученику тоже бывает нужно показать
+  // «смотри, где я застрял». Одновременный показ отсекает страж в
+  // startScreenShare. В ГРУППЕ ученику по-прежнему нельзя (см. groupcall.js).
+  if (screenSupported() && $("call-screen")) {
     $("call-screen").hidden = false;
     $("call-screen").addEventListener("click", toggleScreenShare);
   }

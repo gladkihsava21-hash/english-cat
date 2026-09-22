@@ -2741,7 +2741,11 @@ def call_send(board_id, sender, kind, data):
     # раскладывает пришедшие видеодорожки: какая экран, какая лицо.
     # hello — групповой урок (js/groupcall.js): участники объявляют
     # «я здесь» каждые десять секунд; mesh держится на этом пульсе.
-    if kind not in ("offer", "answer", "ice", "bye", "needfix", "screen", "hello"):
+    # media — личный звонок (js/call.js): «мой микрофон/камера вкл/выкл»
+    # и ступень качества связи. Едет редко — только при смене состояния,
+    # не по таймеру, — чтобы вторая сторона видела, слышно и видно ли
+    # тебя, не раздувая опрос.
+    if kind not in ("offer", "answer", "ice", "bye", "needfix", "screen", "hello", "media"):
         return False
     blob = json.dumps(data or {}, ensure_ascii=False)
     if len(blob) > CALL_MSG_MAX:

@@ -39,6 +39,8 @@ const BD = {
   words: [],
   userMoved: false,      // трогал ли человек масштаб и сдвиг сам
   needsPaint: true,
+  laser: null,           // точка лазерной указки {x,y} в ЭКРАННЫХ координатах;
+                         // живёт только здесь: не объект доски, не синхронизация
 };
 
 const $ = id => document.getElementById(id);
@@ -54,8 +56,15 @@ const NOTE_COLORS = ["note", "note2", "note3"];
 // превращали подчёркнутое слово в тёмное пятно; текстовыделителю нужны
 // светлые яркие краски (просьба владельца).
 const MARK_COLORS = ["mark1", "mark2", "mark3", "mark4", "mark5"];
-const cssColor = name => getComputedStyle(document.documentElement)
-  .getPropertyValue("--bd-" + name).trim() || "#000";
+const cssColor = name => {
+  // Свой цвет из пикера приходит hex-ом. Правило «цвета только из
+  // tokens.css» оно не нарушает: то правило про стили интерфейса,
+  // а выбранные человеком чернила — ДАННЫЕ рисунка, как src картинки,
+  // которую он сам положил на доску.
+  if (String(name).startsWith("#")) return name;
+  return getComputedStyle(document.documentElement)
+    .getPropertyValue("--bd-" + name).trim() || "#000";
+};
 
 /* ---------- вспомогательное ---------- */
 const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
@@ -143,6 +152,23 @@ function draw() {
     }
   }
   updateBookBar();
+  /* Лазерная указка — последним слоем, поверх всего, и только у себя.
+     Это НЕ объект доски: в BD.objects не попадает, в синхронизацию
+     и отмену не уезжает, второй участник её никогда не видит. Не путать
+     с ping: пинг — общий и гаснет сам, лазер — личный и живёт, пока
+     активен инструмент. Точка статичная (без анимации), поэтому цикл
+     перерисовки не форсируем: кадр придёт от pointermove. */
+  if (BD.tool === "laser" && BD.laser) {
+    ctx.fillStyle = cssColor("rec");
+    ctx.globalAlpha = 0.28;                 // ореол, чтобы точку было видно и на светлом, и на картинке
+    ctx.beginPath();
+    ctx.arc(BD.laser.x, BD.laser.y, 12, 0, 7);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.beginPath();
+    ctx.arc(BD.laser.x, BD.laser.y, 4.5, 0, 7);
+    ctx.fill();
+  }
 }
 
 function bgMode() {
@@ -762,6 +788,11 @@ canvas.addEventListener("pointerdown", e => {
     return;
   }
 
+  // Лазер на полотне ничего не оставляет: без этого выхода нижняя ветка
+  // завернула бы нажатие в drawing-объект «laser» и угнала бы его
+  // в синхронизацию — а указка видна только владельцу.
+  if (BD.tool === "laser") return;
+
   if (BD.tool === "select") {
     // Уголок выделенного проверяем ДО хит-теста: ручка висит за рамкой
     // объекта, и попадание по ней — это точно про размер, а не про выбор.
@@ -879,6 +910,14 @@ canvas.addEventListener("pointerdown", e => {
 });
 
 canvas.addEventListener("pointermove", e => {
+  // Точка лазера — в экранных координатах: она следует за курсором,
+  // а не за содержимым, и зум со сдвигом её не таскают. paint() лишь
+  // поднимает флаг — сам кадр нарисует общий rAF-цикл, так что частые
+  // pointermove не множат перерисовки.
+  if (BD.tool === "laser") {
+    BD.laser = { x: e.clientX, y: e.clientY };
+    paint();
+  }
   if (panning) {
     BD.userMoved = true;
     BD.view.x = panning.vx + (e.clientX - panning.x);
@@ -1173,6 +1212,22 @@ $("bd-editor-input").addEventListener("keydown", e => {
 });
 
 /* ---------- панели ---------- */
+/* Последний цвет из пикера, общий для чернил и маркера: иначе активный
+   кружок показывал бы не тот цвет, которым реально рисуешь. */
+let customColor = "";
+function applyCustomColor(hex) {
+  customColor = hex;
+  BD.color = hex;
+  document.querySelectorAll(".bd-swatch").forEach(x => {
+    const on = x.classList.contains("bd-custom");
+    if (on) { x.style.background = hex; x.classList.add("picked"); }
+    x.classList.toggle("active", on);
+  });
+  // Цвет применяется и к выделенному объекту — как у обычных кружков
+  if (BD.selected && BD.objects.has(BD.selected)) {
+    put({ ...BD.objects.get(BD.selected), color: hex });
+  }
+}
 function buildStyleBar() {
   const colors = $("bd-colors");
   COLORS.concat(NOTE_COLORS, MARK_COLORS).forEach(name => {
@@ -1197,6 +1252,35 @@ function buildStyleBar() {
     });
     colors.appendChild(b);
   });
+  /* Кружок «свой цвет»: нативный пикер поверх обычного кружка. Чернилам
+     и маркеру — можно (у маркера полупрозрачность задаётся альфой при
+     отрисовке, globalAlpha 0.35 в drawObject, поэтому любой hex ложится
+     так же, как токенные MARK_COLORS). Стикерам — нет: фон стикера это
+     тематическая бумага, а не чернила.
+     Последний выбранный цвет запоминается прямо в этом кружке; повторный
+     клик снова открывает пикер, уже с этого цвета. */
+  [["ink", "Свой цвет чернил"], ["mark", "Свой цвет маркера"]].forEach(([kind, hint]) => {
+    const b = document.createElement("button");
+    b.className = "bd-swatch bd-custom";
+    b.dataset.kind = kind;
+    b.title = hint;
+    b.innerHTML = `<span data-icon="plus" data-icon-size="15"></span>`;
+    const inp = document.createElement("input");
+    inp.type = "color";
+    inp.className = "bd-color-input";
+    inp.value = cssColor(kind === "ink" ? "ink" : "mark1");
+    inp.setAttribute("aria-label", hint);
+    inp.addEventListener("input", () => applyCustomColor(inp.value));
+    b.appendChild(inp);
+    b.addEventListener("click", () => {
+      // Открываем пикер с уже выбранного: крутить оттенок удобнее
+      // от него, чем каждый раз с чёрного квадрата.
+      if (customColor) inp.value = customColor;
+      inp.click();
+    });
+    colors.appendChild(b);
+  });
+  if (typeof paintIcons === "function") paintIcons(colors);
   const sizes = $("bd-sizes");
   [2, 4, 8, 14].forEach(px => {
     const b = document.createElement("button");
@@ -1229,6 +1313,8 @@ const TOOL_STYLE = {
   rect:    { colors: "ink", sizes: true },
   ellipse: { colors: "ink", sizes: true },
   arrow:   { colors: "ink", sizes: true },
+  // Лазер только показывает точку: ни цвета, ни толщины у него нет
+  laser:   { colors: null,  sizes: false },
 };
 
 function syncStyleBar() {
@@ -1245,9 +1331,16 @@ function syncStyleBar() {
   const list = conf.colors === "note" ? NOTE_COLORS
              : conf.colors === "mark" ? MARK_COLORS : COLORS;
   if (conf.colors && !list.includes(BD.color)) {
-    BD.color = list[0];
-    document.querySelectorAll(".bd-swatch").forEach(sw =>
-      sw.classList.toggle("active", sw.title === BD.color));
+    // Свой hex годится и чернилам, и маркеру: переживает смену ручки
+    // на маркер и обратно. Стикеру он не нужен — там бумага, не чернила.
+    if (String(BD.color).startsWith("#") && conf.colors !== "note") {
+      document.querySelectorAll(".bd-swatch").forEach(sw =>
+        sw.classList.toggle("active", sw.classList.contains("bd-custom")));
+    } else {
+      BD.color = list[0];
+      document.querySelectorAll(".bd-swatch").forEach(sw =>
+        sw.classList.toggle("active", sw.title === BD.color));
+    }
   }
 }
 
@@ -1256,6 +1349,10 @@ document.querySelectorAll(".bd-tool[data-tool]").forEach(b => {
     BD.tool = b.dataset.tool;
     document.querySelectorAll(".bd-tool[data-tool]").forEach(x => x.classList.toggle("active", x === b));
     canvas.classList.toggle("picking", BD.tool === "select");
+    // Лазеру — свой курсор из css и чистая точка; с любого другого
+    // инструмента она погашена (BD.laser выставляется заново при входе).
+    canvas.classList.toggle("laser", BD.tool === "laser");
+    if (BD.tool !== "laser") { BD.laser = null; paint(); }
     // Форму курсора для «выделить» ставит hoverCursor по месту; для
     // рисующих инструментов возвращаем прицел из css.
     canvas.dataset.cur = "";
@@ -1284,8 +1381,14 @@ document.addEventListener("keydown", e => {
     return;
   }
   const map = { v: "select", p: "pen", m: "marker", e: "eraser", s: "note",
-                t: "text", r: "rect", o: "ellipse", a: "arrow" };
+                t: "text", r: "rect", o: "ellipse", a: "arrow", l: "laser" };
   const key = e.key.toLowerCase();
+  // Escape из лазера — обратно в выделение: инструмент без рисования
+  // иначе неочевидно чем выключить, а точка так и висела бы за курсором.
+  if (e.key === "Escape" && BD.tool === "laser") {
+    document.querySelector('.bd-tool[data-tool="select"]').click();
+    return;
+  }
   if (map[key]) {
     document.querySelector(`.bd-tool[data-tool="${map[key]}"]`).click();
   }
@@ -1333,6 +1436,23 @@ document.addEventListener("keyup", e => {
 });
 // Правая кнопка занята сдвигом полотна — контекстное меню на нём не нужно.
 canvas.addEventListener("contextmenu", e => e.preventDefault());
+// Ушли с полотна — точка не должна замирать на краю экрана.
+canvas.addEventListener("pointerleave", () => {
+  if (BD.laser) { BD.laser = null; paint(); }
+});
+
+/* Шпаргалка по доске: «?» открывает, «Понятно»/Escape/фон закрывают. */
+const helpBox = $("bd-help");
+const helpClose = () => { helpBox.hidden = true; };
+$("bd-help-open").addEventListener("click", () => {
+  helpBox.hidden = false;
+  $("bd-help-close").focus();
+});
+$("bd-help-close").addEventListener("click", helpClose);
+helpBox.addEventListener("click", e => { if (e.target === helpBox) helpClose(); });
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape" && !helpBox.hidden) helpClose();
+});
 $("bd-zoom-in").addEventListener("click", () => zoomAt(innerWidth / 2, innerHeight / 2, 1.2));
 $("bd-zoom-out").addEventListener("click", () => zoomAt(innerWidth / 2, innerHeight / 2, 1 / 1.2));
 $("bd-zoom").addEventListener("click", () => {

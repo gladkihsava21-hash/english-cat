@@ -129,7 +129,8 @@ console.log("\n3. Полоска статуса: состояния значко
   w.eval(`toggleTrack("video", document.getElementById("call-cam"))`);
   ok(doc.getElementById("cs-cam").classList.contains("off"), "полоска повторила выключение камеры");
 
-  // показ экрана: только репетитор, и состояние — по факту SCREEN.track
+  // показ экрана: состояние — по факту SCREEN.track; кнопка и значок
+  // с 22.09.2026 есть у обеих ролей (ученику разрешён показ в 1:1)
   const scr = doc.getElementById("cs-screen");
   ok(!scr.hidden && scr.classList.contains("off"), "у репетитора значок экрана виден и выключен");
   w.eval(`SCREEN.track = { stop() {}, onended: null }; refreshCallStrip();`);
@@ -146,9 +147,10 @@ console.log("\n3. Полоска статуса: состояния значко
   ok(link.classList.contains("q-bad") && doc.getElementById("cs-link-word").textContent === "плохая",
      "ступень плохая — и классом, и словом");
 
-  // ученик: значка показа экрана нет вовсе (включить ему всё равно нельзя)
+  // ученик: значок показа экрана тоже виден — показ разрешён обеим
+  // сторонам (одновременный отсекает страж startScreenShare по remoteScreen)
   w.eval(`BD.role = "student"; refreshCallStrip();`);
-  ok(scr.hidden, "у ученика значок экрана спрятан");
+  ok(!scr.hidden, "у ученика значок экрана виден — показ разрешён и ему");
   w.eval(`BD.role = "tutor"; refreshCallStrip();`);
 
   // конец звонка: полоска уходит, замеры остановлены
@@ -158,6 +160,45 @@ console.log("\n3. Полоска статуса: состояния значко
   ok(w.eval(`CALL.linkTimer`) === 0 && w.eval(`CALL.link`) === null,
      "замеры getStats остановлены вместе со звонком");
   ok(!doc.getElementById("screen-bar").hidden === false, "панель демонстрации спрятана");
+}
+
+console.log("\n4. Значки состояния ВТОРОЙ стороны поверх её видео");
+{
+  const box = doc.getElementById("call-peer-media");
+  ok(box.hidden, "до первого «media» значков второй стороны нет");
+  w.eval(`
+    CALL.state = "live";
+    handleCallMsg({ kind: "media", data: { mic: false, cam: true, link: "bad" } });
+  `);
+  ok(!box.hidden, "после «media» значки появились");
+  ok(doc.getElementById("cpm-mic").classList.contains("off"),
+     "микрофон второй стороны выключен — значок с чертой");
+  ok(!doc.getElementById("cpm-cam").classList.contains("off"),
+     "камера включена — без черты");
+  const pmLink = doc.getElementById("cpm-link");
+  ok(!pmLink.hidden && pmLink.classList.contains("q-bad")
+     && doc.getElementById("cpm-link-word").textContent === "плохая",
+     "плохая связь второй стороны — значок со словом");
+  ok(/у ученика плохая связь/i.test(pmLink.title),
+     "подсказка говорит словами, у кого и какая: " + pmLink.title);
+
+  w.eval(`handleCallMsg({ kind: "media", data: { mic: true, cam: false, link: "good" } });`);
+  ok(!doc.getElementById("cpm-mic").classList.contains("off"), "микрофон вернулся — черта снята");
+  ok(doc.getElementById("cpm-cam").classList.contains("off"), "камера выключена — значок с чертой");
+  ok(doc.getElementById("cpm-link").hidden, "хорошая связь пометкой не дублируется");
+
+  // свои «media» не дублируются: подпись режет повторы
+  w.eval(`CALL.mediaSentSig = ""; CALL.link = { rttMs: 48, lossPct: 0.4, tier: "good" };
+          callSendMedia();`);
+  const sig1 = w.eval(`CALL.mediaSentSig`);
+  w.eval(`callSendMedia(); callSendMedia();`);
+  ok(w.eval(`CALL.mediaSentSig`) === sig1, "повторный callSendMedia без смены — не шлёт (подпись)");
+  w.eval(`CALL.link.tier = "bad"; callSendMedia();`);
+  ok(w.eval(`CALL.mediaSentSig`) !== sig1, "смена ступени — новая подпись, ушло");
+
+  w.eval(`endCall(false);`);
+  ok(box.hidden, "после отбоя значки второй стороны скрыты");
+  ok(w.eval(`CALL.remoteMedia`) === null, "состояние второй стороны забыто");
 }
 
 console.log("\n" + (fails ? "ПРОВАЛЕНО проверок: " + fails : "качество связи и полоска статуса в порядке"));

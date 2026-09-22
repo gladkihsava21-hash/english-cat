@@ -35,6 +35,8 @@ const GC = {
   helloTimer: 0,
   pollTimer: 0,
   sweepTimer: 0,
+  linkTimer: 0,         // setInterval замеров getStats по всем парам
+  myLink: null,         // худшая ступень связи среди моих пар (для hello)
 };
 
 const GC_MAX = 6;           // репетитор + пять учеников; дальше упираемся в аплинк
@@ -105,7 +107,25 @@ function gcHandle(kind, d) {
   if (kind === "ice") return gcOnIce(d);
 }
 
-/* ---------- присутствие ---------- */
+/* ---------- присутствие ----------
+   hello — это не только «я жив», но и «вот моё состояние»: микрофон,
+   камера и моя ступень связи. Так у всех на плитках видно, кто замолчал
+   по кнопке, а у кого просто просел интернет, — без вопросов вслух.
+   Поля mic/cam/link кладём всегда, когда знаем: сообщение крошечное,
+   а опоздавшему участнику так достаётся свежее состояние с первым же пульсом. */
+function gcMyMedia() {
+  const a = GC.stream ? GC.stream.getAudioTracks() : [];
+  const v = GC.stream ? GC.stream.getVideoTracks() : [];
+  return { mic: !!(a.length && a[0].enabled), cam: !!(v.length && v[0].enabled) };
+}
+
+function gcHello() {
+  return gcSend("hello", {
+    name: gcMyName(), screen: !!GC_SCREEN.track,
+    ...gcMyMedia(), ...(GC.myLink ? { link: GC.myLink } : {}),
+  });
+}
+
 function gcOnHello(d) {
   const id = d.from;
   if (!id) return;
@@ -113,12 +133,20 @@ function gcOnHello(d) {
   if (!p) {
     p = { pc: null, name: d.name || (id[0] === "t" ? "Репетитор" : "Ученик"),
           role: id[0] === "t" ? "tutor" : "student", helloAt: 0,
-          tracks: [], screen: false };
+          tracks: [], screen: false, mic: true, cam: true, link: null };
     GC.peers.set(id, p);
     gcRenderTiles();
   }
   p.helloAt = Date.now();
   p.name = d.name || p.name;
+  // Состояние устройств участника: перерисовываем плитки только при
+  // смене — пульс ходит каждые 10 секунд, а дёргать раскладку видео
+  // без причины нельзя (пересоздание MediaStream мигало бы кадром).
+  const mic = d.mic !== false, cam = d.cam !== false, link = d.link || null;
+  if (p.mic !== mic || p.cam !== cam || p.link !== link) {
+    p.mic = mic; p.cam = cam; p.link = link;
+    gcRenderTiles();
+  }
   // Репетитор кладёт в hello, идёт ли показ экрана: сообщение "screen"
   // старше 30 секунд первый опрос отбрасывает как эхо, и вошедший на
   // урок позже иначе получал вторую видеодорожку, не зная, что это
@@ -297,6 +325,31 @@ function gcDropPeer(id, why) {
    потребителя — та же ловушка, что ловили в answerCall у личного звонка. */
 const GC_MEDIA_MS = 12000;
 
+/* Качество связи в группе: меряем каждую пару тем же разбором getStats,
+   что личный звонок (summarizeCallStats из js/call.js), и сообщаем в
+   hello ХУДШУЮ ступень — именно её чувствует человек на уроке. Своя
+   ступень при этом НЕ рисуется на чужих плитках из моих замеров: плитка
+   показывает то, что участник сообщил о себе сам, иначе у двух
+   наблюдателей одна плитка говорила бы разное. */
+const GC_LINK_MS = 5000;
+
+async function gcMeasureLinks() {
+  if (!GC.active) return;
+  const RANK = { good: 1, ok: 2, bad: 3 };
+  let worst = null;
+  for (const p of GC.peers.values()) {
+    if (!p.pc || p.pc.connectionState !== "connected") continue;
+    let report;
+    try { report = await p.pc.getStats(); } catch (e) { continue; }
+    const link = summarizeCallStats([...report.values()], p.linkPrev);
+    p.linkPrev = link.sample;
+    if (link.tier !== "unknown" && (!worst || RANK[link.tier] > RANK[worst])) {
+      worst = link.tier;
+    }
+  }
+  GC.myLink = worst;   // null = замеров ещё не было, в hello не кладём
+}
+
 async function gcGetMedia() {
   const slow = getCallMedia();
   const res = await Promise.race([
@@ -328,11 +381,12 @@ async function gcJoin() {
   // доске не живут, и лишняя кнопка — лишний способ запутаться.
   const phone = $("bd-phone");
   if (phone) phone.hidden = true;
-  await gcSend("hello", { name: gcMyName(), screen: !!GC_SCREEN.track });
+  await gcHello();
   clearInterval(GC.helloTimer);
-  GC.helloTimer = setInterval(
-    () => gcSend("hello", { name: gcMyName(), screen: !!GC_SCREEN.track }),
-    GC_HELLO_MS);
+  GC.helloTimer = setInterval(gcHello, GC_HELLO_MS);
+  clearInterval(GC.linkTimer);
+  GC.linkTimer = setInterval(gcMeasureLinks, GC_LINK_MS);
+  gcMeasureLinks();
   for (const id of GC.peers.keys()) gcConnect(id);
   gcRenderTiles();
   gcPollLoop();
@@ -348,6 +402,8 @@ async function gcLeave(silent) {
   if (GC_SCREEN.track) await gcScreenStop();
   if (!silent) gcSend("bye", {});
   clearInterval(GC.helloTimer);
+  clearInterval(GC.linkTimer);
+  GC.myLink = null;
   for (const id of [...GC.peers.keys()]) gcClosePeer(id);
   GC.peers.clear();
   if (GC.stream) GC.stream.getTracks().forEach(t => t.stop());
@@ -387,7 +443,13 @@ function gcRenderTiles() {
       tile = document.createElement("div");
       tile.className = "gc-tile";
       tile.dataset.peer = id;
-      tile.innerHTML = `<video autoplay playsinline></video><span class="gc-name"></span>`;
+      // Значки состояния участника (микрофон, связь) — из его hello,
+      // обновляются ниже вместе с остальной плиткой.
+      tile.innerHTML = `<video autoplay playsinline></video><span class="gc-name"></span>
+        <span class="gc-pm">
+          <span class="gc-pm-mic" hidden>${icon("mic", 14)}</span>
+          <span class="gc-pm-link" hidden>${icon("signal", 14)}<b></b></span>
+        </span>`;
       grid.appendChild(tile);
     }
     const vids = p.tracks.filter(t => t.kind === "video" && t.readyState === "live");
@@ -404,6 +466,26 @@ function gcRenderTiles() {
     if (v.srcObject !== want) v.srcObject = want;
     tile.querySelector(".gc-name").textContent = p.name;
     tile.classList.toggle("gc-novideo", !face);
+    // Отклонения из hello участника: микрофон выключен / связь плохая.
+    // Подпись словами в title и текстом у значка — не одним цветом.
+    const pmMic = tile.querySelector(".gc-pm-mic");
+    if (pmMic) {
+      pmMic.hidden = p.mic !== false;
+      const t = `${p.name}: микрофон выключен`;
+      pmMic.title = t;
+      pmMic.setAttribute("aria-label", t);
+    }
+    const pmLink = tile.querySelector(".gc-pm-link");
+    if (pmLink) {
+      const bad = p.link === "bad";
+      pmLink.hidden = !bad;
+      if (bad) {
+        pmLink.querySelector("b").textContent = "плохая";
+        const t = `${p.name}: плохая связь`;
+        pmLink.title = t;
+        pmLink.setAttribute("aria-label", t);
+      }
+    }
     if (p.screen && vids.length >= 2) screenPeer = { p, track: vids[vids.length - 1] };
   }
   // Сцена под демонстрацию экрана: встаёт ПЕРЕД сеткой (экран крупно
@@ -442,15 +524,26 @@ function gcToggle(kindName, btn) {
   btn.classList.toggle("off", !on);
   // Скринридеру класс ничего не сказал бы: состояние — атрибутом.
   btn.setAttribute("aria-pressed", String(on));
+  // Досрочный hello: «я замолчал» остальные должны увидеть сразу, а не
+  // через остаток десятисекундного пульса — иначе репетитор продолжает
+  // спрашивать ученика, который себя заглушил.
+  gcHello();
 }
 
 /* Демонстрация экрана в группе: тот же второй трек, что в 1:1, но в
-   каждое соединение. Только репетитор — материал показывает учитель. */
+   каждое соединение. Только репетитор — и это не про «материал показывает
+   учитель», а про mesh: если бы экран мог включить каждый, в одну секунду
+   приехало бы N входящих экранов — сцена не знает, чей показывать, а
+   домашний аплинк ученика с чужими лицами и чужим экраном просто ложится.
+   В 1:1 ученику показ разрешён: там ровно один получатель. */
 const GC_SCREEN = { track: null, senders: [] };
 
 async function gcScreenToggle(btn) {
   if (GC_SCREEN.track) return gcScreenStop();
-  if (BD.role !== "tutor") return;
+  if (BD.role !== "tutor") {
+    toast("В групповом уроке экран показывает только репетитор.");
+    return;
+  }
   let stream;
   try {
     stream = await navigator.mediaDevices.getDisplayMedia({

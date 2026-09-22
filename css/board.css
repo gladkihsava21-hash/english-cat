@@ -31,6 +31,9 @@
    на объекте, уголок на ручке размера. Здесь только запасной вид —
    до первого движения мыши. */
 #board-canvas.picking  { cursor: grab; }
+/* Лазер: курсор гасим — яркая точка сама играет его роль. crosshair
+   рядом с точкой давал бы две метки в одном месте, визуальный шум. */
+#board-canvas.laser    { cursor: none; }
 
 /* ---------- общие кнопки доски ---------- */
 .bd-btn {
@@ -168,6 +171,27 @@
 }
 .bd-swatch.active { border-color: var(--ink); }
 .bd-swatch:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+/* Кружок «свой цвет»: до выбора — плюс на нейтральном фоне, после —
+   заливается выбранным (заливку ставит JS из пикера: это данные
+   рисунка, а не стиль интерфейса, правило tokens.css её не касается). */
+.bd-swatch.bd-custom {
+  display: flex; align-items: center; justify-content: center;
+  position: relative;
+  color: var(--ink);
+  background: var(--surface-alt);
+  border-style: dashed;
+  border-color: var(--line-control);
+}
+.bd-swatch.bd-custom.active { border-style: solid; border-color: var(--ink); }
+/* Плюс поверх выбранного цвета мог бы слиться с ним — прячем */
+.bd-swatch.bd-custom.picked svg.ic { display: none; }
+/* Нативный пикер невидим и не ловит нажатия: клик приходит в кружок,
+   а пикер открываем программно (inp.click()) */
+.bd-color-input {
+  position: absolute; width: 0; height: 0;
+  opacity: 0; pointer-events: none; border: 0; padding: 0;
+}
 
 .bd-size {
   width: 30px; height: 30px;
@@ -464,6 +488,23 @@
   object-fit: cover; border: 2px solid var(--surface);
 }
 #call-local.novideo { opacity: 0; }
+/* Мини-значки состояния ВТОРОЙ стороны поверх её видео (левый верхний
+   угол): «у ученика выключен микрофон» видно без вопроса вслух. Та же
+   косая черта «выключено», что у .call-chip.off, — смысл не одним цветом.
+   Плашка тёмная полупрозрачная, как .gc-name: значок обязан читаться
+   поверх любого кадра. */
+.call-peer-media {
+  position: absolute; left: 6px; top: 6px; z-index: 2;
+  display: flex; align-items: center; gap: 3px;
+}
+.call-peer-media .call-chip {
+  min-height: 20px; padding: 1px 6px; gap: 4px;
+  font-size: 11.5px;
+  color: var(--bd-video-ink);
+  background: color-mix(in srgb, var(--bd-video-deep) 78%, transparent);
+}
+.call-peer-media .call-chip.off { color: var(--bd-video-ink); }
+.call-peer-media .call-chip.off::after { left: 4px; right: 4px; }
 .bd-call-row { display: flex; gap: 8px; justify-content: center; cursor: default; }
 /* «Выключено» — формой, а не бледностью: косая черта поверх значка плюс
    --ink-soft вместо opacity. Было opacity .45 — это 2,4:1 на дневной
@@ -741,6 +782,37 @@
   color: var(--bd-video-ink);
   font-weight: 700;
 }
+/* Состояние участника по его hello: «микрофон выключен» и «плохая
+   связь» — правый верхний угол плитки. Показываем ТОЛЬКО отклонения
+   (значок появляется, когда микрофон выключен или связь плохая): шесть
+   плиток с постоянными значками «всё хорошо» — это шум, в котором
+   важное тонет. Черта поверх значка — как у .gc-bar button.off. */
+.gc-pm {
+  position: absolute;
+  right: var(--space-8);
+  top: var(--space-8);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.gc-pm > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 7px;
+  border-radius: var(--radius-tag);
+  background: color-mix(in srgb, var(--bd-video-deep) 78%, transparent);
+  color: var(--bd-video-ink);
+  font-size: var(--text-caption);
+  font-weight: 700;
+}
+.gc-pm > span[hidden] { display: none; }
+.gc-pm-mic { position: relative; }
+.gc-pm-mic::after {
+  content: ""; position: absolute; left: 5px; right: 5px; top: 50%;
+  height: 1.75px; border-radius: 1px; background: currentColor;
+  transform: translateY(-50%) rotate(-16deg);
+}
 
 /* Демонстрация экрана репетитора — сцена сверху, лица снизу. */
 #gc-screen {
@@ -818,4 +890,47 @@
   .gc-grid { grid-template-columns: repeat(2, 1fr); gap: var(--space-8); padding: var(--space-8); }
   .gc-grid[data-n="2"] { grid-template-columns: 1fr; }
   .gc-bar button { width: 52px; height: 52px; }  /* палец ребёнка */
+}
+
+/* ---------- шпаргалка по доске ---------- */
+/* Тот же каркас, что у редактора: центр экрана, поверх полотна. */
+.bd-help {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(16, 19, 15, .42);
+}
+.bd-help[hidden] { display: none; }
+.bd-help-card {
+  width: min(680px, 94vw);
+  max-height: 86vh;
+  overflow: auto;
+  background: var(--surface);
+  border: 1px solid var(--line-control);
+  border-radius: 18px;
+  padding: 20px 22px;
+  box-shadow: var(--shadow-lift);
+}
+.bd-help-card h3 { margin: 0 0 12px; font-size: var(--text-subheading); }
+.bd-help-cols { display: grid; gap: 4px 24px; grid-template-columns: 1fr 1fr; }
+.bd-help-cols section:last-child { grid-column: 1 / -1; }
+.bd-help-card h4 {
+  margin: 10px 0 4px;
+  font-size: var(--text-caption);
+  color: var(--accent);
+  font-weight: 700;
+}
+.bd-help-card p {
+  margin: 0 0 8px;
+  font-size: var(--text-caption);
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+.bd-help-card p b { color: var(--ink); font-weight: 700; }
+.bd-help-card .bd-editor-row { margin-top: 12px; display: flex; gap: 10px; }
+@media (max-width: 640px) {
+  .bd-help-cols { grid-template-columns: 1fr; }
 }

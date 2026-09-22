@@ -103,15 +103,19 @@ const byId = (w, id) => bd(w).objects.get(id);
     const w = makeBoard();
     await tick(120);
     const shown = () => [...w.document.querySelectorAll(".bd-swatch")]
-      .filter(s => !s.hidden).map(s => s.title);
+      .filter(s => !s.hidden && !s.classList.contains("bd-custom")).map(s => s.title);
+    const customShown = () => [...w.document.querySelectorAll(".bd-swatch.bd-custom")]
+      .filter(s => !s.hidden).length;
     tool(w, "pen");
     const ink = shown();
     ok(ink.includes("ink") && !ink.some(n => n.startsWith("mark")),
        "у ручки чернила, маркерных цветов нет: " + ink.join(","));
+    ok(customShown() === 1, "у ручки один кружок «свой цвет»");
     tool(w, "marker");
     const mark = shown();
     ok(mark.length >= 5 && mark.every(n => n.startsWith("mark")),
        "у маркера своя палитра: " + mark.join(","));
+    ok(customShown() === 1, "у маркера тоже один кружок «свой цвет»");
     ok(String(bd(w).color).startsWith("mark"),
        "выбранный цвет переехал в маркерный: " + bd(w).color);
     // рисуем маркером — штрих обязан сохранить маркерный цвет
