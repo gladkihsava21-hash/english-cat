@@ -218,6 +218,33 @@ console.log(`  Итого по списку обязательных: ${caught}/
      + JSON.stringify(rainNotes.map(n => ruleOf(n) + ":" + n.bad)));
 }
 
+console.log("\n3б. Одно место — одно замечание; разные места — разные");
+{
+  // Опечатка уже названа правилом 8б — правило 15 на том же
+  // предложении молчит, чтобы не было двух замечаний на одну точку.
+  const one = grammarCheck("I wan a new bike.");
+  ok(one.length === 1 && ruleOf(one[0]) === "08b",
+     "«I wan a new bike»: одно замечание 08b, без дубля от 15 → "
+     + JSON.stringify(one.map(n => ruleOf(n) + ":" + n.bad)));
+  // Опечатка в первом предложении не глушит пропущенное сказуемое
+  // во втором: пересечение считается по токенам ЭТОГО предложения.
+  const two = grammarCheck("I wan a new bike. My brother a good student.");
+  ok(two.some(n => ruleOf(n) === "08b") && two.some(n => ruleOf(n) === "15"),
+     "08b в первом и 15 во втором живут вместе → "
+     + JSON.stringify(two.map(n => ruleOf(n) + ":" + n.bad)));
+  // Два предложения без сказуемого подряд называются оба — замечания
+  // самого правила 15 не глушат друг друга.
+  const twice = grammarCheck("My brother a good student. Her sister a nice teacher.");
+  ok(twice.filter(n => ruleOf(n) === "15").length === 2,
+     "два предложения без сказуемого — два замечания 15 → "
+     + JSON.stringify(twice.map(n => ruleOf(n) + ":" + n.bad)));
+  // 15 в первом предложении и 05 во втором — разные места, оба живут.
+  const mixed = grammarCheck("My brother a good student. She like apples.");
+  ok(mixed.some(n => ruleOf(n) === "15") && mixed.some(n => ruleOf(n) === "05"),
+     "15 в первом и 05 во втором живут вместе → "
+     + JSON.stringify(mixed.map(n => ruleOf(n) + ":" + n.bad)));
+}
+
 console.log("\n4. Мусор на входе — модуль не падает");
 const GARBAGE = [
   ["пустая строка", ""],
