@@ -633,11 +633,20 @@ h3, .section-head h3 {
 }
 /* Активный фильтр и активная группа заливались акцентом с белым текстом.
    Ночью акцент светлый — белым по светлому получалось 2,06:1. */
-.dict-filter.active, .group-chip.active, .scope-chip.active,
-.dict-folder.active, #voice-mode-btn.voice-active, .photo-new, .ob-num {
+.group-chip.active, .scope-chip.active,
+#voice-mode-btn.voice-active, .photo-new, .ob-num {
   background: var(--accent);
   color: var(--on-accent);
   border-color: var(--accent);
+}
+/* Активный фильтр и папка в словаре — языком nav-btn.active (подложка +
+   обводка), а не третьей заливкой на экране: залитой остаётся только
+   кнопка «Тренировать». Ночью заливка #65D97A с текстом --on-accent
+   (тёмным) — те же два пятна рядом, днём два тёмно-зелёных. */
+.dict-filter.active, .dict-folder.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: var(--accent-line);
 }
 /* ==========================================================================
    6. СОСТОЯНИЯ: ОДИН СЛОВАРЬ НА ВСЕ ЭЛЕМЕНТЫ
@@ -778,6 +787,11 @@ input:focus, textarea:focus, select:focus {
 .xp-bar, .progress { background: var(--line-soft); }
 .xp-bar-fill, .progress-fill { background: var(--accent); }   /* 4,6:1 к дорожке днём, 5,4:1 ночью */
 .xp-bar-fill.done, .goal-card .xp-bar-fill.done { background: var(--accent-deep); }
+/* Ночью заливка акцентом — самый яркий объект экрана; на странице наград
+   их десятки, и они спорят с золотой ступенью. Приглушаем ровно ночью. */
+[data-theme="night"] .xp-bar-fill {
+  background: color-mix(in oklab, var(--accent) 55%, var(--surface));
+}
 .xp-bar-fill.full { background: var(--err); }
 /* Шкала надёжности пароля лежала на --line: четыре ярких хвоста на сером,
    от 1,36:1 до 1,71:1 — уровень было не разобрать. Оставляем одну шкалу

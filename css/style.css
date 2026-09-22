@@ -163,11 +163,11 @@ body {
 .test-intro h2, .test-result h2 { font-size: var(--text-subheading); font-weight: 900; margin-bottom: 12px; }
 .test-intro p { color: var(--muted); font-weight: 600; margin-bottom: 24px; line-height: 1.55; }
 .progress { height: 8px; background: var(--accent-soft); border-radius: 10px; overflow: hidden; }
-.progress-fill { height: 100%; width: 0%; background: var(--accent); border-radius: 10px; transition: width .25s; }
+.progress-fill { height: 100%; width: 0%; background: var(--accent); border-radius: 999px; transition: width .25s; }
 .test-counter { text-align: center; color: var(--muted); font-weight: 800; font-size: var(--text-caption); margin: 10px 0 18px; }
 .word-quiz-card { text-align: center; padding: 40px 24px; }
 .quiz-label { color: var(--muted); font-weight: 700; font-size: var(--text-caption); margin-bottom: 10px; }
-.quiz-word { font-size: var(--text-heading-lg); font-weight: 900; margin-bottom: 28px; letter-spacing: -0.5px; }
+.quiz-word { font-size: var(--text-heading-lg); font-weight: 800; margin-bottom: 28px; letter-spacing: -0.5px; }
 .quiz-word-small { font-size: var(--text-heading); margin-bottom: 12px; }
 .quiz-buttons { display: flex; gap: 12px; justify-content: center; margin-top: 18px; }
 .quiz-buttons .btn { min-width: 140px; }
@@ -190,7 +190,7 @@ body {
 .word-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
 .word-card { padding: 18px; display: flex; flex-direction: column; gap: 6px; }
 .word-card .w-en { font-size: var(--text-body); font-weight: 900; }
-.word-card .w-level { font-size: var(--text-caption); font-weight: 800; color: var(--accent-dark); background: var(--accent-soft); border-radius: 20px; padding: 2px 8px; align-self: flex-start; }
+.word-card .w-level { font-size: var(--text-caption); font-weight: 800; color: var(--accent-dark); background: var(--accent-soft); border-radius: 999px; padding: 2px 8px; align-self: flex-start; }
 .word-card .w-ru { color: var(--ink); font-weight: 700; }
 .word-card .w-ex { color: var(--muted); font-size: var(--text-caption); font-style: italic; flex: 1; }
 .word-card .btn { margin-top: 10px; font-size: var(--text-caption); padding: 8px 14px; }
@@ -218,7 +218,7 @@ body {
 }
 .dict-row .d-en { font-weight: 900; font-size: var(--text-body-sm); min-width: 140px; }
 .dict-row .d-ru { color: var(--muted); font-weight: 700; flex: 1; }
-.dict-row .d-status { font-size: var(--text-caption); font-weight: 800; border-radius: 20px; padding: 3px 9px; }
+.dict-row .d-status { font-size: var(--text-caption); font-weight: 800; border-radius: 999px; padding: 3px 9px; }
 .d-status.new { background: var(--accent-soft); color: var(--accent); }
 .d-status.learning { background: var(--accent-soft); color: var(--accent-dark); }
 .d-status.learned { background: var(--accent-soft); color: var(--green); }
@@ -264,7 +264,7 @@ body {
 }
 .ach-card.ach-done { opacity: 1; }
 .ach-icon {
-  width: 56px; height: 56px; border-radius: 16px; font-size: var(--text-heading-sm);
+  width: 56px; height: 56px; border-radius: 18px; font-size: var(--text-heading-sm);
   display: flex; align-items: center; justify-content: center;
 }
 .ach-name { font-size: var(--text-caption); font-weight: 900; }
@@ -281,7 +281,7 @@ body {
 }
 .ach-toast.show { transform: translate(-50%, 0); }
 .ach-toast-icon {
-  width: 44px; height: 44px; border-radius: 13px; font-size: var(--text-subheading);
+  width: 44px; height: 44px; border-radius: 12px; font-size: var(--text-subheading);
   display: flex; align-items: center; justify-content: center; flex-shrink: 0;
 }
 .ach-toast b { display: block; font-size: var(--text-caption); }
@@ -307,9 +307,9 @@ body {
   background: var(--accent-soft);
 }
 .word-art-big { width: 92px; height: 92px; font-size: var(--text-display); border-radius: 24px; margin: 0 auto 14px; }
-.word-art-mid { width: 76px; height: 76px; font-size: var(--text-heading-lg); border-radius: 20px; margin: 0 auto 16px; }
-.word-art-small { width: 46px; height: 46px; font-size: var(--text-subheading); border-radius: 13px; }
-.word-art-tiny { width: 34px; height: 34px; font-size: var(--text-body); border-radius: 10px; }
+.word-art-mid { width: 76px; height: 76px; font-size: var(--text-heading-lg); border-radius: 18px; margin: 0 auto 16px; }
+.word-art-small { width: 46px; height: 46px; font-size: var(--text-subheading); border-radius: 12px; }
+.word-art-tiny { width: 34px; height: 34px; font-size: var(--text-body); border-radius: 12px; }
 .w-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 4px; }
 .w-head .w-level { align-self: center; }
 /* ---------- слово дня ---------- */
@@ -413,8 +413,8 @@ body {
 .stat-value { font-weight: 900; font-size: var(--text-subheading); margin: 4px 0 2px; }
 .stat-unit { font-size: var(--text-caption); font-weight: 700; color: var(--muted); }
 .stat-note { color: var(--muted); font-weight: 600; font-size: var(--text-caption); }
-.xp-bar { height: 7px; background: var(--accent-soft); border-radius: 10px; overflow: hidden; margin: 8px 0 6px; }
-.xp-bar-fill { height: 100%; background: var(--accent); border-radius: 10px; transition: width .3s; }
+.xp-bar { height: 7px; background: var(--accent-soft); border-radius: 999px; overflow: hidden; margin: 8px 0 6px; }
+.xp-bar-fill { height: 100%; background: var(--accent); border-radius: 999px; transition: width .3s; }
 .xp-earned { color: var(--accent-dark); font-weight: 900; font-size: var(--text-body); margin-bottom: 8px; }
 .say-btn {
   background: none; border: none; cursor: pointer; font-size: var(--text-caption);

@@ -254,3 +254,8 @@ body::before {
   .speech-bubble { margin-top: var(--space-8); }
   .hero h1 { margin-top: var(--space-16); }
 }
+
+/* Замер на 390: заголовок «Слова для тебя» лип к сетке карточек (0px). */
+@media (max-width: 720px) {
+  #words-head { margin-bottom: var(--space-12); }
+}
