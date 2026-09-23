@@ -1085,6 +1085,29 @@ function hoverCursor(wx, wy) {
 canvas.addEventListener("wheel", e => {
   e.preventDefault();
   const unit = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? innerHeight : 1;
+
+  // Трекпад против мышиного колеса — у них разные ожидания.
+  // На тачпаде (Mac) «два пальца» — это прокрутка ПОЛОТНА: человек ведёт
+  // двумя пальцами, чтобы ехать по доске, а она вместо этого зумит —
+  // ровно жалоба владельца. Щипок приходит как ctrl+wheel и остаётся
+  // масштабом. Мышиное колесо тоже остаётся масштабом (ранняя просьба
+  // «норм масштаб колесиком»).
+  //
+  // Отличаем так: у тачпада события в пикселях, мелкие, дробные и часто
+  // с горизонталью; у колеса — крупные целые щелчки (~100–120 в Chrome).
+  // Это эвристика, и честная цена у неё одна: колесо мыши в Safari
+  // (мелкие целые ~10) поедет полотном, а не зумом — на Mac это ощущается
+  // естественно, а масштаб там же в ctrl+колесо и ползунке.
+  const trackpad = !e.ctrlKey && e.deltaMode === 0
+    && (e.deltaX !== 0 || !Number.isInteger(e.deltaY) || Math.abs(e.deltaY) < 40);
+  if (trackpad) {
+    BD.userMoved = true;
+    BD.view.x -= e.deltaX;
+    BD.view.y -= e.deltaY;
+    paint();
+    return;
+  }
+
   const px = Math.max(-240, Math.min(240, e.deltaY * unit));
   // ctrl+колесо (щипок на трекпаде) — резче, это жест «приблизь»
   const factor = Math.pow(e.ctrlKey ? 1.006 : 1.0028, -px);
