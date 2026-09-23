@@ -10,7 +10,10 @@
   "background_color": "#F6F5F0",
   "theme_color": "#F6F5F0",
   "lang": "ru",
-  "categories": ["education", "kids"],
+  "categories": [
+    "education",
+    "kids"
+  ],
   "icons": [
     {
       "src": "icon-192.png",
@@ -31,21 +34,52 @@
       "short_name": "Тренировки",
       "description": "Сразу к упражнениям",
       "url": "./index.html#train",
-      "icons": [{ "src": "icon-192.png", "sizes": "192x192" }]
+      "icons": [
+        {
+          "src": "icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
     },
     {
       "name": "Мой словарь",
       "short_name": "Словарь",
       "description": "Слова и папки",
       "url": "./index.html#dictionary",
-      "icons": [{ "src": "icon-192.png", "sizes": "192x192" }]
+      "icons": [
+        {
+          "src": "icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
     },
     {
       "name": "Чат с Савелием",
       "short_name": "Чат",
       "description": "Спросить кота",
       "url": "./index.html#chat",
-      "icons": [{ "src": "icon-192.png", "sizes": "192x192" }]
+      "icons": [
+        {
+          "src": "icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "img/pwa/shot-wide.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Главная ученика: цель дня и слова"
+    },
+    {
+      "src": "img/pwa/shot-narrow.png",
+      "sizes": "720x1280",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Упражнение с котом Савелием"
     }
   ]
 }
