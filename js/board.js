@@ -1044,6 +1044,15 @@ function finishStroke() {
     BD.objects.delete(o.id); paint(); return;
   }
   put(o);
+  // После разового действия — обратно в «Выделить». Иначе человек ставит
+  // прямоугольник, тянет доску левой — и получает второй прямоугольник:
+  // так доска и покрывалась случайными следами (видео владельца 23.09).
+  // Ручку и маркер НЕ трогаем: подчеркнуть несколько слов подряд —
+  // нормальный сценарий, и липкий инструмент там честнее.
+  if (["rect", "ellipse", "arrow", "line"].includes(o.kind)) {
+    const sel = document.querySelector('.bd-tool[data-tool="select"]');
+    if (sel) sel.click();
+  }
 }
 
 /** Курсор под мышью: что здесь можно сделать.
@@ -1223,6 +1232,10 @@ $("bd-editor-ok").addEventListener("click", () => {
   }
   $("bd-editor").hidden = true;
   editing = null;
+  // И тут назад в «Выделить» — та же логика, что у фигур в finishStroke:
+  // написал текст — и дальше по доске, а не новый текст на каждый клик.
+  const sel = document.querySelector('.bd-tool[data-tool="select"]');
+  if (sel) sel.click();
 });
 $("bd-editor-cancel").addEventListener("click", () => {
   if (editing && !(BD.objects.get(editing.id) || {}).text) remove(editing.id, false);
