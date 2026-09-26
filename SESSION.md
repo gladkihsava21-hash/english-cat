@@ -2307,3 +2307,15 @@ castle→навесной замок, tap→журавли, leg→куриная
 pond≈fish). Источники 39 Pixabay + 6 Pexels, лицензии полные, credits
 пересобран. Качества/чувствам (nervous, brave, expensive…) фото НЕ дали
 осознанно — правило DESIGN: случайная картинка хуже её отсутствия.
+
+**Фотобанк 555 → 641 (+86, волна 2; за сессию 510 → 641).** Темы:
+животные (fox, wolf, seal, goat, peacock), природа (wave, flood, sunset,
+rainbow, glacier, avalanche, harvest), дом (suitcase, ladder, mop, broom,
+toaster), спорт (rugby, boxing, yoga, darts, fencing), люди (clown,
+witch, knight, fisherman), техника (satellite, robot, helicopter,
+rocket). 81 отбраковка — омонимы-ловушки (zip→разряд молнии, monitor→варан,
+pit→питбуль, ram→жук-усач, locker→бурундук, copper→бабочка, shepherd→овчарка)
+и читаемое другим словом (landscape≈mountain, trunk≈elephant, chalk≈blackboard).
+Выработка по уровням: A2–B1 29/30, B1–C1 24/28, C1–C2 33/23 — глубже
+больше омонимов, дальнейший добор (в C2 ~1900 существительных) с растущей
+долей брака. Credits пересобран, AGENTS.md на 641.
