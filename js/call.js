@@ -945,6 +945,7 @@ function callBoot() {
   }
   $("call-size").addEventListener("click", () =>
     setCallSize(!$("bd-call").classList.contains("big")));
+  $("call-back").addEventListener("click", () => setCallSize(false));
   // Клик по лицу в маленьком окне — естественный жест «сделай крупнее»
   $("call-remote").addEventListener("click", () => {
     if (!$("bd-call").classList.contains("big")) setCallSize(true);

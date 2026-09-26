@@ -934,3 +934,15 @@
 @media (max-width: 640px) {
   .bd-help-cols { grid-template-columns: 1fr; }
 }
+
+/* Выход из большого видеоурока: кнопка внутри оверлея, в шапку дороги нет. */
+.bd-call-back { display: none; }
+.bd-call.big .bd-call-back {
+  display: inline-flex;
+  position: absolute;
+  left: 14px;
+  top: 14px;
+  z-index: 2;
+  font-size: var(--text-caption);
+  padding: 10px 18px;
+}
