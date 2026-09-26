@@ -1,7 +1,19 @@
 {
- "generated": "2026-09-09 21:12",
+ "generated": "2026-09-26 11:57",
  "note": "Плитки с фотостоков по API-ключам владельца: Pixabay Content License и Pexels License — атрибуция не обязательна, но авторы указаны в credits.html.",
  "words": {
+  "actor": {
+   "file": "actor.webp",
+   "author": "WikiImages",
+   "license": "Pixabay Content License",
+   "license_url": "https://pixabay.com/service/license-summary/",
+   "source": "https://pixabay.com/ru/photos/%D0%B0%D0%BA%D1%82%D0%B5%D1%80-%D1%87%D0%B5%D0%BB%D0%BE%D0%B2%D0%B5%D0%BA-%D0%B0%D0%BA%D1%82%D1%91%D1%80-%D0%BA%D0%B8%D0%BD%D0%BE-%D0%BA%D1%8D%D1%80%D0%B8-%D0%B3%D1%80%D0%B0%D0%BD%D1%82-63082/",
+   "article": "Pixabay: Актёр",
+   "article_url": "https://pixabay.com/ru/photos/%D0%B0%D0%BA%D1%82%D0%B5%D1%80-%D1%87%D0%B5%D0%BB%D0%BE%D0%B2%D0%B5%D0%BA-%D0%B0%D0%BA%D1%82%D1%91%D1%80-%D0%BA%D0%B8%D0%BD%D0%BE-%D0%BA%D1%8D%D1%80%D0%B8-%D0%B3%D1%80%D0%B0%D0%BD%D1%82-63082/",
+   "commons_file": "pixabay-63082",
+   "bytes": 11538,
+   "quality": 78
+  },
   "alien": {
    "file": "alien.webp",
    "author": "Aliensworld",
@@ -86,6 +98,30 @@
    "bytes": 17252,
    "quality": 78
   },
+  "belly": {
+   "file": "belly.webp",
+   "author": "2147792",
+   "license": "Pixabay Content License",
+   "license_url": "https://pixabay.com/service/license-summary/",
+   "source": "https://pixabay.com/ru/photos/%D0%B1%D0%B5%D1%80%D0%B5%D0%BC%D0%B5%D0%BD%D0%BD%D0%BE%D1%81%D1%82%D1%8C-%D0%B6%D0%B8%D0%B2%D0%BE%D1%82-%D1%80%D0%B5%D0%B1%D0%B5%D0%BD%D0%BA%D0%B0-%D0%B6%D0%B5%D0%BD%D1%89%D0%B8%D0%BD%D0%B0-5098881/",
+   "article": "Pixabay: Живот",
+   "article_url": "https://pixabay.com/ru/photos/%D0%B1%D0%B5%D1%80%D0%B5%D0%BC%D0%B5%D0%BD%D0%BD%D0%BE%D1%81%D1%82%D1%8C-%D0%B6%D0%B8%D0%B2%D0%BE%D1%82-%D1%80%D0%B5%D0%B1%D0%B5%D0%BD%D0%BA%D0%B0-%D0%B6%D0%B5%D0%BD%D1%89%D0%B8%D0%BD%D0%B0-5098881/",
+   "commons_file": "pixabay-5098881",
+   "bytes": 9780,
+   "quality": 78
+  },
+  "bench": {
+   "file": "bench.webp",
+   "author": "fritsje",
+   "license": "Pixabay Content License",
+   "license_url": "https://pixabay.com/service/license-summary/",
+   "source": "https://pixabay.com/ru/photos/%D0%B6%D0%B5%D0%BD%D1%89%D0%B8%D0%BD%D0%B0-%D0%B4%D0%BE%D1%81%D1%83%D0%B3-%D0%BC%D0%BE%D0%BD%D0%BE%D1%85%D1%80%D0%BE%D0%BC%D0%BD%D1%8B%D0%B9-%D0%B4%D0%B5%D0%B2%D0%BE%D1%87%D0%BA%D0%B0-6776991/",
+   "article": "Pixabay: Скамейка",
+   "article_url": "https://pixabay.com/ru/photos/%D0%B6%D0%B5%D0%BD%D1%89%D0%B8%D0%BD%D0%B0-%D0%B4%D0%BE%D1%81%D1%83%D0%B3-%D0%BC%D0%BE%D0%BD%D0%BE%D1%85%D1%80%D0%BE%D0%BC%D0%BD%D1%8B%D0%B9-%D0%B4%D0%B5%D0%B2%D0%BE%D1%87%D0%BA%D0%B0-6776991/",
+   "commons_file": "pixabay-6776991",
+   "bytes": 9850,
+   "quality": 78
+  },
   "biscuit": {
    "file": "biscuit.webp",
    "author": "stevepb",
@@ -108,6 +144,18 @@
    "article_url": "https://pixabay.com/ru/photos/%D0%B1%D1%83%D1%82%D0%B8%D0%BA-%D0%BC%D0%B0%D0%B3%D0%B0%D0%B7%D0%B8%D0%BD-%D0%BE%D0%B4%D0%B5%D0%B6%D0%B4%D1%8B-%D0%BC%D0%BE%D0%B4%D0%B0-%D0%BE%D0%B4%D0%B5%D0%B6%D0%B4%D0%B0-6796399/",
    "commons_file": "pixabay-6796399",
    "bytes": 10066,
+   "quality": 78
+  },
+  "boy": {
+   "file": "boy.webp",
+   "author": "Bulat843 🌙",
+   "license": "Pexels License",
+   "license_url": "https://www.pexels.com/license/",
+   "source": "https://www.pexels.com/ru-ru/photo/35290760/",
+   "article": "Pexels: Мальчик",
+   "article_url": "https://www.pexels.com/ru-ru/photo/35290760/",
+   "commons_file": "pexels-35290760",
+   "bytes": 16844,
    "quality": 78
   },
   "bucket": {
@@ -194,6 +242,18 @@
    "bytes": 33368,
    "quality": 78
   },
+  "castle": {
+   "file": "castle.webp",
+   "author": "jarmoluk",
+   "license": "Pixabay Content License",
+   "license_url": "https://pixabay.com/service/license-summary/",
+   "source": "https://pixabay.com/ru/photos/%D0%B7%D0%B0%D0%BC%D0%BE%D0%BA-%D0%B7%D0%B0%D0%BF%D0%B5%D1%80%D1%82%D0%BE-%D0%BE%D0%B1%D0%B5%D1%81%D0%BF%D0%B5%D1%87%D0%B5%D0%BD-428549/",
+   "article": "Pixabay: Замок",
+   "article_url": "https://pixabay.com/ru/photos/%D0%B7%D0%B0%D0%BC%D0%BE%D0%BA-%D0%B7%D0%B0%D0%BF%D0%B5%D1%80%D1%82%D0%BE-%D0%BE%D0%B1%D0%B5%D1%81%D0%BF%D0%B5%D1%87%D0%B5%D0%BD-428549/",
+   "commons_file": "pixabay-428549",
+   "bytes": 31164,
+   "quality": 78
+  },
   "channel": {
    "file": "channel.webp",
    "author": "NakNakNak",
@@ -216,6 +276,18 @@
    "article_url": "https://pixabay.com/ru/photos/%D0%BB%D0%B0%D0%B1%D0%BE%D1%80%D0%B0%D1%82%D0%BE%D1%80%D0%B8%D1%8F-%D0%B0%D0%BF%D0%BF%D0%B0%D1%80%D0%B0%D1%82-%D0%BE%D0%B1%D0%BE%D1%80%D1%83%D0%B4%D0%BE%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5-217041/",
    "commons_file": "pixabay-217041",
    "bytes": 7158,
+   "quality": 78
+  },
+  "chin": {
+   "file": "chin.webp",
+   "author": "krivitskiy",
+   "license": "Pixabay Content License",
+   "license_url": "https://pixabay.com/service/license-summary/",
+   "source": "https://pixabay.com/ru/photos/%D0%B4%D0%B5%D0%B2%D0%BE%D1%87%D0%BA%D0%B0-%D0%B6%D0%B5%D0%BD%D1%89%D0%B8%D0%BD%D0%B0-%D0%BA%D1%80%D0%B0%D1%81%D0%BE%D1%82%D0%B0-%D0%BF%D0%BE%D1%80%D1%82%D1%80%D0%B5%D1%82-4447229/",
+   "article": "Pixabay: Подбородок",
+   "article_url": "https://pixabay.com/ru/photos/%D0%B4%D0%B5%D0%B2%D0%BE%D1%87%D0%BA%D0%B0-%D0%B6%D0%B5%D0%BD%D1%89%D0%B8%D0%BD%D0%B0-%D0%BA%D1%80%D0%B0%D1%81%D0%BE%D1%82%D0%B0-%D0%BF%D0%BE%D1%80%D1%82%D1%80%D0%B5%D1%82-4447229/",
+   "commons_file": "pixabay-4447229",
+   "bytes": 9138,
    "quality": 78
   },
   "chocolate": {
@@ -302,6 +374,18 @@
    "bytes": 8666,
    "quality": 78
   },
+  "coat": {
+   "file": "coat.webp",
+   "author": "luongdejavu",
+   "license": "Pixabay Content License",
+   "license_url": "https://pixabay.com/service/license-summary/",
+   "source": "https://pixabay.com/ru/photos/%D0%B6%D0%B5%D0%BD%D1%89%D0%B8%D0%BD%D0%B0-%D0%BF%D0%B0%D0%BB%D1%8C%D1%82%D0%BE-%D0%BA%D0%B0%D0%BC%D0%B5%D1%80%D0%B0-%D1%84%D0%BE%D1%82%D0%BE%D0%B3%D1%80%D0%B0%D1%84-7883774/",
+   "article": "Pixabay: Пальто",
+   "article_url": "https://pixabay.com/ru/photos/%D0%B6%D0%B5%D0%BD%D1%89%D0%B8%D0%BD%D0%B0-%D0%BF%D0%B0%D0%BB%D1%8C%D1%82%D0%BE-%D0%BA%D0%B0%D0%BC%D0%B5%D1%80%D0%B0-%D1%84%D0%BE%D1%82%D0%BE%D0%B3%D1%80%D0%B0%D1%84-7883774/",
+   "commons_file": "pixabay-7883774",
+   "bytes": 6244,
+   "quality": 78
+  },
   "compete": {
    "file": "compete.webp",
    "author": "Stevebidmead",
@@ -338,6 +422,18 @@
    "bytes": 11660,
    "quality": 78
   },
+  "crown": {
+   "file": "crown.webp",
+   "author": "OrnaW",
+   "license": "Pixabay Content License",
+   "license_url": "https://pixabay.com/service/license-summary/",
+   "source": "https://pixabay.com/ru/photos/%D0%BA%D0%BE%D1%80%D0%BE%D0%BD%D0%B0-%D0%BA%D0%BE%D1%80%D0%BE%D0%BD%D0%B0%D0%B2%D0%B8%D1%80%D1%83%D1%81-%D0%BC%D0%B0%D1%81%D0%BA%D0%B0-%D0%B7%D0%B0%D1%89%D0%B8%D1%82%D0%B0-4970836/",
+   "article": "Pixabay: Корона",
+   "article_url": "https://pixabay.com/ru/photos/%D0%BA%D0%BE%D1%80%D0%BE%D0%BD%D0%B0-%D0%BA%D0%BE%D1%80%D0%BE%D0%BD%D0%B0%D0%B2%D0%B8%D1%80%D1%83%D1%81-%D0%BC%D0%B0%D1%81%D0%BA%D0%B0-%D0%B7%D0%B0%D1%89%D0%B8%D1%82%D0%B0-4970836/",
+   "commons_file": "pixabay-4970836",
+   "bytes": 5906,
+   "quality": 78
+  },
   "cup": {
    "file": "cup.webp",
    "author": "freephotocc",
@@ -350,6 +446,30 @@
    "bytes": 4418,
    "quality": 78
   },
+  "desert": {
+   "file": "desert.webp",
+   "author": "Barni1",
+   "license": "Pixabay Content License",
+   "license_url": "https://pixabay.com/service/license-summary/",
+   "source": "https://pixabay.com/ru/photos/%D0%BF%D1%83%D1%81%D1%82%D1%8B%D0%BD%D1%8F-%D0%BD%D0%B0%D0%BC%D0%B8%D0%B1-%D0%BD%D0%B0%D0%BC%D0%B8%D0%B1%D0%B8%D1%8F-%D0%B0%D1%84%D1%80%D0%B8%D0%BA%D0%B5-7559993/",
+   "article": "Pixabay: Пустыня",
+   "article_url": "https://pixabay.com/ru/photos/%D0%BF%D1%83%D1%81%D1%82%D1%8B%D0%BD%D1%8F-%D0%BD%D0%B0%D0%BC%D0%B8%D0%B1-%D0%BD%D0%B0%D0%BC%D0%B8%D0%B1%D0%B8%D1%8F-%D0%B0%D1%84%D1%80%D0%B8%D0%BA%D0%B5-7559993/",
+   "commons_file": "pixabay-7559993",
+   "bytes": 7310,
+   "quality": 78
+  },
+  "dessert": {
+   "file": "dessert.webp",
+   "author": "Einladung_zum_Essen",
+   "license": "Pixabay Content License",
+   "license_url": "https://pixabay.com/service/license-summary/",
+   "source": "https://pixabay.com/ru/photos/%D0%B4%D0%B5%D1%81%D0%B5%D1%80%D1%82-%D1%8F%D0%B3%D0%BE%D0%B4%D1%8B-%D0%BA%D0%B0%D0%BB%D0%BE%D1%80%D0%B8%D0%B8-%D0%BC%D0%BE%D1%80%D0%BE%D0%B6%D0%B5%D0%BD%D0%BE%D0%B5-1786311/",
+   "article": "Pixabay: Десерт",
+   "article_url": "https://pixabay.com/ru/photos/%D0%B4%D0%B5%D1%81%D0%B5%D1%80%D1%82-%D1%8F%D0%B3%D0%BE%D0%B4%D1%8B-%D0%BA%D0%B0%D0%BB%D0%BE%D1%80%D0%B8%D0%B8-%D0%BC%D0%BE%D1%80%D0%BE%D0%B6%D0%B5%D0%BD%D0%BE%D0%B5-1786311/",
+   "commons_file": "pixabay-1786311",
+   "bytes": 20274,
+   "quality": 78
+  },
   "diamond": {
    "file": "diamond.webp",
    "author": "GrownDiamond",
@@ -360,6 +480,18 @@
    "article_url": "https://pixabay.com/ru/photos/%D0%B0%D0%BB%D0%BC%D0%B0%D0%B7-%D0%B4%D1%80%D0%B0%D0%B3%D0%BE%D1%86%D0%B5%D0%BD%D0%BD%D1%8B%D0%B9-%D0%BA%D0%B0%D0%BC%D0%B5%D0%BD%D1%8C-5411447/",
    "commons_file": "pixabay-5411447",
    "bytes": 4266,
+   "quality": 78
+  },
+  "diary": {
+   "file": "diary.webp",
+   "author": "Ylanite",
+   "license": "Pixabay Content License",
+   "license_url": "https://pixabay.com/service/license-summary/",
+   "source": "https://pixabay.com/ru/photos/%D1%81%D1%82%D0%BE%D0%BB-%D0%BF%D0%B8%D1%81%D1%8C%D0%BC%D0%B5%D0%BD%D0%BD%D1%8B%D0%B9-%D1%81%D0%BC%D0%B0%D1%80%D1%82%D1%84%D0%BE%D0%BD-iphone-3076954/",
+   "article": "Pixabay: Дневник",
+   "article_url": "https://pixabay.com/ru/photos/%D1%81%D1%82%D0%BE%D0%BB-%D0%BF%D0%B8%D1%81%D1%8C%D0%BC%D0%B5%D0%BD%D0%BD%D1%8B%D0%B9-%D1%81%D0%BC%D0%B0%D1%80%D1%82%D1%84%D0%BE%D0%BD-iphone-3076954/",
+   "commons_file": "pixabay-3076954",
+   "bytes": 4978,
    "quality": 78
   },
   "direction": {
@@ -410,6 +542,30 @@
    "bytes": 29742,
    "quality": 78
   },
+  "door": {
+   "file": "door.webp",
+   "author": "Pexels",
+   "license": "Pixabay Content License",
+   "license_url": "https://pixabay.com/service/license-summary/",
+   "source": "https://pixabay.com/ru/photos/%D1%82%D0%B5%D0%BC%D0%BD%D1%8B%D0%B9-%D0%B4%D0%B2%D0%B5%D1%80%D1%8C-%D0%B4%D0%B2%D0%B5%D1%80%D0%BD%D0%B0%D1%8F-%D1%80%D1%83%D1%87%D0%BA%D0%B0-%D1%81%D0%B2%D0%B5%D1%82-1852985/",
+   "article": "Pixabay: Дверь",
+   "article_url": "https://pixabay.com/ru/photos/%D1%82%D0%B5%D0%BC%D0%BD%D1%8B%D0%B9-%D0%B4%D0%B2%D0%B5%D1%80%D1%8C-%D0%B4%D0%B2%D0%B5%D1%80%D0%BD%D0%B0%D1%8F-%D1%80%D1%83%D1%87%D0%BA%D0%B0-%D1%81%D0%B2%D0%B5%D1%82-1852985/",
+   "commons_file": "pixabay-1852985",
+   "bytes": 1438,
+   "quality": 78
+  },
+  "drawer": {
+   "file": "drawer.webp",
+   "author": "TheDigitalWay",
+   "license": "Pixabay Content License",
+   "license_url": "https://pixabay.com/service/license-summary/",
+   "source": "https://pixabay.com/ru/photos/%D0%BB%D0%BE%D0%B2%D0%B8%D1%82-%D1%80%D1%8B%D0%B1%D1%83-%D1%83%D0%B4%D0%BE%D1%87%D0%BA%D0%B0-%D1%80%D1%8B%D0%B1%D0%BE%D0%BB%D0%BE%D0%B2%D0%BD%D0%B0%D1%8F-%D1%81%D0%BD%D0%B0%D1%81%D1%82%D1%8C-1572408/",
+   "article": "Pixabay: Ящик",
+   "article_url": "https://pixabay.com/ru/photos/%D0%BB%D0%BE%D0%B2%D0%B8%D1%82-%D1%80%D1%8B%D0%B1%D1%83-%D1%83%D0%B4%D0%BE%D1%87%D0%BA%D0%B0-%D1%80%D1%8B%D0%B1%D0%BE%D0%BB%D0%BE%D0%B2%D0%BD%D0%B0%D1%8F-%D1%81%D0%BD%D0%B0%D1%81%D1%82%D1%8C-1572408/",
+   "commons_file": "pixabay-1572408",
+   "bytes": 36902,
+   "quality": 78
+  },
   "drill": {
    "file": "drill.webp",
    "author": "LeoNeoBoy",
@@ -422,6 +578,42 @@
    "bytes": 2426,
    "quality": 78
   },
+  "drum": {
+   "file": "drum.webp",
+   "author": "steinchen",
+   "license": "Pixabay Content License",
+   "license_url": "https://pixabay.com/service/license-summary/",
+   "source": "https://pixabay.com/ru/photos/%D0%B1%D0%B0%D1%80%D0%B0%D0%B1%D0%B0%D0%BD-%D0%BC%D1%83%D0%B7%D1%8B%D0%BA%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D0%B9-%D0%B8%D0%BD%D1%81%D1%82%D1%80%D1%83%D0%BC%D0%B5%D0%BD%D1%82-96179/",
+   "article": "Pixabay: Барабан",
+   "article_url": "https://pixabay.com/ru/photos/%D0%B1%D0%B0%D1%80%D0%B0%D0%B1%D0%B0%D0%BD-%D0%BC%D1%83%D0%B7%D1%8B%D0%BA%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D0%B9-%D0%B8%D0%BD%D1%81%D1%82%D1%80%D1%83%D0%BC%D0%B5%D0%BD%D1%82-96179/",
+   "commons_file": "pixabay-96179",
+   "bytes": 7984,
+   "quality": 78
+  },
+  "duck": {
+   "file": "duck.webp",
+   "author": "dendoktoor",
+   "license": "Pixabay Content License",
+   "license_url": "https://pixabay.com/service/license-summary/",
+   "source": "https://pixabay.com/ru/photos/%D1%83%D1%82%D0%BA%D0%B0-%D0%BF%D1%82%D0%B8%D1%86%D0%B0-%D0%B2%D0%B0%D1%80%D0%B2%D0%B0%D1%80%D1%81%D0%BA%D0%B0%D1%8F-%D1%83%D1%82%D0%BA%D0%B0-7851828/",
+   "article": "Pixabay: Утка",
+   "article_url": "https://pixabay.com/ru/photos/%D1%83%D1%82%D0%BA%D0%B0-%D0%BF%D1%82%D0%B8%D1%86%D0%B0-%D0%B2%D0%B0%D1%80%D0%B2%D0%B0%D1%80%D1%81%D0%BA%D0%B0%D1%8F-%D1%83%D1%82%D0%BA%D0%B0-7851828/",
+   "commons_file": "pixabay-7851828",
+   "bytes": 16092,
+   "quality": 78
+  },
+  "ear": {
+   "file": "ear.webp",
+   "author": "MabelAmber",
+   "license": "Pixabay Content License",
+   "license_url": "https://pixabay.com/service/license-summary/",
+   "source": "https://pixabay.com/ru/photos/%D0%B6%D0%B8%D0%B2%D0%BE%D1%82%D0%BD%D0%BE%D0%B5-%D0%BB%D0%B0%D0%BD%D1%8C-%D1%80%D0%B0%D0%B7%D0%BD%D0%BE%D0%B2%D0%B8%D0%B4%D0%BD%D0%BE%D1%81%D1%82%D1%8C-3729821/",
+   "article": "Pixabay: Ухо",
+   "article_url": "https://pixabay.com/ru/photos/%D0%B6%D0%B8%D0%B2%D0%BE%D1%82%D0%BD%D0%BE%D0%B5-%D0%BB%D0%B0%D0%BD%D1%8C-%D1%80%D0%B0%D0%B7%D0%BD%D0%BE%D0%B2%D0%B8%D0%B4%D0%BD%D0%BE%D1%81%D1%82%D1%8C-3729821/",
+   "commons_file": "pixabay-3729821",
+   "bytes": 15196,
+   "quality": 78
+  },
   "elephant": {
    "file": "elephant.webp",
    "author": "kikatani",
@@ -432,6 +624,30 @@
    "article_url": "https://pixabay.com/ru/photos/%D1%81%D0%BB%D0%BE%D0%BD-%D0%B6%D0%B8%D0%B2%D0%BE%D1%82%D0%BD%D0%BE%D0%B5-%D0%B7%D0%BE%D0%BE%D0%BF%D0%B0%D1%80%D0%BA-%D1%81%D0%B0%D0%B2%D0%B0%D0%BD%D0%BD%D1%8B%D0%B9-%D1%81%D0%BB%D0%BE%D0%BD-111695/",
    "commons_file": "pixabay-111695",
    "bytes": 17610,
+   "quality": 78
+  },
+  "elevator": {
+   "file": "elevator.webp",
+   "author": "tarokate",
+   "license": "Pixabay Content License",
+   "license_url": "https://pixabay.com/service/license-summary/",
+   "source": "https://pixabay.com/ru/photos/%D0%B0%D1%8D%D1%80%D0%BE%D0%BF%D0%BE%D1%80%D1%82-%D0%BB%D0%B8%D1%84%D1%82-%D1%82%D0%B5%D1%85%D0%BD%D0%BE%D0%BB%D0%BE%D0%B3%D0%B8%D1%8F-2471662/",
+   "article": "Pixabay: Лифт",
+   "article_url": "https://pixabay.com/ru/photos/%D0%B0%D1%8D%D1%80%D0%BE%D0%BF%D0%BE%D1%80%D1%82-%D0%BB%D0%B8%D1%84%D1%82-%D1%82%D0%B5%D1%85%D0%BD%D0%BE%D0%BB%D0%BE%D0%B3%D0%B8%D1%8F-2471662/",
+   "commons_file": "pixabay-2471662",
+   "bytes": 16816,
+   "quality": 78
+  },
+  "engineer": {
+   "file": "engineer.webp",
+   "author": "This_is_Engineering",
+   "license": "Pixabay Content License",
+   "license_url": "https://pixabay.com/service/license-summary/",
+   "source": "https://pixabay.com/ru/photos/%D1%87%D0%B5%D0%BB%D0%BE%D0%B2%D0%B5%D0%BA-%D0%B8%D0%BD%D0%B6%D0%B5%D0%BD%D0%B5%D1%80-%D0%B2%D0%B5%D0%BB%D0%BE%D1%81%D0%B8%D0%BF%D0%B5%D0%B4-8499961/",
+   "article": "Pixabay: Инженер",
+   "article_url": "https://pixabay.com/ru/photos/%D1%87%D0%B5%D0%BB%D0%BE%D0%B2%D0%B5%D0%BA-%D0%B8%D0%BD%D0%B6%D0%B5%D0%BD%D0%B5%D1%80-%D0%B2%D0%B5%D0%BB%D0%BE%D1%81%D0%B8%D0%BF%D0%B5%D0%B4-8499961/",
+   "commons_file": "pixabay-8499961",
+   "bytes": 13200,
    "quality": 78
   },
   "envelope": {
@@ -458,6 +674,18 @@
    "bytes": 29442,
    "quality": 78
   },
+  "farmer": {
+   "file": "farmer.webp",
+   "author": "Musaddek Sayek",
+   "license": "Pexels License",
+   "license_url": "https://www.pexels.com/license/",
+   "source": "https://www.pexels.com/ru-ru/photo/35069661/",
+   "article": "Pexels: Фермер",
+   "article_url": "https://www.pexels.com/ru-ru/photo/35069661/",
+   "commons_file": "pexels-35069661",
+   "bytes": 14838,
+   "quality": 78
+  },
   "field": {
    "file": "field.webp",
    "author": "matthiasboeckel",
@@ -480,6 +708,42 @@
    "article_url": "https://pixabay.com/ru/photos/%D1%83%D0%BA%D1%80%D0%B0%D1%88%D0%B5%D0%BD%D0%B8%D0%B5-%D0%BF%D0%B0%D1%80%D1%82%D0%B8%D1%8F-%D0%BF%D1%8F%D1%82%D1%8C%D0%B4%D0%B5%D1%81%D1%8F%D1%82-3701129/",
    "commons_file": "pixabay-3701129",
    "bytes": 17278,
+   "quality": 78
+  },
+  "fog": {
+   "file": "fog.webp",
+   "author": "aszak",
+   "license": "Pixabay Content License",
+   "license_url": "https://pixabay.com/service/license-summary/",
+   "source": "https://pixabay.com/ru/photos/%D0%BB%D0%B5%D1%81-%D0%B4%D0%B5%D1%80%D0%B5%D0%B2%D1%8C%D1%8F-%D1%82%D1%83%D0%BC%D0%B0%D0%BD-%D0%BC%D0%B3%D0%BB%D0%B0-%D0%BE%D1%81%D0%B5%D0%BD%D1%8C-7704236/",
+   "article": "Pixabay: Мгла",
+   "article_url": "https://pixabay.com/ru/photos/%D0%BB%D0%B5%D1%81-%D0%B4%D0%B5%D1%80%D0%B5%D0%B2%D1%8C%D1%8F-%D1%82%D1%83%D0%BC%D0%B0%D0%BD-%D0%BC%D0%B3%D0%BB%D0%B0-%D0%BE%D1%81%D0%B5%D0%BD%D1%8C-7704236/",
+   "commons_file": "pixabay-7704236",
+   "bytes": 11032,
+   "quality": 78
+  },
+  "foot": {
+   "file": "foot.webp",
+   "author": "rajib",
+   "license": "Pixabay Content License",
+   "license_url": "https://pixabay.com/service/license-summary/",
+   "source": "https://pixabay.com/ru/photos/%D0%BD%D0%BE%D0%B3%D0%B8-%D0%B2%D0%BF%D0%B5%D1%87%D0%B0%D1%82%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5-%D0%B1%D0%BE%D0%BB%D1%8C%D1%88%D0%B0%D1%8F-%D1%81%D1%82%D1%83%D0%BF%D0%BD%D1%8F-%D0%B3%D0%BE%D0%B0-2532394/",
+   "article": "Pixabay: Ступня",
+   "article_url": "https://pixabay.com/ru/photos/%D0%BD%D0%BE%D0%B3%D0%B8-%D0%B2%D0%BF%D0%B5%D1%87%D0%B0%D1%82%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5-%D0%B1%D0%BE%D0%BB%D1%8C%D1%88%D0%B0%D1%8F-%D1%81%D1%82%D1%83%D0%BF%D0%BD%D1%8F-%D0%B3%D0%BE%D0%B0-2532394/",
+   "commons_file": "pixabay-2532394",
+   "bytes": 21436,
+   "quality": 78
+  },
+  "fork": {
+   "file": "fork.webp",
+   "author": "StockSnap",
+   "license": "Pixabay Content License",
+   "license_url": "https://pixabay.com/service/license-summary/",
+   "source": "https://pixabay.com/ru/photos/%D1%81%D1%82%D0%BE%D0%BB-%D1%82%D0%BA%D0%B0%D0%BD%D1%8C-%D0%B2%D0%B8%D0%BB%D0%BA%D0%B0-%D0%B5%D0%B4%D0%B0-%D1%84%D1%80%D1%83%D0%BA%D1%82%D1%8B-%D0%BA%D0%BE%D1%84%D0%B5-2600954/",
+   "article": "Pixabay: Вилка",
+   "article_url": "https://pixabay.com/ru/photos/%D1%81%D1%82%D0%BE%D0%BB-%D1%82%D0%BA%D0%B0%D0%BD%D1%8C-%D0%B2%D0%B8%D0%BB%D0%BA%D0%B0-%D0%B5%D0%B4%D0%B0-%D1%84%D1%80%D1%83%D0%BA%D1%82%D1%8B-%D0%BA%D0%BE%D1%84%D0%B5-2600954/",
+   "commons_file": "pixabay-2600954",
+   "bytes": 29766,
    "quality": 78
   },
   "frog": {
@@ -506,6 +770,30 @@
    "bytes": 7288,
    "quality": 78
   },
+  "ghost": {
+   "file": "ghost.webp",
+   "author": "mskathrynne",
+   "license": "Pixabay Content License",
+   "license_url": "https://pixabay.com/service/license-summary/",
+   "source": "https://pixabay.com/ru/photos/%D0%BF%D1%80%D0%B8%D0%B2%D0%B8%D0%B4%D0%B5%D0%BD%D0%B8%D0%B5-%D0%BB%D0%B5%D1%81-%D1%81%D1%82%D1%80%D0%B0%D1%88%D0%BD%D1%8B%D0%B9-3737376/",
+   "article": "Pixabay: Привидение",
+   "article_url": "https://pixabay.com/ru/photos/%D0%BF%D1%80%D0%B8%D0%B2%D0%B8%D0%B4%D0%B5%D0%BD%D0%B8%D0%B5-%D0%BB%D0%B5%D1%81-%D1%81%D1%82%D1%80%D0%B0%D1%88%D0%BD%D1%8B%D0%B9-3737376/",
+   "commons_file": "pixabay-3737376",
+   "bytes": 11718,
+   "quality": 78
+  },
+  "girl": {
+   "file": "girl.webp",
+   "author": "Polesie Toys",
+   "license": "Pexels License",
+   "license_url": "https://www.pexels.com/license/",
+   "source": "https://www.pexels.com/ru-ru/photo/27705046/",
+   "article": "Pexels: Девочка",
+   "article_url": "https://www.pexels.com/ru-ru/photo/27705046/",
+   "commons_file": "pexels-27705046",
+   "bytes": 9452,
+   "quality": 78
+  },
   "goggles": {
    "file": "goggles.webp",
    "author": "jarmoluk",
@@ -516,6 +804,18 @@
    "article_url": "https://pixabay.com/ru/photos/%D1%87%D0%B5%D0%BB%D0%BE%D0%B2%D0%B5%D0%BA-%D0%BF%D0%BB%D0%BE%D0%B2%D0%B5%D1%86-%D0%B1%D0%B0%D1%81%D1%81%D0%B5%D0%B9%D0%BD-%D0%B2%D0%BE%D0%B4%D0%B0-462874/",
    "commons_file": "pixabay-462874",
    "bytes": 22080,
+   "quality": 78
+  },
+  "grandmother": {
+   "file": "grandmother.webp",
+   "author": "StockSnap",
+   "license": "Pixabay Content License",
+   "license_url": "https://pixabay.com/service/license-summary/",
+   "source": "https://pixabay.com/ru/photos/%D0%BB%D1%8E%D0%B1%D0%BE%D0%B2%D1%8C-%D1%80%D0%BE%D0%BC%D0%B0%D0%BD%D1%82%D0%B8%D0%BA%D0%B0-%D0%B2%D1%81%D0%B5-%D0%B2%D0%BC%D0%B5%D1%81%D1%82%D0%B5-2583943/",
+   "article": "Pixabay: Бабушка",
+   "article_url": "https://pixabay.com/ru/photos/%D0%BB%D1%8E%D0%B1%D0%BE%D0%B2%D1%8C-%D1%80%D0%BE%D0%BC%D0%B0%D0%BD%D1%82%D0%B8%D0%BA%D0%B0-%D0%B2%D1%81%D0%B5-%D0%B2%D0%BC%D0%B5%D1%81%D1%82%D0%B5-2583943/",
+   "commons_file": "pixabay-2583943",
+   "bytes": 14376,
    "quality": 78
   },
   "grape": {
@@ -530,6 +830,18 @@
    "bytes": 19100,
    "quality": 78
   },
+  "guard": {
+   "file": "guard.webp",
+   "author": "djblackerry",
+   "license": "Pixabay Content License",
+   "license_url": "https://pixabay.com/service/license-summary/",
+   "source": "https://pixabay.com/ru/photos/%D0%BE%D0%B1%D1%8A%D0%B5%D0%B4%D0%B8%D0%BD%D0%B5%D0%BD%D0%BD%D0%BE%D0%B5-%D0%BA%D0%BE%D1%80%D0%BE%D0%BB%D0%B5%D0%B2%D1%81%D1%82%D0%B2%D0%BE-%D0%BB%D0%BE%D0%BD%D0%B4%D0%BE%D0%BD-5004636/",
+   "article": "Pixabay: Охранник",
+   "article_url": "https://pixabay.com/ru/photos/%D0%BE%D0%B1%D1%8A%D0%B5%D0%B4%D0%B8%D0%BD%D0%B5%D0%BD%D0%BD%D0%BE%D0%B5-%D0%BA%D0%BE%D1%80%D0%BE%D0%BB%D0%B5%D0%B2%D1%81%D1%82%D0%B2%D0%BE-%D0%BB%D0%BE%D0%BD%D0%B4%D0%BE%D0%BD-5004636/",
+   "commons_file": "pixabay-5004636",
+   "bytes": 13176,
+   "quality": 78
+  },
   "hair": {
    "file": "hair.webp",
    "author": "7760815",
@@ -540,6 +852,42 @@
    "article_url": "https://pixabay.com/ru/photos/%D0%B2%D0%BE%D0%BB%D0%BE%D1%81%D1%8B-%D0%BF%D1%80%D0%B8%D1%87%D0%B5%D1%81%D0%BA%D0%B0-%D0%B1%D1%80%D1%8E%D0%BD%D0%B5%D1%82%D0%BA%D0%B0-%D0%B6%D0%B5%D0%BD%D1%89%D0%B8%D0%BD%D0%B0-4657887/",
    "commons_file": "pixabay-4657887",
    "bytes": 11682,
+   "quality": 78
+  },
+  "ham": {
+   "file": "ham.webp",
+   "author": "HNBS",
+   "license": "Pixabay Content License",
+   "license_url": "https://pixabay.com/service/license-summary/",
+   "source": "https://pixabay.com/ru/photos/%D1%88%D0%B2%D0%B0%D1%80%D1%86%D0%B2%D0%B0%D0%BB%D1%8C%D0%B4%D1%81%D0%BA%D0%B0%D1%8F-%D0%B2%D0%B5%D1%82%D1%87%D0%B8%D0%BD%D0%B0-%D0%B2%D0%B5%D1%82%D1%87%D0%B8%D0%BD%D0%B0-2278383/",
+   "article": "Pixabay: Ветчина",
+   "article_url": "https://pixabay.com/ru/photos/%D1%88%D0%B2%D0%B0%D1%80%D1%86%D0%B2%D0%B0%D0%BB%D1%8C%D0%B4%D1%81%D0%BA%D0%B0%D1%8F-%D0%B2%D0%B5%D1%82%D1%87%D0%B8%D0%BD%D0%B0-%D0%B2%D0%B5%D1%82%D1%87%D0%B8%D0%BD%D0%B0-2278383/",
+   "commons_file": "pixabay-2278383",
+   "bytes": 12798,
+   "quality": 78
+  },
+  "hand": {
+   "file": "hand.webp",
+   "author": "ignartonosbg",
+   "license": "Pixabay Content License",
+   "license_url": "https://pixabay.com/service/license-summary/",
+   "source": "https://pixabay.com/ru/photos/%D0%BA%D0%BB%D1%83%D0%B1%D0%BD%D0%B8%D0%BA%D0%B0-%D1%80%D1%83%D0%BA%D0%B0-%D1%84%D1%80%D1%83%D0%BA%D1%82%D1%8B-%D0%B4%D0%B5%D1%82%D1%81%D0%BA%D0%B0%D1%8F-%D1%80%D1%83%D0%BA%D0%B0-7878602/",
+   "article": "Pixabay: Рука",
+   "article_url": "https://pixabay.com/ru/photos/%D0%BA%D0%BB%D1%83%D0%B1%D0%BD%D0%B8%D0%BA%D0%B0-%D1%80%D1%83%D0%BA%D0%B0-%D1%84%D1%80%D1%83%D0%BA%D1%82%D1%8B-%D0%B4%D0%B5%D1%82%D1%81%D0%BA%D0%B0%D1%8F-%D1%80%D1%83%D0%BA%D0%B0-7878602/",
+   "commons_file": "pixabay-7878602",
+   "bytes": 8598,
+   "quality": 78
+  },
+  "hat": {
+   "file": "hat.webp",
+   "author": "NickyPe",
+   "license": "Pixabay Content License",
+   "license_url": "https://pixabay.com/service/license-summary/",
+   "source": "https://pixabay.com/ru/photos/%D1%88%D0%B0%D0%BF%D0%BA%D0%B0-%D1%81%D0%BE%D0%BB%D0%BE%D0%BC%D0%B5%D0%BD%D0%BD%D0%B0%D1%8F-%D1%88%D0%BB%D1%8F%D0%BF%D0%B0-%D0%BB%D0%B5%D1%82%D0%BE%D0%BC-%D0%B7%D0%B5%D1%80%D0%BD%D0%BE-7278216/",
+   "article": "Pixabay: Шапка",
+   "article_url": "https://pixabay.com/ru/photos/%D1%88%D0%B0%D0%BF%D0%BA%D0%B0-%D1%81%D0%BE%D0%BB%D0%BE%D0%BC%D0%B5%D0%BD%D0%BD%D0%B0%D1%8F-%D1%88%D0%BB%D1%8F%D0%BF%D0%B0-%D0%BB%D0%B5%D1%82%D0%BE%D0%BC-%D0%B7%D0%B5%D1%80%D0%BD%D0%BE-7278216/",
+   "commons_file": "pixabay-7278216",
+   "bytes": 25336,
    "quality": 78
   },
   "hide": {
@@ -590,6 +938,18 @@
    "bytes": 10374,
    "quality": 78
   },
+  "island": {
+   "file": "island.webp",
+   "author": "Timrael",
+   "license": "Pixabay Content License",
+   "license_url": "https://pixabay.com/service/license-summary/",
+   "source": "https://pixabay.com/ru/photos/%D1%83%D0%BF%D0%BB%D0%BE%D1%82%D0%BD%D0%B5%D0%BD%D0%B8%D1%8F-%D1%82%D1%83%D0%BC%D0%B0%D0%BD-%D0%BE%D1%81%D1%82%D1%80%D0%BE%D0%B2-%D0%BE%D0%BA%D0%B5%D0%B0%D0%BD-6627197/",
+   "article": "Pixabay: Остров",
+   "article_url": "https://pixabay.com/ru/photos/%D1%83%D0%BF%D0%BB%D0%BE%D1%82%D0%BD%D0%B5%D0%BD%D0%B8%D1%8F-%D1%82%D1%83%D0%BC%D0%B0%D0%BD-%D0%BE%D1%81%D1%82%D1%80%D0%BE%D0%B2-%D0%BE%D0%BA%D0%B5%D0%B0%D0%BD-6627197/",
+   "commons_file": "pixabay-6627197",
+   "bytes": 12746,
+   "quality": 78
+  },
   "jeans": {
    "file": "jeans.webp",
    "author": "652234",
@@ -614,6 +974,18 @@
    "bytes": 2642,
    "quality": 78
   },
+  "knee": {
+   "file": "knee.webp",
+   "author": "Towfiqu barbhuiya",
+   "license": "Pexels License",
+   "license_url": "https://www.pexels.com/license/",
+   "source": "https://www.pexels.com/ru-ru/photo/14534511/",
+   "article": "Pexels: Колено",
+   "article_url": "https://www.pexels.com/ru-ru/photo/14534511/",
+   "commons_file": "pexels-14534511",
+   "bytes": 9184,
+   "quality": 78
+  },
   "late": {
    "file": "late.webp",
    "author": "BrickBard",
@@ -636,6 +1008,18 @@
    "article_url": "https://pixabay.com/ru/photos/%D0%BB%D0%B0%D0%B2%D0%B0%D0%BD%D0%B4%D0%B0-%D1%86%D0%B2%D0%B5%D1%82%D1%8B-%D1%80%D0%B0%D1%81%D1%82%D0%B5%D0%BD%D0%B8%D1%8F-%D0%BF%D0%BE%D0%BB%D0%B5-1117275/",
    "commons_file": "pixabay-1117275",
    "bytes": 19484,
+   "quality": 78
+  },
+  "leg": {
+   "file": "leg.webp",
+   "author": "WikimediaImages",
+   "license": "Pixabay Content License",
+   "license_url": "https://pixabay.com/service/license-summary/",
+   "source": "https://pixabay.com/ru/photos/%D0%B5%D0%B4%D0%B0-%D0%B5%D1%81%D1%82%D1%8C-%D1%80%D0%B0%D1%86%D0%B8%D0%BE%D0%BD-%D0%BF%D0%B8%D1%82%D0%B0%D0%BD%D0%B8%D1%8F-%D0%B6%D0%B0%D1%80%D0%B5%D0%BD%D1%8B%D0%B9-2202358/",
+   "article": "Pixabay: Нога",
+   "article_url": "https://pixabay.com/ru/photos/%D0%B5%D0%B4%D0%B0-%D0%B5%D1%81%D1%82%D1%8C-%D1%80%D0%B0%D1%86%D0%B8%D0%BE%D0%BD-%D0%BF%D0%B8%D1%82%D0%B0%D0%BD%D0%B8%D1%8F-%D0%B6%D0%B0%D1%80%D0%B5%D0%BD%D1%8B%D0%B9-2202358/",
+   "commons_file": "pixabay-2202358",
+   "bytes": 13938,
    "quality": 78
   },
   "lesson": {
@@ -758,6 +1142,30 @@
    "bytes": 13258,
    "quality": 78
   },
+  "medal": {
+   "file": "medal.webp",
+   "author": "GoranH",
+   "license": "Pixabay Content License",
+   "license_url": "https://pixabay.com/service/license-summary/",
+   "source": "https://pixabay.com/ru/photos/%D0%B7%D0%BE%D0%BB%D0%BE%D1%82%D0%B0%D1%8F-%D0%BC%D0%B5%D0%B4%D0%B0%D0%BB%D1%8C-%D1%80%D0%BE%D0%B7%D0%B0-%D0%BE%D1%80%D0%B0%D0%BD%D0%B6%D0%B5%D0%B2%D0%B0%D1%8F-%D1%80%D0%BE%D0%B7%D0%B0-8049822/",
+   "article": "Pixabay: Медаль",
+   "article_url": "https://pixabay.com/ru/photos/%D0%B7%D0%BE%D0%BB%D0%BE%D1%82%D0%B0%D1%8F-%D0%BC%D0%B5%D0%B4%D0%B0%D0%BB%D1%8C-%D1%80%D0%BE%D0%B7%D0%B0-%D0%BE%D1%80%D0%B0%D0%BD%D0%B6%D0%B5%D0%B2%D0%B0%D1%8F-%D1%80%D0%BE%D0%B7%D0%B0-8049822/",
+   "commons_file": "pixabay-8049822",
+   "bytes": 7838,
+   "quality": 78
+  },
+  "mirror": {
+   "file": "mirror.webp",
+   "author": "RachelleChristensen",
+   "license": "Pixabay Content License",
+   "license_url": "https://pixabay.com/service/license-summary/",
+   "source": "https://pixabay.com/ru/photos/%D1%81%D1%82%D0%B0%D1%80%D0%B8%D0%BD%D0%BD%D0%BE%D0%B5-%D0%B7%D0%B5%D1%80%D0%BA%D0%B0%D0%BB%D0%BE-%D1%80%D0%B0%D0%B7%D0%B1%D0%B8%D1%82%D0%BE%D0%B5-%D0%B7%D0%B5%D1%80%D0%BA%D0%B0%D0%BB%D0%BE-4052203/",
+   "article": "Pixabay: Зеркало",
+   "article_url": "https://pixabay.com/ru/photos/%D1%81%D1%82%D0%B0%D1%80%D0%B8%D0%BD%D0%BD%D0%BE%D0%B5-%D0%B7%D0%B5%D1%80%D0%BA%D0%B0%D0%BB%D0%BE-%D1%80%D0%B0%D0%B7%D0%B1%D0%B8%D1%82%D0%BE%D0%B5-%D0%B7%D0%B5%D1%80%D0%BA%D0%B0%D0%BB%D0%BE-4052203/",
+   "commons_file": "pixabay-4052203",
+   "bytes": 14642,
+   "quality": 78
+  },
   "monkey": {
    "file": "monkey.webp",
    "author": "ambquinn",
@@ -782,6 +1190,18 @@
    "bytes": 5078,
    "quality": 78
   },
+  "mother": {
+   "file": "mother.webp",
+   "author": "2147792",
+   "license": "Pixabay Content License",
+   "license_url": "https://pixabay.com/service/license-summary/",
+   "source": "https://pixabay.com/ru/photos/%D0%BC%D0%B0%D0%BC%D0%B0-%D0%B4%D0%B5%D1%82%D0%B8-%D1%82%D0%B0%D0%BD%D1%86%D0%B5%D0%B2%D0%B0%D1%82%D1%8C-%D0%B2%D0%B5%D1%81%D0%B5%D0%BB%D1%8C%D0%B5-%D1%81%D0%B5%D0%BC%D1%8C%D1%8F-5098862/",
+   "article": "Pixabay: Мама",
+   "article_url": "https://pixabay.com/ru/photos/%D0%BC%D0%B0%D0%BC%D0%B0-%D0%B4%D0%B5%D1%82%D0%B8-%D1%82%D0%B0%D0%BD%D1%86%D0%B5%D0%B2%D0%B0%D1%82%D1%8C-%D0%B2%D0%B5%D1%81%D0%B5%D0%BB%D1%8C%D0%B5-%D1%81%D0%B5%D0%BC%D1%8C%D1%8F-5098862/",
+   "commons_file": "pixabay-5098862",
+   "bytes": 22342,
+   "quality": 78
+  },
   "mum": {
    "file": "mum.webp",
    "author": "2147792",
@@ -792,6 +1212,18 @@
    "article_url": "https://pixabay.com/ru/photos/%D0%BC%D0%B0%D0%BC%D0%B0-%D0%B4%D0%B5%D1%82%D0%B8-%D1%82%D0%B0%D0%BD%D1%86%D0%B5%D0%B2%D0%B0%D1%82%D1%8C-%D0%B2%D0%B5%D1%81%D0%B5%D0%BB%D1%8C%D0%B5-%D1%81%D0%B5%D0%BC%D1%8C%D1%8F-5098862/",
    "commons_file": "pixabay-5098862",
    "bytes": 22342,
+   "quality": 78
+  },
+  "musician": {
+   "file": "musician.webp",
+   "author": "Alexas_Fotos",
+   "license": "Pixabay Content License",
+   "license_url": "https://pixabay.com/service/license-summary/",
+   "source": "https://pixabay.com/ru/photos/%D0%B2%D0%B8%D0%BE%D0%BB%D0%BE%D0%BD%D1%87%D0%B5%D0%BB%D1%8C-%D0%BC%D1%83%D0%B7%D1%8B%D0%BA%D0%B0%D0%BD%D1%82-%D0%BC%D1%83%D0%B7%D1%8B%D0%BA%D0%B0-7219171/",
+   "article": "Pixabay: Музыкант",
+   "article_url": "https://pixabay.com/ru/photos/%D0%B2%D0%B8%D0%BE%D0%BB%D0%BE%D0%BD%D1%87%D0%B5%D0%BB%D1%8C-%D0%BC%D1%83%D0%B7%D1%8B%D0%BA%D0%B0%D0%BD%D1%82-%D0%BC%D1%83%D0%B7%D1%8B%D0%BA%D0%B0-7219171/",
+   "commons_file": "pixabay-7219171",
+   "bytes": 10778,
    "quality": 78
   },
   "nest": {
@@ -806,6 +1238,30 @@
    "bytes": 18112,
    "quality": 78
   },
+  "newspaper": {
+   "file": "newspaper.webp",
+   "author": "652234",
+   "license": "Pixabay Content License",
+   "license_url": "https://pixabay.com/service/license-summary/",
+   "source": "https://pixabay.com/ru/photos/%D0%BD%D0%BE%D0%B2%D0%BE%D1%81%D1%82%D0%B8-%D0%B5%D0%B6%D0%B5%D0%B4%D0%BD%D0%B5%D0%B2%D0%BD%D0%B0%D1%8F-%D0%B3%D0%B0%D0%B7%D0%B5%D1%82%D0%B0-%D0%BD%D0%B0%D0%B6%D0%B8%D0%BC%D0%B0%D1%82%D1%8C-1172463/",
+   "article": "Pixabay: Газета",
+   "article_url": "https://pixabay.com/ru/photos/%D0%BD%D0%BE%D0%B2%D0%BE%D1%81%D1%82%D0%B8-%D0%B5%D0%B6%D0%B5%D0%B4%D0%BD%D0%B5%D0%B2%D0%BD%D0%B0%D1%8F-%D0%B3%D0%B0%D0%B7%D0%B5%D1%82%D0%B0-%D0%BD%D0%B0%D0%B6%D0%B8%D0%BC%D0%B0%D1%82%D1%8C-1172463/",
+   "commons_file": "pixabay-1172463",
+   "bytes": 27346,
+   "quality": 78
+  },
+  "oak": {
+   "file": "oak.webp",
+   "author": "_Alicja_",
+   "license": "Pixabay Content License",
+   "license_url": "https://pixabay.com/service/license-summary/",
+   "source": "https://pixabay.com/ru/photos/%D0%B6%D0%B5%D0%BB%D1%83%D0%B4%D1%8C-%D0%B4%D1%83%D0%B1-seedpod-%D0%BB%D0%B8%D1%81%D1%82%D0%B2%D0%B0-%D0%BF%D1%80%D0%B8%D1%80%D0%BE%D0%B4%D0%B0-3610332/",
+   "article": "Pixabay: Дуб",
+   "article_url": "https://pixabay.com/ru/photos/%D0%B6%D0%B5%D0%BB%D1%83%D0%B4%D1%8C-%D0%B4%D1%83%D0%B1-seedpod-%D0%BB%D0%B8%D1%81%D1%82%D0%B2%D0%B0-%D0%BF%D1%80%D0%B8%D1%80%D0%BE%D0%B4%D0%B0-3610332/",
+   "commons_file": "pixabay-3610332",
+   "bytes": 9358,
+   "quality": 78
+  },
   "palace": {
    "file": "palace.webp",
    "author": "yujeong_Huh",
@@ -816,6 +1272,18 @@
    "article_url": "https://pixabay.com/ru/photos/%D0%B4%D0%B2%D0%BE%D1%80%D0%B5%D1%86-%D0%BA%D1%91%D0%BD%D0%B1%D0%BE%D0%BA-%D0%B4%D0%B2%D0%BE%D1%80%D0%B5%D1%86-%D0%BA%D1%91%D0%BD%D0%B1%D0%BE%D0%BA%D0%BA%D1%83%D0%BD-6854763/",
    "commons_file": "pixabay-6854763",
    "bytes": 23864,
+   "quality": 78
+  },
+  "pan": {
+   "file": "pan.webp",
+   "author": "SweetSolo",
+   "license": "Pixabay Content License",
+   "license_url": "https://pixabay.com/service/license-summary/",
+   "source": "https://pixabay.com/ru/photos/%D1%80%D0%BE%D0%BB%D0%BB-%D0%B7%D0%B0%D0%BF%D0%B5%D0%BA%D0%B0%D1%82%D1%8C-%D0%BF%D1%80%D0%BE%D1%82%D0%B8%D0%B2%D0%B5%D0%BD%D1%8C-%D0%B5%D0%B4%D0%B0-4882149/",
+   "article": "Pixabay: Противень",
+   "article_url": "https://pixabay.com/ru/photos/%D1%80%D0%BE%D0%BB%D0%BB-%D0%B7%D0%B0%D0%BF%D0%B5%D0%BA%D0%B0%D1%82%D1%8C-%D0%BF%D1%80%D0%BE%D1%82%D0%B8%D0%B2%D0%B5%D0%BD%D1%8C-%D0%B5%D0%B4%D0%B0-4882149/",
+   "commons_file": "pixabay-4882149",
+   "bytes": 13050,
    "quality": 78
   },
   "papaya": {
@@ -866,6 +1334,18 @@
    "bytes": 36848,
    "quality": 72
   },
+  "perfume": {
+   "file": "perfume.webp",
+   "author": "Bru-nO",
+   "license": "Pixabay Content License",
+   "license_url": "https://pixabay.com/service/license-summary/",
+   "source": "https://pixabay.com/ru/photos/%D0%B8%D0%B3%D1%80%D0%B8%D1%81%D1%82%D0%BE%D0%B5-%D0%B2%D0%B8%D0%BD%D0%BE-%D0%B4%D1%83%D1%85%D0%B8-%D0%B1%D1%83%D1%82%D1%8B%D0%BB%D0%BA%D0%B0-%D0%BE%D1%87%D0%BA%D0%B8-7679665/",
+   "article": "Pixabay: Духи",
+   "article_url": "https://pixabay.com/ru/photos/%D0%B8%D0%B3%D1%80%D0%B8%D1%81%D1%82%D0%BE%D0%B5-%D0%B2%D0%B8%D0%BD%D0%BE-%D0%B4%D1%83%D1%85%D0%B8-%D0%B1%D1%83%D1%82%D1%8B%D0%BB%D0%BA%D0%B0-%D0%BE%D1%87%D0%BA%D0%B8-7679665/",
+   "commons_file": "pixabay-7679665",
+   "bytes": 14926,
+   "quality": 78
+  },
   "pharmacy": {
    "file": "pharmacy.webp",
    "author": "MDFrescuerYouTube",
@@ -890,6 +1370,18 @@
    "bytes": 38482,
    "quality": 78
   },
+  "piano": {
+   "file": "piano.webp",
+   "author": "ustm66",
+   "license": "Pixabay Content License",
+   "license_url": "https://pixabay.com/service/license-summary/",
+   "source": "https://pixabay.com/ru/photos/%D0%BF%D0%B8%D0%B0%D0%BD%D0%B8%D0%BD%D0%BE-%D0%BA%D0%BB%D0%B0%D0%B2%D0%B8%D1%88%D0%B8-%D0%BF%D0%B8%D0%B0%D0%BD%D0%B8%D0%BD%D0%BE-7622920/",
+   "article": "Pixabay: Пианино",
+   "article_url": "https://pixabay.com/ru/photos/%D0%BF%D0%B8%D0%B0%D0%BD%D0%B8%D0%BD%D0%BE-%D0%BA%D0%BB%D0%B0%D0%B2%D0%B8%D1%88%D0%B8-%D0%BF%D0%B8%D0%B0%D0%BD%D0%B8%D0%BD%D0%BE-7622920/",
+   "commons_file": "pixabay-7622920",
+   "bytes": 6764,
+   "quality": 78
+  },
   "piece": {
    "file": "piece.webp",
    "author": "Daria-Yakovleva",
@@ -902,6 +1394,30 @@
    "bytes": 17222,
    "quality": 78
   },
+  "pill": {
+   "file": "pill.webp",
+   "author": "sferrario1968",
+   "license": "Pixabay Content License",
+   "license_url": "https://pixabay.com/service/license-summary/",
+   "source": "https://pixabay.com/ru/photos/%D0%BC%D0%B5%D0%B4%D0%B8%D0%BA%D0%B0%D0%BC%D0%B5%D0%BD%D1%82%D1%8B-%D0%BB%D0%B5%D0%BA%D0%B0%D1%80%D1%81%D1%82%D0%B2%D0%B5%D0%BD%D0%BD%D1%8B%D0%B9-%D0%BC%D0%B5%D0%B4%D0%B8%D1%86%D0%B8%D0%BD%D0%B0-1915627/",
+   "article": "Pixabay: Пилюля",
+   "article_url": "https://pixabay.com/ru/photos/%D0%BC%D0%B5%D0%B4%D0%B8%D0%BA%D0%B0%D0%BC%D0%B5%D0%BD%D1%82%D1%8B-%D0%BB%D0%B5%D0%BA%D0%B0%D1%80%D1%81%D1%82%D0%B2%D0%B5%D0%BD%D0%BD%D1%8B%D0%B9-%D0%BC%D0%B5%D0%B4%D0%B8%D1%86%D0%B8%D0%BD%D0%B0-1915627/",
+   "commons_file": "pixabay-1915627",
+   "bytes": 4950,
+   "quality": 78
+  },
+  "pilot": {
+   "file": "pilot.webp",
+   "author": "Chikilino",
+   "license": "Pixabay Content License",
+   "license_url": "https://pixabay.com/service/license-summary/",
+   "source": "https://pixabay.com/ru/photos/%D0%B6%D0%B5%D0%BD%D1%89%D0%B8%D0%BD%D0%B0-%D0%BF%D0%B8%D0%BB%D0%BE%D1%82-%D1%81%D0%B0%D0%BC%D0%BE%D0%BB%D0%B5%D1%82-%D0%BA%D0%B0%D0%B2%D0%BA%D0%B0%D0%B7%D0%B5%D1%86-7271533/",
+   "article": "Pixabay: Пилот",
+   "article_url": "https://pixabay.com/ru/photos/%D0%B6%D0%B5%D0%BD%D1%89%D0%B8%D0%BD%D0%B0-%D0%BF%D0%B8%D0%BB%D0%BE%D1%82-%D1%81%D0%B0%D0%BC%D0%BE%D0%BB%D0%B5%D1%82-%D0%BA%D0%B0%D0%B2%D0%BA%D0%B0%D0%B7%D0%B5%D1%86-7271533/",
+   "commons_file": "pixabay-7271533",
+   "bytes": 8456,
+   "quality": 78
+  },
   "pin": {
    "file": "pin.webp",
    "author": "HKartphotography",
@@ -912,6 +1428,18 @@
    "article_url": "https://pixabay.com/ru/photos/%D0%B1%D1%83%D0%BB%D0%B0%D0%B2%D0%BA%D0%B0-%D0%BB%D1%8E%D0%B1%D0%BE%D0%B2%D1%8C-%D0%B2%D1%81%D0%B5-%D0%B2%D0%BC%D0%B5%D1%81%D1%82%D0%B5-2694238/",
    "commons_file": "pixabay-2694238",
    "bytes": 4768,
+   "quality": 78
+  },
+  "plant": {
+   "file": "plant.webp",
+   "author": "lnitsyk",
+   "license": "Pixabay Content License",
+   "license_url": "https://pixabay.com/service/license-summary/",
+   "source": "https://pixabay.com/ru/photos/%D0%B4%D0%BE%D0%BC%D0%B0%D1%88%D0%BD%D0%B5%D0%B5-%D1%80%D0%B0%D1%81%D1%82%D0%B5%D0%BD%D0%B8%D0%B5-%D1%80%D0%B0%D1%81%D1%82%D0%B5%D0%BD%D0%B8%D0%B5-%D0%B2-%D0%B3%D0%BE%D1%80%D1%88%D0%BA%D0%B5-7367379/",
+   "article": "Pixabay: Растение",
+   "article_url": "https://pixabay.com/ru/photos/%D0%B4%D0%BE%D0%BC%D0%B0%D1%88%D0%BD%D0%B5%D0%B5-%D1%80%D0%B0%D1%81%D1%82%D0%B5%D0%BD%D0%B8%D0%B5-%D1%80%D0%B0%D1%81%D1%82%D0%B5%D0%BD%D0%B8%D0%B5-%D0%B2-%D0%B3%D0%BE%D1%80%D1%88%D0%BA%D0%B5-7367379/",
+   "commons_file": "pixabay-7367379",
+   "bytes": 11840,
    "quality": 78
   },
   "poncho": {
@@ -936,6 +1464,18 @@
    "article_url": "https://pixabay.com/ru/photos/%D0%B1%D0%B0%D1%81%D1%81%D0%B5%D0%B9%D0%BD-%D0%BF%D0%BE%D0%B2%D0%B5%D1%80%D1%85%D0%BD%D0%BE%D1%81%D1%82%D1%8C-%D0%B2%D0%BE%D0%B4%D1%8B-%D0%BF%D0%BE%D0%B2%D0%B5%D1%80%D1%85%D0%BD%D0%BE%D1%81%D1%82%D1%8C-8306716/",
    "commons_file": "pixabay-8306716",
    "bytes": 23746,
+   "quality": 78
+  },
+  "portrait": {
+   "file": "portrait.webp",
+   "author": "Esra Erdem",
+   "license": "Pexels License",
+   "license_url": "https://www.pexels.com/license/",
+   "source": "https://www.pexels.com/ru-ru/photo/17191688/",
+   "article": "Pexels: Портрет",
+   "article_url": "https://www.pexels.com/ru-ru/photo/17191688/",
+   "commons_file": "pexels-17191688",
+   "bytes": 6960,
    "quality": 78
   },
   "position": {
@@ -998,6 +1538,18 @@
    "bytes": 29930,
    "quality": 78
   },
+  "printer": {
+   "file": "printer.webp",
+   "author": "darlene817",
+   "license": "Pixabay Content License",
+   "license_url": "https://pixabay.com/service/license-summary/",
+   "source": "https://pixabay.com/ru/photos/%D0%BF%D0%B5%D1%87%D0%B0%D1%82%D0%BD%D0%B0%D1%8F-%D0%BC%D0%B0%D1%88%D0%B8%D0%BD%D0%B0-%D1%80%D0%B0%D1%81%D1%82%D0%B2%D0%BE%D1%80%D0%B8%D1%82%D0%B5%D0%BB%D1%8F-eco-4311410/",
+   "article": "Pixabay: Принтер",
+   "article_url": "https://pixabay.com/ru/photos/%D0%BF%D0%B5%D1%87%D0%B0%D1%82%D0%BD%D0%B0%D1%8F-%D0%BC%D0%B0%D1%88%D0%B8%D0%BD%D0%B0-%D1%80%D0%B0%D1%81%D1%82%D0%B2%D0%BE%D1%80%D0%B8%D1%82%D0%B5%D0%BB%D1%8F-eco-4311410/",
+   "commons_file": "pixabay-4311410",
+   "bytes": 9458,
+   "quality": 78
+  },
   "rainy": {
    "file": "rainy.webp",
    "author": "JillWellington",
@@ -1032,6 +1584,18 @@
    "article_url": "https://pixabay.com/ru/photos/%D0%BC%D0%B5%D1%87%D0%B5%D1%82%D1%8C-%D0%B0%D0%B1%D1%83-%D0%B4%D0%B0%D0%B1%D0%B8-%D0%BF%D1%83%D1%82%D0%B5%D1%88%D0%B5%D1%81%D1%82%D0%B2%D0%BE%D0%B2%D0%B0%D1%82%D1%8C-615415/",
    "commons_file": "pixabay-615415",
    "bytes": 19204,
+   "quality": 78
+  },
+  "reporter": {
+   "file": "reporter.webp",
+   "author": "Sunriseforever",
+   "license": "Pixabay Content License",
+   "license_url": "https://pixabay.com/service/license-summary/",
+   "source": "https://pixabay.com/ru/photos/%D0%B6%D0%B5%D0%BD%D1%89%D0%B8%D0%BD%D0%B0-%D1%84%D0%BE%D1%82%D0%BE%D0%B3%D1%80%D0%B0%D1%84-%D0%B1%D0%B8%D0%B1%D0%BB%D0%B8%D0%BE%D1%82%D0%B5%D0%BA%D0%B0-%D1%80%D0%B5%D1%82%D1%80%D0%BE-8568693/",
+   "article": "Pixabay: Репортёр",
+   "article_url": "https://pixabay.com/ru/photos/%D0%B6%D0%B5%D0%BD%D1%89%D0%B8%D0%BD%D0%B0-%D1%84%D0%BE%D1%82%D0%BE%D0%B3%D1%80%D0%B0%D1%84-%D0%B1%D0%B8%D0%B1%D0%BB%D0%B8%D0%BE%D1%82%D0%B5%D0%BA%D0%B0-%D1%80%D0%B5%D1%82%D1%80%D0%BE-8568693/",
+   "commons_file": "pixabay-8568693",
+   "bytes": 16870,
    "quality": 78
   },
   "ride": {
@@ -1082,6 +1646,18 @@
    "bytes": 20134,
    "quality": 78
   },
+  "sailor": {
+   "file": "sailor.webp",
+   "author": "Yevhen1971",
+   "license": "Pixabay Content License",
+   "license_url": "https://pixabay.com/service/license-summary/",
+   "source": "https://pixabay.com/ru/photos/%D0%B3%D1%80%D0%B0%D1%84%D1%84%D0%B8%D1%82%D0%B8-%D0%BA%D0%B0%D1%80%D1%82%D0%B8%D0%BD%D0%B0-%D0%BC%D0%BE%D1%80%D1%81%D0%BA%D0%BE%D0%B9-%D0%B2%D0%BE%D0%BB%D0%BA-%D0%BC%D0%BE%D1%80%D1%8F%D0%BA-3423768/",
+   "article": "Pixabay: Моряк",
+   "article_url": "https://pixabay.com/ru/photos/%D0%B3%D1%80%D0%B0%D1%84%D1%84%D0%B8%D1%82%D0%B8-%D0%BA%D0%B0%D1%80%D1%82%D0%B8%D0%BD%D0%B0-%D0%BC%D0%BE%D1%80%D1%81%D0%BA%D0%BE%D0%B9-%D0%B2%D0%BE%D0%BB%D0%BA-%D0%BC%D0%BE%D1%80%D1%8F%D0%BA-3423768/",
+   "commons_file": "pixabay-3423768",
+   "bytes": 22164,
+   "quality": 78
+  },
   "salad": {
    "file": "salad.webp",
    "author": "Couleur",
@@ -1106,6 +1682,18 @@
    "bytes": 20080,
    "quality": 78
   },
+  "secretary": {
+   "file": "secretary.webp",
+   "author": "Pavel Danilyuk",
+   "license": "Pexels License",
+   "license_url": "https://www.pexels.com/license/",
+   "source": "https://www.pexels.com/ru-ru/photo/7108397/",
+   "article": "Pexels: Секретарь",
+   "article_url": "https://www.pexels.com/ru-ru/photo/7108397/",
+   "commons_file": "pexels-7108397",
+   "bytes": 6348,
+   "quality": 78
+  },
   "shamrock": {
    "file": "shamrock.webp",
    "author": "soramang",
@@ -1128,6 +1716,18 @@
    "article_url": "https://pixabay.com/ru/photos/%D0%BE%D0%B2%D1%86%D1%8B-%D0%B6%D0%B8%D0%B2%D0%BE%D1%82%D0%BD%D1%8B%D0%B5-%D0%BC%D0%BB%D0%B5%D0%BA%D0%BE%D0%BF%D0%B8%D1%82%D0%B0%D1%8E%D1%89%D0%B8%D0%B5-6828766/",
    "commons_file": "pixabay-6828766",
    "bytes": 13818,
+   "quality": 78
+  },
+  "shorts": {
+   "file": "shorts.webp",
+   "author": "Tumisu",
+   "license": "Pixabay Content License",
+   "license_url": "https://pixabay.com/service/license-summary/",
+   "source": "https://pixabay.com/ru/photos/youtube-%D1%88%D0%BE%D1%80%D1%82%D1%8B-youtube-%D0%B2%D0%B8%D0%B4%D0%B5%D0%BE-7740696/",
+   "article": "Pixabay: Шорты",
+   "article_url": "https://pixabay.com/ru/photos/youtube-%D1%88%D0%BE%D1%80%D1%82%D1%8B-youtube-%D0%B2%D0%B8%D0%B4%D0%B5%D0%BE-7740696/",
+   "commons_file": "pixabay-7740696",
+   "bytes": 8862,
    "quality": 78
   },
   "ski": {
@@ -1190,6 +1790,30 @@
    "bytes": 15690,
    "quality": 78
   },
+  "soap": {
+   "file": "soap.webp",
+   "author": "donbalon",
+   "license": "Pixabay Content License",
+   "license_url": "https://pixabay.com/service/license-summary/",
+   "source": "https://pixabay.com/ru/photos/%D0%BC%D1%8B%D0%BB%D0%BE-%D1%80%D1%83%D1%87%D0%BD%D0%BE%D0%B9-%D1%80%D0%B0%D0%B1%D0%BE%D1%82%D1%8B-%D1%84%D1%80%D0%B0%D0%BD%D1%86%D0%B8%D1%8F-%D0%BA%D1%83%D0%B1%D0%B8%D0%BA%D0%B8-601239/",
+   "article": "Pixabay: Мыло",
+   "article_url": "https://pixabay.com/ru/photos/%D0%BC%D1%8B%D0%BB%D0%BE-%D1%80%D1%83%D1%87%D0%BD%D0%BE%D0%B9-%D1%80%D0%B0%D0%B1%D0%BE%D1%82%D1%8B-%D1%84%D1%80%D0%B0%D0%BD%D1%86%D0%B8%D1%8F-%D0%BA%D1%83%D0%B1%D0%B8%D0%BA%D0%B8-601239/",
+   "commons_file": "pixabay-601239",
+   "bytes": 19228,
+   "quality": 78
+  },
+  "soda": {
+   "file": "soda.webp",
+   "author": "Couleur",
+   "license": "Pixabay Content License",
+   "license_url": "https://pixabay.com/service/license-summary/",
+   "source": "https://pixabay.com/ru/photos/%D0%BA%D0%BE%D0%BA%D0%B0-%D0%BA%D0%BE%D0%BB%D0%B0-%D0%BF%D1%80%D0%BE%D0%B1%D0%BA%D0%B8-%D0%B4%D0%BB%D1%8F-%D0%B1%D1%83%D1%82%D1%8B%D0%BB%D0%BE%D0%BA-1218688/",
+   "article": "Pixabay: Газировка",
+   "article_url": "https://pixabay.com/ru/photos/%D0%BA%D0%BE%D0%BA%D0%B0-%D0%BA%D0%BE%D0%BB%D0%B0-%D0%BF%D1%80%D0%BE%D0%B1%D0%BA%D0%B8-%D0%B4%D0%BB%D1%8F-%D0%B1%D1%83%D1%82%D1%8B%D0%BB%D0%BE%D0%BA-1218688/",
+   "commons_file": "pixabay-1218688",
+   "bytes": 18908,
+   "quality": 78
+  },
   "sofa": {
    "file": "sofa.webp",
    "author": "rahucare",
@@ -1212,6 +1836,30 @@
    "article_url": "https://pixabay.com/ru/photos/%D1%80%D0%BE%D0%B6%D0%B4%D0%B5%D1%81%D1%82%D0%B2%D0%BE-%D0%B7%D0%B8%D0%BC%D0%B0-%D1%81-%D1%80%D0%BE%D0%B6%D0%B4%D0%B5%D1%81%D1%82%D0%B2%D0%BE%D0%BC-4705290/",
    "commons_file": "pixabay-4705290",
    "bytes": 21470,
+   "quality": 78
+  },
+  "stamp": {
+   "file": "stamp.webp",
+   "author": "Kranich17",
+   "license": "Pixabay Content License",
+   "license_url": "https://pixabay.com/service/license-summary/",
+   "source": "https://pixabay.com/ru/photos/%D0%B2%D0%B5%D0%BD%D0%B5%D1%86%D0%B8%D1%8F-%D1%81%D1%82%D0%BE%D0%BB%D0%B1%D1%86%D1%8B-7169322/",
+   "article": "Pixabay: Марка",
+   "article_url": "https://pixabay.com/ru/photos/%D0%B2%D0%B5%D0%BD%D0%B5%D1%86%D0%B8%D1%8F-%D1%81%D1%82%D0%BE%D0%BB%D0%B1%D1%86%D1%8B-7169322/",
+   "commons_file": "pixabay-7169322",
+   "bytes": 16806,
+   "quality": 78
+  },
+  "steak": {
+   "file": "steak.webp",
+   "author": "RitaE",
+   "license": "Pixabay Content License",
+   "license_url": "https://pixabay.com/service/license-summary/",
+   "source": "https://pixabay.com/ru/photos/%D1%81%D1%82%D0%B5%D0%B9%D0%BA-%D0%BC%D1%8F%D1%81%D0%BE-%D1%81%D1%82%D0%B5%D0%B9%D0%BA-%D0%B8%D0%B7-%D0%B3%D0%BE%D0%B2%D1%8F%D0%B4%D0%B8%D0%BD%D1%8B-%D0%B5%D0%B4%D0%B0-3640560/",
+   "article": "Pixabay: Стейк",
+   "article_url": "https://pixabay.com/ru/photos/%D1%81%D1%82%D0%B5%D0%B9%D0%BA-%D0%BC%D1%8F%D1%81%D0%BE-%D1%81%D1%82%D0%B5%D0%B9%D0%BA-%D0%B8%D0%B7-%D0%B3%D0%BE%D0%B2%D1%8F%D0%B4%D0%B8%D0%BD%D1%8B-%D0%B5%D0%B4%D0%B0-3640560/",
+   "commons_file": "pixabay-3640560",
+   "bytes": 26394,
    "quality": 78
   },
   "stomach": {
@@ -1262,6 +1910,18 @@
    "bytes": 7264,
    "quality": 78
   },
+  "tap": {
+   "file": "tap.webp",
+   "author": "Slavicsly",
+   "license": "Pixabay Content License",
+   "license_url": "https://pixabay.com/service/license-summary/",
+   "source": "https://pixabay.com/ru/photos/%D0%BA%D1%80%D0%B0%D0%BD-%D0%BF%D1%82%D0%B8%D1%86%D0%B0-birds-%D1%84%D0%BE%D1%82%D0%BE-harrysly-5045920/",
+   "article": "Pixabay: Кран",
+   "article_url": "https://pixabay.com/ru/photos/%D0%BA%D1%80%D0%B0%D0%BD-%D0%BF%D1%82%D0%B8%D1%86%D0%B0-birds-%D1%84%D0%BE%D1%82%D0%BE-harrysly-5045920/",
+   "commons_file": "pixabay-5045920",
+   "bytes": 10158,
+   "quality": 78
+  },
   "terminal": {
    "file": "terminal.webp",
    "author": "JESHOOTS-com",
@@ -1296,6 +1956,18 @@
    "article_url": "https://pixabay.com/ru/photos/%D0%B1%D1%83%D1%82%D1%8B%D0%BB%D0%BA%D0%B8-%D0%B0%D0%BB%D0%BA%D0%BE%D0%B3%D0%BE%D0%BB%D1%8C-%D1%84%D0%BE%D1%80%D0%BC%D0%B8%D1%80%D0%BE%D0%B2%D0%B0%D1%82%D1%8C-%D1%82%D1%80%D0%B8-1640819/",
    "commons_file": "pixabay-1640819",
    "bytes": 21232,
+   "quality": 78
+  },
+  "tie": {
+   "file": "tie.webp",
+   "author": "stokpic",
+   "license": "Pixabay Content License",
+   "license_url": "https://pixabay.com/service/license-summary/",
+   "source": "https://pixabay.com/ru/photos/%D1%87%D0%B5%D0%BB%D0%BE%D0%B2%D0%B5%D0%BA-%D0%BF%D0%BE%D0%BA%D0%BB%D0%BE%D0%BD-%D0%B3%D0%B0%D0%BB%D1%81%D1%82%D1%83%D0%BA-%D0%BC%D0%BE%D0%B4%D0%B0-642063/",
+   "article": "Pixabay: Галстук",
+   "article_url": "https://pixabay.com/ru/photos/%D1%87%D0%B5%D0%BB%D0%BE%D0%B2%D0%B5%D0%BA-%D0%BF%D0%BE%D0%BA%D0%BB%D0%BE%D0%BD-%D0%B3%D0%B0%D0%BB%D1%81%D1%82%D1%83%D0%BA-%D0%BC%D0%BE%D0%B4%D0%B0-642063/",
+   "commons_file": "pixabay-642063",
+   "bytes": 7664,
    "quality": 78
   },
   "tomato": {
@@ -1394,6 +2066,18 @@
    "bytes": 4572,
    "quality": 78
   },
+  "uniform": {
+   "file": "uniform.webp",
+   "author": "wal_172619",
+   "license": "Pixabay Content License",
+   "license_url": "https://pixabay.com/service/license-summary/",
+   "source": "https://pixabay.com/ru/photos/%D0%B4%D0%B5%D1%80%D0%B5%D0%B2%D0%BE-%D0%B2%D0%B5%D1%82%D0%B2%D1%8C-%D0%BF%D1%80%D0%B8%D1%80%D0%BE%D0%B4%D0%B0-%D0%B1%D1%83%D1%82%D0%BE%D0%BD-7921887/",
+   "article": "Pixabay: Форма",
+   "article_url": "https://pixabay.com/ru/photos/%D0%B4%D0%B5%D1%80%D0%B5%D0%B2%D0%BE-%D0%B2%D0%B5%D1%82%D0%B2%D1%8C-%D0%BF%D1%80%D0%B8%D1%80%D0%BE%D0%B4%D0%B0-%D0%B1%D1%83%D1%82%D0%BE%D0%BD-7921887/",
+   "commons_file": "pixabay-7921887",
+   "bytes": 9306,
+   "quality": 78
+  },
   "vacuum": {
    "file": "vacuum.webp",
    "author": "jarmoluk",
@@ -1440,6 +2124,42 @@
    "article_url": "https://pixabay.com/ru/photos/%D0%B7%D0%B0%D1%85%D0%BE%D0%B4-%D1%81%D0%BE%D0%BB%D0%BD%D1%86%D0%B0-%D0%B2%D0%BE%D0%BB%D0%B5%D0%B9%D0%B1%D0%BE%D0%BB-%D0%BF%D0%BB%D1%8F%D0%B6-%D1%81%D0%B8%D0%BB%D1%83%D1%8D%D1%82-5560658/",
    "commons_file": "pixabay-5560658",
    "bytes": 7914,
+   "quality": 78
+  },
+  "waiter": {
+   "file": "waiter.webp",
+   "author": "Pexels",
+   "license": "Pixabay Content License",
+   "license_url": "https://pixabay.com/service/license-summary/",
+   "source": "https://pixabay.com/ru/photos/%D0%BD%D0%B0-%D0%BE%D1%82%D0%BA%D1%80%D1%8B%D1%82%D0%BE%D0%BC-%D0%B2%D0%BE%D0%B7%D0%B4%D1%83%D1%85%D0%B5-%D1%80%D0%B5%D1%81%D1%82%D0%BE%D1%80%D0%B0%D0%BD-%D0%B1%D0%B0%D1%80-1846137/",
+   "article": "Pixabay: Официант",
+   "article_url": "https://pixabay.com/ru/photos/%D0%BD%D0%B0-%D0%BE%D1%82%D0%BA%D1%80%D1%8B%D1%82%D0%BE%D0%BC-%D0%B2%D0%BE%D0%B7%D0%B4%D1%83%D1%85%D0%B5-%D1%80%D0%B5%D1%81%D1%82%D0%BE%D1%80%D0%B0%D0%BD-%D0%B1%D0%B0%D1%80-1846137/",
+   "commons_file": "pixabay-1846137",
+   "bytes": 15832,
+   "quality": 78
+  },
+  "waitress": {
+   "file": "waitress.webp",
+   "author": "LuckyLife11",
+   "license": "Pixabay Content License",
+   "license_url": "https://pixabay.com/service/license-summary/",
+   "source": "https://pixabay.com/ru/photos/%D0%BE%D1%84%D0%B8%D1%86%D0%B8%D0%B0%D0%BD%D1%82%D0%BA%D0%B0-%D0%BE%D1%84%D0%B8%D1%86%D0%B8%D0%B0%D0%BD%D1%82-%D1%80%D0%B5%D1%81%D1%82%D0%BE%D1%80%D0%B0%D0%BD-%D0%BA%D0%B0%D1%84%D0%B5-2376728/",
+   "article": "Pixabay: Официантка",
+   "article_url": "https://pixabay.com/ru/photos/%D0%BE%D1%84%D0%B8%D1%86%D0%B8%D0%B0%D0%BD%D1%82%D0%BA%D0%B0-%D0%BE%D1%84%D0%B8%D1%86%D0%B8%D0%B0%D0%BD%D1%82-%D1%80%D0%B5%D1%81%D1%82%D0%BE%D1%80%D0%B0%D0%BD-%D0%BA%D0%B0%D1%84%D0%B5-2376728/",
+   "commons_file": "pixabay-2376728",
+   "bytes": 10318,
+   "quality": 78
+  },
+  "walk": {
+   "file": "walk.webp",
+   "author": "Samueles",
+   "license": "Pixabay Content License",
+   "license_url": "https://pixabay.com/service/license-summary/",
+   "source": "https://pixabay.com/ru/photos/%D1%81%D1%82%D0%BE%D0%BF%D0%B0%D0%BC-%D0%BF%D0%B5%D1%81%D0%BE%D0%BA-%D1%8F-%D0%B8%D0%B4%D1%83-%D0%BF%D0%B5%D1%88%D0%BA%D0%BE%D0%BC-%D1%82%D1%80%D0%BE%D0%BF%D0%B0-962147/",
+   "article": "Pixabay: Ходить пешком",
+   "article_url": "https://pixabay.com/ru/photos/%D1%81%D1%82%D0%BE%D0%BF%D0%B0%D0%BC-%D0%BF%D0%B5%D1%81%D0%BE%D0%BA-%D1%8F-%D0%B8%D0%B4%D1%83-%D0%BF%D0%B5%D1%88%D0%BA%D0%BE%D0%BC-%D1%82%D1%80%D0%BE%D0%BF%D0%B0-962147/",
+   "commons_file": "pixabay-962147",
+   "bytes": 36544,
    "quality": 78
   },
   "zebra": {

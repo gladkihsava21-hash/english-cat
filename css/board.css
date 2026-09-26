@@ -186,11 +186,14 @@
 .bd-swatch.bd-custom.active { border-style: solid; border-color: var(--ink); }
 /* Плюс поверх выбранного цвета мог бы слиться с ним — прячем */
 .bd-swatch.bd-custom.picked svg.ic { display: none; }
-/* Нативный пикер невидим и не ловит нажатия: клик приходит в кружок,
-   а пикер открываем программно (inp.click()) */
+/* Нативный пикер растянут поверх кружка: нажатие попадает в сам input,
+   и пикер открывается сам. Программный inp.click() по невидимому полю
+   Safari молча игнорирует (нужен видимый input) — из-за этого «свой цвет»
+   и не открывался. */
 .bd-color-input {
-  position: absolute; width: 0; height: 0;
-  opacity: 0; pointer-events: none; border: 0; padding: 0;
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  opacity: 0; cursor: pointer; border: 0; padding: 0;
 }
 
 .bd-size {
