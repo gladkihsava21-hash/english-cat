@@ -2295,3 +2295,15 @@ db.set_paid_until(15, 30) → paid_until 2026-10-22, access_state=paid.
    Safari такой вызов игнорирует. Нативный color input растянут поверх
    кружка (opacity 0): клик попадает в сам input, пикер открывается сам и в
    Safari, и в Chrome (проверено computed-стилями в настоящем Chrome).
+
+**Фотобанк 510 → 555 (+45).** Ключ к расширению: штатный конвейер видит
+только 2597 слов с полем cat — резерв это ~8700 слов без cat (отбор по
+русской форме: только конкретные существительные). Добавлено: спасённые из
+NO_PHOTO (hand, mother, hat, island, plant), частотные школьные (boy,
+girl, piano, ghost, dinosaur, turtle, whale, spider, camel, violin,
+garlic, onion, sunflower, blackboard, thunderstorm, tram…), из словаря
+ученика secretary, guard. 58 отбракованы по глазомеру (не тот смысл:
+castle→навесной замок, tap→журавли, leg→куриная ножка; дубли: textbook≈book,
+pond≈fish). Источники 39 Pixabay + 6 Pexels, лицензии полные, credits
+пересобран. Качества/чувствам (nervous, brave, expensive…) фото НЕ дали
+осознанно — правило DESIGN: случайная картинка хуже её отсутствия.
