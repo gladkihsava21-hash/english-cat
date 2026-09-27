@@ -2601,7 +2601,10 @@ def _clean_board_object(o):
             return None
         mode = str(o.get("text", ""))
         out["text"] = mode if mode in ("dots", "grid", "lines", "clean") else "dots"
-    if kind == "pen":
+    # marker — та же форма, что у pen (см. выше): без этой обработки
+    # точки выбрасывались, и подсветка пропадала после синхронизации —
+    # «маркер исчезает» из жалобы владельца 27.09.
+    if kind in ("pen", "marker"):
         pts = o.get("pts")
         if not isinstance(pts, list) or len(pts) < 2:
             return None
