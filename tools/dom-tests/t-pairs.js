@@ -1,11 +1,21 @@
-// runPairs сверяет пару ПО ИНДЕКСУ в массиве pairs, а не по тексту.
-// Если два слова подхода переведены одинаково («big — большой»,
-// «large — большой»), справа стоят две кнопки с одинаковой надписью,
-// и ровно одна из них считается «той самой». Ученик соединяет верно
-// по смыслу — получает красное «мимо», минус к счёту и слово, помеченное
-// забытым.
+// «Соедини пары» и одинаковые переводы.
+//
+// Раньше matching() брала trainPool(5) как есть: два слова с одним
+// переводом («big — большой», «large — большой») давали справа две
+// кнопки с одинаковой надписью, и ровно одна из них считалась «той
+// самой». Ученик соединял верно по смыслу — получал красное «мимо»,
+// минус к счёту и слово, помеченное забытым.
+//
+// Что проверяем теперь (два слоя защиты):
+//  1) matching() не собирает расклад с двумя одинаковыми правыми
+//     половинами вовсе (pickDistinctT, как в «Найди пару»);
+//  2) если двойняшки всё же дошли до runPairs (набор репетитора
+//     «синонимы» — там это обычное дело), ЛЮБАЯ из двух одинаковых
+//     кнопок принимается за любое из слов-близнецов.
 const { w } = require("./harness-full.js");
 const doc = w.document;
+let fails = 0;
+const ok = (c, what) => { console.log((c ? "  ✓ " : "  ✗ ") + what); if (!c) fails++; };
 
 w.eval(`
   window.readGateMs = () => 0;
@@ -37,61 +47,46 @@ const click = el => el.dispatchEvent(new w.MouseEvent("click", { bubbles: true }
 const L = () => [...doc.querySelectorAll("#pairs-l .pair-item")];
 const R = () => [...doc.querySelectorAll("#pairs-r .pair-item")];
 
-// Заход: открыть свежий подход и соединить «big» с k-й (0/1) кнопкой «большой».
-function attempt(k) {
-  w.eval(DICT + `window.__stat = []; window.__xp = 0; window.__fin = []; openExercise("matching");`);
-  const bigBtn = L().find(b => b.textContent === "big");
-  const same = R().filter(b => b.textContent === "большой");
-  if (!bigBtn || same.length !== 2) return null;
-  click(bigBtn);
-  click(same[k]);
-  return {
-    red: same[k].classList.contains("bad"),
-    stat: JSON.parse(w.eval("JSON.stringify(window.__stat)")),
-    left: L().map(b => b.textContent).join(" | "),
-    right: R().map(b => b.textContent).join(" | "),
+console.log("\n1. matching() не собирает расклад с двумя одинаковыми переводами справа");
+{
+  const seen = [];
+  for (let k = 0; k < 12; k++) {
+    w.eval(DICT + `openExercise("matching");`);
+    const texts = R().map(b => b.textContent);
+    const dups = texts.filter((t, i) => texts.indexOf(t) !== i);
+    seen.push(...new Set(dups));
+  }
+  ok(seen.length === 0,
+     "12 подходов подряд: дублей справа " + (seen.length ? "ЕСТЬ — " + seen.join(", ") : "нет"));
+}
+
+console.log("\n2. Набор репетитора «синонимы»: любая из двух одинаковых кнопок принимается");
+{
+  // runPairs напрямую — двойняшки доходят и мимо matching(): набор
+  // репетитора с синонимами фильтровать нечем, там они законны.
+  const tryTwin = (leftWord, btnIdx) => {
+    w.eval(`window.__stat = []; window.__fin = [];
+      stage().innerHTML = "";
+      runPairs([{l:"run", r:"бежать", statWord:"run"}, {l:"jog", r:"бежать", statWord:"jog"}, {l:"walk", r:"идти", statWord:"walk"}]);`);
+    click(L().find(x => x.textContent === leftWord));
+    const begs = R().filter(x => x.textContent === "бежать");
+    click(begs[btnIdx]);
+    return !begs[btnIdx].classList.contains("bad")
+        && L().find(x => x.textContent === leftWord).classList.contains("done");
   };
+  ok(tryTwin("run", 0), "«run» → 1-я «бежать»: принято");
+  ok(tryTwin("run", 1), "«run» → 2-я «бежать»: принято");
+  ok(tryTwin("jog", 0), "«jog» → 1-я «бежать»: принято");
+  ok(tryTwin("jog", 1), "«jog» → 2-я «бежать»: принято");
+  // Верное по смыслу соединение не должно метить слово забытым
+  const st = JSON.parse(w.eval("JSON.stringify(window.__stat)"));
+  ok(st.length && st.every(x => x[1] === true),
+     "statUpdate только с ok=true: " + JSON.stringify(st));
 }
 
-const a = attempt(0), b = attempt(1);
-if (!a || !b) { console.log("✗ расклад не собрался"); process.exit(1); }
-console.log("\nэкран: слева [" + a.left + "]  справа [" + a.right + "]");
-console.log("«big» → 1-я кнопка «большой»:", a.red ? "МИМО (красная)" : "принято", "| statUpdate", JSON.stringify(a.stat));
-console.log("«big» → 2-я кнопка «большой»:", b.red ? "МИМО (красная)" : "принято", "| statUpdate", JSON.stringify(b.stat));
+console.log("\n3. Защита от прокликивания в runPairs на месте");
+ok(w.eval("typeof exRound.answered") === "number",
+   "exRoundAnswer зовётся (answered=" + w.eval("exRound.answered") + ")");
 
-const bug = a.red || b.red;
-if (bug) {
-  const bad = a.red ? a : b;
-  console.log("\n✗ ВОСПРОИЗВЕЛОСЬ: две кнопки с одной и той же надписью «большой»,");
-  console.log("  и одна из них засчитана как ошибка. Ученик соединил верно по смыслу.");
-  console.log("  словарная запись «big» после этого:", w.eval(
-    `JSON.stringify((d => ({forgot: d.forgot, knew: d.knew, reps: d.reps, ease: d.ease, status: d.status, due: d.due}))(state.dictionary.find(x => x.w === "big")))`));
-} else {
-  console.log("\n(обе приняты — не воспроизвелось)");
-}
-
-// Тот же расклад через своё задание репетитора (конструктор): две пары
-// с одинаковой правой частью — обычное дело в наборе «синонимы».
-console.log("\n— то же в наборе репетитора (runPairs напрямую):");
-w.eval(`window.__stat = []; window.__fin = [];
-  stage().innerHTML = "";
-  runPairs([{l:"run", r:"бежать"}, {l:"jog", r:"бежать"}, {l:"walk", r:"идти"}]);`);
-const runBtn = L().find(x => x.textContent === "run");
-const begs = R().filter(x => x.textContent === "бежать");
-console.log("  справа:", R().map(x => x.textContent).join(" | "));
-click(runBtn); click(begs[0]);
-const red0 = begs[0].classList.contains("bad");
-console.log("  «run» → 1-я «бежать»:", red0 ? "МИМО" : "принято");
-if (!red0) {
-  // первая подошла — значит вторая заведомо не подойдёт: проверим на jog наоборот
-  w.eval(`stage().innerHTML = ""; runPairs([{l:"run", r:"бежать"}, {l:"jog", r:"бежать"}, {l:"walk", r:"идти"}]);`);
-  const jog = L().find(x => x.textContent === "jog");
-  const b2 = R().filter(x => x.textContent === "бежать");
-  click(jog); click(b2[0]);
-  console.log("  «jog» → 1-я «бежать»:", b2[0].classList.contains("bad") ? "МИМО" : "принято");
-}
-
-console.log("\n— защита от прокликивания в runPairs:");
-console.log("  exRoundAnswer из runPairs не зовётся вовсе → exRound.answered =",
-  w.eval("exRound.answered"), ", exRoundRushed() =", w.eval("exRoundRushed()"));
-process.exit(bug ? 1 : 0);
+console.log(fails ? "\nПРОБЛЕМ: " + fails : "\nвсё чисто");
+process.exit(fails ? 1 : 0);

@@ -23,6 +23,11 @@ w.eval(`
 const log = () => JSON.parse(w.eval("JSON.stringify(window.__log)"));
 const reset = () => w.eval("window.__log = { finish: [], stat: [] };");
 const D = () => JSON.parse(w.eval("JSON.stringify(state.dictionary.map(d=>({w:d.w,t:d.t})))"));
+// Колода добирает слова уровня, когда словарь короткий (как в t-balloons):
+// мишень ищем и в словаре, и в банке, иначе прогон «не находил» шар.
+const ALL = () => JSON.parse(w.eval(
+  "JSON.stringify(LEVELS.flatMap(l => WORDS[l] || []).map(d => ({ w: d.w, t: d.t })))"));
+const findWord = pred => D().find(pred) || ALL().find(pred);
 const check = (name, expected) => {
   const l = log();
   ok(l.finish.length === 1, name + ": итоги подведены " + l.finish.length + " раз(а) " + JSON.stringify(l.finish));
@@ -86,9 +91,13 @@ const check = (name, expected) => {
     const cnt = doc.getElementById("bal-count");
     if (!cnt) break;
     const ru = cnt.parentNode ? doc.getElementById("bal-ru").textContent.trim() : null;
-    const rec = D().find(d => d.t.trim() === ru);
-    const b = [...doc.querySelectorAll("#bal-stage .bal")]
-      .find(x => x.getAttribute("aria-label") === (rec && rec.w));
+    // Мишень ищем от шаров к переводу, а не наоборот: у двух слов может
+    // быть один перевод (big/large — «большой»), и по подписи «большой»
+    // первое найденное слово — не обязательно то, что на поле.
+    const b = [...doc.querySelectorAll("#bal-stage .bal")].find(x => {
+      const rec = findWord(d => d.w === x.getAttribute("aria-label"));
+      return rec && rec.t.trim() === ru;
+    });
     if (!b) break;
     click(b);
     await tick(950);
@@ -110,11 +119,14 @@ const check = (name, expected) => {
     boxTotal = +m[2];
     const tile = doc.querySelector("#box-grid .box-tile:not([disabled])");
     if (!tile) break;
-    click(tile); await tick(30);
+    click(tile);
+    // ждём вариантов и снятия паузы на чтение — иначе гейт отбросит ответ
+    for (let g = 0; g < 60 && !doc.getElementById("box-options"); g++) await tick(50);
+    for (let g = 0; g < 60 && doc.getElementById("box-options").classList.contains("mcq-wait"); g++) await tick(50);
     const os = [...doc.querySelectorAll("#box-options .mcq-option")];
     if (!os.length) break;
     const we = doc.querySelector(".box-card .quiz-word").textContent.trim();
-    const rec = D().find(d => d.w === we);
+    const rec = findWord(d => d.w === we);
     const right = os.find(o => o.textContent.trim() === (rec && rec.t));
     click(n % 4 === 3 ? (os.find(o => o !== right) || os[0]) : (right || os[0]));
     await tick(1100);

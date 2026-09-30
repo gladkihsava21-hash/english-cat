@@ -107,8 +107,15 @@ for (let k = 0; k < a2; k++) { await sleep(450);
   await sleep(20); if (doc.getElementById("mcq-next")) click("#mcq-next"); }
 await sleep(60);
 const rec2 = w.eval('JSON.stringify(state.taskResults["42"])');
-ok(/"correct":16/.test(rec2) && /"first":16/.test(rec2) && /"tries":2/.test(rec2),
-   `тема на ${a1} заданий → ${rec1}; потом тема на ${a2} заданий, все мимо → ${rec2}`);
+// Лучший честный результат второй попыткой не понижается: все мимо —
+// а в записи остался счёт первой и first с неё же, выросли только tries.
+// Точное число не сверяем: темы в банке растут, и «16» здесь уже однажды
+// сгнило — важны отношения, а не размер темы.
+{
+  const r1 = JSON.parse(rec1), r2 = JSON.parse(rec2);
+  ok(r2.correct === r1.correct && r2.first === r1.first && r2.tries === 2 && r2.correct === r2.total,
+     `тема на ${a1} заданий → ${rec1}; потом тема на ${a2} заданий, все мимо → ${rec2}`);
+}
 
 console.log("\n4. Ушёл с экрана сразу после последнего верного ответа");
 reset();
@@ -222,12 +229,15 @@ console.log("\n10. Словообразование: «перевод» посл
 reset();
 w.eval('openExercise("wordform")');
 await sleep(20);
-doc.getElementById("type-input").value = "ерунда";
+// Отвечаем НЕВЕРНО, но латиницей: «ерунда» кириллицей — не ответ, а
+// предупреждение о раскладке (анти-тык), и экрана с «Правильно: …» она
+// не даёт. Проверяем именно сценарий «ответил → спросил перевод».
+doc.getElementById("type-input").value = "educashion";
 click("#type-check");
 const было = doc.getElementById("type-feedback").textContent;
 click("#type-hint");
 const стало = doc.getElementById("type-feedback").textContent;
-ok(/Правильно/.test(стало), `было «${было}» → стало «${стало}»`);
+ok(/Правильно/.test(было) && стало === было, `было «${было}» → стало «${стало}»`);
 
 console.log("\n11. Грамматика: подход без ошибок объявлен прокликанным");
 // Порог смотрит ТОЛЬКО на время после того, как варианты открылись
@@ -239,7 +249,9 @@ w.eval('openExercise("grammar")');
 click([...doc.querySelectorAll(".gr-topic")][0]);
 const rt = w.eval("window.__rounds.length");
 for (let k = 0; k < rt; k++) {
-  await sleep(400);       // 50 мс пауза + ~350 мс на выбор варианта
+  await sleep(600);       // 50 мс пауза + ~550 мс на выбор варианта — с запасом
+                          // выше порога прокликивания (400 мс): прежние 400 мс
+                          // давали среднее 398 мс и подход флаговался rushed
   click([...doc.querySelectorAll(".mcq-option")][w.eval(`window.__rounds[${k}].correct`)]);
   await sleep(1150);
 }

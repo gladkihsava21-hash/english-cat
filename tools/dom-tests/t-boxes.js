@@ -89,8 +89,33 @@ const closed = () => JSON.parse(w.eval(
      "прокликанный подход помечен «Слишком быстро» либо очки за него не начислены (начислено " + l.xp + ")");
   ok(closed().length === 0,
      "прокликиванием ни одно слово не закрыто для домашки (закрыто " + closed().length + ")");
-  ok(w.eval("exLog.length") > 0,
-     "разбор ответов после подхода собран (exLog: " + w.eval("exLog.length") + ")");
+
+  /* ---------- честный ответ попадает в разбор ---------- */
+  // exLog пишется на ПРИНЯТЫЙ ответ; после прогона выше принятых ноль,
+  // поэтому проверять разбор надо на честном ответе, а не на проклике.
+  console.log("\n3. Честная коробка: ответ попадает в «Разбор ответов»");
+  {
+    w.eval(`window.__log = { finish: [], stat: [], xp: 0 };
+      state.dictionary.forEach(d => { d.checked = 0; d.knew = 0; });
+      show("practice"); openExercise("boxes")`);
+    // ждём снятия паузы на чтение и отвечаем как человек
+    await tick(800);
+    // открыть первую коробку и дождаться вариантов
+    const tile0 = doc.querySelector("#box-grid .box-tile:not([disabled])");
+    if (tile0) click(tile0);
+    await tick(900);
+    const word = (doc.querySelector(".box-card .quiz-word") || {}).textContent || "";
+    const opts = [...doc.querySelectorAll("#box-options .mcq-option")];
+    const rec = JSON.parse(w.eval("JSON.stringify(state.dictionary.map(d=>({w:d.w,t:d.t})))"))
+      .find(d => d.w === word.trim());
+    const right = opts.find(o => o.textContent.trim() === (rec && rec.t));
+    click(right || opts[0]);
+    await tick(50);
+    const exLogLen = w.eval("exLog.length");
+    const entry = w.eval("exLog.length ? JSON.stringify(exLog[exLog.length - 1]) : ''");
+    ok(exLogLen > 0 && entry.includes(word.trim()),
+       "разбор ответов после подхода собран (exLog: " + exLogLen + ", «" + word.trim() + "»)");
+  }
 
   if (errors.length) console.log("  ! ошибки обработчиков:", errors.slice(0, 3));
   console.log("\n" + (fails ? "ПРОБЛЕМ: " + fails : "коробки защищены так же, как обычные вопросы"));

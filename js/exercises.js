@@ -390,7 +390,10 @@ function exQuestionText(r) {
 /** Сколько ждать перед тем, как открыть варианты, по длине текста. */
 function readGateMs(text, audio) {
   if (audio) return 1500;
-  const chars = String(text || "").replace(/\s+/g, " ").trim().length;
+  // Длину считаем по тексту без разметки: теги вроде
+  // <span class="wf-sentence"> добавляли полсотни символов и раздували
+  // паузу коротких предложений до потолка (пробник t-oge §8).
+  const chars = String(text || "").replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim().length;
   return Math.max(600, Math.min(2200, 500 + chars * 25));
 }
 
@@ -955,7 +958,12 @@ function levelPool(n, need = [], fit = null) {
   const own = new Set(state.dictionary.map(d => d.w.toLowerCase()));
   const lvl = studyLevel();
   const nextLvl = LEVELS[Math.min(LEVELS.indexOf(lvl) + 1, LEVELS.length - 1)];
-  const pool = shuffled([...(WORDS[lvl] || []), ...(WORDS[nextLvl] || [])].filter(has))
+  // На верхнем уровне «следующий» совпадает с текущим: банк складывался
+  // сам с собой, и каждое слово входило дважды — в подходе C2 один и
+  // тот же вопрос мог выпасть два раза (пробник t-dup).
+  const bank = nextLvl === lvl ? (WORDS[lvl] || [])
+                               : [...(WORDS[lvl] || []), ...(WORDS[nextLvl] || [])];
+  const pool = shuffled(bank.filter(has))
     .map(x => ({ ...x, inDict: own.has(x.w.toLowerCase()) }));
   if (pool.length >= n) return pool.slice(0, n);
   // Слов уровня с нужными полями бывает мало (пример есть не у каждого) —
@@ -1231,10 +1239,14 @@ function recordTaskResult(correct, total, meta = {}) {
   // Лучший результат не понижаем — как очки и рекорд блица: второй
   // подход хуже первого не должен стирать «8 из 10» у репетитора.
   // Сменился размер набора — считаем заново: сравнивать 8/10 с 5/6 нечестно.
-  // Прокликанный подход лучший не улучшает: пометка ⚡ и время идут
-  // с той попыткой, которая дала лучший результат по-честному.
-  const beats = !same || correct > (prev.correct || 0)
-             || (correct === (prev.correct || 0) && prev.rushed && !meta.rushed);
+  // Прокликанный подход (rushed) лучший ЧЕСТНЫЙ не улучшает и «сдано»
+  // не снимает: честные 4/6 затирались угадыванием 6/6 наугад, и домашка
+  // снова становилась несданной (пробник oe-hw-best). Зато честный
+  // подход перекрывает прокликанный рекорд всегда, а прокликанный —
+  // только прокликанный же.
+  const beats = !same || (meta.rushed
+    ? (prev.rushed && correct > (prev.correct || 0))
+    : (correct > (prev.correct || 0) || prev.rushed));
   const rec = beats
     ? { correct, rushed: !!meta.rushed, secs: Math.round(meta.secs || 0) }
     : { correct: prev.correct, rushed: !!prev.rushed, secs: prev.secs || 0 };
@@ -1790,6 +1802,37 @@ function stage() { return document.getElementById("ex-stage"); }
  *  забыло бы точно так же. «Ещё раз» открывает новый заход и проходит. */
 let exFinishedFor = 0;
 
+/* Фиксация результата подхода — репетитору (домашка) и в карточку на
+ * доске. Отделена от экрана итогов и зовётся в момент ПОСЛЕДНЕГО ответа,
+ * а не только по таймеру показа итогов: ученик, ушедший с экрана в паузу
+ * между последним ответом и итогами, раньше терял результат целиком —
+ * exLater честно молчит на скрытом экране (починка 11.09), и запись
+ * просто не случалась (пробник oe-late-timer). Экран итогов по-прежнему
+ * рисует только таймер и только на виду; здесь — только запись. */
+let exRecordedFor = 0;
+function exRecordNow(correct, total) {
+  if (exRecordedFor === exLaunch) return;
+  exRecordedFor = exLaunch;
+  const rushed = total > 0 && exRoundRushed();
+  const secs = (Date.now() - (exRound.startedAt || Date.now())) / 1000;
+  if (homeworkContext && total > 0) recordTaskResult(correct, total, { rushed, secs });
+  const boardCard = (typeof window !== "undefined" && window.boardTaskCard && total > 0)
+    ? window.boardTaskCard : null;
+  if (boardCard && typeof reportBoardResult === "function") {
+    const when = new Date();
+    const hhmm = String(when.getHours()).padStart(2, "0") + ":"
+               + String(when.getMinutes()).padStart(2, "0");
+    reportBoardResult(boardCard, {
+      text: `Верно ${correct} из ${total}${rushed ? " · слишком быстро" : ""} · ${hhmm}`,
+      correct, total, rushed, when: hhmm,
+      // Разбор: что не получилось. Больше дюжины строк на доску
+      // не влезет и не нужно — разбирают не весь подход, а слабые места.
+      wrong: exWrong.slice(0, 12).map(x => ({ w: x.w, t: x.t })),
+      wrongTotal: exWrong.length,
+    });
+  }
+}
+
 function exFinish(correct, total, note = "") {
   if (exFinishedFor === exLaunch) return;
   exFinishedFor = exLaunch;
@@ -1797,7 +1840,6 @@ function exFinish(correct, total, note = "") {
   // Прокликанный подход (см. «Защита от прокликивания»): очки снимаем,
   // наград не даём, результат по домашке уходит с пометкой.
   const rushed = total > 0 && exRoundRushed();
-  const secs = (Date.now() - (exRound.startedAt || Date.now())) / 1000;
   if (rushed && exSessionXP && typeof revokeXP === "function") {
     revokeXP(exSessionXP);
   }
@@ -1817,28 +1859,16 @@ function exFinish(correct, total, note = "") {
   // Подход из домашки — результат уходит репетитору. Говорим это прямо:
   // ученик должен знать, что его увидят, — и что можно перепройти.
   const fromHomework = !!(homeworkContext && total > 0);
-  if (fromHomework) recordTaskResult(correct, total, { rushed, secs });
-  // Запуск с доски (card=… в адресе): итог уезжает прямо в карточку
-  // задания — у репетитора она обновится через секунду, ещё на уроке, —
-  // а вкладка закрывается сама, возвращая ученика на доску. Закрыть
-  // можно без вопросов: её открыла доска (window.open), таким браузер
-  // разрешает window.close().
+  // Запись (домашка + карточка на доске) — через exRecordNow: если ученик
+  // дошёл до итогов, записываем здесь; если результат уже зафиксирован в
+  // момент последнего ответа — это вызов-пустышка.
+  exRecordNow(correct, total);
+  // Запуск с доски (card=… в адресе): вкладка закрывается сама, возвращая
+  // ученика на доску. Закрыть можно без вопросов: её открыла доска
+  // (window.open), таким браузер разрешает window.close().
   const boardCard = (typeof window !== "undefined" && window.boardTaskCard && total > 0)
     ? window.boardTaskCard : null;
   if (boardCard) {
-    const when = new Date();
-    const hhmm = String(when.getHours()).padStart(2, "0") + ":"
-               + String(when.getMinutes()).padStart(2, "0");
-    const resText = `Верно ${correct} из ${total}${rushed ? " · слишком быстро" : ""} · ${hhmm}`;
-    if (typeof reportBoardResult === "function") {
-      reportBoardResult(boardCard, {
-        text: resText, correct, total, rushed, when: hhmm,
-        // Разбор: что не получилось. Больше дюжины строк на доску
-        // не влезет и не нужно — разбирают не весь подход, а слабые места.
-        wrong: exWrong.slice(0, 12).map(x => ({ w: x.w, t: x.t })),
-        wrongTotal: exWrong.length,
-      });
-    }
     // Возврат на доску — сам, но с запасным ходом: window.close()
     // работает только у вкладки, которую открыла доска. Открыли по
     // прямой ссылке (мессенджер-браузер, showTaskGo) — close молча
@@ -2105,6 +2135,9 @@ function runMCQ(rounds, opts = {}) {
         // проставленные «верно/неверно».
         Array.from(box.children).forEach(x => x.setAttribute("aria-disabled", "true"));
         i++;
+        // Отвечен последний вопрос — результат фиксируем сразу, а не по
+        // таймеру итогов (см. exRecordNow): пауза нужна глазам, не записи.
+        if (i >= rounds.length) exRecordNow(score, rounds.length);
         // 1100, а не 700. Кот держит радостную позу 1200 мс, а экран
         // менялся через 700 — то есть похвалу физически не успевали
         // увидеть. Получалась обратная полярность: ошибку кот
@@ -2184,11 +2217,16 @@ function runPairs(pairs, opts = {}) {
     b.textContent = item.text;
     b.addEventListener("click", () => {
       if (!selL || b.classList.contains("done")) return;
-      // Два одинаковых слова слева («make» и «make») — для ученика одно и
-      // то же. Сверка по индексу объявляла ошибкой верное сочетание, если
-      // он нажал не на тот из двух близнецов.
-      const ok = item.i === selL.item.i || pairs[item.i].l === pairs[selL.item.i].l;
-      const word = ok ? pairs[item.i].statWord : pairs[selL.item.i].statWord;
+      // Двойняшки по ТЕКСТУ неотличимы для ученика — и слева («make» и
+      // «make»), и справа: два слова с одним переводом («big» и «large» —
+      // «большой») дают две одинаковые кнопки, и верное по смыслу
+      // соединение сверка по индексу объявляла ошибкой, отправляя слово
+      // в «забыл» (пробники t-pairs и t-oge §5). Статистику пишем на
+      // слово СЛЕВА — ученик отвечал про него.
+      const ok = item.i === selL.item.i
+              || pairs[item.i].l === pairs[selL.item.i].l
+              || pairs[item.i].r === pairs[selL.item.i].r;
+      const word = pairs[selL.item.i].statWord;
       if (!ok) misses.set(selL.item.i, (misses.get(selL.item.i) || 0) + 1);
       if (word) statUpdate(word, ok, !misses.get(selL.item.i));
       exRoundAnswer(performance.now() - lastAt, 0);
@@ -2203,6 +2241,8 @@ function runPairs(pairs, opts = {}) {
         selL.el.classList.remove("sel");
         selL = null;
         if (matched === pairs.length) {
+          // Финиш фиксируем сразу (см. exRecordNow), итоги — по таймеру
+          exRecordNow(Math.max(0, pairs.length - errors), pairs.length);
           exLater(() => exFinish(Math.max(0, pairs.length - errors), pairs.length, opts.note), 500);
         }
       } else {
@@ -2211,6 +2251,11 @@ function runPairs(pairs, opts = {}) {
         selL.el.classList.add("bad");
         const l = selL.el;
         setTimeout(() => { b.classList.remove("bad"); l.classList.remove("bad"); }, 450);
+        // Промах — и выбор снят: повторное нажатие в ту же неверную
+        // кнопку (палец дрогнул, ребёнок думает «не сработало») считалось
+        // ВТОРОЙ ошибкой и стоило ещё балл (пробник t-oge §6).
+        l.classList.remove("sel");
+        selL = null;
       }
       // Под сеткой, одна и та же строка на весь подход: пары решаются
       // быстро одна за другой, и кот комментирует на месте, не сдвигая её.
@@ -2333,6 +2378,9 @@ function runType(rounds, opts = {}) {
       }
       input.disabled = true;
       i++;
+      // Отвечен последний вопрос — фиксируем сразу (см. exRecordNow):
+      // пауза и кнопка «Дальше» нужны глазам, не записи.
+      if (i >= rounds.length) exRecordNow(score, rounds.length);
       // Верный ответ уезжает сам — кроме длинных: в диктанте засчитывается
       // от 80% слов, то есть «верно» бывает с опечатками, и их надо увидеть.
       // Из-за этого экран вёл себя по-разному на разных ответах, и методист
@@ -2677,7 +2725,10 @@ const EX_RUNNERS = {
   },
 
   matching() {
-    const pool = trainPool(5);
+    // Без pickDistinctT два слова с одним переводом («big» и «large» —
+    // «большой») давали две неразличимые кнопки справа (пробник t-pairs).
+    // Та же защита, что в «Найди пару» (js/games.js).
+    const pool = pickDistinctT(trainPool(15), 5);
     runPairs(pool.map(p => ({ l: p.w, r: p.t, statWord: p.w })));
   },
 
@@ -3384,6 +3435,12 @@ const EX_RUNNERS = {
     // новая игра шла с чужим временем и обрывалась раньше срока.
     // Ссылка на таймер лежит снаружи именно для этого.
     if (blitzTimer) { clearInterval(blitzTimer); blitzTimer = null; }
+    // Заход, которому принадлежит эта партия: отсчёт доигрывает минуту
+    // только пока ученик на экране упражнения. Иначе брошенная игра
+    // заканчивалась в фоне — с очками, рекордом и наградой (пробник
+    // t-blitz-abandon). Класс тот же, что 11.09 чинили через exLater, —
+    // этот таймер жил своей жизнью и догонял ученика на «Главной».
+    const launch = exLaunch;
     let score = 0, streak = 0, timeLeft = DURATION, timer = null, shownAt = 0;
     const asked = new Set();
     const nextWord = () => {
@@ -3442,6 +3499,11 @@ const EX_RUNNERS = {
       </div>`;
     nextWord();
     timer = blitzTimer = setInterval(() => {
+      if (!exStillHere(launch)) {
+        clearInterval(timer);
+        if (blitzTimer === timer) blitzTimer = null;
+        return;
+      }
       timeLeft--;
       const el = document.getElementById("blitz-time");
       if (!el) { clearInterval(timer); if (blitzTimer === timer) blitzTimer = null; return; }
@@ -3574,7 +3636,14 @@ const EX_RUNNERS = {
     }
     const words = shuffled(cats.flatMap(c => bags.pick(c, 4)
       .map(x => ({ ...x, catKey: c }))));
-    let selWord = null, placed = 0, errors = 0;
+    let selWord = null, placed = 0;
+    // Промахи — по словам, а не по нажатиям: ребёнок, ткнувший в мигнувшую
+    // красным коробку трижды («не сработало!»), раньше платил три балла за
+    // одну незнакомую тему. Один промах с мгновенным самоисправлением —
+    // нормальный ход игры и балла не стоит; не выученным считаем слово
+    // с ДВУМЯ и более промахами. Иначе честно разложенные в итоге слова
+    // заканчивались экраном «Верно 0 из 8» (пробник t-categories).
+    const misses = new Map();
     stage().innerHTML = `
       <p class="muted-small ex-hint">Нажми слово, потом его категорию</p>
       <div class="cat-words" id="cat-words"></div>
@@ -3614,10 +3683,11 @@ const EX_RUNNERS = {
           selWord.el.classList.remove("sel");
           selWord = null;
           if (placed === words.length) {
-            exLater(() => exFinish(Math.max(0, words.length - errors), words.length), 500);
+            const notLearned = [...misses.values()].filter(n => n >= 2).length;
+            exLater(() => exFinish(words.length - notLearned, words.length), 500);
           }
         } else {
-          errors++;
+          misses.set(selWord.wd.w, (misses.get(selWord.wd.w) || 0) + 1);
           box.classList.add("bad");
           setTimeout(() => box.classList.remove("bad"), 450);
         }
@@ -3905,6 +3975,7 @@ const EX_RUNNERS = {
         const inPP = document.getElementById("irr-pp");
         const fb = document.getElementById("irr-feedback");
         const btn = document.getElementById("irr-check");
+        const shownAt = performance.now();
         inP.focus();
 
         let answered = false;
@@ -3938,10 +4009,21 @@ const EX_RUNNERS = {
           inPP.classList.toggle("bad", !okPP);
           // Второй круг очков не приносит: иначе выгоднее ошибиться.
           if (!retry) {
+            // Разбор и учёт времени — как у остальных полей ввода: без них
+            // после подхода не было «Разбора ответов», а защита от
+            // прокликивания не видела этот подход вовсе (пробник t-oge §9).
+            exRoundAnswer(performance.now() - shownAt, 0);
+            exLog.push({ q: r.v, sub: title, yours: rawP + " — " + rawPP,
+                         right: r.p + " — " + r.pp, ok, why: r.note || "" });
             statUpdate(r.v, ok);
             if (ok) { score++; award(15); }
           }
-          if (!ok && !again.includes(r)) again.push(r);
+          // И второй круг ОДИН: показали верные формы, попросили
+          // проговорить — и идём дальше, невыученное вернёт SRS. Иначе
+          // «работа над ошибками» для ученика, который не знает группу,
+          // не кончалась никогда: бесконечный конвейер одних и тех же
+          // экранов (пробник t-oge §2 — 120 экранов подряд).
+          if (!ok && !again.includes(r) && !retry) again.push(r);
           if (!retry) done++;
           fb.className = "type-feedback " + (ok ? "ok" : "err");
           fb.textContent = ok
@@ -3961,7 +4043,7 @@ const EX_RUNNERS = {
             nt.textContent = r.note;
             after.appendChild(nt);
           }
-          if (!ok) {
+          if (!ok && !retry) {
             const tip = document.createElement("p");
             tip.className = "muted-small";
             tip.textContent = "Этот глагол вернётся в конце подхода.";
@@ -3986,7 +4068,17 @@ const EX_RUNNERS = {
             buttons.before(vp);
             mountVoicePills(vp, sayTriple);
           }
-          buttons.querySelector("#irr-next").addEventListener("click", next);
+          buttons.querySelector("#irr-next").addEventListener("click", e => {
+            // Повторное событие по ТОЙ ЖЕ кнопке (дабл-клик, дрогнувший
+            // палец) звал next() дважды и съедало глагол: подход
+            // заканчивался «9 из 10» при десяти отвеченных (t-oge §12).
+            // Гасим кнопку синхронно: каждый экран рисует свою, и быстрые
+            // ЧЕСТНЫЕ нажатия подряд не страдают.
+            const b = e.currentTarget;
+            if (b.disabled) return;
+            b.disabled = true;
+            next();
+          });
           buttons.querySelector("#irr-next").focus();
         };
         btn.addEventListener("click", check);
@@ -4157,9 +4249,12 @@ const EX_RUNNERS = {
         promptHTML: gapHTML(it.q),
         answer: it.answer,
         check: v => {
-          const got = String(v || "").trim().toLowerCase();
-          return got === it.answer.toLowerCase()
-              || (it.alt || []).some(x => x.toLowerCase() === got);
+          // Через normEn, как остальные поля ввода: двойной пробел и
+          // типографский апостроф с телефонной клавиатуры — не ошибка
+          // (пробник t-oge §7).
+          const got = normEn(v);
+          return got === normEn(it.answer)
+              || (it.alt || []).some(x => normEn(x) === got);
         },
         why: it.why || "",
         placeholder: "ответ",
@@ -4401,15 +4496,19 @@ const EX_RUNNERS = {
         if (cells[active].val) put(active, "");
         else { const prev = step(active, -1); if (prev) { put(prev, ""); select(prev, true); } }
       } else {
-        // берём последний введённый символ: телефон умеет прислать сразу
-        // несколько (автозамена, вставка), а нам нужна одна буква
-        const raw = (e.data != null ? String(e.data) : ctl.value).replace(/\s/g, "");
-        const ch = raw.slice(-1).toLowerCase();
-        if (ch) {
-          put(active, ch);
-          const nxt = step(active, 1);
-          if (nxt) select(nxt, true);
+        // Берём ВСЕ введённые буквы: телефон умеет прислать слово целиком
+        // одним событием (свайп-набор, автозамена, вставка), и раньше из
+        // него попадала в клетку только последняя буква (пробник
+        // t-crossword §3). Одна буква — частный случай той же строки.
+        const raw = (e.data != null ? String(e.data) : ctl.value)
+          .toLowerCase().replace(/[^a-z]/g, "");
+        let kk = active;
+        for (const ch of raw) {
+          if (!kk || !cells[kk]) break;
+          put(kk, ch);
+          kk = step(kk, 1);
         }
+        if (kk) select(kk, true);
       }
       ctl.value = " ";
       ctl.setSelectionRange(1, 1);
@@ -4449,8 +4548,16 @@ const EX_RUNNERS = {
     // повторное нажатие начисляло очки заново (15 за слово), заново отмечало
     // все слова вспомненными и заводило второй уход на итоги.
     let cwDone = false;
+    // Подсказка — не оракул: бесплатная подсветка ошибок после КАЖДОЙ
+    // буквы превращала кроссворд в перебор — 30 нажатий, «6 из 6» и все
+    // слова «подтверждённо известные» (пробник t-crossword). Проверок
+    // больше, чем слов, — это уже перебор, а не вспоминание: подход
+    // засчитывается как нечестный (слова не «проверены», очков нет),
+    // как missed-перебор в runPairs.
+    let cwChecks = 0;
     document.getElementById("cw-check").addEventListener("click", () => {
       if (cwDone) return;
+      cwChecks++;
       let allOk = true, wrong = 0, empty = 0;
       Object.values(cells).forEach(x => {
         const ok = x.val === x.ch;
@@ -4462,20 +4569,27 @@ const EX_RUNNERS = {
         x.el.setAttribute("aria-invalid", ok ? "false" : "true");
         if (!ok) { allOk = false; x.val ? wrong++ : empty++; }
       });
+      const brute = allOk && cwChecks > placed.length;
       const say = document.getElementById("cw-result");
       if (say) {
         say.className = "type-feedback " + (allOk ? "ok" : "err");
         say.textContent = allOk
-          ? "Всё верно, мяу! Кроссворд собран."
+          ? (brute
+              ? "Собрано! Но проверок было больше, чем слов, — похоже на перебор, поэтому не засчитано."
+              : "Всё верно, мяу! Кроссворд собран.")
           : [wrong && `неверных букв: ${wrong}`, empty && `пустых клеток: ${empty}`]
               .filter(Boolean).join(", ").replace(/^./, m => m.toUpperCase()) + ".";
       }
       if (allOk) {
         cwDone = true;
         document.getElementById("cw-check").disabled = true;
-        placed.forEach(p => statUpdate(p.w, true));
-        award(15 * placed.length);
-        exLater(() => exFinish(placed.length, placed.length), 700);
+        placed.forEach(p => statUpdate(p.w, true, !brute));
+        if (!brute) award(15 * placed.length);
+        const finalScore = brute ? 0 : placed.length;
+        // Результат фиксируем сразу (см. exRecordNow), итоги — по таймеру:
+        // ушедший в эту паузу ученик раньше терял решённый кроссворд.
+        exRecordNow(finalScore, placed.length);
+        exLater(() => exFinish(finalScore, placed.length), 700);
       }
     });
   },

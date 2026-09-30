@@ -20,6 +20,11 @@ w.eval(`
 const log = () => JSON.parse(w.eval("JSON.stringify(window.__log)"));
 const reset = () => w.eval("window.__log = { finish: [], stat: [], xp: 0 };");
 const D = () => JSON.parse(w.eval("JSON.stringify(state.dictionary.map(d=>({w:d.w,t:d.t})))"));
+// Колода добирает слова уровня, когда словарь короткий (как в t-balloons):
+// мишень ищем и в словаре, и в банке, иначе прогон «не находил» шар.
+const ALL = () => JSON.parse(w.eval(
+  "JSON.stringify(LEVELS.flatMap(l => WORDS[l] || []).map(d => ({ w: d.w, t: d.t })))"));
+const findWord = pred => D().find(pred) || ALL().find(pred);
 
 (async () => {
   /* ================= КОЛЕСО ================= */
@@ -127,8 +132,13 @@ const D = () => JSON.parse(w.eval("JSON.stringify(state.dictionary.map(d=>({w:d.
   const balls = () => [...doc.querySelectorAll("#bal-stage .bal")];
   const tgt = () => {
     const ru = doc.getElementById("bal-ru").textContent.trim();
-    const rec = D().find(d => d.t.trim() === ru);
-    return balls().find(b => b.getAttribute("aria-label") === (rec && rec.w));
+    // От шаров к переводу, а не наоборот: у двух слов может быть один
+    // перевод (big/large — «большой»), и по подписи первое найденное
+    // слово — не обязательно то, что на поле.
+    return balls().find(b => {
+      const rec = findWord(d => d.w === b.getAttribute("aria-label"));
+      return rec && rec.t.trim() === ru;
+    });
   };
   reset();
   const t1 = tgt();
@@ -195,9 +205,13 @@ const D = () => JSON.parse(w.eval("JSON.stringify(state.dictionary.map(d=>({w:d.
   console.log("    после двойного нажатия на экране: «" + counter + "»");
   const opts = [...doc.querySelectorAll("#box-options .mcq-option")];
   ok(opts.length > 0, "вопрос показан (" + opts.length + " вариантов)");
+  // Ждём снятия паузы на чтение, как живой ученик: мгновенные нажатия
+  // гейт честно отбрасывает (это и есть защита из t-boxes), и проверять
+  // двойной тап надо ПОСЛЕ неё.
+  for (let g = 0; g < 60 && doc.getElementById("box-options").classList.contains("mcq-wait"); g++) await tick(50);
   // отвечаем и смотрим, не потерялась ли вторая коробка
   const wEn = doc.querySelector(".box-card .quiz-word").textContent.trim();
-  const rec = D().find(d => d.w === wEn);
+  const rec = findWord(d => d.w === wEn);
   const right = opts.find(o => o.textContent.trim() === (rec && rec.t));
   click(right || opts[0]); click(right || opts[0]);   // двойной тап по варианту
   await tick(60);
@@ -226,11 +240,14 @@ const D = () => JSON.parse(w.eval("JSON.stringify(state.dictionary.map(d=>({w:d.
     if (!m) break;
     const tile = doc.querySelector("#box-grid .box-tile:not([disabled])");
     if (!tile) break;
-    click(tile); await tick(40);
+    click(tile);
+    // ждём вариантов и снятия паузы на чтение — иначе гейт отбросит ответ
+    for (let g = 0; g < 60 && !doc.getElementById("box-options"); g++) await tick(50);
+    for (let g = 0; g < 60 && doc.getElementById("box-options").classList.contains("mcq-wait"); g++) await tick(50);
     const os = [...doc.querySelectorAll("#box-options .mcq-option")];
     if (!os.length) break;
     const we = doc.querySelector(".box-card .quiz-word").textContent.trim();
-    const r2 = D().find(d => d.w === we);
+    const r2 = findWord(d => d.w === we);
     const rr = os.find(o => o.textContent.trim() === (r2 && r2.t));
     const isLast = +m[1] === +m[2] - 1;
     if (isLast) {

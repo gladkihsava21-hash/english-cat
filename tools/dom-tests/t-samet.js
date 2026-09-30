@@ -1,17 +1,14 @@
-// Гипотеза 4. Два слова с ОДИНАКОВЫМ переводом в одном подходе.
+// Гипотеза 4 (из аудита). Два слова с ОДИНАКОВЫМ переводом в одном подходе.
 //
 // В банке это не редкость: только в A1+A2 таких групп 67 — «магазин»
 // (shop/store), «тарелка» (plate/dish), «город» (city/town), «большой»
-// (big/large)… Движок про это знает и защищается: distractors() выкидывает
-// варианты, у которых есть общее слово с верным переводом (ruTokens,
-// замечание Ирины: «две верные кнопки с точки зрения ученика»), а «Впиши
-// слово» прогоняет пул через pickDistinctT (js/exercises.js:2091).
+// (big/large)… Когда-то «Найди пару» и «Лопни шар» разводили карточки и
+// шары фильтром по АНГЛИЙСКОМУ слову, а решение ученик принимает по
+// РУССКОМУ — верный по смыслу ответ объявлялся ошибкой.
 //
-// «Найди пару» и «Лопни шар» не делают ни того, ни другого: карточки и
-// шары разводятся фильтром по АНГЛИЙСКОМУ слову (x.w !== w.w), а решение
-// ученик принимает по РУССКОМУ. Верный по смыслу ответ объявляется ошибкой.
-//
-// Сцена бытовая: репетитор собрал папку «Магазин», в ней shop и store.
+// Теперь обе игры прикрыты (pickDistinctT в колоде, clash-фильтр чужих
+// шаров по ruTokens), и этот тест — регрессионный сторож: двойняшек по
+// переводу на поле быть не должно вовсе.
 const { w, errors, MQ } = require("./harness-full.js");
 const doc = w.document;
 let fails = 0;
@@ -45,87 +42,52 @@ const dictOf = () => JSON.parse(w.eval("JSON.stringify(state.dictionary.map(d =>
 
 (async () => {
   /* ---------- НАЙДИ ПАРУ ---------- */
-  console.log("\n1. «Найди пару»: на поле две одинаковые карточки «магазин»");
-  console.log("    папка: " + folder(["shop", "store", "juice", "table", "green", "run"]));
-  let reproduced = false, tries = 0;
-  while (!reproduced && tries++ < 8) {
-    w.eval('show("practice"); openExercise("memory")');
-    await tick();
-    const cards = JSON.parse(w.eval(`JSON.stringify(
-      [...document.querySelectorAll("#mem-grid .mem-card")].map(b => ({
-        i: +b.dataset.i,
-        text: b.querySelector(".mem-front").textContent.trim(),
-        en: b.querySelector(".mem-front").getAttribute("lang") === "en" })))`));
-    const ru = cards.filter(c => !c.en).map(c => c.text);
-    const twins = ru.filter((t, k) => ru.indexOf(t) !== k);
-    if (tries === 1) {
-      console.log("    карточки-переводы: " + JSON.stringify(ru));
-      ok(twins.length > 0, "две одинаковые карточки правда раздались: " + JSON.stringify(twins));
+  console.log("\n1. «Найди пару»: двух одинаковых карточек-переводов на поле нет");
+  console.log("    папка: " + folder(["shop", "store", "juice", "table", "green", "run", "cat", "dog"]));
+  {
+    let twinDeals = 0;
+    for (let deal = 0; deal < 8; deal++) {
+      w.eval('show("practice"); openExercise("memory")');
+      await tick();
+      const ru = JSON.parse(w.eval(`JSON.stringify(
+        [...document.querySelectorAll("#mem-grid .mem-card")]
+          .filter(b => b.querySelector(".mem-front").getAttribute("lang") !== "en")
+          .map(b => b.querySelector(".mem-front").textContent.trim()))`));
+      if (deal === 0) console.log("    карточки-переводы: " + JSON.stringify(ru));
+      if (ru.some((t, k) => ru.indexOf(t) !== k)) twinDeals++;
     }
-    const byI = i => doc.querySelector(`#mem-grid .mem-card[data-i="${i}"]`);
-    const shop = cards.find(c => c.en && c.text === "shop");
-    const mags = cards.filter(c => !c.en && c.text === "магазин");
-    // Ученик открыл «shop» и ту карточку «магазин», что попалась первой.
-    w.eval("window.__log = { finish: [], stat: [], xp: 0 };");
-    click(byI(shop.i)); click(byI(mags[0].i));
-    await tick(60);
-    const paired = byI(shop.i).classList.contains("done");
-    const counter = doc.getElementById("mem-count").textContent;
-    console.log(`    сдача ${tries}: «shop» + «магазин» (карточка ${mags[0].i + 1}) → `
-      + (paired ? "пара сложилась" : "ОШИБКА: карточки закрылись обратно") + "; " + counter);
-    if (!paired) {
-      reproduced = true;
-      ok(false, "верная по смыслу пара «shop» + «магазин» объявлена ошибкой; счётчик: " + counter);
-      await tick(1000);
-      // и это стоило ученику балла на итогах
-      console.log("    (errors++ → на итогах будет «Верно 5 из 6» при полностью собранном поле)");
-    }
+    ok(twinDeals === 0, "8 раздач подряд: дублей переводов на поле нет");
+    // Поле при этом не пустое и играбельное
+    const cards = doc.querySelectorAll("#mem-grid .mem-card").length;
+    ok(cards > 0, "карточки раздаются (" + cards + " на поле)");
   }
-  if (!reproduced) ok(true, "за 8 сдач ни одна верная пара ошибкой не названа");
 
   /* ---------- ЛОПНИ ШАР ---------- */
-  console.log("\n2. «Лопни шар»: два шара подходят под один перевод");
-  console.log("    папка: " + folder(["shop", "store", "juice", "table"]));
-  w.eval('show("practice"); openExercise("balloons")');
-  await tick();
-  let found = false;
-  for (let round = 0; round < 4 && !found; round++) {
-    const ruWord = doc.getElementById("bal-ru").textContent.trim();
+  console.log("\n2. «Лопни шар»: под один перевод никогда не подходит два шара");
+  console.log("    папка: " + folder(["shop", "store", "juice", "table", "run"]));
+  {
+    let dirty = 0, roundsSeen = 0;
+    w.eval('show("practice"); openExercise("balloons")');
+    await tick();
     const dict = dictOf();
-    const balls = [...doc.querySelectorAll("#bal-stage .bal")];
-    const opts = balls.map(b => b.getAttribute("aria-label"));
-    const fits = opts.filter(o => (dict.find(d => d.w === o) || {}).t === ruWord);
-    console.log(`    раунд ${round + 1}: «${ruWord}» → шары ${JSON.stringify(opts)}`
-      + `; подходят по переводу: ${JSON.stringify(fits)}`);
-    if (fits.length > 1) {
-      found = true;
-      w.eval("window.__log = { finish: [], stat: [], xp: 0 };");
-      const first = balls.find(b => fits.includes(b.getAttribute("aria-label")));
-      const second = balls.find(b => fits.includes(b.getAttribute("aria-label")) && b !== first);
-      click(first);
-      await tick(60);
-      let fb = doc.getElementById("bal-fb").textContent.trim();
-      console.log(`      лопнул «${first.getAttribute("aria-label")}» → «${fb}»`);
-      const misjudged = /Не то слово/.test(fb);
-      if (misjudged) {
-        click(second);
-        await tick(60);
-        fb = doc.getElementById("bal-fb").textContent.trim();
-        console.log(`      лопнул «${second.getAttribute("aria-label")}» → «${fb}»`);
+    const all = JSON.parse(w.eval('JSON.stringify([...WORDS.A1, ...WORDS.A2, ...WORDS.B1].map(d => ({ w: d.w, t: d.t })))'));
+    const tOf = word => (dict.find(d => d.w === word) || all.find(d => d.w === word) || {}).t;
+    for (let round = 0; round < 8; round++) {
+      const balls = [...doc.querySelectorAll("#bal-stage .bal")];
+      if (!balls.length) break;
+      const ruWord = doc.getElementById("bal-ru").textContent.trim();
+      const fits = balls.map(b => b.getAttribute("aria-label")).filter(o => tOf(o) === ruWord);
+      roundsSeen++;
+      if (fits.length > 1) {
+        dirty++;
+        console.log(`    раунд ${round + 1}: «${ruWord}» → два верных шара ${JSON.stringify(fits)}`);
       }
-      const l = JSON.parse(w.eval("JSON.stringify(window.__log)"));
-      console.log("      statUpdate: " + JSON.stringify(l.stat) + ", очки: " + l.xp);
-      ok(!misjudged, "верный по переводу шар не назван ошибкой");
-      ok(!l.stat.some(([, o]) => o === false),
-         "слово не ушло в «забыл» из-за верного по смыслу ответа: " + JSON.stringify(l.stat));
-      ok(l.xp > 0, "раунд засчитан: очки начислены (" + l.xp + ")");
-      break;
+      const right = balls.find(b => tOf(b.getAttribute("aria-label")) === ruWord);
+      click(right || balls[0]);
+      await tick(1000);
     }
-    const right = balls.find(b => (dict.find(d => d.w === b.getAttribute("aria-label")) || {}).t === ruWord);
-    click(right || balls[0]);
-    await tick(1000);
+    ok(dirty === 0, `раундов просмотрено: ${roundsSeen}, с двумя верными шарами: ${dirty}`);
   }
-  ok(found, "раунд с двумя подходящими шарами встретился");
 
   /* ---------- ТО ЖЕ БЕЗ ПАПКИ, НА ОБЫЧНОМ СЛОВАРЕ ---------- */
   console.log("\n3. Тот же расклад на обычном словаре (без папок), 6 подходов подряд");

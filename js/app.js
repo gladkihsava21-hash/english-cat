@@ -199,6 +199,12 @@ function show(screen) {
   // И контекст домашки-упражнения: результат следующего подхода не должен
   // записаться в задание, из которого ученик уже вышел.
   if (screen !== "exercise" && typeof homeworkContext !== "undefined") homeworkContext = null;
+  // И метка запуска с доски (card=…): иначе ученик, ушедший с задания
+  // ничего не сдав, приносил в его карточку результат ЛЮБОГО следующего
+  // своего подхода, а авто-возврат уносил его из тренировки на доску
+  // (пробник oe-board-card). Карточка — про тот заход, что открыли по
+  // ссылке. «trainer» не трогаем: карточки с доски живут там.
+  if (screen !== "exercise" && screen !== "trainer") window.boardTaskCard = null;
   if ("speechSynthesis" in window) speechSynthesis.cancel();
   if (screen !== "chat" && typeof deactivateVoice === "function") deactivateVoice();
   if (screen === "test") resetTestScreen();

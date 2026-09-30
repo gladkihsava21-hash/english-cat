@@ -2,37 +2,56 @@
 // с собой, и в подход попадает одно и то же слово дважды.
 const { w } = require("./harness-full.js");
 const doc = w.document;
+let fails = 0;
+const ok = (c, what) => { console.log((c ? "  ✓ " : "  ✗ ") + what); if (!c) fails++; };
+
+// Стенд грузит только A1–B1 (как у ученика A2), а гипотеза — про C2:
+// подгружаем уровень явно, как это сделал бы ensureWords ученика C2.
+const fs = require("fs"), path = require("path");
+["js/words-B2.js", "js/words-C1.js", "js/words-C2.js"].forEach(f => {
+  const s = w.document.createElement("script");
+  s.textContent = fs.readFileSync(path.join(__dirname, "..", "..", f), "utf8");
+  w.document.head.appendChild(s);
+});
 
 w.eval(`state.trainLevel = "C2"; state.trainFolders = []; state.trainWords = [];`);
 console.log("studyLevel() =", w.eval("studyLevel()"));
 
 // 1. levelPool
 console.log("\n— levelPool(6) двадцать раз:");
-console.log(w.eval(`(() => {
-  let withDup = 0, sample = null;
-  for (let k = 0; k < 20; k++) {
-    const p = levelPool(6);
-    const names = p.map(x => x.w);
-    const dup = names.filter((x, i) => names.indexOf(x) !== i);
-    if (dup.length) { withDup++; if (!sample) sample = names.join(", ") + "  → дубль: " + dup.join(","); }
-  }
-  return "подходов с дублем: " + withDup + " из 20" + (sample ? "\\n  пример: " + sample : "");
-})()`));
+{
+  const res = JSON.parse(w.eval(`(() => {
+    let withDup = 0, sample = null;
+    for (let k = 0; k < 20; k++) {
+      const p = levelPool(6);
+      const names = p.map(x => x.w);
+      const dup = names.filter((x, i) => names.indexOf(x) !== i);
+      if (dup.length) { withDup++; if (!sample) sample = names.join(", ") + "  → дубль: " + dup.join(","); }
+    }
+    return JSON.stringify({ withDup, sample });
+  })()`));
+  ok(res.withDup === 0, "подходов с дублем: " + res.withDup + " из 20"
+     + (res.sample ? " — пример: " + res.sample : ""));
+}
 
 // 2. trainPool с включённым добором
 console.log("\n— trainPool(8) с trainMixNew, словарь 3 слова, двадцать раз:");
-console.log(w.eval(`(() => {
-  state.trainMixNew = true;
-  state.dictionary = WORDS.C2.slice(0, 3).map(x => ({ w: x.w, t: x.t, ex: x.ex, added: Date.now(), seen: 1 }));
-  let withDup = 0, sample = null;
-  for (let k = 0; k < 20; k++) {
-    const p = trainPool(8);
-    const names = p.map(x => x.w);
-    const dup = names.filter((x, i) => names.indexOf(x) !== i);
-    if (dup.length) { withDup++; if (!sample) sample = names.join(", ") + "  → дубль: " + dup.join(","); }
-  }
-  return "подходов с дублем: " + withDup + " из 20" + (sample ? "\\n  пример: " + sample : "");
-})()`));
+{
+  const res = JSON.parse(w.eval(`(() => {
+    state.trainMixNew = true;
+    state.dictionary = WORDS.C2.slice(0, 3).map(x => ({ w: x.w, t: x.t, ex: x.ex, added: Date.now(), seen: 1 }));
+    let withDup = 0, sample = null;
+    for (let k = 0; k < 20; k++) {
+      const p = trainPool(8);
+      const names = p.map(x => x.w);
+      const dup = names.filter((x, i) => names.indexOf(x) !== i);
+      if (dup.length) { withDup++; if (!sample) sample = names.join(", ") + "  → дубль: " + dup.join(","); }
+    }
+    return JSON.stringify({ withDup, sample });
+  })()`));
+  ok(res.withDup === 0, "подходов с дублем: " + res.withDup + " из 20"
+     + (res.sample ? " — пример: " + res.sample : ""));
+}
 
 // 3. Что видит ученик: реальный подход «Аудирование» (levelPool(6)).
 console.log("\n— реальный подход listening: те же вопросы на экране?");
@@ -71,5 +90,7 @@ const tick = ms => new Promise(r => setTimeout(r, ms || 30));
     }
   }
   if (!found) console.log("  за 12 подходов повтора на экране не выпало");
-  process.exit(0);
+  ok(!found, "повтора слова в реальном подходе нет");
+  console.log(fails ? "\nПРОБЛЕМ: " + fails : "\nвсё чисто");
+  process.exit(fails ? 1 : 0);
 })();

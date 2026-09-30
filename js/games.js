@@ -713,6 +713,16 @@
             if (opened >= total) { exFinish(score, total); return; }
             drawGrid(k);
           };
+          // Повторное событие по ТОЙ ЖЕ кнопке «Итоги →»/«К коробкам →»
+          // звало after() несколько раз подряд: повторный вход в exFinish
+          // (g-double §6). Кнопка каждый вопрос рисуется заново — гасим
+          // именно нажатую, быстрые честные нажатия подряд не страдают.
+          const afterOnce = e => {
+            const b = e.currentTarget;
+            if (b.disabled) return;
+            b.disabled = true;
+            after();
+          };
           if (ok) { exLater(() => { if (document.body.contains(list)) after(); }, 1000); return; }
 
           // Ошибка: правильный ответ висит, пока ученик сам не нажмёт
@@ -729,7 +739,7 @@
             + (opened >= total ? "Итоги →" : "К коробкам →") + "</button>";
           list.insertAdjacentElement("afterend", row);
           const nx = row.querySelector("#box-next");
-          nx.addEventListener("click", after);
+          nx.addEventListener("click", afterOnce);
           nx.focus();
         });
         list.appendChild(b);
