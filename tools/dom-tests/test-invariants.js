@@ -18,7 +18,13 @@ w.eval(`
   window.award = function (n) { window.__log.xp += n; return _award(n); };
 `);
 
-const IDS = w.eval("EXERCISES.filter(e => !e.hidden && e.id !== 'flashcards' && e.id !== 'blitz').map(e => e.id)");
+// START/END — срез списка упражнений: батарея целиком не влезает в
+// 10-минутный лимит фоновых задач агента, так что гоняем кусками
+// (START=0 END=14 / START=14). Без переменных — полный прогон, как раньше.
+const START = +process.env.START || 0;
+const END = process.env.END ? +process.env.END : Infinity;
+const IDS = w.eval("EXERCISES.filter(e => !e.hidden && e.id !== 'flashcards' && e.id !== 'blitz').map(e => e.id)")
+  .slice(START, END === Infinity ? undefined : END);
 const tick = ms => new Promise(r => setTimeout(r, ms || 40));
 
 const step = () => {

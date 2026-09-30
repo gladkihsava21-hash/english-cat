@@ -852,7 +852,10 @@ canvas.addEventListener("pointerdown", e => {
       // Двойной тап по пустому месту — указка «смотри сюда»: у второго
       // участника в этой точке пульсирует кольцо. Жест, а не инструмент:
       // на уроке «сюда смотри» нужно мгновенно, без похода в панель.
-      if (e.detail === 2) {
+      // isDouble обязателен: pointerdown.detail в Chrome всегда 0 (для
+      // касаний это же задокументировано выше у word/note/text), и голый
+      // e.detail === 2 здесь никогда не срабатывал.
+      if (e.detail === 2 || isDouble) {
         sendPing(w.x, w.y);
         return;
       }
@@ -1046,6 +1049,11 @@ function finishStroke() {
       && Math.abs(o.w) < 4 && Math.abs(o.h) < 4) {
     BD.objects.delete(o.id); paint(); return;
   }
+  // Живое превью писало объект в карту во время драга — и put() ниже
+  // брал его как «до»: undo свежего штриха превращался в no-op и съедал
+  // шаг отмены (чек-лист 27.09). Убираем превью до put: «до» — null,
+  // и первый Ctrl+Z честно снимает объект.
+  BD.objects.delete(o.id);
   put(o);
   // После разового действия — обратно в «Выделить». Иначе человек ставит
   // прямоугольник, тянет доску левой — и получает второй прямоугольник:
@@ -1311,12 +1319,12 @@ function buildStyleBar() {
     inp.setAttribute("aria-label", hint);
     inp.addEventListener("input", () => applyCustomColor(inp.value));
     b.appendChild(inp);
-    b.addEventListener("click", () => {
-      // Открываем пикер с уже выбранного: крутить оттенок удобнее
-      // от него, чем каждый раз с чёрного квадрата.
-      if (customColor) inp.value = customColor;
-      inp.click();
-    });
+    // Обработчика на сам кружок нет нарочно: input растянут поверх него
+    // (см. css .bd-color-input) и принимает нажатия сам — пикер открывается
+    // нативно, а повторное открытие идёт с того же значения input, то есть
+    // с последнего выбранного цвета. Программный inp.click() здесь только
+    // мешал: Safari его игнорирует, а его синтетический click всплывал
+    // обратно в этот же слушатель и диспатчил событие дважды.
     colors.appendChild(b);
   });
   if (typeof paintIcons === "function") paintIcons(colors);

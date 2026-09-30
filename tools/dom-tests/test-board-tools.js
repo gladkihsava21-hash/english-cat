@@ -164,7 +164,9 @@ const byId = (w, id) => bd(w).objects.get(id);
     const canvas = w.document.getElementById("board-canvas");
     const wheel = (deltaY, deltaMode) => {
       const e = new w.Event("wheel", { bubbles: true, cancelable: true });
-      Object.assign(e, { deltaY, deltaMode, clientX: 400, clientY: 300,
+      // deltaX нужен явный нулём: без него событие уезжает в ветку
+      // тачпада (мелкие дробные дельты = pan), а здесь проверяем зум.
+      Object.assign(e, { deltaY, deltaX: 0, deltaMode, clientX: 400, clientY: 300,
                          ctrlKey: false, preventDefault() {} });
       canvas.dispatchEvent(e);
     };

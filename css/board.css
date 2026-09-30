@@ -944,7 +944,10 @@
   display: inline-flex;
   position: absolute;
   left: 14px;
-  top: 14px;
+  /* под шапкой, а не под ней: на живом звонке .bd-top поднята выше
+     оверлея (z 56 против 55) и накрывала кнопку на top:14 — клик уходил
+     в шапку (чек-лист 27.09). */
+  top: 68px;
   z-index: 2;
   font-size: var(--text-caption);
   padding: 10px 18px;
