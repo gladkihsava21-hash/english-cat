@@ -589,6 +589,10 @@ function hitResizeHandle(wx, wy) {
 
 function bounds(o) {
   if (o.kind === "pen" || o.kind === "marker") {
+    // Штрих без pts — наследие того же серверного бага (см. hitTest):
+    // рамку посчитать не из чего, отдаём пустую в точке объекта, чтобы
+    // «показать всё» и рамка выделения не падали с тем же TypeError.
+    if (!o.pts || o.pts.length < 2) return { x: o.x || 0, y: o.y || 0, w: 0, h: 0 };
     let x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity;
     for (let i = 0; i < o.pts.length; i += 2) {
       x1 = Math.min(x1, o.pts[i]); x2 = Math.max(x2, o.pts[i]);
@@ -622,6 +626,15 @@ function hitTest(wx, wy) {
   for (const o of list) {
     if (isService(o)) continue;
     if (o.kind === "pen" || o.kind === "marker") {
+      // Маркеры, сохранённые сервером до 27.09 (баг `kind=="pen"` в
+      // _clean_board_object), лежат в старых досках БЕЗ pts. Отрисовка
+      // такие штрихи пропускает, а вот чтение o.pts.length здесь падало
+      // с TypeError и уносило ВЕСЬ обработчик нажатия: на доске с таким
+      // наследием переставали создаваться стикер и текст (hitTest стоит
+      // в их ветке первым), не работали выделение и ластик на пустом
+      // месте — ровно жалоба владельца «не работают только стикеры
+      // и текст». Невидимый штрих не может быть попаданием — пропускаем.
+      if (!o.pts) continue;
       const t = Math.max(8, o.size * 2);
       for (let i = 0; i < o.pts.length - 2; i += 2) {
         if (distToSegment(wx, wy, o.pts[i], o.pts[i + 1], o.pts[i + 2], o.pts[i + 3]) < t) return o;
@@ -1515,7 +1528,10 @@ $("bd-zoom-range").addEventListener("input", e => {
 $("bd-fit").addEventListener("click", fitToContent);
 
 function fitToContent() {
-  const list = [...BD.objects.values()].filter(o => !isService(o));
+  // Штрихи без pts (наследие, см. hitTest) не рисуются — и вписывать
+  // в кадр нечего: их точка (0,0) растягивала бы рамку на пустое место.
+  const list = [...BD.objects.values()].filter(o => !isService(o) &&
+    (o.pts || (o.kind !== "pen" && o.kind !== "marker")));
   if (!list.length) return;
   let x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity;
   list.forEach(o => {

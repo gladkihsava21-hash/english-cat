@@ -169,6 +169,40 @@ const del = w => {
        "после ручного ресайза высота не прыгает за текстом: " + manualH);
   }
 
+  console.log("\n4. Наследие: маркер без pts не роняет стикер, текст и выделение");
+  {
+    // До 27.09 сервер сохранял маркеры без pts (баг kind=="pen"), и такие
+    // объекты до сих пор лежат в старых досках. Чтение o.pts.length в
+    // hitTest/bounds падало с TypeError и уносило весь обработчик:
+    // «не работают только стикеры и текст» (видео владельца).
+    const { w } = makeBoard();
+    await tick(120);
+    const errs = [];
+    w.addEventListener("error", e => errs.push(String(e.message || e)));
+    bd(w).objects.set("m-broken", { id: "m-broken", kind: "marker", color: "mark1",
+                                    size: 14, x: 0, y: 0, w: 0, h: 0, rev: 1 });
+    tool(w, "note");
+    point(w, "pointerdown", 500, 400);
+    const note = [...bd(w).objects.values()].find(o => o.kind === "note");
+    ok(!!note, "стикер создаётся рядом с битым маркером");
+    ok(!w.document.getElementById("bd-editor").hidden, "редактор открылся");
+    w.document.getElementById("bd-editor-input").value = "текст";
+    w.document.getElementById("bd-editor-ok").click();
+    ok(byId(w, note.id).text === "текст", "текст сохранился на стикере");
+    tool(w, "text");
+    point(w, "pointerdown", 900, 700);
+    const txt = [...bd(w).objects.values()].find(o => o.kind === "text");
+    ok(!!txt, "текстовый объект создаётся");
+    tool(w, "select");
+    point(w, "pointerdown", 1100, 750);          // пустое место — pan, не падение
+    point(w, "pointermove", 1050, 700);
+    point(w, "pointerup", 1050, 700);
+    tool(w, "eraser");
+    point(w, "pointerdown", 1100, 750);          // ластик по пустому — тоже жив
+    point(w, "pointerup", 1100, 750);
+    ok(errs.length === 0, "ни одной ошибки страницы: " + (errs[0] || "нет"));
+  }
+
   console.log(fails ? `\nПРОВАЛЕНО: ${fails}` : "\nВсё зелено");
   process.exit(fails ? 1 : 0);
 })();
