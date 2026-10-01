@@ -3756,6 +3756,7 @@ const EX_RUNNERS = {
           if (!grid[r][c]) grid[r][c] = abc[Math.floor(Math.random() * 26)];
 
       const found = new Set();
+      const roundStartedAt = Date.now();
       let selStart = null;
       let hintIdx = 0;
       stage().innerHTML = `
@@ -3823,8 +3824,14 @@ const EX_RUNNERS = {
       }
 
       const finishRound = () => {
-        // Ненайденное — как «не вспомнил»: слово было перед глазами
-        placedWords.forEach(p => { if (!found.has(p.w)) statUpdate(p.w, false); });
+        // Ненайденное — как «не вспомнил»: слово было перед глазами. Но
+        // только если ученик реально занимался раундом: нашёл хоть одно
+        // слово или поискал полминуты (столько же ждёт и подсказка).
+        // Мгновенное «Дальше» — это «пропустил», а не «не помнит»:
+        // иначе один случайный клик откатывал в SRS всю сетку.
+        const engaged = found.size > 0 || Date.now() - roundStartedAt >= 30000;
+        if (engaged)
+          placedWords.forEach(p => { if (!found.has(p.w)) statUpdate(p.w, false); });
         nextRound();
       };
       document.getElementById("ws-next").addEventListener("click", finishRound);
