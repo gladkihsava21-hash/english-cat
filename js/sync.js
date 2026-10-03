@@ -325,7 +325,7 @@ function adoptServerState(srv) {
   if (typeof srsInit === "function") state.dictionary.forEach(srsInit);
   saveStateQuiet();
   if (typeof updateChrome === "function") updateChrome();
-  updateLessonTab();   // аккаунт восстановлен — вкладка «Урок» сразу на месте
+  updateLessonTab();   // аккаунт восстановлен — вкладка «Урок» появится, если урок идёт
   // Главную показываем, только если человек на «нейтральном» экране:
   // приветствие, тест, сама главная. Тогда восстановление аккаунта
   // и правда меняет то, что он видит (вход по коду, по паролю, Safari
@@ -1102,15 +1102,18 @@ async function pollBoard() {
   } catch (e) { /* нет связи — блок просто не появится */ }
 }
 
-/** Вкладка «Урок» в навигации: есть только у учеников с репетитором.
- *  Зелёная точка — доска открыта или репетитор начал урок по ссылке. */
+/** Вкладка «Урок» в навигации: появляется только К НАЧАЛУ урока —
+ *  репетитор открыл доску или нажал «начать урок». Постоянного пункта
+ *  в панели нет намеренно: пять равных кнопок читаются, шесть — уже
+ *  слипались, а вход на урок всегда есть большой кнопкой на Главной.
+ *  Класс live оставлен для зелёной точки, если пункт вернут навсегда. */
 function updateLessonTab() {
   const tab = document.getElementById("nav-lesson");
   if (!tab) return;
   const hasTutor = !!(localStorage.getItem(TUTOR_NAME_KEY) || "").trim();
-  tab.hidden = !hasTutor || !state.user;
-  tab.classList.toggle("live",
-    !!window.savelyBoardOpen || !!(state.lesson && state.lesson.live));
+  const live = !!window.savelyBoardOpen || !!(state.lesson && state.lesson.live);
+  tab.hidden = !hasTutor || !state.user || !live;
+  tab.classList.toggle("live", live);
 }
 
 setInterval(() => { if (boardScreenVisible()) pollBoard(); }, BOARD_POLL_MS);

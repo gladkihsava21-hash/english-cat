@@ -707,6 +707,10 @@ input:focus, textarea:focus, select:focus {
   cursor: not-allowed;
 }
 .scr-tile:disabled { opacity: 1; background: var(--surface-alt); color: var(--ink-soft); border-color: transparent; }
+/* «Забыл/Помню» до переворота карточки: без рамки сливались с фоном
+   карточки и читались как «не работает», а не «скоро включится».
+   Рамка-контур оставляет их кнопками, заливка-приглушение — выключенными. */
+.quiz-buttons .btn:disabled { border-color: var(--line-control); }
 /* Загрузка. Своего класса в JS пока нет — размечено на вырост, чтобы
    «подождите» не рисовали каждый раз заново (см. отчёт: нужен хук). */
 .is-loading, [aria-busy="true"] {

@@ -771,6 +771,10 @@ h1, h2, h3, .section-title, .dash-head h2,
     gap: var(--space-4);
     min-height: 44px;                  /* цель нажатия под палец ребёнка */
     padding: var(--space-4);
+    /* Маленький боковой зазор: без него фон активного пункта растекался
+       на всю ячейку и залезал под подписи соседей (клетки делят ширину
+       поровну, gap у панели нулевой) — «Словарь» заезжал на «Тренировки». */
+    margin: 0 2px;
     line-height: 1.15;
   }
   /* Общий бокс: без него пять иконок разного рисунка встанут на разной
@@ -1962,10 +1966,12 @@ h2[tabindex="-1"]:focus-visible { outline: none; box-shadow: none; }
 }
 .train-mix-label {
   display: inline-flex; align-items: center; gap: var(--space-8);
+  min-height: 44px;                  /* цель нажатия: весь ряд, а не квадратик */
   font-size: var(--text-caption); font-weight: 500; color: var(--ink); cursor: pointer;
 }
-/* Область нажатия во весь ряд: на телефоне в чекбокс 16×16 не попасть */
-.train-mix-label input { width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; }
+/* Область нажатия во весь ряд: на телефоне в чекбокс 16×16 не попасть.
+   22px — сам квадрат тоже виден и попадается под палец ребёнка. */
+.train-mix-label input { width: 22px; height: 22px; accent-color: var(--accent); cursor: pointer; }
 .train-mix .muted-small { flex-basis: 100%; }
 
 /* ===== Неправильные глаголы =====

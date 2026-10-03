@@ -32,7 +32,7 @@
   <meta name="twitter:card" content="summary_large_image">
   <link rel="preload" href="css/fonts/nunito-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="css/fonts/inter-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="css/fonts.css?v=317">
+  <link rel="stylesheet" href="css/fonts.css?v=318">
   <!-- Тему ставим ДО первой отрисовки, отдельным крошечным скриптом.
        Всё остальное грузится с defer, а defer выполняется после разбора
        страницы — то есть уже после того, как браузер её покажет. Если
@@ -48,13 +48,13 @@
       document.documentElement.dataset.theme = t;
     } catch (e) { /* приватный режим — просто останется дневная */ }
   </script>
-  <link rel="stylesheet" href="css/tokens.css?v=317">
-  <link rel="stylesheet" href="css/style.css?v=317">
-  <link rel="stylesheet" href="css/savely.css?v=317">
-  <link rel="stylesheet" href="css/tutor.css?v=317">
-<link rel="stylesheet" href="css/motion.css?v=317">
-<link rel="stylesheet" href="css/a11y.css?v=317">
-<link rel="stylesheet" href="css/cat.css?v=317">
+  <link rel="stylesheet" href="css/tokens.css?v=318">
+  <link rel="stylesheet" href="css/style.css?v=318">
+  <link rel="stylesheet" href="css/savely.css?v=318">
+  <link rel="stylesheet" href="css/tutor.css?v=318">
+<link rel="stylesheet" href="css/motion.css?v=318">
+<link rel="stylesheet" href="css/a11y.css?v=318">
+<link rel="stylesheet" href="css/cat.css?v=318">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
 </head>
 <body class="tutor-body">
@@ -203,12 +203,12 @@
            у самой панели, где репетитор проводит всё время, заголовка
            страницы не было вовсе. Для программы чтения это значит
            «страница без названия»: непонятно, куда попал. -->
-      <h1 class="brand-h1"><button class="brand"><span class="brand-cat cat-avatar" data-cat="hello" aria-hidden="true"></span> Савелий · панель</button></h1>
+      <h1 class="brand-h1"><button class="brand"><span class="brand-cat cat-avatar" data-cat="hello" aria-hidden="true"></span> Савелий<span class="brand-sub"> · панель</span></button></h1>
       <a class="help-btn" href="faq.html#tutor" title="Вопросы и ответы" aria-label="Вопросы и ответы">?</a>
-      <!-- Разделы панели. Одна строка с прокруткой, а не перенос на две:
-           десять пунктов в две строки съедали треть первого экрана и
-           разъезжались при каждом изменении ширины. Иконки — чтобы
-           находить раздел взглядом, а не читать десять подписей.
+      <!-- Разделы панели — ПЯТЬ вместо десяти. Прежние десять вкладок
+           стали подразделами внутри них (чипы второго уровня рисует
+           tutor.js в #subnav-slot), а старые имена принимает алиасами
+           savelyGotoTab — ссылки из писем и кнопки data-goto не ломаются.
            Под кнопками ездит подсветка (.nav-marker) — она показывает,
            откуда и куда переехали, и связывает нажатие с разделом. -->
       <nav class="nav" aria-label="Разделы панели">
@@ -220,46 +220,36 @@
             <span id="stu-count" class="badge">0</span></button>
           <button class="nav-btn" data-tab="homework">
             <span class="nav-ico" data-icon="send" data-icon-size="18" aria-hidden="true"></span>
-            <span class="nav-label">Выдать домашку</span></button>
-          <button class="nav-btn" data-tab="tasks">
-            <span class="nav-ico" data-icon="check" data-icon-size="18" aria-hidden="true"></span>
-            <span class="nav-label">Домашки</span></button>
-          <button class="nav-btn" data-tab="tasksets">
-            <span class="nav-ico" data-icon="personal" data-icon-size="18" aria-hidden="true"></span>
-            <span class="nav-label">Свои задания</span></button>
-          <button class="nav-btn" data-tab="photos">
-            <span class="nav-ico" data-icon="camera" data-icon-size="18" aria-hidden="true"></span>
-            <span class="nav-label">Фото тетрадей</span>
-            <span id="photo-count" class="badge">0</span></button>
+            <span class="nav-label">Домашка</span></button>
           <button class="nav-btn" data-tab="checks">
             <span class="nav-ico" data-icon="eye" data-icon-size="18" aria-hidden="true"></span>
-            <span class="nav-label">Проверка домашек</span></button>
-          <button class="nav-btn" data-tab="boards">
-            <span class="nav-ico" data-icon="marker" data-icon-size="18" aria-hidden="true"></span>
-            <span class="nav-label">Доски</span></button>
+            <span class="nav-label">Проверка</span>
+            <span id="photo-count" class="badge">0</span></button>
           <button class="nav-btn" data-tab="lesson">
-            <span class="nav-ico" data-icon="mic" data-icon-size="18" aria-hidden="true"></span>
-            <span class="nav-label">Видеоурок</span></button>
-          <button class="nav-btn" data-tab="invite">
-            <span class="nav-ico" data-icon="target" data-icon-size="18" aria-hidden="true"></span>
-            <span class="nav-label">Ссылка для учеников</span></button>
-          <button class="nav-btn" data-tab="plan">
-            <span class="nav-ico" data-icon="star" data-icon-size="18" aria-hidden="true"></span>
-            <span class="nav-label">Подписка</span></button>
+            <span class="nav-ico" data-icon="video" data-icon-size="18" aria-hidden="true"></span>
+            <span class="nav-label">Урок</span></button>
+          <button class="nav-btn" data-tab="account">
+            <span class="nav-ico" data-icon="settings" data-icon-size="18" aria-hidden="true"></span>
+            <span class="nav-label">Кабинет</span></button>
         </div>
       </nav>
       <div class="plan-chip" id="plan-chip" title="Тариф и занятые места"></div>
       <div class="user-chip">
         <span id="tutor-name"></span>
-        <button id="pass-btn" class="link-btn">пароль</button>
-        <button id="totp-btn" class="link-btn" title="Приложение для кодов — запасной ключ, если забудете пароль">приложение</button>
-        <button id="logout-btn" class="link-btn">выйти</button>
+        <!-- «пароль», «приложение» и «выйти» переехали в раздел «Кабинет»
+             (секция tab-security): шапка на телефоне собиралась в три ряда
+             и съедала половину первого экрана. Кнопки темы и языка
+             монтируются сюда скриптами — им контейнер нужен. -->
       </div>
     </div>
   </header>
 
   <div id="access-bar-slot"></div>
   <main class="wide">
+    <!-- Чипы второго уровня для раздела (Выдать/Выданные/Банк заданий и т.п.).
+         Рисует tutor.js при переключении вкладки; вне секций, чтобы чипы
+         не прыгали вместе с содержимым. -->
+    <div id="subnav-slot"></div>
     <!-- Ученики -->
     <section id="tab-students">
       <div id="onboard-slot"></div>
@@ -503,6 +493,24 @@
             повторения. Только если есть что сказать: пустых писем не будет.</span>
         </label>
         <p class="type-feedback" id="notify-msg" role="status" aria-live="polite"></p>
+      </div>
+    </section>
+
+    <!-- «Вход и доступ» — подраздел «Кабинета». Кнопки жили в шапке
+         текстовыми ссылками: на телефоне шапка собиралась в три ряда,
+         а действия уровня «раз в полгода» занимали её наравне с именем.
+         id прежние — обработчики в tutor.js привязаны к ним. -->
+    <section id="tab-security" class="hidden">
+      <h2 class="section-title">Вход и доступ</h2>
+      <div class="card">
+        <p class="stat-label">Безопасность кабинета</p>
+        <p class="muted-note">Пароль, запасной вход через приложение для кодов
+          и выход из кабинета на этом устройстве.</p>
+        <div class="quiz-buttons security-buttons">
+          <button id="pass-btn" class="btn btn-ghost">Сменить пароль</button>
+          <button id="totp-btn" class="btn btn-ghost" title="Приложение для кодов — запасной ключ, если забудете пароль">Приложение для кодов</button>
+          <button id="logout-btn" class="btn btn-ghost">Выйти из кабинета</button>
+        </div>
       </div>
     </section>
 
@@ -785,26 +793,26 @@
     <a href="https://t.me/KOTSAVELII" target="_blank" rel="noopener">@KOTSAVELII</a></p>
 </footer>
 
-<script defer src="js/theme.js?v=317"></script>
-<script defer src="js/icons.js?v=317"></script>
-<script defer src="js/cat.js?v=317"></script>
-<script defer src="js/motion.js?v=317"></script>
-<script defer src="js/util.js?v=317"></script>
-<script defer src="js/levels.js?v=317"></script>
+<script defer src="js/theme.js?v=318"></script>
+<script defer src="js/icons.js?v=318"></script>
+<script defer src="js/cat.js?v=318"></script>
+<script defer src="js/motion.js?v=318"></script>
+<script defer src="js/util.js?v=318"></script>
+<script defer src="js/levels.js?v=318"></script>
 <!-- Словаря здесь НЕТ намеренно: на экране входа он не нужен вовсе,
      а нужен внутри панели — собрать домашку. Загружается в openPanel
      через ensureWords(LEVELS), и именно ЦЕЛИКОМ: домашку составляют по
      любому уровню, а уровня ученика на этой странице нет (app.js тут не
      подключён). Ученику при этом едут только его уровни — см. index.html. -->
-<script defer src="js/images.js?v=317"></script>
-<script defer src="js/word-photos.js?v=317"></script>
-<script defer src="js/qr.js?v=317"></script>
-<script defer src="js/tutor.js?v=317"></script>
-<script defer src="js/tutor-tasks.js?v=317"></script>
-<script defer src="js/tutor-photos.js?v=317"></script>
-<script defer src="js/tutor-auth.js?v=317"></script>
-<script defer src="js/tutor-verify.js?v=317"></script>
-<script defer src="js/tutor-boards.js?v=317"></script>
-<script defer src="js/tutor-nav.js?v=317"></script>
+<script defer src="js/images.js?v=318"></script>
+<script defer src="js/word-photos.js?v=318"></script>
+<script defer src="js/qr.js?v=318"></script>
+<script defer src="js/tutor.js?v=318"></script>
+<script defer src="js/tutor-tasks.js?v=318"></script>
+<script defer src="js/tutor-photos.js?v=318"></script>
+<script defer src="js/tutor-auth.js?v=318"></script>
+<script defer src="js/tutor-verify.js?v=318"></script>
+<script defer src="js/tutor-boards.js?v=318"></script>
+<script defer src="js/tutor-nav.js?v=318"></script>
 </body>
 </html>

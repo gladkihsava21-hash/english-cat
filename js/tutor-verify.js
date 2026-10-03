@@ -315,7 +315,8 @@ async function loadPlan() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  document.querySelectorAll('[data-tab="plan"]').forEach(b => b.addEventListener("click", loadPlan));
+  // Обновление при открытии подраздела «Подписка» — в tutor.js
+  // (SUB_LOADERS): вкладка «Подписка» стала подразделом «Кабинета».
   setTimeout(loadPlan, 1400);
 });
 
@@ -467,8 +468,8 @@ function renderOnboarding() {
     </div>`;
 
   slot.querySelectorAll("[data-goto]").forEach(b => b.addEventListener("click", () => {
-    const t = document.querySelector(`.nav-btn[data-tab="${b.dataset.goto}"]`);
-    if (t) t.click();
+    // Понимает и старые имена вкладок (plan, checks…)
+    if (typeof window.savelyGotoTab === "function") window.savelyGotoTab(b.dataset.goto);
   }));
   const hide = document.getElementById("ob-hide");
   if (hide) hide.addEventListener("click", () => {

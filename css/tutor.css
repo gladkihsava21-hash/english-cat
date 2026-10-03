@@ -719,6 +719,47 @@
   .tutor-body .site-footer { margin-bottom: 0; }
 }
 
+/* --------------------------------------------------------------------------
+   Чипы второго уровня (подразделы пяти разделов)
+   --------------------------------------------------------------------------
+   Десять вкладок стали пятью разделами; внутри раздела — те же экраны,
+   переключаемые чипами. Вид — как у активного фильтра словаря, чтобы
+   «сейчас открыто это» читалось одинаково по всему продукту. */
+.subnav {
+  display: flex; gap: 8px; flex-wrap: wrap;
+  margin: 0 0 var(--space-16, 16px);
+}
+.subnav-chip.active { background: var(--accent); color: var(--surface); }
+
+/* Кнопки «Вход и доступ» — в столбик на всю ширину карточки:
+   это действия уровня «раз в полгода», им не нужен компактный ряд. */
+.security-buttons { flex-direction: column; align-items: stretch; }
+.security-buttons .btn { min-width: 0; }
+
+/* --------------------------------------------------------------------------
+   Телефон: шапка панели в ОДИН ряд
+   --------------------------------------------------------------------------
+   Было три ряда (марка; имя + пароль + приложение + выйти; вкладки) —
+   ~40 % первого экрана до любого содержимого. Служебные кнопки уехали
+   в раздел «Кабинет», в шапке остаются марка, справка, тариф, имя и тема. */
+@media (max-width: 720px) {
+  /* Один ряд + полоса вкладок вторым рядом (wrap оставляем: у .nav
+     стоит order: 3 в savely.css). Чтобы ряд помещался, всё крупное
+     сжимаем, а « · панель» в марке прячем — слово несёт только
+     церемониальный смысл, и так понятно, чья это панель. */
+  :root:has(#screen-verify) .tutor-body .topbar-inner { gap: 8px; min-height: 56px; }
+  .tutor-body .brand-sub { display: none; }
+  .tutor-body .brand-h1 { min-width: 0; flex: 0 1 auto; overflow: hidden; }
+  .tutor-body .brand-h1 .brand { white-space: nowrap; }
+  .tutor-body .help-btn { width: 36px; height: 36px; flex: none; }
+  .tutor-body .plan-chip { flex: none; font-size: 11px; padding: 3px 8px; }
+  .tutor-body .user-chip { flex: none; min-width: 0; }
+  .tutor-body #tutor-name {
+    display: inline-block; max-width: 8ch; overflow: hidden;
+    text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom;
+  }
+}
+
 /* Селектор уровня в карточке ученика: по размеру цифры, которую заменил */
 .stu-level-select {
   font-weight: 800; font-size: var(--text-body-lg, 18px);

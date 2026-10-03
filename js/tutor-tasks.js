@@ -431,15 +431,14 @@ document.addEventListener("DOMContentLoaded", () => {
   const n1 = document.getElementById("ts-new"), n2 = document.getElementById("ts-new-empty");
   if (n1) n1.addEventListener("click", () => openTasksetEditor(null));
   if (n2) n2.addEventListener("click", () => openTasksetEditor(null));
-  // Вкладка открылась — грузим наборы (и при каждом открытии обновляем)
-  document.querySelectorAll('.nav-btn[data-tab="tasksets"]').forEach(b =>
-    b.addEventListener("click", loadTasksets));
+  // Загрузка наборов при открытии подраздела — централизована в tutor.js
+  // (SUB_LOADERS): вкладка «Свои задания» стала подразделом «Домашки».
   // Переходы «→ вкладка» из формы домашки и других мест панели.
   // Блок первых шагов вешает свои — там пропускаем, чтобы не сработало дважды.
   document.addEventListener("click", e => {
     const go = e.target.closest("[data-goto]");
     if (!go || go.closest("#onboard-slot")) return;
-    const t = document.querySelector(`.nav-btn[data-tab="${go.dataset.goto}"]`);
-    if (t) t.click();
+    // Понимает и старые имена вкладок (tasks, tasksets, photos…)
+    if (typeof window.savelyGotoTab === "function") window.savelyGotoTab(go.dataset.goto);
   });
 });

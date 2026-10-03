@@ -225,11 +225,21 @@ body::before {
    --------------------------------------------------------------------------
    Было 88 % бумаги и blur 12 — на пёстром фоне под шапкой текст просвечивал
    и спорил с пунктами меню. 92 % и насыщенность: меню читается, воздух
-   остался. */
+   остался.
+
+   На ≤600px размытие ЗАПРЕЩЕНО: этот файл грузится после a11y.css, и его
+   backdrop-filter побеждал сброс оттуда — а backdrop-filter на шапке создаёт
+   containing block, и нижнее меню ученика (position: fixed; bottom: 0)
+   позиционировалось от шапки, то есть залипало ВВЕРХУ. Поэтому стекло —
+   только там, где меню не фиксированное. */
+@media (min-width: 601px) {
+  .topbar {
+    backdrop-filter: blur(16px) saturate(1.15);
+    -webkit-backdrop-filter: blur(16px) saturate(1.15);
+  }
+}
 .topbar {
   background: color-mix(in srgb, var(--paper) 92%, transparent);
-  backdrop-filter: blur(16px) saturate(1.15);
-  -webkit-backdrop-filter: blur(16px) saturate(1.15);
 }
 
 /* ==========================================================================

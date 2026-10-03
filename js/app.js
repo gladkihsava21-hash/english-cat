@@ -725,23 +725,28 @@ function updateChrome() {
 }
 
 // ===== Тест словарного запаса =====
-// Шесть слов на уровень вместо пяти: банк вырос до 554 слов, и лишний
-// вопрос заметно снижает шум — при пяти один случайный промах сдвигал
-// оценку на целую ступень. Тест удлиняется с 30 вопросов до 36.
-const TEST_PER_LEVEL = 6;
+// Три слова на уровень вместо шести: замеры на модели ученика (18 тыс.
+// прогонов) показали, что точность держит не разведка «знаю / не знаю»,
+// а настоящие вопросы лесенки — самоотчёт при вранье («знаю» наугад)
+// завышал результат на три уровня, при скромности занижал на полтора.
+// Разведка поэтому короткая — только чтобы выбрать стартовую ступень
+// лесенки и слегка поправить итог, а тест целиком уложить в полторы
+// минуты.
+const TEST_PER_LEVEL = 3;
 
 /* ── Слова-обманки ────────────────────────────────────────────────────
  *
- * Тест спрашивает «знаешь это слово?» и верит на слово. Это быстро —
- * тридцать шесть ответов за полторы минуты, — но ученик может отвечать
- * «знаю» из вежливости, из азарта или потому что слово кажется знакомым.
- * Тогда уровень выходит завышенным, а дальше человек получает слова,
- * которые ему не по зубам, и бросает.
+ * Тест спрашивает «знаешь это слово?» и верит на слово. Это быстро,
+ * но ученик может отвечать «знаю» из вежливости, из азарта или потому
+ * что слово кажется знакомым. Тогда уровень выходит завышенным, а
+ * дальше человек получает слова, которые ему не по зубам, и бросает.
  *
  * Приём известный (его используют в LexTALE и других тестах словарного
  * запаса): подмешать несуществующие слова, построенные по правилам
  * английского. Знать их нельзя — значит каждое «знаю» здесь показывает,
- * насколько завышены остальные ответы.
+ * насколько завышены остальные ответы. Пойманное вранье не только режет
+ * оценку запаса (honestyFactor), но и обесценивает самоотчёт в итоговом
+ * уровне (см. combinedLevelIndex).
  *
  * Слова придуманы так, чтобы читались по-английски и не были похожи
  * ни на одно настоящее: ни корня, ни узнаваемой приставки.
@@ -750,7 +755,7 @@ const FAKE_WORDS = [
   "brindle-plack", "morkish", "plunthy", "sprandle", "gorbex", "trellick",
   "vurnish", "clabbot", "shomble", "grindley", "fandick", "quorbin",
 ];
-const FAKE_IN_TEST = 6;         // из 36 настоящих — шесть подмешанных
+const FAKE_IN_TEST = 3;         // из 18 настоящих — три подмешанных
 
 /* Сколько «знаю» на обманках во сколько раз режет доверие к ответам.
  * Одна случайная ошибка бывает у всех — она почти ничего не меняет;
@@ -917,12 +922,29 @@ function estimateLevelIndex(answers) {
  */
 const STAIR_BLOCK = 4;          // вопросов в блоке
 const STAIR_PASS = 3;           // сколько верных считается «уровень пройден»
-const STAIR_MAX_BLOCKS = 4;     // предохранитель: дальше решаем по тому, что есть
+const STAIR_MAX_BLOCKS = 6;     // предохранитель: дальше решаем по тому, что есть
 
 let stair = null;               // состояние лесенки на время теста
 
 function stairPool(lvl) {
-  return (WORDS[lvl] || []).filter(w => w.w && w.t).map(w => ({ ...w, level: lvl }));
+  // Вопросы — из отобранных наборов (js/leveltest.js), а не из всего
+  // банка: блок из случайных слов уровня был лотереей трудности — в B1
+  // рядом с «charge» попадалась «flute», и один и тот же ученик получал
+  // разный уровень от прогона к прогону. Набор не подгрузился — откат
+  // на прежнее поведение: тест важнее идеальных слов.
+  const bank = (WORDS[lvl] || []).filter(w => w.w && w.t);
+  const names = (typeof LEVEL_TEST_WORDS !== "undefined" && LEVEL_TEST_WORDS[lvl]) || null;
+  if (!names) return bank.map(w => ({ ...w, level: lvl }));
+  const byW = Object.fromEntries(bank.map(w => [w.w, w]));
+  return names.filter(w => byW[w]).map(w => ({ ...byW[w], level: lvl }));
+}
+
+/** У слова и у неверного варианта не должно быть общих слов в переводе:
+ *  иначе «big» и «large» — оба «большой», и верный по смыслу ответ
+ *  выглядит ошибкой (та же защита, что ruTokens в js/exercises.js). */
+function sameMeaning(a, b) {
+  const ta = ruTokens(a.t || ""), tb = ruTokens(b.t || "");
+  return [...ta].some(t => tb.has(t));
 }
 
 /** Блок вопросов одного уровня: 2 перевода + 2 пропуска в предложении.
@@ -935,13 +957,13 @@ function buildStairBlock(lvl) {
   sample(withEx, 2).forEach(w => {
     used.add(w.w);
     const re = new RegExp("\\b" + w.w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b", "i");
-    const wrong = sample(pool.filter(x => x.w !== w.w), 3).map(x => x.w);
+    const wrong = sample(pool.filter(x => x.w !== w.w && !sameMeaning(x, w)), 3).map(x => x.w);
     const options = shuffleArr([w.w, ...wrong]);
     qs.push({ kind: "gap", word: w, prompt: w.ex.replace(re, "____"),
               options, right: options.indexOf(w.w) });
   });
   sample(pool.filter(w => !used.has(w.w)), STAIR_BLOCK - qs.length).forEach(w => {
-    const wrong = sample(pool.filter(x => x.w !== w.w && x.t !== w.t), 3).map(x => x.t);
+    const wrong = sample(pool.filter(x => x.w !== w.w && !sameMeaning(x, w)), 3).map(x => x.t);
     const options = shuffleArr([w.t, ...wrong]);
     qs.push({ kind: "tr", word: w, prompt: w.w, options, right: options.indexOf(w.t) });
   });
@@ -959,13 +981,21 @@ function startStaircase(levelIdx) {
     right: 0, total: 0,         // общий счёт для честного итога
     log: [],                    // пословная диагностика
     qs: [], qi: 0, blockRight: 0,
+    confirmed: 0,               // сколько подтверждающих блоков уже задано
   };
   document.getElementById("test-run").classList.add("hidden");
   document.getElementById("test-verify").classList.remove("hidden");
   stairNextBlock();
 }
 
-function stairNextBlock() {
+async function stairNextBlock() {
+  // Уровень лесенки мог не быть загружен: ensureWords у новичка тянет
+  // только A1–A2, а разведка вольна поднять старт выше. Раньше блок для
+  // такого уровня собирался пустым, и лесенка МОЛЧА заканчивалась нулём
+  // вопросов — уровень ставился по одной разведке (прогон UX 03.10).
+  document.getElementById("verify-counter").textContent = "Достаю слова…";
+  await ensureWords([LEVELS[stair.lvl]]).catch(() => false);
+  if (!stair) return;                      // тест успели сбросить
   stair.qs = buildStairBlock(LEVELS[stair.lvl]);
   if (!stair.qs.length) { stairFinish(); return; }
   stair.blocks++;
@@ -979,8 +1009,10 @@ function renderStairQ() {
   // ставит stair = null): без неё обращение к stair.qs упало бы.
   if (!stair) return;
   const q = stair.qs[stair.qi];
-  document.getElementById("verify-counter").textContent =
-    `вопрос ${stair.total + 1} · уровень ${LEVELS[stair.lvl]}`;
+  // Без уровня вопроса: «вопрос 3 · уровень B1» пугал младших («мне это
+  // не по зубам») и подначивал старших сливаться пониже. Уровень — только
+  // в итоге.
+  document.getElementById("verify-counter").textContent = `вопрос ${stair.total + 1}`;
   document.getElementById("verify-label").textContent =
     q.kind === "tr" ? "Что это слово значит?" : "Какое слово подходит?";
   const prompt = document.getElementById("verify-prompt");
@@ -1010,28 +1042,50 @@ function renderStairQ() {
 }
 
 function stairDecide() {
+  // Блок подтверждения не двигает лесенку — только решает, хватит ли данных
+  if (stair.confirmed) { stairConfirmOrFinish(); return; }
   const L = stair.lvl;
   if (stair.blockRight >= STAIR_PASS) {
     stair.passed[L] = true;
     stair.best = Math.max(stair.best, L);
     // Выше некуда или выше уже провалено — граница найдена
-    if (L === LEVELS.length - 1 || stair.failed[L + 1]) { stairFinish(); return; }
+    if (L === LEVELS.length - 1 || stair.failed[L + 1]) { stairConfirmOrFinish(); return; }
     stair.lvl = L + 1;
   } else {
     stair.failed[L] = true;
     // Ниже некуда — остаёмся на первом уровне: учить с азов не стыдно
     if (L === 0) { stairFinish(); return; }
     // Ниже уже пройдено — граница найдена
-    if (stair.passed[L - 1]) { stairFinish(); return; }
+    if (stair.passed[L - 1]) { stairConfirmOrFinish(); return; }
     stair.lvl = L - 1;
   }
   if (stair.blocks >= STAIR_MAX_BLOCKS) {
     // Предохранитель по длине: дальше не спрашиваем, чтобы тест не
     // растянулся. Уровень всё равно считается по всем ответам сразу.
-    stairFinish();
+    stairConfirmOrFinish();
     return;
   }
   stairNextBlock();
+}
+
+/* Граница найдена — но одиночный блок шумный: планка «три из четырёх»
+ * при честных 80% знания ошибается в пятом случае, и человек уезжает на
+ * соседний уровень. Поэтому, пока два лидирующих уровня по ответам
+ * неразличимы (маленький отрыв в правдоподобии), задаём ещё блок ровно
+ * на границе — четыре вопроса в самой информативной точке теста, не
+ * больше двух подряд. Уверенного результата подтверждение не ждёт:
+ * тест не растёт зря. */
+function stairConfirmOrFinish() {
+  if (stair.confirmed < 2 && stair.best >= 0 && stair.blocks < STAIR_MAX_BLOCKS) {
+    const top2 = levelTop2(testAnswers, stair.log);
+    if (top2.margin < 5) {
+      stair.confirmed++;
+      stair.lvl = top2.best;
+      stairNextBlock();
+      return;
+    }
+  }
+  stairFinish();
 }
 
 /* Вероятность верного ответа на вопрос уровня q при истинном уровне a.
@@ -1057,28 +1111,48 @@ function stairHit(assumed, qLevel) {
  * Лесенка по-прежнему решает, ЧТО спрашивать дальше; но приговор
  * выносится по всем данным.
  *
- * На модели ученика (20 000 прогонов на уровень) точность выросла
- * с 62 до 91 процента, а промахи на два уровня исчезли совсем. */
-function combinedLevelIndex(answers, log) {
-  let best = 0, bestScore = -Infinity;
-  LEVELS.forEach((_, assumed) => {
-    let score = 0;
-    // сколько слов каждого уровня человек назвал знакомыми
-    LEVELS.forEach((lvl, i) => {
-      const known = answers[lvl] || 0;
-      const p = levelHit(assumed, i);
-      score += known * Math.log(p) + (TEST_PER_LEVEL - known) * Math.log(1 - p);
-    });
-    // и как он ответил на настоящие вопросы
-    (log || []).forEach(a => {
-      const qi = LEVELS.indexOf(a.level);
-      if (qi < 0) return;
-      const p = stairHit(assumed, qi);
-      score += a.ok ? Math.log(p) : Math.log(1 - p);
-    });
-    if (score > bestScore) { bestScore = score; best = assumed; }
+ * Веса не равные. Самоотчёт «знаю / не знаю» — это заявление, а не
+ * проверка: на модели ученика (18 тыс. прогонов) «зазнайка», жмущая
+ * «знаю» наугад, получала с него ТРИ лишних уровня, а «скромный»
+ * терял полтора. Поэтому разведка входит с пониженным весом (0,5),
+ * настоящие вопросы — с полным, а при пойманном вранье (две и больше
+ * обманки названы «знаю») самоотчёт почти не считается вовсе (0,25):
+ * вруну верить нельзя ни в чём. */
+function levelScore(assumed, answers, log, scoutW) {
+  let score = 0;
+  // сколько слов каждого уровня человек назвал знакомыми — с пониженным
+  // весом: это заявление, а не проверка (см. комментарий выше)
+  LEVELS.forEach((lvl, i) => {
+    const known = answers[lvl] || 0;
+    const p = levelHit(assumed, i);
+    score += scoutW * (known * Math.log(p) + (TEST_PER_LEVEL - known) * Math.log(1 - p));
   });
-  return best;
+  // и как он ответил на настоящие вопросы — с удвоенным весом. Вопрос
+  // проверяет знание, а самоотчёт — нет: когда они расходятся (ученик
+  // хвастается или скромничает), правду говорит лесенка. Когда согласны,
+  // удвоение оценку не сдвигает — оба ряда смотрят в одну сторону.
+  (log || []).forEach(a => {
+    const qi = LEVELS.indexOf(a.level);
+    if (qi < 0) return;
+    const p = stairHit(assumed, qi);
+    score += 2 * (a.ok ? Math.log(p) : Math.log(1 - p));
+  });
+  return score;
+}
+
+function levelTop2(answers, log) {
+  const scoutW = fakeYes >= 2 ? 0.15 : fakeYes === 1 ? 0.5 : 1.0;
+  let best = { i: 0, s: -Infinity }, second = { i: 0, s: -Infinity };
+  LEVELS.forEach((_, a) => {
+    const s = levelScore(a, answers, log, scoutW);
+    if (s > best.s) { second = best; best = { i: a, s }; }
+    else if (s > second.s) second = { i: a, s };
+  });
+  return { best: best.i, margin: best.s - second.s };
+}
+
+function combinedLevelIndex(answers, log) {
+  return levelTop2(answers, log).best;
 }
 
 function stairFinish() {
@@ -2523,6 +2597,8 @@ function renderFlashcard() {
   document.getElementById("flash-translation").textContent = item.t;
   document.getElementById("flash-example").textContent = item.ex || "";
   document.getElementById("trainer-counter").textContent = `${trainIndex + 1} / ${trainQueue.length}`;
+  const bar = document.getElementById("trainer-progress");
+  if (bar) bar.style.width = Math.round(((trainIndex + 1) / trainQueue.length) * 100) + "%";
   setFlashButtons(false);
 }
 
