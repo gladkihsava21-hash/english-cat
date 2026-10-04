@@ -1096,6 +1096,45 @@ class Api:
         return {"ok": True, "student": db.student_public(row, hw, detail=True)}
 
     @staticmethod
+    def tutor_add_word(h, p):
+        """Репетитор добавляет слово в словарь СВОЕГО ученика (с доски
+        или из панели). Проверки: репетитор залогинен и ученик — его.
+        Дубли не плодим (см. db.student_add_word). Если передан boardId,
+        слово дополнительно везём на открытую доску ученика полем
+        dictAdd в ответе синхронизации — там оно ляжет в состояние
+        ученика, который для словаря и есть источник правды."""
+        tutor, err = verified_tutor(p)
+        if err:
+            return err
+        row = db.get_student_by_id(int(p.get("studentId") or 0))
+        if not row or row["tutor_id"] != tutor["id"]:
+            return {"ok": False, "error": "not_found"}
+        folders = p.get("folders")
+        if not isinstance(folders, list):
+            folders = [p.get("folder")] if p.get("folder") else []
+        res = db.student_add_word(row["id"], p.get("w"), p.get("t"),
+                                  p.get("ex"), folders)
+        if not res:
+            return {"ok": False, "error": "not_found"}
+        board_id = int(p.get("boardId") or 0)
+        if res.get("ok") and board_id:
+            board = db.get_board(board_id)
+            if board and board["tutor_id"] == tutor["id"]:
+                db.conn().execute(
+                    "UPDATE boards SET dict_add=?, dict_add_at=? WHERE id=?",
+                    (json.dumps({"w": (res["word"] or {}).get("w"),
+                                 "t": (res["word"] or {}).get("t"),
+                                 "ex": (res["word"] or {}).get("ex", ""),
+                                 "folders": (res["word"] or {}).get("folders") or [],
+                                 # кому слово: доска бывает открыта всем,
+                                 # а добавляем одному ученику
+                                 "studentId": row["id"],
+                                 "at": int(time.time())}, ensure_ascii=False),
+                     int(time.time()), board_id))
+                db.conn().commit()
+        return res
+
+    @staticmethod
     def tutor_student_note(h, p):
         tutor, err = verified_tutor(p)
         if err:
@@ -1387,7 +1426,17 @@ class Api:
         res = db.board_sync(board["id"],
                             p.get("changes") if can_write else [],
                             p.get("deletes") if can_write else [],
-                            p.get("since"), author)
+                            p.get("since"), author,
+                            # Лазерная указка — вне белого списка записи:
+                            # эфемерная точка, не объект доски.
+                            laser=p.get("laser", "skip") if can_write else "skip",
+                            # «Покажи мой вид» — разовая команда репетитора,
+                            # тоже вне объектов (ученика сервер отсечёт сам).
+                            follow=p.get("follow", "skip") if can_write else "skip",
+                            # Таймер урока — репетитор запускает, видят оба.
+                            timer=p.get("timer", "skip") if can_write else "skip",
+                            # Реакция-эмодзи — слать могут оба участника.
+                            react=p.get("react", "skip") if can_write else "skip")
         if res is None:
             return {"ok": False, "error": "Доска не найдена."}
         if res.get("error") == "board_full":
@@ -1779,11 +1828,28 @@ class Api:
                 "restoreCode": row["restore_code"]}
 
     @staticmethod
+    @staticmethod
+    def student_add_word(h, p):
+        """Ученик добавляет слово СЕБЕ в словарь (с доски или из
+        приложения). Авторство — токен ученика, чужого словаря здесь нет.
+        Словарь хранится у клиента (sync_student пишет его снимком),
+        поэтому это дубль на случай, если вкладка закроется раньше
+        ближайшей синхронизации состояния."""
+        row = db.get_student_by_token(p.get("token"))
+        if not row:
+            return {"ok": False, "error": "unauthorized"}
+        folders = p.get("folders")
+        if not isinstance(folders, list):
+            folders = [p.get("folder")] if p.get("folder") else []
+        res = db.student_add_word(row["id"], p.get("w"), p.get("t"),
+                                  p.get("ex"), folders)
+        return res or {"ok": False, "error": "not_found"}
+
+    @staticmethod
     def student_sync(h, p):
         row = db.sync_student(p.get("token"), p.get("state") or {})
         if not row:
-            return {"ok": False, "error": "unknown_student"}
-        # Одиночка: домашек, сообщений, урока и рейтинга нет — прогресс
+            return {"ok": False, "error": "unknown_student"}        # Одиночка: домашек, сообщений, урока и рейтинга нет — прогресс
         # синхронизируется, остальное пустое.
         if not row["tutor_id"]:
             return {"ok": True, "homework": [], "leaderboard": [], "messages": [],
@@ -2956,6 +3022,7 @@ ROUTES = {
     "/api/tutor/login": Api.tutor_login,
     "/api/tutor/students": Api.tutor_students,
     "/api/tutor/student": Api.tutor_student_detail,
+    "/api/tutor/add-word": Api.tutor_add_word,
     "/api/tutor/student/note": Api.tutor_student_note,
     "/api/tutor/student/level": Api.tutor_student_level,
     "/api/tutor/student/delete": Api.tutor_student_delete,
@@ -2992,6 +3059,7 @@ ROUTES = {
     "/api/student/restore": Api.student_restore,
     "/api/student/pull": Api.student_pull,
     "/api/student/sync": Api.student_sync,
+    "/api/student/add-word": Api.student_add_word,
     "/api/student/profile": Api.student_profile,
     "/api/student/name": Api.student_name,
     "/api/student/code/new": Api.student_code_new,

@@ -225,6 +225,44 @@ CREATE INDEX IF NOT EXISTS idx_groups_tutor ON groups(tutor_id);
 # Колонки, добавленные после первого релиза. База репетитора с живыми
 # учениками должна переживать обновление, поэтому не пересоздаём таблицы.
 MIGRATIONS = [
+    # Реакция-эмодзи на доске: последняя активная, мировая точка старта,
+    # кто и когда. Временная (~4 с), как laser: не объект доски.
+    ("boards", "react_emoji", "TEXT DEFAULT ''"),
+    ("boards", "react_x", "REAL DEFAULT 0"),
+    ("boards", "react_y", "REAL DEFAULT 0"),
+    ("boards", "react_by", "TEXT"),
+    ("boards", "react_at", "INTEGER DEFAULT 0"),
+    # Таймер на доске: кому принадлежит команда, когда была, и состояние —
+    # либо until (до какого момента идёт), либо paused_left (сколько
+    # осталось на паузе). Как laser/follow: не объект доски, а свежая
+    # команда — новый заход видит идущий таймер из этих полей.
+    ("boards", "timer_until", "REAL DEFAULT 0"),
+    ("boards", "timer_paused_left", "REAL DEFAULT 0"),
+    ("boards", "timer_by", "TEXT"),
+    ("boards", "timer_at", "INTEGER DEFAULT 0"),
+    # «Покажи мой вид»: последняя команда репетитора «смотри сюда» —
+    # мировой центр и зум его экрана, кто послал и когда. Эфемерно
+    # (~10 с, разовое), поэтому отдельные поля, а не объект в data —
+    # по образцу лазерной указки выше.
+    ("boards", "follow_x", "REAL DEFAULT 0"),
+    ("boards", "follow_y", "REAL DEFAULT 0"),
+    ("boards", "follow_k", "REAL DEFAULT 1"),
+    ("boards", "follow_by", "TEXT"),
+    ("boards", "follow_at", "INTEGER DEFAULT 0"),
+    # Слово, добавленное репетитором в словарь ученика с доски: едет
+    # ученику на доску тем же опросом (см. board_sync → "dictAdd"),
+    # клиент ученика кладёт его в своё состояние — источник правды для
+    # словаря всё равно клиент (sync_student перезаписывает снимком).
+    ("boards", "dict_add", "TEXT DEFAULT ''"),
+    ("boards", "dict_add_at", "INTEGER DEFAULT 0"),
+    # Лазерная указка: последняя точка на доске, кто её держит и когда.
+    # Не объект доски (эфемерно, пара секунд), поэтому отдельные поля,
+    # а не запись в data: второй участник получает её в ответе
+    # синхронизации — см. board_sync.
+    ("boards", "laser_x", "REAL DEFAULT 0"),
+    ("boards", "laser_y", "REAL DEFAULT 0"),
+    ("boards", "laser_by", "TEXT"),
+    ("boards", "laser_at", "INTEGER DEFAULT 0"),
     # Присутствие ученика на доске: когда его видели и была ли вкладка
     # свёрнута. Пишется при каждом опросе доски, читается репетитором.
     ("boards", "student_seen_at", "INTEGER DEFAULT 0"),
@@ -2557,6 +2595,10 @@ def _clean_board_object(o):
         "size": max(1, min(60, int(num(o.get("size", 3), 1, 60)))),
         "rev": int(num(o.get("rev", 0), 0, 10**9)),
         "by": str(o.get("by", ""))[:24],
+        # Замок теперь у любого объекта (фигуры, стикеры, текст, слова) —
+        # раньше чистильщик сохранял его только у картинки и книги,
+        # и закрепление остального не переживало синхронизацию.
+        "locked": 1 if o.get("locked") else 0,
     }
     if kind in ("note", "text", "word", "task"):
         out["text"] = str(o.get("text", ""))[:600]
@@ -2572,7 +2614,6 @@ def _clean_board_object(o):
         # апдейт трёх чисел, а не полмегабайта на каждый опрос.
         out["bookId"] = int(num(o.get("bookId", 0), 0, 10**9))
         out["page"] = max(1, int(num(o.get("page", 1), 1, 10000)))
-        out["locked"] = 1 if o.get("locked") else 0   # закреплять можно и книжку
         out["pages"] = max(1, int(num(o.get("pages", 1), 1, 10000)))
         out["text"] = str(o.get("text", ""))[:120]   # название для подписи
         if not out["bookId"]:
@@ -2585,10 +2626,6 @@ def _clean_board_object(o):
         src = str(o.get("src", ""))
         if len(src) > BOARD_MAX_IMAGE:
             return None
-        # Фиксация: закреплённую картинку нельзя сдвинуть или стереть,
-        # пока замок не снят, — страница учебника не должна уезжать
-        # из-под руки, которая по ней пишет.
-        out["locked"] = 1 if o.get("locked") else 0
         if not (src.startswith("data:image/jpeg;base64,")
                 or src.startswith("data:image/png;base64,")
                 or src.startswith("data:image/webp;base64,")):
@@ -2640,7 +2677,7 @@ def board_presence(row):
     return "here" if ago <= 6 else "gone"
 
 
-def board_sync(board_id, changes, deletes, since, author):
+def board_sync(board_id, changes, deletes, since, author, laser="skip", follow="skip", timer="skip", react="skip"):
     """Слить изменения и вернуть то, чего у клиента ещё нет.
 
     Правило слияния — «последний по объекту побеждает». Для доски на
@@ -2648,6 +2685,23 @@ def board_sync(board_id, changes, deletes, since, author):
     ОДИН И ТОТ ЖЕ объект в одну секунду, а нарисованные линии у каждого
     свои. Полной перезаписи доски не бывает никогда — иначе один
     сохранённый кадр стирал бы то, что второй нарисовал секунду назад.
+
+    laser — эфемерная точка лазерной указки (вне объектов доски):
+    "skip" — клиент старый, не трогаем; None — лазер погашен;
+    {"x","y"} — запомнить и раздать второй стороне пару секунд.
+
+    follow — разовая команда «покажи мой вид» (вне объектов доски):
+    {"x","y","k"} — мировой центр и зум экрана репетитора. Хранится ~10
+    секунд и отдаётся только ученику: учитель свой вид и так видит.
+    Команду может слать только репетитор (ученик чужой вид не навязывает).
+
+    timer — таймер урока (вне объектов доски): {"until": epoch} — старт
+    или продолжить; {"pausedLeft": сек} — пауза; None — сброс. Ставит
+    только репетитор, видят оба (и новый заход на доску).
+
+    react — реакция-эмодзи (вне объектов доски): {"emoji","x","y"}.
+    Слать могут оба (это живая реакция на уроке), держим ~5 секунд и
+    отдаём второй стороне — свою каждый видит локально сразу.
     """
     row = get_board(board_id)
     if not row:
@@ -2655,11 +2709,93 @@ def board_sync(board_id, changes, deletes, since, author):
     data = json.loads(row["data"] or "{}")
     rev = int(row["rev"] or 0)
 
+    if timer != "skip" and author.startswith("t"):
+        if timer is None:
+            conn().execute(
+                "UPDATE boards SET timer_until=0, timer_paused_left=0, timer_by=NULL, timer_at=0 WHERE id=?",
+                (board_id,))
+            conn().commit()
+        elif isinstance(timer, dict):
+            now_ts = int(time.time())
+            if "until" in timer:
+                conn().execute(
+                    "UPDATE boards SET timer_until=?, timer_paused_left=0, timer_by=?, timer_at=? WHERE id=?",
+                    (max(0.0, float(timer["until"])), author[:24], now_ts, board_id))
+                conn().commit()
+            elif "pausedLeft" in timer:
+                conn().execute(
+                    "UPDATE boards SET timer_until=0, timer_paused_left=?, timer_by=?, timer_at=? WHERE id=?",
+                    (max(0.0, float(timer["pausedLeft"])), author[:24], now_ts, board_id))
+                conn().commit()
+
+    if isinstance(react, dict):
+        try:
+            rx = max(-100000.0, min(100000.0, float(react.get("x", 0))))
+            ry = max(-100000.0, min(100000.0, float(react.get("y", 0))))
+            rem = str(react.get("emoji", ""))[:8]
+        except (TypeError, ValueError):
+            rx = ry = rem = None
+        if rx is not None and rem:
+            conn().execute(
+                "UPDATE boards SET react_emoji=?, react_x=?, react_y=?, react_by=?, react_at=? WHERE id=?",
+                (rem, rx, ry, author[:24], int(time.time()), board_id))
+            conn().commit()
+
+    if follow != "skip" and author.startswith("t"):
+        if isinstance(follow, dict):
+            try:
+                fx = max(-100000.0, min(100000.0, float(follow.get("x", 0))))
+                fy = max(-100000.0, min(100000.0, float(follow.get("y", 0))))
+                fk = max(0.1, min(8.0, float(follow.get("k", 1))))
+            except (TypeError, ValueError):
+                fx = fy = fk = None
+            if fx is not None:
+                conn().execute(
+                    "UPDATE boards SET follow_x=?, follow_y=?, follow_k=?, follow_by=?, follow_at=? WHERE id=?",
+                    (fx, fy, fk, author[:24], int(time.time()), board_id))
+                conn().commit()
+
+    if laser != "skip":
+        if isinstance(laser, dict):
+            try:
+                lx = max(-100000.0, min(100000.0, float(laser.get("x", 0))))
+                ly = max(-100000.0, min(100000.0, float(laser.get("y", 0))))
+            except (TypeError, ValueError):
+                lx = ly = None
+            if lx is not None:
+                conn().execute(
+                    "UPDATE boards SET laser_x=?, laser_y=?, laser_by=?, laser_at=? WHERE id=?",
+                    (lx, ly, author[:24], int(time.time()), board_id))
+                conn().commit()
+        else:
+            # Лазер выключен (смена инструмента): гасим — но только СВОЮ
+            # точку. Клиент шлёт laser=None в каждом опросе, пока сам не
+            # водит лазером, и без этой проверки опрос второй стороны
+            # стирал бы точку первого (CDP-прогон двух клиентов).
+            conn().execute("UPDATE boards SET laser_by=NULL WHERE id=? AND laser_by=?",
+                           (board_id, author[:24]))
+            conn().commit()
+
     touched = False
     for raw in (changes or [])[:400]:
         o = _clean_board_object(raw)
         if not o:
             continue
+        # Фон доски меняет только репетитор: объект общий, иначе ученик
+        # переключал бы вид урока для обоих. Клиент кнопку прячет, а здесь
+        # защита от прямой отправки в обход интерфейса.
+        if o["kind"] == "bg" and author.startswith("s"):
+            continue
+        # Замок — право учителя. От ученика отклоняем: а) изменение
+        # объекта, который УЖЕ залочен (не двигает, не правит, не
+        # перекрашивает), б) саму постановку/снятие замка (locked=1 в
+        # посылке), в) снятие замка (locked=0 поверх залоченного).
+        if author.startswith("s"):
+            existing = data.get(o["id"])
+            if (existing or {}).get("locked"):
+                continue
+            if o.get("locked"):
+                continue
         # Лимит считаем по ЖИВЫМ объектам, а не по всем записям.
         #
         # Удалённое не исчезает: остаётся надгробие kind="gone", по нему
@@ -2690,6 +2826,10 @@ def board_sync(board_id, changes, deletes, since, author):
     for oid in (deletes or [])[:400]:
         key = str(oid)[:40]
         if key in data:
+            # Залоченное ученик и удалить не может — та же защита,
+            # что у изменений выше
+            if author.startswith("s") and (data[key] or {}).get("locked"):
+                continue
             rev += 1
             # Удалённое помним как «надгробие»: иначе второй клиент,
             # который ещё не знает об удалении, пришлёт объект обратно.
@@ -2705,12 +2845,51 @@ def board_sync(board_id, changes, deletes, since, author):
         conn().commit()
 
     fresh = [o for o in data.values() if int(o.get("rev", 0)) > int(since or 0)]
-    return {
+    out = {
         "rev": rev,
         "objects": [o for o in fresh if o.get("kind") != "gone"],
         "deleted": [o["id"] for o in fresh if o.get("kind") == "gone"],
         "full": int(since or 0) == 0,
     }
+    # Чужая лазерная точка, свежая (пара секунд): отдаём только второй
+    # стороне — автор видит свою локально. Свежая строка с полями нужна,
+    # потому что laser-апдейт шёл уже после чтения row.
+    row = get_board(board_id)
+    lat = int(row["laser_at"] or 0) if "laser_at" in row.keys() else 0
+    lby = row["laser_by"] if "laser_by" in row.keys() else None
+    if lat and lby and lby != author and int(time.time()) - lat <= 3:
+        out["laser"] = {"x": row["laser_x"], "y": row["laser_y"], "by": lby}
+    # Команда «покажи мой вид»: свежая (~10 с) и не автору — репетитор
+    # свой вид и так видит, перелетает только ученик.
+    fat = int(row["follow_at"] or 0) if "follow_at" in row.keys() else 0
+    fby = row["follow_by"] if "follow_by" in row.keys() else None
+    if fat and fby and fby != author and int(time.time()) - fat <= 10:
+        out["follow"] = {"x": row["follow_x"], "y": row["follow_y"],
+                         "k": row["follow_k"], "by": fby, "at": fat}
+    # Слово, добавленное репетитором в словарь ученика с доски: отдаём
+    # только ученику (репетитор сам его добавил, ему не нужно).
+    # Применяемость на клиенте одноразовая — по метке времени.
+    raw_add = row["dict_add"] if "dict_add" in row.keys() else ""
+    if raw_add and author.startswith("s"):
+        try:
+            out["dictAdd"] = json.loads(raw_add)
+        except (TypeError, ValueError):
+            pass
+    # Таймер: видят ОБЕ стороны, пока идёт или стоит на паузе (недавно
+    # истёкший ещё минуту показываем как «время!»), и новый заход тоже.
+    t_until = float(row["timer_until"] or 0) if "timer_until" in row.keys() else 0
+    t_left = float(row["timer_paused_left"] or 0) if "timer_paused_left" in row.keys() else 0
+    if t_until > time.time() - 60 or t_left > 0:
+        out["timer"] = {"until": t_until, "pausedLeft": t_left,
+                        "by": row["timer_by"] or "", "at": int(row["timer_at"] or 0)}
+    # Реакция-эмодзи: свежая (~5 с) и только второй стороне
+    rat = int(row["react_at"] or 0) if "react_at" in row.keys() else 0
+    rby = row["react_by"] if "react_by" in row.keys() else None
+    if rat and rby and rby != author and int(time.time()) - rat <= 5:
+        out["react"] = {"emoji": row["react_emoji"] or "",
+                        "x": row["react_x"], "y": row["react_y"],
+                        "by": rby, "at": rat}
+    return out
 
 
 def clear_board(board_id, tutor_id):
@@ -2970,6 +3149,52 @@ def lesson_state(tutor_row):
     return {"url": url, "live": live}
 PHOTOS_PER_CHECK = 5     # больше пяти снимков на одну домашку не принимаем
 DICT_MAX_WORDS = 5000    # потолок словаря ученика — см. sync_student
+
+
+def student_add_word(student_id, w, t, ex="", folders=None):
+    """Добавить слово в словарь ученика серверной стороной.
+
+    Источник правды для словаря — клиент ученика: sync_student
+    перезаписывает словарь его снимком. Поэтому эта функция — только
+    транспорт/дубль: вызов обязан идти вместе с обновлением клиента
+    (доска ученика кладёт слово в его savelyState сама, см. board_sync
+    → "dictAdd"), иначе ближайший снимок слово смоет. Дубли не плодим:
+    слово уже в словаре — успех с флагом exists (плюс докинем папку)."""
+    row = get_student_by_id(student_id)
+    if not row:
+        return None
+    w = str(w or "").strip()[:60]
+    t = str(t or "").strip()[:120]
+    if not w or not t:
+        return {"ok": False, "error": "no_word"}
+    folders = [str(f).strip()[:30] for f in (folders or [])
+               if isinstance(f, str) and f.strip()][:20]
+    folders = list(dict.fromkeys(folders))          # без повторов, порядок сохранён
+    dictionary = json.loads(row["dictionary"] or "[]")
+    lw = w.lower()
+    for d in dictionary:
+        if (d.get("w") or "").lower() == lw:
+            changed = False
+            have = set(d.get("folders") or [])
+            for f in folders:
+                if f not in have:
+                    d.setdefault("folders", []).append(f)
+                    changed = True
+            if changed:
+                conn().execute("UPDATE students SET dictionary=? WHERE id=?",
+                               (json.dumps(dictionary, ensure_ascii=False), student_id))
+                conn().commit()
+            return {"ok": True, "exists": True, "word": d}
+    rec = {"w": w, "t": t, "ex": str(ex or "")[:200], "status": "new",
+           "knew": 0, "forgot": 0, "seen": True, "checked": 0,
+           "folders": folders}
+    dictionary.append(rec)
+    # тот же потолок, что у sync_student, — с КОНЦА списка, свежие живут
+    dictionary = dictionary[-DICT_MAX_WORDS:]
+    conn().execute("UPDATE students SET dictionary=? WHERE id=?",
+                   (json.dumps(dictionary, ensure_ascii=False), student_id))
+    conn().commit()
+    return {"ok": True, "word": rec}
 CHAT_MONTHLY_LIMIT = 150  # fair-use: отрезает хвост, обычный ученик не заметит
 
 

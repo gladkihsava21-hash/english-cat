@@ -45,13 +45,19 @@ const BD = {
 
 const $ = id => document.getElementById(id);
 const canvas = $("board-canvas");
-const ctx = canvas.getContext("2d");
+// let, а не const: экспорт в PNG временно подменяет контекст на
+// офскринный (см. bd-png) — иначе снимок шёл бы с живого полотна и
+// гонялся за перерисовкой.
+let ctx = canvas.getContext("2d");
 
 /* ---------- цвета ----------
    Значения лежат в css/tokens.css: одно место на весь проект, и ночная
    тема меняет их сама. Здесь только имена. */
 const COLORS = ["ink", "red", "blue", "green", "orange", "violet"];
-const NOTE_COLORS = ["note", "note2", "note3"];
+// Бумага стикера: жёлтый, зелёный, розовый, голубой, фиолетовый
+// (+ «свой» из пикера). Раньше стикер был жёлтым всегда — цвет
+// существовал только у трёх, и создание его игнорировало (владелец).
+const NOTE_COLORS = ["note", "note2", "note3", "note4", "note5"];
 // Маркер — свой набор. Чернила ручки под полупрозрачной широкой полосой
 // превращали подчёркнутое слово в тёмное пятно; текстовыделителю нужны
 // светлые яркие краски (просьба владельца).
@@ -125,10 +131,11 @@ function fitCanvas() {
 }
 
 /* ---------- отрисовка ---------- */
-function draw() {
+/* w/h — параметрами, а не innerWidth напрямую: экспорт в PNG рисует этой
+   же функцией в офскрин размером с содержимое (см. bd-png). */
+function draw(w = innerWidth, h = innerHeight) {
   if (!BD.needsPaint) return;
   BD.needsPaint = false;
-  const w = innerWidth, h = innerHeight;
   ctx.save();
   ctx.clearRect(0, 0, w, h);
   ctx.fillStyle = cssColor("paper");
@@ -152,22 +159,61 @@ function draw() {
     }
   }
   updateBookBar();
-  /* Лазерная указка — последним слоем, поверх всего, и только у себя.
-     Это НЕ объект доски: в BD.objects не попадает, в синхронизацию
-     и отмену не уезжает, второй участник её никогда не видит. Не путать
-     с ping: пинг — общий и гаснет сам, лазер — личный и живёт, пока
-     активен инструмент. Точка статичная (без анимации), поэтому цикл
-     перерисовки не форсируем: кадр придёт от pointermove. */
-  if (BD.tool === "laser" && BD.laser) {
-    ctx.fillStyle = cssColor("rec");
+  updateWordbar();
+  // Реакции-эмодзи поверх всего: всплывают вверх и тают ~3,5 с.
+  // Временное, как пинг с лазером, — в объекты не складываем.
+  if (BD.reacts.length) {
+    const now = performance.now();
+    BD.reacts = BD.reacts.filter(r => now - r.t0 < 3500);
+    for (const r of BD.reacts) {
+      const age = (now - r.t0) / 1000;
+      ctx.globalAlpha = Math.max(0, age < 2.5 ? 1 : (3.5 - age));
+      ctx.font = `${Math.round(30 * BD.view.k)}px system-ui, sans-serif`;
+      ctx.textBaseline = "alphabetic";
+      ctx.fillText(r.emoji,
+        r.x * BD.view.k + BD.view.x - 15 * BD.view.k,
+        (r.y - age * 30) * BD.view.k + BD.view.y);
+    }
+    ctx.globalAlpha = 1;
+    if (BD.reacts.length) BD.needsPaint = true;   // анимируются по времени
+  }
+  /* Лазерная указка — последним слоем, поверх всего. Своя точка — это
+     НЕ объект доски: в BD.objects не попадает, в синхронизацию и отмену
+     не уезжает (второй участник видит её через поле laser в ответе
+     синхронизации — см. syncNow). Не путать с ping: пинг — общий и
+     гаснет сам, лазер живёт, пока активен инструмент. Точка статичная
+     (без анимации), поэтому цикл перерисовки не форсируем: кадр придёт
+     от pointermove. */
+  const drawLaserDot = (sx, sy, colorName, label) => {
+    ctx.fillStyle = cssColor(colorName);
     ctx.globalAlpha = 0.28;                 // ореол, чтобы точку было видно и на светлом, и на картинке
     ctx.beginPath();
-    ctx.arc(BD.laser.x, BD.laser.y, 12, 0, 7);
+    ctx.arc(sx, sy, 12, 0, 7);
     ctx.fill();
     ctx.globalAlpha = 1;
     ctx.beginPath();
-    ctx.arc(BD.laser.x, BD.laser.y, 4.5, 0, 7);
+    ctx.arc(sx, sy, 4.5, 0, 7);
     ctx.fill();
+    if (label) {
+      ctx.font = "700 11px Inter, system-ui, sans-serif";
+      ctx.textBaseline = "top";
+      ctx.fillText(label, sx + 10, sy + 12);
+    }
+  };
+  if (BD.tool === "laser" && BD.laser) {
+    drawLaserDot(BD.laser.x, BD.laser.y, "rec");
+  }
+  // Лазер второй стороны: приехал в ответе синхронизации, живёт пару
+  // секунд. Цвет по стороне — у учителя красный, у ученика синий, —
+  // и подпись, чья точка (владелец: «точка только для себя»).
+  if (BD.remoteLaser && performance.now() - BD.remoteLaser.seen < 2600) {
+    const r = BD.remoteLaser;
+    const sx = r.x * BD.view.k + BD.view.x, sy = r.y * BD.view.k + BD.view.y;
+    const fromTutor = String(r.by || "").startsWith("t");
+    drawLaserDot(sx, sy, fromTutor ? "rec" : "blue",
+                 fromTutor ? "учитель" : "ученик");
+  } else if (BD.remoteLaser) {
+    BD.remoteLaser = null;
   }
 }
 
@@ -407,7 +453,9 @@ function drawObject(o) {
   }
 
   if (o.kind === "note") {
-    ctx.fillStyle = cssColor(o.color && o.color.startsWith("note") ? o.color : "note");
+    // Цвет — из объекта: бумага из палитры (note…note5) или свой hex
+    // (cssColor сам различает токен и данные рисунка)
+    ctx.fillStyle = cssColor(o.color || "note");
     ctx.strokeStyle = "rgba(0,0,0,.10)";
     ctx.lineWidth = 1;
     ctx.beginPath();
@@ -419,7 +467,7 @@ function drawObject(o) {
   }
 
   if (o.kind === "text") {
-    drawText(o.text || "", o.x, o.y, o.w || 460, Math.max(16, o.size * 6), color, "600");
+    drawText(o.text || "", o.x, o.y, o.w || 460, textLH(o.size), color, "600");
     return;
   }
 
@@ -537,10 +585,12 @@ function drawSelection(o) {
   if (lockable(o)) drawLockButton(o);
 }
 
-/** Замок на рамке выделения: у картинок и книжек. Закреплённый объект
- *  не двигается, не тянется и не стирается — страница учебника лежит
- *  как приклеенная, пока замок не снят тем же нажатием. */
-const lockable = o => o.kind === "image" || o.kind === "book";
+/** Замок на рамке выделения. Закреплённый объект не двигается, не
+ *  тянется, не стирается ластиком и не удаляется — пока замок не снят.
+ *  Любой объект, кроме служебных (пинг, фон): фигуры, стикеры, текст,
+ *  карточки, картинки, книги. Ставит и снимает замок только учитель —
+ *  проверка при нажатии (см. pointerdown) и на сервере (db.board_sync). */
+const lockable = o => !isService(o);
 
 function lockButtonPos(o) {
   const b = bounds(o);
@@ -717,7 +767,23 @@ async function syncNow() {
       // Ученик каждым опросом говорит «я тут» и видна ли вкладка —
       // из этого складывается плашка присутствия у репетитора.
       hidden: document.hidden,
+      // Лазерная указка — единственное, что ходит вне объектов доски:
+      // эфемерная точка для второго участника, в базу объектом её класть
+      // нельзя (мусор и лишний трафик). Сервер хранит последнюю на доске
+      // и раздаёт второй стороне пару секунд.
+      laser: (BD.tool === "laser" && BD.laser)
+        ? toWorld(BD.laser.x, BD.laser.y) : null,
+      // «Покажи мой вид»: разовая команда репетитора — мировой центр
+      // и зум его экрана. Шлётся один раз после нажатия (см. bd-follow);
+      // сервер держит её ~10 с и отдаёт стороне ученика.
+      follow: BD.followCmd || "skip",
+      // Таймер урока: команда репетитора (старт/пауза/дальше/сброс),
+      // состояние возвращается обоим — отсчёт ведём по серверу.
+      timer: timerCmd === undefined ? "skip" : timerCmd,
+      // Реакция-эмодзи: разовая, как лазер, — поле react в том же теле.
+      react: reactCmd || "skip",
     });
+    if (res.ok) { BD.followCmd = null; timerCmd = undefined; reactCmd = undefined; }
     if (!res.ok) {
       // Отправленное не подтвердилось — возвращаем в очередь, иначе
       // штрих просто пропадёт у второго участника.
@@ -729,6 +795,47 @@ async function syncNow() {
     }
     BD.me = res.me || BD.me;
     BD.rev = res.rev;
+    // Чужой лазер: сервер отдаёт его только второй стороне и только
+    // свежий (пару секунд). Свой ответ с той же точкой игнорируем —
+    // своя точка рисуется локально.
+    if (res.laser && res.laser.by !== BD.me) {
+      BD.remoteLaser = { x: res.laser.x, y: res.laser.y,
+                         by: res.laser.by, seen: performance.now() };
+      paint();
+      clearTimeout(BD._laserT);
+      // У второй стороны опрос с перерывами: если следующая точка не
+      // приехала, гасим сами, а не ждём вечно
+      BD._laserT = setTimeout(() => { BD.remoteLaser = null; paint(); }, 2600);
+    }
+    // «Покажи мой вид» от репетитора. Разовая команда: применяем каждую
+    // один раз (по метке времени); ученик в другой вкладке — ждёт
+    // возвращения, но дольше 10 секунд не ждём: устаревшая не нужна.
+    if (res.follow && res.follow.at > (BD.followSeen || 0)) {
+      if (document.hidden) BD.followPending = res.follow;
+      else applyFollow(res.follow);
+    }
+    // Таймер: серверное состояние — единое для обеих сторон (поле есть,
+    // только пока таймер идёт/на паузе/недавно истёк; нет поля — сброшен)
+    BD.serverTimer = res.timer || null;
+    renderTimer();
+    // Реакция второй стороны: сервер отдаёт чужую и свежую, но в КАЖДОМ
+    // опросе — применяем одноразово по метке, иначе одна реакция
+    // всплывала бы каждые 1,2 секунды (CDP-прогон).
+    if (res.react && (res.react.by + ":" + res.react.at) !== BD.reactSeen) {
+      BD.reactSeen = res.react.by + ":" + res.react.at;
+      pushReact(res.react.emoji, { x: res.react.x, y: res.react.y }, res.react.by);
+    }
+    // Слово от репетитора (добавлено им в мой словарь с доски):
+    // кладём в СВОЁ состояние — источник правды для словаря именно оно,
+    // иначе ближайшая синхронизация состояния слово бы смыла.
+    // Доска бывает открыта всем ученикам, а слово — одному: применяем,
+    // только если оно адресовано мне (BD.me = «s» + id ученика).
+    if (res.dictAdd && res.dictAdd.at > (BD.dictAddSeen || 0)
+        && "s" + res.dictAdd.studentId === BD.me) {
+      BD.dictAddSeen = res.dictAdd.at;
+      const rec = studentTakeWord(res.dictAdd);
+      if (rec) toast(`Учитель добавил вам слово: «${rec.w}».`);
+    }
     let changed = false;
     (res.objects || []).forEach(o => {
       // Свой же объект с сервера не принимаем поверх свежего: пока летел
@@ -814,6 +921,13 @@ canvas.addEventListener("pointerdown", e => {
     // объекта, и попадание по ней — это точно про размер, а не про выбор.
     const lk = hitLockButton(w.x, w.y);
     if (lk) {
+      // Замок — право учителя: ученик закреплённое не открепит и сам
+      // ничего не приклеит (на сервере это тоже отклоняется).
+      if (BD.role !== "tutor") {
+        toast(lk.locked ? "Закреплено учителем: не сдвинется и не сотрётся."
+                        : "Замок ставит и снимает учитель.");
+        return;
+      }
       put({ ...lk, locked: lk.locked ? 0 : 1 });
       toast(lk.locked ? "Откреплено — можно двигать." : "Закреплено: не сдвинется и не сотрётся.");
       return;
@@ -838,17 +952,20 @@ canvas.addEventListener("pointerdown", e => {
     const hit = hitTest(w.x, w.y);
     BD.selected = hit ? hit.id : null;
     if (hit) {
-      // Карточка со словом переворачивается по нажатию — это её смысл
-      if (hit.kind === "word" && (e.detail === 2 || isDouble)) {
+      // Карточка со словом переворачивается по нажатию — это её смысл.
+      // Залоченная не трогается: замок это и «не менять».
+      if (hit.kind === "word" && (e.detail === 2 || isDouble) && !hit.locked) {
         put({ ...hit, h: hit.h > 70 ? 62 : 96 });
         return;
       }
       // Дабл-клик по заметке или тексту — дописать. Раньше текст можно
       // было ввести ровно один раз при создании, и всё: повторного входа
-      // в редактор не существовало (жалоба владельца).
+      // в редактор не существовало (жалоба владельца). Залоченное не
+      // редактируется и учителем — сначала сними замок.
       if ((hit.kind === "note" || hit.kind === "text") && (e.detail === 2 || isDouble)) {
         e.preventDefault();
-        openEditor(hit);
+        if (hit.locked) toast("Закреплено — сначала сними замок у рамки.");
+        else openEditor(hit);
         return;
       }
       // Задание ученик запускает одним нажатием. Но САМО открытие — не
@@ -897,8 +1014,9 @@ canvas.addEventListener("pointerdown", e => {
   if (BD.tool === "note" || BD.tool === "text") {
     // Клик по УЖЕ существующей заметке или тексту — редактирование, а не
     // новая запись поверх: «дописать» — самое частое, что делают дальше.
+    // Залоченное не редактируется (замок это и «не менять»).
     const hit = hitTest(w.x, w.y);
-    if (hit && (hit.kind === "note" || hit.kind === "text")) {
+    if (hit && (hit.kind === "note" || hit.kind === "text") && !hit.locked) {
       e.preventDefault();
       BD.selected = hit.id;
       openEditor(hit);
@@ -908,8 +1026,12 @@ canvas.addEventListener("pointerdown", e => {
   }
 
   if (BD.tool === "note") {
+    // Цвет бумаги — последний выбранный в палитре (или свой hex), а не
+    // всегда жёлтый: раньше создание затирало выбор палитры.
     const o = { id: uid(), kind: "note", x: w.x - 90, y: w.y - 60, w: 180, h: 120,
-                color: "note", size: 3, text: "" };
+                color: NOTE_COLORS.includes(BD.color) || String(BD.color).startsWith("#")
+                  ? BD.color : "note",
+                size: 3, text: "" };
     put(o);
     openEditor(o);
     return;
@@ -1207,6 +1329,32 @@ canvas.addEventListener("touchend", () => { pinch = null; }, { passive: true });
 const NOTE_LH = 19, NOTE_PAD = 12;
 const NOTE_MIN_H = 120, NOTE_MAX_H = 320, NOTE_TEXT_LIMIT = 600;
 
+/* Размер текстового объекта: size — не толщина (ей текст не рисуется),
+ * а кегль: высота строки = size × 6 в разумных пределах 12–96 px.
+ * Меняется рядом толщин в панели стиля — у текста это и есть «размер». */
+const textLH = size => Math.min(96, Math.max(12, (size || 3) * 6));
+
+/** Высота текстового объекта под переносы: рамка выделения и хит-тест
+ *  обязаны совпадать с тем, что реально нарисовано. */
+function textHeight(text, w, lh) {
+  ctx.save();
+  ctx.font = "600 " + Math.round(lh * 0.86) + "px Nunito, system-ui, sans-serif";
+  let lines = 0;
+  for (const para of String(text).split("\n")) {
+    const words = para.split(/[ \t]+/).filter(Boolean);
+    if (!words.length) { lines++; continue; }   // пустая строка = отступ, как в drawText
+    let line = "";
+    for (const word of words) {
+      const t = line ? line + " " + word : word;
+      if (ctx.measureText(t).width > w && line) { lines++; line = word; }
+      else line = t;
+    }
+    if (line) lines++;
+  }
+  ctx.restore();
+  return Math.max(lh, lines * lh);
+}
+
 function noteHeight(text, w) {
   ctx.save();
   ctx.font = "600 " + Math.round(NOTE_LH * 0.86) + "px Nunito, system-ui, sans-serif";
@@ -1252,6 +1400,9 @@ $("bd-editor-ok").addEventListener("click", () => {
     const o = { ...BD.objects.get(editing.id), text };
     // Стикер подгоняем под текст, если его размер не выбирали руками
     if (o.kind === "note" && !noteManualH.has(o.id)) o.h = noteHeight(text, o.w);
+    // У текстового объекта высота следует за кеглем и переносами: иначе
+    // рамка выделения и хит-тест врут после смены текста или размера
+    if (o.kind === "text") o.h = textHeight(text, o.w || 460, textLH(o.size));
     put(o);
   }
   $("bd-editor").hidden = true;
@@ -1283,8 +1434,10 @@ function applyCustomColor(hex) {
     if (on) { x.style.background = hex; x.classList.add("picked"); }
     x.classList.toggle("active", on);
   });
-  // Цвет применяется и к выделенному объекту — как у обычных кружков
-  if (BD.selected && BD.objects.has(BD.selected)) {
+  // Цвет применяется и к выделенному объекту — как у обычных кружков.
+  // Залоченное не перекрашивается: замок это и «не менять».
+  if (BD.selected && BD.objects.has(BD.selected)
+      && !BD.objects.get(BD.selected).locked) {
     put({ ...BD.objects.get(BD.selected), color: hex });
   }
 }
@@ -1305,8 +1458,9 @@ function buildStyleBar() {
       BD.color = name;
       document.querySelectorAll(".bd-swatch").forEach(x => x.classList.toggle("active", x === b));
       // Цвет применяется и к выделенному объекту: иначе пришлось бы
-      // стирать и рисовать заново.
-      if (BD.selected && BD.objects.has(BD.selected)) {
+      // стирать и рисовать заново. Залоченное — нет: замок это «не менять».
+      if (BD.selected && BD.objects.has(BD.selected)
+          && !BD.objects.get(BD.selected).locked) {
         put({ ...BD.objects.get(BD.selected), color: name });
       }
     });
@@ -1315,11 +1469,13 @@ function buildStyleBar() {
   /* Кружок «свой цвет»: нативный пикер поверх обычного кружка. Чернилам
      и маркеру — можно (у маркера полупрозрачность задаётся альфой при
      отрисовке, globalAlpha 0.35 в drawObject, поэтому любой hex ложится
-     так же, как токенные MARK_COLORS). Стикерам — нет: фон стикера это
-     тематическая бумага, а не чернила.
+     так же, как токенные MARK_COLORS). Стикеру — тоже можно: его фон
+     это данные объекта, как и чернила (просьба владельца — палитра
+     стикера как в Miro).
      Последний выбранный цвет запоминается прямо в этом кружке; повторный
      клик снова открывает пикер, уже с этого цвета. */
-  [["ink", "Свой цвет чернил"], ["mark", "Свой цвет маркера"]].forEach(([kind, hint]) => {
+  [["ink", "Свой цвет чернил"], ["mark", "Свой цвет маркера"],
+   ["note", "Свой цвет стикера"]].forEach(([kind, hint]) => {
     const b = document.createElement("button");
     b.className = "bd-swatch bd-custom";
     b.dataset.kind = kind;
@@ -1328,7 +1484,7 @@ function buildStyleBar() {
     const inp = document.createElement("input");
     inp.type = "color";
     inp.className = "bd-color-input";
-    inp.value = cssColor(kind === "ink" ? "ink" : "mark1");
+    inp.value = cssColor(kind === "ink" ? "ink" : kind === "mark" ? "mark1" : "note");
     inp.setAttribute("aria-label", hint);
     inp.addEventListener("input", () => applyCustomColor(inp.value));
     b.appendChild(inp);
@@ -1351,7 +1507,16 @@ function buildStyleBar() {
       BD.size = px;
       document.querySelectorAll(".bd-size").forEach(x => x.classList.toggle("active", x === b));
       if (BD.selected && BD.objects.has(BD.selected)) {
-        put({ ...BD.objects.get(BD.selected), size: px });
+        const sel = BD.objects.get(BD.selected);
+        // У текста кегль тянет и высоту рамки — пересчитываем сразу.
+        // Залоченное не меняем: замок это и «не менять».
+        if (sel.locked) {
+          toast("Закреплено — сначала сними замок у рамки.");
+        } else if (sel.kind === "text") {
+          put({ ...sel, size: px, h: textHeight(sel.text || "", sel.w || 460, textLH(px)) });
+        } else {
+          put({ ...sel, size: px });
+        }
       }
     });
     sizes.appendChild(b);
@@ -1367,7 +1532,8 @@ const TOOL_STYLE = {
   select:  { colors: null,  sizes: false },
   eraser:  { colors: null,  sizes: false },
   note:    { colors: "note", sizes: false },
-  text:    { colors: "ink", sizes: false },
+  // У текста ряд толщин — это кегль (textLH): A маленькое и крупное
+  text:    { colors: "ink", sizes: true },
   pen:     { colors: "ink", sizes: true },
   marker:  { colors: "mark", sizes: true },
   rect:    { colors: "ink", sizes: true },
@@ -1391,9 +1557,10 @@ function syncStyleBar() {
   const list = conf.colors === "note" ? NOTE_COLORS
              : conf.colors === "mark" ? MARK_COLORS : COLORS;
   if (conf.colors && !list.includes(BD.color)) {
-    // Свой hex годится и чернилам, и маркеру: переживает смену ручки
-    // на маркер и обратно. Стикеру он не нужен — там бумага, не чернила.
-    if (String(BD.color).startsWith("#") && conf.colors !== "note") {
+    // Свой hex годится чернилам, маркеру и стикеру: переживает смену
+    // инструмента туда-обратно (бумага стикера — такие же данные
+    // объекта, как чернила).
+    if (String(BD.color).startsWith("#")) {
       document.querySelectorAll(".bd-swatch").forEach(sw =>
         sw.classList.toggle("active", sw.classList.contains("bd-custom")));
     } else {
@@ -1604,27 +1771,260 @@ $("bd-theme").addEventListener("click", () => {
   paint();
 });
 
-/* Скачать картинкой: конспект урока можно отправить ученику в чат. */
+/* Скачать картинкой: конспект урока можно отправить ученику в чат.
+ *
+ * Рисуем в ОФСКРИН, а не с живого полотна. Прежний вариант делал
+ * fitToContent() на видимом канвасе и читал его через toBlob: blob
+ * собирается асинхронно, и за это время цикл отрисовки успевал вернуть
+ * и перерисовать обычный вид — в файл уезжал случайный кадр, а то и
+ * пустой. Плюс снимок ограничен размером окна (мыло при маленьком окне).
+ * Здесь: свой канвас размером с содержимое, с dpr как на ретине, фон
+ * доски заливается тем же draw() — он умеет работать на любом размере. */
 $("bd-png").addEventListener("click", () => {
-  const list = [...BD.objects.values()];
+  const list = [...BD.objects.values()].filter(o => !isService(o));
   if (!list.length) { toast("Доска пустая."); return; }
-  const saveView = { ...BD.view };
-  fitToContent();
-  draw();
-  canvas.toBlob(blob => {
+  // рамка содержимого с полем вокруг
+  const pad = 40;
+  let x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity;
+  list.forEach(o => {
+    const b = bounds(o);
+    x1 = Math.min(x1, b.x); y1 = Math.min(y1, b.y);
+    x2 = Math.max(x2, b.x + b.w); y2 = Math.max(y2, b.y + b.h);
+  });
+  if (!isFinite(x1)) { toast("Доска пустая."); return; }
+  const cw = x2 - x1 + pad * 2, ch = y2 - y1 + pad * 2;
+  // масштаб: не мельчить больше 2×, но и не гигантить за 4096px на сторону
+  const k = Math.min(2, 4096 / cw, 4096 / ch);
+  const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+  const off = document.createElement("canvas");
+  off.width = Math.max(1, Math.round(cw * k * dpr));
+  off.height = Math.max(1, Math.round(ch * k * dpr));
+  const offCtx = off.getContext("2d");
+  offCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  // подменяем контекст и вид на время отрисовки: draw() общая
+  const realCtx = ctx, realView = { ...BD.view };
+  const realSelected = BD.selected, realLaser = BD.laser;
+  BD.selected = null;                       // рамка выделения — не содержимое доски
+  BD.laser = null;                          // и точка указки
+  ctx = offCtx;
+  BD.view = { x: -x1 * k + pad * k, y: -y1 * k + pad * k, k };
+  paint();
+  draw(Math.ceil(cw * k), Math.ceil(ch * k));
+  ctx = realCtx;
+  BD.view = realView;
+  BD.selected = realSelected;
+  BD.laser = realLaser;
+  paint();
+  off.toBlob(blob => {
+    if (!blob) { toast("Не получилось собрать картинку."); return; }
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
     a.download = ($("bd-name").textContent || "доска").trim() + ".png";
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 4000);
-    BD.view = saveView;
-    paint();
   });
 });
 
 document.addEventListener("visibilitychange", () => {
   if (BD.boardId) syncNow();
+  // Вернулись на доску — применить ждущую команду «покажи мой вид»,
+  // если она ещё свежая (сервер держит её 10 секунд)
+  if (!document.hidden && BD.followPending) {
+    const f = BD.followPending;
+    BD.followPending = null;
+    if (Date.now() / 1000 - f.at <= 10) applyFollow(f);
+  }
 });
+
+/* ---------- «Покажи мой вид» (репетитор) ----------
+   Разовая команда, а не режим слежения: ученик после перелёта свободен.
+   Команда едет с ближайшей синхронизацией (поле follow в теле sync —
+   тот же канал, что лазер, объектом в базу не кладём). */
+$("bd-follow").addEventListener("click", () => {
+  const c = toWorld(innerWidth / 2, innerHeight / 2);
+  BD.followCmd = { x: c.x, y: c.y, k: BD.view.k };
+  toast("Ученику переносится ваш вид…");
+  scheduleSync();
+});
+
+/* «Залочить всё» / «отпереть всё» (репетитор): ученик на волне
+   растаскивания разметки не должен уметь разобрать доску за секунду.
+   Служебное (пинг, фон) не трогаем. */
+function lockAll(value) {
+  let n = 0;
+  BD.objects.forEach(o => {
+    if (isService(o)) return;
+    if (!!o.locked !== value) { put({ ...o, locked: value ? 1 : 0 }); n++; }
+  });
+  if (n) toast(value ? `Закрепил всё на доске (${n}).` : `Всё откреплено (${n}).`);
+  else toast(value ? "Закреплять нечего." : "Закреплённого и не было.");
+}
+$("bd-lock-all").addEventListener("click", () => lockAll(true));
+$("bd-unlock-all").addEventListener("click", () => lockAll(false));
+
+/* ---------- реакции-эмодзи ----------
+   Живая реакция на уроке: эмодзи всплывает снизу экрана и тает за
+   ~3,5 с. Временное, как пинг с лазером, — не объект доски: едет полем
+   react в теле sync, сервер держит последнюю на сторону ~5 секунд.
+   Свою видишь сразу, чужую — из ответа синхронизации. */
+BD.reacts = [];
+let reactCmd;                 // undefined — ничего не шлём
+$("bd-react").addEventListener("click", () => {
+  const m = $("bd-react-menu");
+  m.hidden = !m.hidden;
+});
+document.querySelectorAll(".bd-react-emoji").forEach(b => {
+  b.addEventListener("click", () => {
+    $("bd-react-menu").hidden = true;
+    // всплывает от низа экрана по центру с лёгким разбросом
+    const pt = toWorld(innerWidth / 2 + (Math.random() * 120 - 60), innerHeight - 60);
+    pushReact(b.dataset.emoji, pt, BD.me || "me");
+    reactCmd = { emoji: b.dataset.emoji, x: pt.x, y: pt.y };
+    scheduleSync();
+  });
+});
+function pushReact(emoji, pt, by) {
+  BD.reacts.push({ emoji, x: pt.x, y: pt.y, t0: performance.now(), by });
+  if (BD.reacts.length > 8) BD.reacts.shift();   // старые вытесняются
+  paint();
+}
+
+/* ---------- таймер урока ----------
+   Ставит репетитор (пресеты или своё число), команда едет тем же sync,
+   что лазер и «покажи мой вид» (поле timer в теле запроса); сервер
+   хранит состояние на доске, и его видят оба — и новый заход тоже.
+   Источник правды для отсчёта — серверное состояние (BD.serverTimer):
+   стороны не расходятся, даже если у кого-то часы спешат. */
+let timerCmd;                 // undefined — ничего не шлём ("skip")
+$("bd-timer").addEventListener("click", () => {
+  const m = $("bd-timer-menu");
+  m.hidden = !m.hidden;
+});
+document.querySelectorAll("#bd-timer-menu [data-min]").forEach(b => {
+  b.addEventListener("click", () => startTimer(+b.dataset.min));
+});
+$("bd-timer-custom-ok").addEventListener("click", () => {
+  const min = Math.max(1, Math.min(99, Number($("bd-timer-custom").value) || 0));
+  if (min) startTimer(min);
+});
+function startTimer(min) {
+  $("bd-timer-menu").hidden = true;
+  timerCmd = { until: Date.now() / 1000 + min * 60 };
+  toast(`Таймер: ${min} мин — поехали.`);
+  scheduleSync();
+}
+$("bd-timer-pause").addEventListener("click", () => {
+  const st = BD.serverTimer;
+  if (!st) return;
+  if (st.pausedLeft > 0) {
+    // Дальше: снимаем с паузы — новый until от «сколько осталось»
+    timerCmd = { until: Date.now() / 1000 + st.pausedLeft };
+    toast("Таймер пошёл дальше.");
+  } else {
+    timerCmd = { pausedLeft: timerLeft() };
+    toast("Таймер на паузе.");
+  }
+  scheduleSync();
+});
+$("bd-timer-reset").addEventListener("click", () => {
+  timerCmd = null;                       // сброс — сервер чистит поля
+  BD.serverTimer = null;
+  renderTimer();
+  toast("Таймер сброшен.");
+  scheduleSync();
+});
+
+/** Осталось секунд по серверному состоянию таймера. */
+function timerLeft() {
+  const st = BD.serverTimer;
+  if (!st) return 0;
+  if (st.pausedLeft > 0) return st.pausedLeft;
+  return Math.max(0, st.until - Date.now() / 1000);
+}
+
+function renderTimer() {
+  const plate = $("bd-timer-plate");
+  const st = BD.serverTimer;
+  plate.hidden = !st;
+  if (!st) return;
+  // Кнопки — только репетитору; «Пауза»/«Дальше» по состоянию
+  const isTutor = BD.role === "tutor";
+  $("bd-timer-pause").hidden = !isTutor;
+  $("bd-timer-reset").hidden = !isTutor;
+  if (isTutor) $("bd-timer-pause").textContent = st.pausedLeft > 0 ? "Дальше" : "Пауза";
+}
+
+/* Тик раз в четверть секунды: отсчёт, финальные секунды и «время!».
+   «Время!» звучит один раз на команду (at+by), а не каждый кадр. */
+setInterval(() => {
+  const st = BD.serverTimer;
+  if (!st) return;
+  const left = timerLeft();
+  const plate = $("bd-timer-plate");
+  const paused = st.pausedLeft > 0;
+  const mm = Math.floor(left / 60), ss = Math.floor(left % 60);
+  const done = !paused && left <= 0;
+  $("bd-timer-left").textContent = done ? "Время!" : `${mm}:${String(ss).padStart(2, "0")}`;
+  plate.classList.toggle("urgent", !paused && left > 0 && left <= 10);
+  if (done) {
+    const id = st.by + ":" + st.at;
+    if (BD.timerBeeped !== id) {
+      BD.timerBeeped = id;
+      plate.classList.add("urgent");
+      timerBeep();
+    }
+  }
+}, 250);
+
+/* Короткий сигнал двумя нотами: своя мини-пищалка на WebAudio, файлов
+   и библиотек не надо — в духе «никаких зависимостей». */
+function timerBeep() {
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    const ac = timerBeep.ctx || (timerBeep.ctx = new AC());
+    const t0 = ac.currentTime;
+    [880, 660].forEach((f, i) => {
+      const o = ac.createOscillator(), g = ac.createGain();
+      o.type = "sine";
+      o.frequency.value = f;
+      const t = t0 + i * 0.22;
+      g.gain.setValueAtTime(0.001, t);
+      g.gain.exponentialRampToValueAtTime(0.22, t + 0.03);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+      o.connect(g);
+      g.connect(ac.destination);
+      o.start(t);
+      o.stop(t + 0.22);
+    });
+  } catch (e) { /* беззвучный режим — просто не пищим */ }
+}
+
+/** Плавно (~0,5 с) перелететь в вид, который прислал репетитор:
+ *  тот же мировой центр и зум, что у него на экране. */
+function applyFollow(f) {
+  BD.followSeen = f.at;
+  const k = Math.max(0.1, Math.min(8, f.k || 1));
+  const from = { ...BD.view };
+  const to = { x: innerWidth / 2 - f.x * k, y: innerHeight / 2 - f.y * k, k };
+  // Подгонку по содержимому больше не делаем сами: человек (и учитель)
+  // уже выбрали вид
+  BD.userMoved = true;
+  const t0 = performance.now();
+  const step = now => {
+    const t = Math.min(1, (now - t0) / 500);
+    // easeInOutQuad: без рывка в начале и в конце
+    const e = t < 0.5 ? 2 * t * t : 1 - ((-2 * t + 2) ** 2) / 2;
+    BD.view = {
+      x: from.x + (to.x - from.x) * e,
+      y: from.y + (to.y - from.y) * e,
+      k: from.k + (to.k - from.k) * e,
+    };
+    paint();
+    if (t < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+  toast("Учитель зовёт посмотреть сюда.");
+}
 
 /* ---------- указка ---------- */
 function sendPing(x, y) {
@@ -1837,7 +2237,16 @@ function renderTaskChips() {
 $("bd-words").addEventListener("click", () => {
   const panel = $("bd-panel");
   panel.hidden = !panel.hidden;
-  if (!panel.hidden && !BD.students.length) loadStudents();
+  if (!panel.hidden) {
+    if (!BD.students.length) loadStudents();
+    // Список учеников мог приехать раньше через ensureStudents (меню
+    // доступа): тогда loadStudents не зовётся, и селект надо заполнить
+    // здесь — иначе он пустой, а слова добавить некому (CDP-прогон).
+    else if (BD.role === "tutor" && !$("bd-student").childElementCount) {
+      renderStudentOptions();
+      loadWords($("bd-student").value);
+    }
+  }
   // Задания выдаёт репетитор; ученику в панели — только его слова
   if (!panel.hidden && BD.role === "tutor" && $("bd-tasks")) {
     $("bd-tasks").hidden = false;
@@ -1847,6 +2256,68 @@ $("bd-words").addEventListener("click", () => {
     $("bd-books").hidden = false;
     if (!BOOKS.length) loadBooks();
   }
+  // Форма «добавить слово» — репетиторская (ученик добавляет себе сам,
+  // у него своя кнопка в шапке и у карточек)
+  if ($("bd-panel-add")) {
+    $("bd-panel-add").hidden = panel.hidden || BD.role !== "tutor";
+    if (!$("bd-panel-add").hidden) refreshPanelFolders();
+  }
+});
+
+/* Папки в форме добавления — из словаря выбранного ученика. */
+function refreshPanelFolders() {
+  fillFolderSelect($("bd-add-folder"), $("bd-add-newfolder"),
+                   BD.words.flatMap(x => x.folders || []));
+}
+$("bd-student").addEventListener("change", refreshPanelFolders);
+
+/* Автоподстановка перевода из банка (банк едет лениво — см. ensureWordBank). */
+let addLookupTimer = 0;
+$("bd-add-w").addEventListener("input", () => {
+  clearTimeout(addLookupTimer);
+  addLookupTimer = setTimeout(async () => {
+    await ensureWordBank();
+    const rec = bankLookup($("bd-add-w").value);
+    // перевод не затираем, если человек уже пишет свой
+    if (rec && !$("bd-add-t").value.trim()) {
+      $("bd-add-t").value = rec.t || "";
+      $("bd-add-t").dataset.ex = rec.ex || "";
+    }
+  }, 250);
+});
+
+$("bd-add-ok").addEventListener("click", async () => {
+  const w = $("bd-add-w").value.trim();
+  const t = $("bd-add-t").value.trim();
+  if (!w || !t) { toast("Нужны и слово, и перевод."); return; }
+  const folder = chosenFolder($("bd-add-folder"), $("bd-add-newfolder"));
+  const studentId = Number($("bd-student").value);
+  if (!studentId) { toast("Сначала выберите ученика."); return; }
+  const rec = bankLookup(w) || {};
+  const res = await api("/api/tutor/add-word", {
+    token: BD.token, studentId, w, t,
+    ex: $("bd-add-t").dataset.ex || rec.ex || "",
+    folders: folder ? [folder] : [], boardId: BD.boardId,
+  }).catch(() => null);
+  if (!res || !res.ok) { toast("Не сохранилось — " + ((res && res.error) || "нет связи")); return; }
+  // Сразу в список панели: ждать следующей загрузки словаря не нужно
+  if (!res.exists) {
+    BD.words.push({ w, t, cat: rec.cat || "", ex: rec.ex || "",
+                    folders: folder ? [folder] : [] });
+  } else {
+    const have = BD.words.find(x => x.w.toLowerCase() === w.toLowerCase());
+    if (have && folder && !(have.folders || []).includes(folder)) {
+      (have.folders = have.folders || []).push(folder);
+    }
+  }
+  renderWords();
+  refreshPanelFolders();
+  $("bd-add-w").value = "";
+  $("bd-add-t").value = "";
+  delete $("bd-add-t").dataset.ex;
+  toast(res.exists
+    ? `«${w}» уже было в словаре${folder ? " — добавил папку." : "."}`
+    : `«${w}» — в словаре ученика.`);
 });
 $("bd-panel-close").addEventListener("click", () => { $("bd-panel").hidden = true; });
 $("bd-search").addEventListener("input", renderWords);
@@ -1883,7 +2354,8 @@ async function loadStudents() {
     $("bd-student").hidden = true;
     try {
       const st = JSON.parse(localStorage.getItem("savelyState") || "{}");
-      BD.words = (st.dictionary || []).map(d => ({ w: d.w, t: d.t, cat: d.cat }));
+      BD.words = (st.dictionary || [])
+        .map(d => ({ w: d.w, t: d.t, cat: d.cat, ex: d.ex || "", folders: d.folders || [] }));
     } catch (e) { BD.words = []; }
     renderWords();
     return;
@@ -1896,17 +2368,23 @@ async function loadStudents() {
     }
     wordsOk();
     BD.students = res.students || [];
-    const sel = $("bd-student");
-    // words у ученика — это разбивка по статусам, а не число: в подпись
-    // берём общее количество, иначе в списке стоит «[object Object] слов».
-    const total = s => (s.words && typeof s.words === "object" ? s.words.total : s.words) || 0;
-    sel.innerHTML = BD.students.map(s =>
-      `<option value="${s.id}">${esc(s.name)} — ${total(s)} ${wordsPlural(total(s))}</option>`).join("");
+    renderStudentOptions();
     if (BD.students.length) loadWords(BD.students[0].id);
     else $("bd-words-hint").textContent = "У вас пока нет учеников.";
   } catch (e) {
     wordsError("Нет связи — список учеников не загрузился.", loadStudents);
   }
+}
+
+/* Опции селектора учеников — отдельно от загрузки: список мог приехать
+   раньше через ensureStudents, и тогда панель заполняет его без сети. */
+function renderStudentOptions() {
+  const sel = $("bd-student");
+  // words у ученика — это разбивка по статусам, а не число: в подпись
+  // берём общее количество, иначе в списке стоит «[object Object] слов».
+  const total = s => (s.words && typeof s.words === "object" ? s.words.total : s.words) || 0;
+  sel.innerHTML = BD.students.map(s =>
+    `<option value="${s.id}">${esc(s.name)} — ${total(s)} ${wordsPlural(total(s))}</option>`).join("");
 }
 
 async function loadWords(studentId) {
@@ -1917,7 +2395,9 @@ async function loadWords(studentId) {
       return;
     }
     wordsOk();
-    BD.words = (res.student.dictionary || []).map(d => ({ w: d.w, t: d.t, cat: d.cat }));
+    // folders нужны группировке списка и форме «добавить слово»
+    BD.words = (res.student.dictionary || [])
+      .map(d => ({ w: d.w, t: d.t, cat: d.cat, ex: d.ex || "", folders: d.folders || [] }));
     renderWords();
   } catch (e) {
     // Словарь не обнуляем: список прошлого ученика поверх ошибки
@@ -1932,12 +2412,26 @@ function renderWords() {
   const list = BD.words.filter(x =>
     !q || x.w.toLowerCase().includes(q) || (x.t || "").toLowerCase().includes(q)).slice(0, 300);
   const box = $("bd-word-list");
-  box.innerHTML = list.length
-    ? list.map((x, i) => `<button class="bd-word" data-i="${i}">${
+  if (!list.length) {
+    box.innerHTML = `<p class="bd-hint">Ничего не нашлось.</p>`;
+    return;
+  }
+  // Слова по папкам, как в словаре ученика: папка — заголовок, внутри
+  // её слова. Без папки — в конце общей кучей.
+  const groups = new Map();
+  list.forEach((x, i) => {
+    const f = (x.folders || [])[0] || "";
+    if (!groups.has(f)) groups.set(f, []);
+    groups.get(f).push({ x, i });
+  });
+  const names = [...groups.keys()].sort((a, b) => (a === "") - (b === "") || a.localeCompare(b, "ru"));
+  box.innerHTML = names.map(f =>
+    (f ? `<div class="bd-folder-head">${esc(f)}</div>` : "")
+    + groups.get(f).map(({ x, i }) => `<button class="bd-word" data-i="${i}">${
         typeof wordArtHTML === "function"
           ? `<span class="bd-word-art">${wordArtHTML(x.w, x.cat)}</span>` : ""
       }<span class="bd-word-txt"><b>${esc(x.w)}</b><span>${esc(x.t || "")}</span></span></button>`).join("")
-    : `<p class="bd-hint">Ничего не нашлось.</p>`;
+  ).join("");
   box.querySelectorAll("[data-i]").forEach(b => {
     b.addEventListener("click", () => {
       const x = list[+b.dataset.i];
@@ -1969,6 +2463,73 @@ function dropWordCard(x) {
   dropN++;
   put(o);
   toast("«" + x.w + "» на доске. Двойное нажатие — открыть перевод.");
+}
+
+/* ---------- добавление слов в словарь с доски ----------
+   Банк для автоподстановки перевода грузим лениво и один раз: сотни
+   килобайт на кнопку, которую могут и не нажать, не нужны. */
+let wordBankPromise = null;
+function ensureWordBank() {
+  if (!wordBankPromise && typeof loadScriptOnce === "function") {
+    // A1–B2: школьная лексика, которую репетитор добавляет чаще всего.
+    // «moon» живёт в B2 — без него перевод не подставлялся (CDP-прогон).
+    wordBankPromise = Promise.all(["A1", "A2", "B1", "B2"].map(l =>
+      loadScriptOnce(`js/words-${l}.js`).catch(() => false)));
+  }
+  return wordBankPromise || Promise.resolve(false);
+}
+function bankLookup(word) {
+  if (typeof WORDS === "undefined") return null;
+  const lw = String(word || "").trim().toLowerCase();
+  if (!lw) return null;
+  for (const lvl of ["A1", "A2", "B1", "B2", "C1", "C2"]) {
+    const rec = (WORDS[lvl] || []).find(x => x.w.toLowerCase() === lw);
+    if (rec) return rec;
+  }
+  return null;
+}
+
+/* Папки в селект формы: из словаря ученика + «без папки» + «новая…».
+   Возвращает выбранную папку (строку) или "" — без папки. */
+const NEW_FOLDER = "__new__";
+function fillFolderSelect(sel, newFolderInput, folders) {
+  const uniq = [...new Set(folders.filter(Boolean))];
+  sel.innerHTML = uniq.map(f => `<option value="${esc(f)}">${esc(f)}</option>`).join("")
+    + `<option value="">Без папки</option>`
+    + `<option value="${NEW_FOLDER}">Новая папка…</option>`;
+  sel.onchange = () => { newFolderInput.hidden = sel.value !== NEW_FOLDER; };
+  newFolderInput.hidden = true;
+}
+function chosenFolder(sel, newFolderInput) {
+  return sel.value === NEW_FOLDER ? newFolderInput.value.trim() : sel.value;
+}
+
+/* Состояние ученика на этой же машине: board.html и index.html делят
+   localStorage, поэтому слово, добавленное с доски, приложение ученика
+   увидит сразу и увезёт на сервер ближайшей синхронизацией состояния —
+   источник правды для словаря именно он (см. sync_student). */
+function readStudentState() {
+  try { return JSON.parse(localStorage.getItem("savelyState") || "{}"); }
+  catch (e) { return {}; }
+}
+/** Положить слово в состояние ученика (с дедупом). Возвращает запись
+ *  или null, если такое слово уже есть (папку тогда не трогаем). */
+function studentTakeWord(a) {
+  const st = readStudentState();
+  st.dictionary = st.dictionary || [];
+  const lw = String(a.w || "").toLowerCase();
+  if (!lw || st.dictionary.some(d => (d.w || "").toLowerCase() === lw)) return null;
+  const folder = ((a.folders || [])[0] || "").trim();
+  const rec = { w: a.w, t: a.t || "", ex: a.ex || "",
+                added: Date.now(), seen: 1, status: "new",
+                folders: folder ? [folder] : [] };
+  st.dictionary.push(rec);
+  if (folder) {
+    st.trainFolders = st.trainFolders || [];
+    if (!st.trainFolders.includes(folder)) st.trainFolders.push(folder);
+  }
+  localStorage.setItem("savelyState", JSON.stringify(st));
+  return rec;
 }
 
 /* ---------- доступ ученику: кого зовём на доску ----------
@@ -2150,6 +2711,85 @@ function updateBookBar() {
   if (show) $("bd-book-page").textContent = "стр. " + o.page + " / " + (o.pages || 1);
 }
 
+/* Плашка «+ в словарь» у выделенной карточки со словом — только ученику
+   и только если слова ещё нет у него в словаре. Рисуется поверх
+   полотна тем же способом, что листалка книги (bd-bookbar). */
+let wordbarFor = "";
+function updateWordbar() {
+  const bar = $("bd-wordbar");
+  if (!bar) return;
+  const o = BD.selected ? BD.objects.get(BD.selected) : null;
+  let show = false;
+  if (o && o.kind === "word" && BD.role === "student") {
+    const st = readStudentState();
+    const lw = (o.text || "").toLowerCase();
+    show = !(st.dictionary || []).some(d => (d.w || "").toLowerCase() === lw);
+  }
+  const key = show ? o.id : "";
+  if (key === wordbarFor) return;
+  wordbarFor = key;
+  bar.hidden = !show;
+}
+$("bd-wordbar-add").addEventListener("click", () => {
+  const o = BD.selected ? BD.objects.get(BD.selected) : null;
+  if (!o || o.kind !== "word") return;
+  openAddwordDialog({ w: o.text || "", t: o.text2 || "" });
+});
+
+/* ---------- «+ слово» у ученика ----------
+   Диалог добавления слова себе: общий и для кнопки в шапке, и для
+   плашки у карточки. Перевод подставляется из банка (см. bankLookup),
+   папку выбирает ученик — свою или новую. */
+let addwordLookupTimer = 0;
+function openAddwordDialog(prefill) {
+  const box = $("bd-addword");
+  box.hidden = false;
+  $("bd-addword-w").value = (prefill && prefill.w) || "";
+  $("bd-addword-t").value = (prefill && prefill.t) || "";
+  fillFolderSelect($("bd-addword-folder"), $("bd-addword-newfolder"),
+                   readStudentState().trainFolders || []);
+  ensureWordBank();
+  // Фокус — после кадра, как в редакторе текста: синхронный focus()
+  // внутри клика браузер тут же и отбирает
+  setTimeout(() => ($( "bd-addword-w").value ? $("bd-addword-t") : $("bd-addword-w")).focus(), 0);
+}
+function closeAddwordDialog() { $("bd-addword").hidden = true; }
+$("bd-addword-btn").addEventListener("click", () => openAddwordDialog(null));
+$("bd-addword-cancel").addEventListener("click", closeAddwordDialog);
+$("bd-addword-w").addEventListener("input", () => {
+  clearTimeout(addwordLookupTimer);
+  addwordLookupTimer = setTimeout(async () => {
+    await ensureWordBank();
+    const rec = bankLookup($("bd-addword-w").value);
+    if (rec && !$("bd-addword-t").value.trim()) {
+      $("bd-addword-t").value = rec.t || "";
+      $("bd-addword-t").dataset.ex = rec.ex || "";
+    }
+  }, 250);
+});
+$("bd-addword-ok").addEventListener("click", async () => {
+  const w = $("bd-addword-w").value.trim();
+  const t = $("bd-addword-t").value.trim();
+  if (!w || !t) { toast("Нужны и слово, и перевод."); return; }
+  const folder = chosenFolder($("bd-addword-folder"), $("bd-addword-newfolder"));
+  const bank = bankLookup(w) || {};
+  const rec = studentTakeWord({
+    w, t, ex: $("bd-addword-t").dataset.ex || bank.ex || "",
+    folders: folder ? [folder] : [],
+  });
+  if (!rec) { toast(`«${w}» уже есть в твоём словаре.`); closeAddwordDialog(); return; }
+  // Дубль на сервер — на случай, если вкладка закроется раньше
+  // синхронизации состояния (см. /api/student/add-word)
+  api("/api/student/add-word", { token: BD.token, w, t,
+                                 ex: rec.ex, folders: rec.folders }).catch(() => {});
+  closeAddwordDialog();
+  toast(`«${w}» — в словаре, мяу!`);
+  updateWordbar();
+  // В панели «Слова на доску» слово появляется сразу
+  BD.words.push({ w, t, cat: bank.cat || "", ex: rec.ex, folders: rec.folders });
+  renderWords();
+});
+
 function flipBook(delta) {
   const o = BD.selected ? BD.objects.get(BD.selected) : null;
   if (!o || o.kind !== "book") return;
@@ -2218,6 +2858,10 @@ async function boot() {
     BD.token = tutorToken;
     BD.boardId = Number(params.get("id"));
     $("bd-share").hidden = false;
+    $("bd-follow").hidden = false;   // «Покажи мой вид» — кнопка репетитора
+    $("bd-lock-all").hidden = false;
+    $("bd-unlock-all").hidden = false;
+    $("bd-timer").hidden = false;    // таймер ставит только репетитор
     $("bd-back").href = "tutor.html";
   } else if (studentToken) {
     BD.role = "student";
@@ -2227,6 +2871,12 @@ async function boot() {
     // и на нажатие отвечала «может только репетитор»: кнопка, которая
     // существует, чтобы отказать, хуже отсутствующей.
     $("bd-clear").hidden = true;
+    // Фон доски — тоже репетиторский: ученик, переключивший фон посреди
+    // урока, меняет его ОБОИМ (фон — общий объект доски). Сервер такую
+    // смену от ученика тоже отклоняет (см. db.board_sync).
+    $("bd-bg").hidden = true;
+    // А вот добавлять слова себе ученик может и с доски: своя кнопка
+    $("bd-addword-btn").hidden = false;
     // Тот же вопрос, что у репетитора с sync: что делать, если сервер
     // молчит. Раньше этот вызов висел вечно, теперь падает по таймауту —
     // и падал бы молча, за пределами try. Ученик перед уроком видел бы

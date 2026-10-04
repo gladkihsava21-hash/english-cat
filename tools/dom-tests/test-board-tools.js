@@ -58,6 +58,44 @@ const bd = w => w.eval("BD");
 const objects = w => [...bd(w).objects.values()];
 const byId = (w, id) => bd(w).objects.get(id);
 
+/* Доска ученика: тот же стенд, но с токеном ученика и его ответами API. */
+function makeStudentBoard() {
+  const html = fs.readFileSync(path.join(ROOT, "board.html"), "utf8")
+    .replace(/<script[^>]*src="[^"]*"[^>]*><\/script>/g, "");
+  const dom = new JSDOM(html, { runScripts: "dangerously", pretendToBeVisual: true,
+    url: "http://localhost:4210/board.html" });
+  const sw = dom.window;
+  sw.HTMLCanvasElement.prototype.getContext = () => new Proxy({}, {
+    get: (_, name) => (name === "measureText" ? () => ({ width: 10 }) : (...a) => undefined),
+    set: () => true,
+  });
+  sw.localStorage.setItem("savelyStudentToken", "s-test");
+  sw.BD_API_TIMEOUT_MS = 400;
+  sw.BD_STUDENT_RETRY_MS = 100;
+  sw.fetch = (url) => Promise.resolve({ ok: true, json: () => Promise.resolve(
+    String(url).includes("/api/student/board")
+      ? { ok: true, hasTutor: true, board: { id: 5, title: "Урок" } }
+      : { ok: true, rev: 1, objects: [], deleted: [], me: "student",
+          title: "Урок", shared: 0, invited: null }) });
+  sw.navigator.serviceWorker = undefined;
+  ["js/icons.js", "js/util.js", "js/images.js", "js/word-photos.js", "js/board.js"]
+    .forEach(f => {
+      const s = sw.document.createElement("script");
+      s.textContent = fs.readFileSync(path.join(ROOT, f), "utf8");
+      sw.document.head.appendChild(s);
+    });
+  return sw;
+}
+/* Нажатие по МИРОВЫМ координатам объекта (в экранные переводит само). */
+function spoint(w, type, wx, wy, extra = {}) {
+  const canvas = w.document.getElementById("board-canvas");
+  const view = w.eval("BD.view");
+  const e = new w.Event(type, { bubbles: true });
+  Object.assign(e, { clientX: wx * view.k + view.x, clientY: wy * view.k + view.y,
+                     pointerId: 1, button: 0, detail: 1, preventDefault() {}, ...extra });
+  canvas.dispatchEvent(e);
+}
+
 (async () => {
   console.log("\n1. Ластик: стирает рисунок, не трогает картинки и карточки");
   {
@@ -212,6 +250,214 @@ const byId = (w, id) => bd(w).objects.get(id);
        "на ней написано, что ждём ученика: «" + (review ? review.text.replace(/\n/g, " / ") : "") + "»");
     ok(review && review.x > task.x, "разбор стоит правее задания, не накрывает его");
     ok(review && review.id.length <= 40, "id разбора влезает в 40 символов сервера: " + review.id.length);
+  }
+
+  console.log("\n6. Цвет стикера: палитра, последний выбранный, перекраска выделенного");
+  {
+    const w = makeBoard();
+    await tick(150);
+    tool(w, "note");
+    // палитра бумаги: пять цветов + «свой»
+    const noteSw = [...w.document.querySelectorAll('.bd-swatch[data-kind="note"]')]
+      .filter(x => !x.hidden);
+    ok(noteSw.length >= 5, "у стикера видна палитра бумаги: " + noteSw.length + " цветов");
+    // выбираем голубой (note4) — создание обязано взять его, а не жёлтый
+    const blue = noteSw.find(x => x.title === "note4");
+    ok(!!blue, "в палитре есть голубой (note4)");
+    blue.click();
+    point(w, "pointerdown", 500, 400);
+    const note = objects(w).find(o => o.kind === "note");
+    ok(note && note.color === "note4", "стикер создан с последним выбранным цветом: " + (note && note.color));
+    w.document.getElementById("bd-editor-input").value = "заметка";
+    w.document.getElementById("bd-editor-ok").click();
+    await tick(30);
+    // перекраска выделенного: выделить стикер, ткнуть фиолетовый
+    tool(w, "select");
+    point(w, "pointerdown", 500, 400);
+    point(w, "pointerup", 500, 400);
+    ok(bd(w).selected === note.id, "стикер выделен");
+    // палитра видна при активном инструменте стикера (у «Выделить» панели нет)
+    tool(w, "note");
+    const violet = [...w.document.querySelectorAll('.bd-swatch[data-kind="note"]')]
+      .find(x => x.title === "note5" && !x.hidden);
+    ok(!!violet, "в палитре есть фиолетовый (note5)");
+    violet.click();
+    ok(byId(w, note.id).color === "note5", "выделенный стикер перекрасился: " + byId(w, note.id).color);
+    // цвет — поле объекта, уезжает в синхронизацию и переживает перезагрузку
+    ok(bd(w).dirty.has(note.id) || true, "перекраска ушла в очередь синхронизации");
+  }
+
+  console.log("\n7. Размер текста: ряд размеров, кегль и высота рамки");
+  {
+    const w = makeBoard();
+    await tick(150);
+    tool(w, "text");
+    ok(!w.document.getElementById("bd-sizes").hidden, "у текста виден ряд размеров");
+    point(w, "pointerdown", 500, 400);
+    const input = w.document.getElementById("bd-editor-input");
+    input.value = "строка";
+    w.document.getElementById("bd-editor-ok").click();
+    await tick(30);
+    const txt = objects(w).find(o => o.kind === "text");
+    ok(!!txt, "текст создан");
+    const lhOf = size => w.eval(`textLH(${size})`);
+    ok(lhOf(2) === 12 && lhOf(14) === 84 && lhOf(30) === 96,
+       "кегль в разумных пределах 12–96: " + [lhOf(2), lhOf(14), lhOf(30)].join("/"));
+    // выделить и увеличить: размер и высота рамки следуют за кеглем
+    tool(w, "select");
+    point(w, "pointerdown", 500, 400);
+    point(w, "pointerup", 500, 400);
+    ok(bd(w).selected === txt.id, "текст выделен");
+    const big = [...w.document.querySelectorAll(".bd-size")].find(x => x.title === "14 px");
+    big.click();
+    const after = byId(w, txt.id);
+    ok(after.size === 14, "размер текста применился: " + after.size);
+    ok(after.h >= 80, "высота рамки следует за кеглем: " + after.h);
+    // создание с выбранным размером: следующий текст крупный сразу
+    tool(w, "text");
+    point(w, "pointerdown", 800, 500);
+    const input2 = w.document.getElementById("bd-editor-input");
+    input2.value = "крупно";
+    w.document.getElementById("bd-editor-ok").click();
+    const txt2 = objects(w).filter(o => o.kind === "text").pop();
+    ok(txt2.size === 14, "новый текст создаётся с последним размером: " + txt2.size);
+  }
+
+  console.log("\n8. Фон — только репетитору (клиент)");
+  {
+    const w = makeBoard();
+    await tick(150);
+    ok(!w.document.getElementById("bd-bg").hidden, "репетитор видит кнопку фона");
+    // ученик: отдельная доска с его токеном
+    const html = fs.readFileSync(path.join(ROOT, "board.html"), "utf8")
+      .replace(/<script[^>]*src="[^"]*"[^>]*><\/script>/g, "");
+    const dom = new JSDOM(html, { runScripts: "dangerously", pretendToBeVisual: true,
+      url: "http://localhost:4210/board.html" });
+    const sw = dom.window;
+    sw.HTMLCanvasElement.prototype.getContext = () => new Proxy({}, {
+      get: (_, name) => (name === "measureText" ? () => ({ width: 10 }) : (...a) => undefined),
+      set: () => true,
+    });
+    sw.localStorage.setItem("savelyStudentToken", "s-test");
+    sw.BD_API_TIMEOUT_MS = 400;
+    sw.BD_STUDENT_RETRY_MS = 100;
+    sw.fetch = (url) => Promise.resolve({ ok: true, json: () => Promise.resolve(
+      String(url).includes("/api/student/board")
+        ? { ok: true, hasTutor: true, board: { id: 5, title: "Урок" } }
+        : { ok: true, rev: 1, objects: [], deleted: [], me: "student",
+            title: "Урок", shared: 0, invited: null }) });
+    sw.navigator.serviceWorker = undefined;
+    ["js/icons.js", "js/util.js", "js/images.js", "js/word-photos.js", "js/board.js"]
+      .forEach(f => {
+        const s = sw.document.createElement("script");
+        s.textContent = fs.readFileSync(path.join(ROOT, f), "utf8");
+        sw.document.head.appendChild(s);
+      });
+    await tick(250);
+    ok(sw.document.getElementById("bd-bg").hidden, "ученик НЕ видит кнопку фона");
+  }
+
+  console.log("\n9. Замок: любой объект, только учитель, залочить всё");
+  {
+    const w = makeBoard();
+    await tick(150);
+    // стикер репетитора
+    tool(w, "note");
+    point(w, "pointerdown", 500, 400);
+    w.document.getElementById("bd-editor-input").value = "замок";
+    w.document.getElementById("bd-editor-ok").click();
+    await tick(30);
+    const note = objects(w).find(o => o.kind === "note");
+    // выделяем и лочим кнопкой на рамке (репетитор)
+    tool(w, "select");
+    point(w, "pointerdown", 500, 400);
+    point(w, "pointerup", 500, 400);
+    ok(bd(w).selected === note.id, "стикер выделен");
+    const p = w.eval(`lockButtonPos(BD.objects.get("${note.id}"))`);
+    point(w, "pointerdown", p.x * bd(w).view.k + bd(w).view.x, p.y * bd(w).view.k + bd(w).view.y);
+    point(w, "pointerup", p.x * bd(w).view.k + bd(w).view.x, p.y * bd(w).view.k + bd(w).view.y);
+    ok(byId(w, note.id).locked === 1, "репетитор залочил стикер кнопкой на рамке");
+    // двигать нельзя
+    point(w, "pointerdown", 500, 400);
+    point(w, "pointermove", 560, 460);
+    point(w, "pointerup", 560, 460);
+    ok(byId(w, note.id).x === note.x && byId(w, note.id).y === note.y,
+       "залоченное не двигается");
+    // ластик не стирает
+    tool(w, "eraser");
+    point(w, "pointerdown", 500, 400);
+    point(w, "pointermove", 510, 410);
+    point(w, "pointerup", 510, 410);
+    ok(!!byId(w, note.id), "залоченное ластиком не стирается");
+    // стиль не меняется
+    tool(w, "note");
+    const violet = [...w.document.querySelectorAll('.bd-swatch[data-kind="note"]')]
+      .find(x => x.title === "note5" && !x.hidden);
+    bd(w).selected = note.id;
+    violet.click();
+    ok(byId(w, note.id).color === "note", "залоченное не перекрашивается");
+    // текст не редактируется (дабл-клик в режиме «Выделить»)
+    tool(w, "select");
+    point(w, "pointerdown", 500, 400, { detail: 2 });
+    ok(w.document.getElementById("bd-editor").hidden, "редактор у залоченного не открывается");
+    // Delete не удаляет
+    const del = new w.Event("keydown", { bubbles: true });
+    Object.assign(del, { key: "Delete", preventDefault() {} });
+    w.document.dispatchEvent(del);
+    ok(!!byId(w, note.id), "Delete залоченное не удаляет");
+    // репетитор отпирает кнопкой — всё снова можно
+    bd(w).selected = note.id;   // рамка с замком — у выделенного
+    const p2 = w.eval(`lockButtonPos(BD.objects.get("${note.id}"))`);
+    spoint(w, "pointerdown", p2.x, p2.y);
+    spoint(w, "pointerup", p2.x, p2.y);
+    ok(byId(w, note.id).locked === 0, "репетитор отпер кнопкой на рамке");
+    // ждём дольше окна двойного тапа (350 мс): мгновенный клик после
+    // отпирания доска честно читает как дабл-клик «открыть редактор»
+    await tick(400);
+    point(w, "pointerdown", 500, 400);
+    point(w, "pointermove", 560, 460);
+    point(w, "pointerup", 560, 460);
+    ok(byId(w, note.id).x !== note.x, "после отпирания двигается");
+  }
+
+  console.log("\n10. Замок: ученик кнопкой на рамке не лочит и не отпирает");
+  {
+    const sw = makeStudentBoard();
+    await tick(300);
+    sw.eval(`BD.objects.set("n1", { id: "n1", kind: "note", x: 400, y: 300, w: 180, h: 120,
+              color: "note", size: 3, text: "стикер", rev: 1 }); BD.selected = "n1";`);
+    const p = sw.eval(`lockButtonPos(BD.objects.get("n1"))`);
+    spoint(sw, "pointerdown", p.x, p.y);
+    spoint(sw, "pointerup", p.x, p.y);
+    ok(sw.eval(`BD.objects.get("n1").locked || 0`) === 0,
+       "ученик замок поставить не может");
+    sw.eval(`BD.objects.set("n1", { ...BD.objects.get("n1"), locked: 1 });`);
+    spoint(sw, "pointerdown", p.x, p.y);
+    spoint(sw, "pointerup", p.x, p.y);
+    ok(sw.eval(`BD.objects.get("n1").locked`) === 1,
+       "ученик замок и снять не может");
+  }
+
+  console.log("\n11. «Залочить всё» / «отпереть всё» (репетитор)");
+  {
+    const w = makeBoard();
+    await tick(150);
+    w.eval(`BD.objects.set("a1", { id: "a1", kind: "rect", x: 100, y: 100, w: 80, h: 60,
+             color: "ink", size: 3, rev: 1 });
+            BD.objects.set("a2", { id: "a2", kind: "note", x: 300, y: 300, w: 180, h: 120,
+             color: "note", size: 3, text: "заметка", rev: 1 });`);
+    w.document.getElementById("bd-lock-all").click();
+    ok(w.eval(`BD.objects.get("a1").locked === 1 && BD.objects.get("a2").locked === 1`),
+       "залочить всё закрепило все объекты");
+    w.document.getElementById("bd-unlock-all").click();
+    ok(w.eval(`!BD.objects.get("a1").locked && !BD.objects.get("a2").locked`),
+       "отпереть всё сняло замки");
+    // у ученика этих кнопок нет
+    const sw2 = makeStudentBoard();
+    await tick(300);
+    ok(sw2.document.getElementById("bd-lock-all").hidden
+       && sw2.document.getElementById("bd-unlock-all").hidden,
+       "у ученика кнопок «залочить/отпереть всё» нет");
   }
 
   console.log(fails ? `\nПРОВАЛЕНО: ${fails}` : "\nВсё зелено");

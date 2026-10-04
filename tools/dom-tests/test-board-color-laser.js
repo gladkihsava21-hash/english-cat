@@ -98,7 +98,7 @@ const pickCustom = (w, kind, hex) => {
     ok(inp.value.toLowerCase() === "#12ab34", "пикер открывается с запомненного цвета: " + inp.value);
   }
 
-  console.log("\n2. Свой цвет переживает ручка↔маркер, стикерам не предлагается");
+  console.log("\n2. Свой цвет переживает ручка↔маркер, у стикера — свой кружок");
   {
     const { w } = makeBoard();
     await tick(150);
@@ -109,9 +109,14 @@ const pickCustom = (w, kind, hex) => {
     const swMark = w.document.querySelector('.bd-swatch.bd-custom[data-kind="mark"]');
     ok(!swMark.hidden && swMark.classList.contains("active"),
        "кружок маркера виден и активен");
+    // Бумага стикера — такие же данные рисунка, как чернила: свой hex
+    // переживает переход на стикер и обратно (палитра стикера, владелец).
     tool(w, "note");
-    ok(bd(w).color === "note", "стикер вернулся на цвет бумаги: " + bd(w).color);
-    ok(swMark.hidden, "кружки «свой цвет» у стикера скрыты");
+    ok(bd(w).color === "#7b3fd4", "стикер взял тот же hex: " + bd(w).color);
+    ok(swMark.hidden, "кружок маркера у стикера скрыт");
+    const swNote = w.document.querySelector('.bd-swatch.bd-custom[data-kind="note"]');
+    ok(swNote && !swNote.hidden && swNote.classList.contains("active"),
+       "у стикера есть свой кружок «свой цвет» и он активен");
   }
 
   console.log("\n3. Свой цвет перекрашивает выделенный объект");

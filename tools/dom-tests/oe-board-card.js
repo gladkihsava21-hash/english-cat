@@ -65,4 +65,30 @@ async function playAnyMCQ(limit = 20) {
     process.exit(1);
   }
   console.log("  ✓ на доску ничего лишнего не ушло");
+
+  console.log("\n=== Позитив: пришёл по ссылке с доски и ПРОШЁЛ задание ===");
+  {
+    // Регрессия: trainFromHash ставил метку ДО show("practice"), а show()
+    // её тут же гасил — тренировка с доски не доносила результат обратно.
+    w.eval(`window.__board = []; window.__closed = 0;
+            Object.defineProperty(window, "__hashReady", { value: false, configurable: true });`);
+    w.eval(`location.hash = "#train=mcq&card=card-77";`);
+    w.eval("trainFromHash();");
+    await sleep(200);
+    const card = w.eval("JSON.stringify(window.boardTaskCard)");
+    if (card !== '"card-77"') {
+      console.log("  ✗ метка карточки не дожила до упражнения: " + card);
+      process.exit(1);
+    }
+    console.log("  ✓ метка дожила до упражнения: " + card);
+    await playAnyMCQ();
+    await sleep(300);
+    const board = JSON.parse(w.eval("JSON.stringify(window.__board)"));
+    if (!board.length || board[0].card !== "card-77") {
+      console.log("  ✗ результат НЕ уехал в карточку card-77: " + JSON.stringify(board));
+      process.exit(1);
+    }
+    console.log("  ✓ результат уехал в card-77: «" + board[0].text + "»");
+    console.log("  ✓ авто-возврат на доску заведён: " + w.eval("!!window.__exBoardBack"));
+  }
 })();

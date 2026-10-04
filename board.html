@@ -70,6 +70,27 @@
       <button class="bd-btn" id="bd-share" hidden>Открыть ученику</button>
       <div class="bd-share-menu" id="bd-share-menu" hidden></div>
     </div>
+    <!-- «Покажи мой вид»: разовая команда ученику — его экран плавно
+         перелетает в текущий вид репетитора. Только репетитору:
+         ученик чужой вид не навязывает. -->
+    <button class="bd-btn" id="bd-follow" title="Покажи мой вид ученику"
+            data-icon="eye" data-icon-size="18" hidden></button>
+    <!-- Добавить слово себе в словарь прямо с доски (ученик) -->
+    <button class="bd-btn" id="bd-addword-btn" title="Добавить слово в словарь"
+            data-icon="plus" data-icon-size="18" hidden></button>
+    <!-- Замки на всю доску разом (репетитор): типовая боль «ученик
+         растаскал разметку урока» -->
+    <button class="bd-btn" id="bd-lock-all" title="Закрепить всё на доске"
+            data-icon="lock" data-icon-size="18" hidden></button>
+    <button class="bd-btn" id="bd-unlock-all" title="Открепить всё на доске"
+            data-icon="unlock" data-icon-size="18" hidden></button>
+    <!-- Таймер урока: ставит репетитор, отсчёт виден обоим -->
+    <button class="bd-btn" id="bd-timer" title="Таймер урока"
+            data-icon="clock" data-icon-size="18" hidden></button>
+    <!-- Реакции-эмодзи: живое «смотри, я понял / класс» на уроке,
+         у обоих участников -->
+    <button class="bd-btn" id="bd-react" title="Реакция на доску"
+            data-icon="paw" data-icon-size="18"></button>
     <button class="bd-btn" id="bd-png" title="Скачать картинкой">
       <span data-icon="download" data-icon-size="18"></span><span class="bd-btn-label"> PNG</span></button>
     <button class="bd-btn" id="bd-clear" title="Очистить доску"
@@ -164,6 +185,25 @@
     <button class="bd-btn" id="bd-panel-close" aria-label="Закрыть">✕</button>
   </div>
   <select id="bd-student" class="bd-select"></select>
+  <!-- Добавление слова ученику прямо с доски (репетитор): слово, перевод
+       (подставляется из банка), папка ученика или новая. Слово сразу
+       появляется в списке ниже, а ученику приезжает в словарь. -->
+  <div class="bd-panel-add" id="bd-panel-add" hidden>
+    <div class="bd-panel-add-row">
+      <input type="text" id="bd-add-w" class="bd-input" placeholder="Слово по-английски"
+             autocomplete="off" autocapitalize="off" spellcheck="false">
+    </div>
+    <div class="bd-panel-add-row">
+      <input type="text" id="bd-add-t" class="bd-input" placeholder="Перевод"
+             autocomplete="off" autocapitalize="off" spellcheck="false">
+    </div>
+    <div class="bd-panel-add-row bd-panel-add-folder">
+      <select id="bd-add-folder" class="bd-select"></select>
+      <input type="text" id="bd-add-newfolder" class="bd-input" placeholder="Новая папка…"
+             autocomplete="off" hidden>
+    </div>
+    <button class="bd-btn primary" id="bd-add-ok">Добавить в словарь</button>
+  </div>
   <input type="search" id="bd-search" class="bd-input" placeholder="Найти слово…">
   <p class="bd-hint" id="bd-words-hint">Нажми на слово — карточка ляжет на доску.
     Перевод у карточки скрыт: нажми на неё на доске, чтобы открыть.</p>
@@ -184,6 +224,37 @@
   </div>
 </aside>
 
+<!-- Плашка таймера: сверху по центру, шапку не перекрывает. Ученик
+     видит только отсчёт, кнопки — у репетитора. -->
+<div class="bd-timer-plate" id="bd-timer-plate" hidden>
+  <span class="bd-timer-left" id="bd-timer-left">3:00</span>
+  <button class="bd-btn" id="bd-timer-pause" hidden>Пауза</button>
+  <button class="bd-btn" id="bd-timer-reset" hidden aria-label="Сбросить таймер">✕</button>
+</div>
+
+<!-- Меню реакций: эмодзи — это и есть контент кнопок -->
+<div class="bd-share-menu bd-react-menu" id="bd-react-menu" hidden>
+  <button class="bd-react-emoji" data-emoji="👍" aria-label="класс">👍</button>
+  <button class="bd-react-emoji" data-emoji="❤️" aria-label="сердце">❤️</button>
+  <button class="bd-react-emoji" data-emoji="😂" aria-label="смешно">😂</button>
+  <button class="bd-react-emoji" data-emoji="🔥" aria-label="огонь">🔥</button>
+  <button class="bd-react-emoji" data-emoji="👏" aria-label="аплодисменты">👏</button>
+  <button class="bd-react-emoji" data-emoji="🤔" aria-label="думаю">🤔</button>
+  <button class="bd-react-emoji" data-emoji="🐱" aria-label="кот">🐱</button>
+</div>
+
+<!-- Меню пресетов таймера -->
+<div class="bd-share-menu bd-timer-menu" id="bd-timer-menu" hidden>
+  <button class="bd-btn" data-min="1">1 мин</button>
+  <button class="bd-btn" data-min="3">3 мин</button>
+  <button class="bd-btn" data-min="5">5 мин</button>
+  <button class="bd-btn" data-min="10">10 мин</button>
+  <span class="bd-timer-custom">
+    <input type="number" id="bd-timer-custom" class="bd-input" min="1" max="99" placeholder="мин">
+    <button class="bd-btn" id="bd-timer-custom-ok">Пуск</button>
+  </span>
+</div>
+
 <!-- Ввод текста поверх доски: системные prompt() на сайте запрещены
      (во встроенных браузерах их блокируют), поэтому своё поле. -->
 <div class="bd-editor" id="bd-editor" hidden>
@@ -192,6 +263,31 @@
     <button class="bd-btn primary" id="bd-editor-ok">Готово</button>
     <button class="bd-btn" id="bd-editor-cancel">Отмена</button>
   </div>
+</div>
+
+<!-- Добавление слова в словарь с доски (ученик): слово, перевод
+     (подставляется из банка), папка или новая. Тот же стиль, что у
+     редактора текста: маленькое окно по центру, системных диалогов нет. -->
+<div class="bd-editor" id="bd-addword" hidden>
+  <input type="text" id="bd-addword-w" class="bd-input" placeholder="Слово по-английски"
+         autocomplete="off" autocapitalize="off" spellcheck="false">
+  <input type="text" id="bd-addword-t" class="bd-input" placeholder="Перевод"
+         autocomplete="off" autocapitalize="off" spellcheck="false">
+  <div class="bd-panel-add-folder">
+    <select id="bd-addword-folder" class="bd-select"></select>
+    <input type="text" id="bd-addword-newfolder" class="bd-input" placeholder="Новая папка…"
+           autocomplete="off" hidden>
+  </div>
+  <div class="bd-editor-row">
+    <button class="bd-btn primary" id="bd-addword-ok">В словарь</button>
+    <button class="bd-btn" id="bd-addword-cancel">Отмена</button>
+  </div>
+</div>
+
+<!-- Плашка выделенной карточки со словом (ученик): добавить её слово
+     себе в словарь. HTML поверх полотна, как листалка книги. -->
+<div class="bd-bookbar" id="bd-wordbar" hidden>
+  <button class="bd-btn primary" id="bd-wordbar-add">+ в словарь</button>
 </div>
 
 <p class="bd-toast" id="bd-toast" hidden></p>

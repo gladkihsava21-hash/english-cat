@@ -292,6 +292,26 @@
   min-height: 40px;
 }
 .bd-hint { font-size: 12.5px; color: var(--ink-soft); line-height: 1.4; margin: 0; }
+
+/* Форма добавления слова в панели (репетитор) и диалог (ученик):
+   те же поля, что у редактора текста, компактно и без системных окон. */
+.bd-panel-add {
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 10px;
+  border: 1px dashed var(--line-control);
+  border-radius: 12px;
+  background: var(--surface-alt, var(--paper));
+}
+.bd-panel-add-folder { display: flex; gap: 8px; }
+.bd-panel-add-folder > * { flex: 1; min-width: 0; }
+#bd-addword { display: flex; flex-direction: column; gap: 10px; }
+/* Заголовок папки в списке слов */
+.bd-folder-head {
+  font-size: 12px; font-weight: 800; letter-spacing: .02em;
+  color: var(--ink-soft);
+  padding: 8px 4px 2px;
+  text-transform: uppercase;
+}
 .bd-word-list { overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
 .bd-word {
   display: flex; align-items: baseline; gap: 8px;
@@ -643,6 +663,36 @@
 .bd-share-menu button.danger { color: var(--bd-red); }
 .bd-share-menu .bd-hint { margin: 4px 8px; }
 
+/* Плашка таймера: сверху по центру, ПОД шапкой (не перекрывает её). */
+.bd-timer-plate {
+  position: fixed; left: 50%; top: 66px; transform: translateX(-50%);
+  z-index: 30; display: flex; gap: 8px; align-items: center;
+  background: var(--bd-panel, var(--surface));
+  border: 1px solid var(--border); border-radius: 999px;
+  padding: 6px 14px; box-shadow: 0 10px 26px rgba(0, 0, 0, .16);
+}
+.bd-timer-left {
+  font-family: var(--font-display), sans-serif;
+  font-weight: 900; font-size: 22px; font-variant-numeric: tabular-nums;
+  min-width: 3.2em; text-align: center;
+}
+/* Финальные секунды — мигаем цветом, пропустить нельзя */
+.bd-timer-plate.urgent { border-color: var(--red); animation: bd-timer-blink .8s infinite; }
+.bd-timer-plate.urgent .bd-timer-left { color: var(--red); }
+@keyframes bd-timer-blink {
+  50% { background: var(--accent-soft); }
+}
+.bd-timer-menu { right: auto; left: 0; }
+.bd-timer-custom { display: flex; gap: 6px; padding: 4px 2px 2px; }
+.bd-timer-custom .bd-input { width: 64px; min-height: 36px; }
+
+/* Меню реакций: ряд крупных эмодзи, а не список */
+.bd-react-menu { right: auto; left: 0; flex-direction: row; flex-wrap: wrap; max-width: 240px; }
+.bd-react-emoji {
+  font-size: 24px; line-height: 1; padding: 8px;
+  border: 0; background: none; cursor: pointer; border-radius: 10px;
+}
+.bd-react-emoji:hover { background: var(--accent-soft); transform: scale(1.15); }
 /* Книжки в панели */
 .bd-book-row { display: flex; gap: 6px; align-items: stretch; }
 .bd-book-row .bd-book-add { flex: 1; min-width: 0; }
