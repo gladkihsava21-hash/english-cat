@@ -460,6 +460,145 @@ function spoint(w, type, wx, wy, extra = {}) {
        "у ученика кнопок «залочить/отпереть всё» нет");
   }
 
+  console.log("\n12. Рамка-мультивыделение: банд, групповое движение, Esc, Shift+клик");
+  {
+    const w = makeBoard();
+    await tick(150);
+    w.eval(`BD.objects.set("m1", { id: "m1", kind: "rect", x: 200, y: 200, w: 80, h: 60,
+             color: "ink", size: 3, rev: 1 });
+            BD.objects.set("m2", { id: "m2", kind: "note", x: 400, y: 300, w: 180, h: 120,
+             color: "note", size: 3, text: "заметка", rev: 2 });
+            BD.objects.set("m3", { id: "m3", kind: "note", x: 900, y: 600, w: 180, h: 120,
+             color: "note", size: 3, text: "далеко", rev: 3 });`);
+    tool(w, "select");
+    // тянем рамку поверх m1 и m2
+    point(w, "pointerdown", 150, 150);
+    point(w, "pointermove", 620, 460);
+    point(w, "pointerup", 620, 460);
+    ok(bd(w).selectedSet.size === 2
+       && bd(w).selectedSet.has("m1") && bd(w).selectedSet.has("m2"),
+       "рамка выделила два объекта из трёх: " + [...bd(w).selectedSet].join(","));
+    // групповое движение за m2: m1 едет следом, m3 на месте
+    const x1 = byId(w, "m1").x, x2 = byId(w, "m2").x, x3 = byId(w, "m3").x;
+    point(w, "pointerdown", 490, 360);
+    point(w, "pointermove", 590, 420);
+    point(w, "pointerup", 590, 420);
+    ok(byId(w, "m2").x === x2 + 100 && byId(w, "m1").x === x1 + 100 && byId(w, "m3").x === x3,
+       "группа сдвинулась вместе, чужой объект на месте");
+    // Shift+клик добавляет m3, повторный Shift+клик убирает
+    point(w, "pointerdown", 990, 660, { shiftKey: true });
+    ok(bd(w).selectedSet.size === 3, "Shift+клик добавил третий объект");
+    point(w, "pointerdown", 990, 660, { shiftKey: true });
+    ok(bd(w).selectedSet.size === 2, "повторный Shift+клик убрал объект");
+    // Esc снимает выделение
+    const esc = new w.Event("keydown", { bubbles: true });
+    Object.assign(esc, { key: "Escape", preventDefault() {} });
+    w.document.dispatchEvent(esc);
+    ok(bd(w).selectedSet.size === 0 && !bd(w).selected, "Esc снял выделение");
+  }
+
+  console.log("\n13. Групповой Delete, Ctrl+D группы, стрелки");
+  {
+    const w = makeBoard();
+    await tick(150);
+    w.eval(`BD.objects.set("d1", { id: "d1", kind: "rect", x: 200, y: 200, w: 80, h: 60,
+             color: "ink", size: 3, rev: 1 });
+            BD.objects.set("d2", { id: "d2", kind: "rect", x: 400, y: 200, w: 80, h: 60,
+             color: "ink", size: 3, rev: 1 });`);
+    tool(w, "select");
+    point(w, "pointerdown", 150, 150);
+    point(w, "pointermove", 560, 320);
+    point(w, "pointerup", 560, 320);
+    ok(bd(w).selectedSet.size === 2, "рамка выделила пару");
+    // Ctrl+D: дубликаты со сдвигом +20, выделены копии
+    const d = new w.Event("keydown", { bubbles: true });
+    Object.assign(d, { key: "d", ctrlKey: true, preventDefault() {} });
+    w.document.dispatchEvent(d);
+    ok(objects(w).length === 4, "Ctrl+D удвоил группу: объектов " + objects(w).length);
+    const dup = objects(w).find(o => o.id !== "d1" && o.id !== "d2" && o.kind === "rect" && o.x === 220);
+    ok(!!dup && bd(w).selectedSet.has(dup.id), "копия со сдвигом +20 и выделена");
+    // стрелка вправо ×1 и Shift+вниз ×10
+    const right = new w.Event("keydown", { bubbles: true });
+    Object.assign(right, { key: "ArrowRight", preventDefault() {} });
+    w.document.dispatchEvent(right);
+    ok(byId(w, dup.id).x === 221, "стрелка сдвинула на 1 px: " + byId(w, dup.id).x);
+    const y0 = byId(w, dup.id).y;
+    const down = new w.Event("keydown", { bubbles: true });
+    Object.assign(down, { key: "ArrowDown", shiftKey: true, preventDefault() {} });
+    w.document.dispatchEvent(down);
+    ok(byId(w, dup.id).y === y0 + 10, "Shift+стрелка сдвинула на 10 px: " + byId(w, dup.id).y);
+    // Delete удаляет всю ВЫДЕЛЕННУЮ группу (копии), оригиналы на месте
+    const del = new w.Event("keydown", { bubbles: true });
+    Object.assign(del, { key: "Delete", preventDefault() {} });
+    w.document.dispatchEvent(del);
+    ok(objects(w).length === 2 && !objects(w).some(o => o.id === dup.id),
+       "Delete удалил выделенную группу (копии), оригиналы целы");
+  }
+
+  console.log("\n14. Клавиша N — стикер, S — по-прежнему работает");
+  {
+    const w = makeBoard();
+    await tick(150);
+    const press = k => {
+      const ev = new w.Event("keydown", { bubbles: true });
+      Object.assign(ev, { key: k, preventDefault() {} });
+      w.document.dispatchEvent(ev);
+    };
+    press("n");
+    ok(bd(w).tool === "note", "N включает стикер");
+    press("s");
+    ok(bd(w).tool === "note", "S тоже включает стикер (совместимость)");
+    // в редакторе буквы не хоткеи: печать «n» в стикере не срабатывает
+    tool(w, "note");
+    point(w, "pointerdown", 500, 400);
+    const ta = w.document.getElementById("bd-editor-input");
+    ta.focus();
+    press("n");
+    ok(bd(w).tool === "note" && w.document.activeElement === ta,
+       "печать «n» в редакторе не переключает инструмент");
+    w.document.getElementById("bd-editor-cancel").click();
+  }
+
+  console.log("\n15. Двойной клик мышью по пустому — текст, одиночный тап по пустому — не текст");
+  {
+    const w = makeBoard();
+    await tick(150);
+    tool(w, "select");
+    // mouse double-click (detail: 2) на пустом месте
+    point(w, "pointerdown", 800, 500, { detail: 2 });
+    const txt = objects(w).find(o => o.kind === "text");
+    ok(!!txt, "дабл-клик мышью по пустому создал текстовый объект");
+    ok(!w.document.getElementById("bd-editor").hidden, "и сразу открылся редактор");
+    ok(!objects(w).some(o => o.kind === "ping"), "вместо текста пинг не создался");
+    w.document.getElementById("bd-editor-cancel").click();
+  }
+
+  console.log("\n16. Мини-панель над выделенным: цвет, дубль, удалить, позиция");
+  {
+    const w = makeBoard();
+    await tick(150);
+    w.eval(`BD.objects.set("p1", { id: "p1", kind: "rect", x: 400, y: 300, w: 100, h: 80,
+             color: "ink", size: 3, rev: 1 });`);
+    tool(w, "select");
+    point(w, "pointerdown", 450, 340);
+    point(w, "pointerup", 450, 340);
+    await tick(60);   // кадр: мини-панель позиционируется на отрисовке
+    const p = w.document.getElementById("bd-minipanel");
+    ok(!p.hidden, "мини-панель появилась над выделенным");
+    // цвет из мини-панели красит объект
+    const redDot = [...p.querySelectorAll(".bd-minicolor")].find(b => b.dataset.color === "red");
+    ok(!!redDot, "в мини-панели чернильная палитра");
+    redDot.click();
+    ok(byId(w, "p1").color === "red", "цвет из мини-панели применился: " + byId(w, "p1").color);
+    // дубль из мини-панели
+    w.document.getElementById("bd-mp-dup").click();
+    ok(objects(w).length === 2, "дубль из мини-панели сработал");
+    // удалить из мини-панели — всё выделенное (копию; оригинал не выделен)
+    w.document.getElementById("bd-mp-del").click();
+    await tick(60);
+    ok(objects(w).length === 1 && p.hidden, "удаление из мини-панели сработало, панель скрылась");
+  }
+
   console.log(fails ? `\nПРОВАЛЕНО: ${fails}` : "\nВсё зелено");
   process.exit(fails ? 1 : 0);
 })();

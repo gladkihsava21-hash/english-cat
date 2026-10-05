@@ -693,6 +693,23 @@
   border: 0; background: none; cursor: pointer; border-radius: 10px;
 }
 .bd-react-emoji:hover { background: var(--accent-soft); transform: scale(1.15); }
+
+/* Мини-панель над выделенным (Miro-style) */
+.bd-minipanel {
+  position: fixed;
+  z-index: 40; display: flex; gap: 5px; align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border); border-radius: 999px;
+  padding: 5px 10px; box-shadow: 0 8px 22px rgba(0, 0, 0, .16);
+}
+.bd-minicolor {
+  width: 20px; height: 20px; border-radius: 50%;
+  border: 2px solid var(--line-soft);
+  cursor: pointer; padding: 0;
+}
+.bd-minicolor:hover { border-color: var(--ink); }
+.bd-minisep { width: 1px; align-self: stretch; background: var(--line-soft); margin: 2px 2px; }
+.bd-minipanel .bd-btn { padding: 6px 9px; min-height: 0; font-size: 13px; }
 /* Книжки в панели */
 .bd-book-row { display: flex; gap: 6px; align-items: stretch; }
 .bd-book-row .bd-book-add { flex: 1; min-width: 0; }

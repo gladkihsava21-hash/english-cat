@@ -31,6 +31,7 @@ const BD = {
   size: 3,
   view: { x: 0, y: 0, k: 1 },   // сдвиг и масштаб полотна
   selected: null,
+  selectedSet: new Set(),  // мультивыделение (рамка), см. selIds()
   dirty: new Map(),    // что отправить на сервер
   deleted: new Set(),
   undo: [],
@@ -149,7 +150,30 @@ function draw(w = innerWidth, h = innerHeight) {
   // иначе у репетитора стикер сверху, а у ученика под линией.
   const list = [...BD.objects.values()].sort((a, b) => (a.rev || 0) - (b.rev || 0));
   for (const o of list) drawObject(o);
-  if (BD.selected && BD.objects.has(BD.selected)) drawSelection(BD.objects.get(BD.selected));
+  if (BD.selectedSet.size > 1) {
+    // Мультивыделение: тонкая рамка у каждого + общая рамка группы (Miro)
+    BD.selectedSet.forEach(id => {
+      const o = BD.objects.get(id);
+      if (o) drawSelection(o, true);
+    });
+    const uni = unionBounds();
+    if (uni) {
+      ctx.strokeStyle = cssColor("blue");
+      ctx.lineWidth = 1.5 / BD.view.k;
+      ctx.strokeRect(uni.x - 10, uni.y - 10, uni.w + 20, uni.h + 20);
+    }
+  } else if (BD.selected && BD.objects.has(BD.selected)) {
+    drawSelection(BD.objects.get(BD.selected));
+  }
+  // Рамка-мультивыделение, которую тянут прямо сейчас
+  if (banding) {
+    const b = normBand(banding);
+    ctx.strokeStyle = cssColor("blue");
+    ctx.lineWidth = 1.5 / BD.view.k;
+    ctx.setLineDash([6 / BD.view.k, 4 / BD.view.k]);
+    ctx.strokeRect(b.x, b.y, b.w, b.h);
+    ctx.setLineDash([]);
+  }
   ctx.restore();
   // Указка анимируется по времени — доска перерисовывается, пока та жива
   for (const o of BD.objects.values()) {
@@ -160,6 +184,7 @@ function draw(w = innerWidth, h = innerHeight) {
   }
   updateBookBar();
   updateWordbar();
+  updateMiniPanel();
   // Реакции-эмодзи поверх всего: всплывают вверх и тают ~3,5 с.
   // Временное, как пинг с лазером, — в объекты не складываем.
   if (BD.reacts.length) {
@@ -569,14 +594,16 @@ function drawText(text, x, y, maxW, lh, color, weight) {
  *  не растягиваем: у них «размер» — это сама геометрия. */
 const resizable = o => ["image", "rect", "ellipse", "note", "word", "book"].includes(o.kind);
 
-function drawSelection(o) {
+function drawSelection(o, group = false) {
   const b = bounds(o);
   ctx.strokeStyle = cssColor("green");
   ctx.lineWidth = 1.5 / BD.view.k;
   ctx.setLineDash([6 / BD.view.k, 4 / BD.view.k]);
   ctx.strokeRect(b.x - 6, b.y - 6, b.w + 12, b.h + 12);
   ctx.setLineDash([]);
-  if (resizable(o) && !o.locked) {
+  // В групповом выделении ручки размера не рисуем: растягивать будем
+  // за рамку ОДНОГО объекта, а не группу — иначе путаница.
+  if (!group && resizable(o) && !o.locked) {
     // Уголок-ручка: квадратик в правом нижнем углу рамки
     const r = 7 / BD.view.k;
     ctx.fillStyle = cssColor("green");
@@ -721,6 +748,7 @@ function remove(id, remember = true) {
   BD.dirty.delete(id);
   BD.deleted.add(id);
   if (BD.selected === id) BD.selected = null;
+  BD.selectedSet.delete(id);   // из мультивыделения тоже убираем
   paint();
   scheduleSync();
 }
@@ -732,6 +760,7 @@ function pushUndo(step) {
 function doUndo() {
   const step = BD.undo.pop();
   if (!step) return;
+  if (step.type === "multi") return applyMulti(step, BD.redo);
   const now = BD.objects.get(step.id);
   BD.redo.push({ type: now ? "put" : "del", before: now ? { ...now } : null, id: step.id });
   if (step.before) put(step.before, false);
@@ -740,10 +769,23 @@ function doUndo() {
 function doRedo() {
   const step = BD.redo.pop();
   if (!step) return;
+  if (step.type === "multi") return applyMulti(step, BD.undo);
   const now = BD.objects.get(step.id);
   BD.undo.push({ type: now ? "put" : "del", before: now ? { ...now } : null, id: step.id });
   if (step.before) put(step.before, false);
   else remove(step.id, false);
+}
+/* Групповая операция (передвижение мультивыделения): откат/повтор
+   целиком, а не по одному объекту на Ctrl+Z. */
+function applyMulti(step, otherStack) {
+  otherStack.push({ type: "multi", items: step.items.map(it => ({
+    id: it.id,
+    before: BD.objects.get(it.id) ? { ...BD.objects.get(it.id) } : null,
+  })) });
+  step.items.forEach(it => {
+    if (it.before) put({ ...it.before }, false);
+    else remove(it.id, false);
+  });
 }
 
 /* ---------- синхронизация ---------- */
@@ -891,6 +933,23 @@ function setState(text, bad) {
 
 /* ---------- инструменты и указатель ---------- */
 let drawing = null, panning = null, moving = null, resizing = null;
+// Рамка-мультивыделение и перетаскивание группы (Miro-паритет):
+// banding — тянется пунктирная рамка; groupMoving — группа едет за один
+// из выделенных объектов (orig по id, чтобы вернуть одной undo-записью).
+let banding = null, groupMoving = null, pendingSingle = null;
+
+/* ---------- выделение ----------
+   Одиночное — BD.selected (id), мультивыделение — BD.selectedSet
+   (Set id'ов, рамка-выделение как в Miro). selIds() отдаёт актуальное:
+   если есть мультивыделение — его, иначе одиночное. */
+const selIds = () => BD.selectedSet.size
+  ? [...BD.selectedSet]
+  : (BD.selected ? [BD.selected] : []);
+function setSelection(ids) {
+  BD.selectedSet = new Set(ids);
+  BD.selected = ids.length === 1 ? ids[0] : (ids.length ? ids[ids.length - 1] : null);
+  paint();
+}
 
 canvas.addEventListener("pointerdown", e => {
   // Захват указателя — удобство: линия не рвётся, если палец уехал за
@@ -900,12 +959,16 @@ canvas.addEventListener("pointerdown", e => {
   try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* не беда */ }
   const w = toWorld(e.clientX, e.clientY);
 
-  // Средняя кнопка, правая кнопка, пробел и Shift — всегда перетаскивание
+  // Средняя кнопка, правая кнопка и пробел — всегда перетаскивание
   // полотна, в любом инструменте. Правая и пробел добавлены по жалобе
   // «мышью доску не двигается»: человек после пера или текста тянет
   // левой — и рисует вместо сдвига. Правая кнопка свободна всегда,
   // контекстное меню на полотне поэтому глушим (ниже).
-  if (e.button === 1 || e.button === 2 || e.shiftKey || spaceHeld || BD.tool === "hand") {
+  // Shift+левая — pan везде, КРОМЕ режима «Выделить»: там Shift+клик —
+  // добавить/убрать в мультивыделении (Miro), а pan на Shift+тянуть
+  // обрабатывается внутри select-ветки, если под пальцем пусто.
+  if (e.button === 1 || e.button === 2 || spaceHeld || BD.tool === "hand"
+      || (e.shiftKey && BD.tool !== "select")) {
     panning = { x: e.clientX, y: e.clientY, vx: BD.view.x, vy: BD.view.y };
     canvas.classList.add("grabbing");
     return;
@@ -950,7 +1013,17 @@ canvas.addEventListener("pointerdown", e => {
     BD._tapAt = { x: w.x, y: w.y, t: now };
 
     const hit = hitTest(w.x, w.y);
-    BD.selected = hit ? hit.id : null;
+
+    // Shift+клик по объекту — добавить/убрать в мультивыделении (Miro).
+    // Shift+ТЯНУТЬ по пустому месту — по-прежнему pan (ветка выше по
+    // коду): жесты разведены по тому, под пальцем объект или нет.
+    if (hit && e.shiftKey) {
+      const set = new Set(selIds());
+      if (set.has(hit.id)) set.delete(hit.id); else set.add(hit.id);
+      setSelection([...set]);
+      return;
+    }
+
     if (hit) {
       // Карточка со словом переворачивается по нажатию — это её смысл.
       // Залоченная не трогается: замок это и «не менять».
@@ -977,19 +1050,51 @@ canvas.addEventListener("pointerdown", e => {
         pendingTask = { task: hit, x: e.clientX, y: e.clientY };
         return;
       }
-      if (!hit.locked) moving = { id: hit.id, dx: w.x, dy: w.y, orig: { ...hit } };
+      // Одиночное выделение кликом — как раньше; мульти сбрасываем,
+      // но НЕ на pointerdown по члену группы: иначе групповое перетаскивание
+      // умирало бы в тот же миг. Клик без движения по члену группы —
+      // схлопывание до одиночного обрабатывается на pointerup.
+      if (!(BD.selectedSet.size > 1 && BD.selectedSet.has(hit.id))
+          && (BD.selectedSet.size > 1 || BD.selected !== hit.id)) {
+        setSelection([hit.id]);
+      }
+      if (!hit.locked) {
+        // Тянем за выделенный в группе — едет вся группа (залоченные
+        // из неё не трогаем). pendingSingle: если это был клик без
+        // движения, на pointerup схлопнемся до одиночного (как в Miro).
+        if (BD.selectedSet.size > 1 && BD.selectedSet.has(hit.id)) {
+          groupMoving = { dx: w.x, dy: w.y,
+            orig: new Map(selIds().filter(id => {
+              const o = BD.objects.get(id);
+              return o && !o.locked;
+            }).map(id => [id, { ...BD.objects.get(id) }])) };
+          pendingSingle = hit.id;
+        } else {
+          moving = { id: hit.id, dx: w.x, dy: w.y, orig: { ...hit } };
+        }
+      }
     } else {
-      // Двойной тап по пустому месту — указка «смотри сюда»: у второго
-      // участника в этой точке пульсирует кольцо. Жест, а не инструмент:
-      // на уроке «сюда смотри» нужно мгновенно, без похода в панель.
-      // isDouble обязателен: pointerdown.detail в Chrome всегда 0 (для
-      // касаний это же задокументировано выше у word/note/text), и голый
-      // e.detail === 2 здесь никогда не срабатывал.
-      if (e.detail === 2 || isDouble) {
-        sendPing(w.x, w.y);
+      // Shift+тянуть по пустому месту в режиме «Выделить» — pan
+      // (Shift+клик по объекту выше добавляет его в мультивыделение).
+      if (e.shiftKey) {
+        panning = { x: e.clientX, y: e.clientY, vx: BD.view.x, vy: BD.view.y };
+        canvas.classList.add("grabbing");
         return;
       }
-      panning = { x: e.clientX, y: e.clientY, vx: BD.view.x, vy: BD.view.y };
+      // Двойной клик МЫШЬЮ по пустому месту — новый текст (привычка из
+      // Miro), двойной ТАП — указка ping (у касаний detail всегда 0,
+      // см. выше). Жесты разведены по типу указателя, а не по месту.
+      if (e.detail === 2 || isDouble) {
+        banding = null;                       // первый клик уже начал рамку
+        if (e.detail === 2) createTextAt(w.x, w.y);
+        else sendPing(w.x, w.y);
+        return;
+      }
+      // Рамка-мультивыделение: левая по пустому месту в режиме
+      // «Выделить» — как в Miro. Pan полотна остался на правой и средней
+      // кнопке, пробеле, Shift+левая и на тачпаде.
+      setSelection([]);
+      banding = { x0: w.x, y0: w.y, x1: w.x, y1: w.y };
       canvas.classList.add("grabbing");
     }
     paint();
@@ -1068,6 +1173,33 @@ canvas.addEventListener("pointermove", e => {
   }
   const w = toWorld(e.clientX, e.clientY);
 
+  // Рамка-мультивыделение: тянем пунктир
+  if (banding) {
+    banding.x1 = w.x;
+    banding.y1 = w.y;
+    paint();
+    return;
+  }
+  // Группа едет за один из выделенных: все незалоченные — на ту же дельту
+  if (groupMoving) {
+    const dx = w.x - groupMoving.dx, dy = w.y - groupMoving.dy;
+    // Это уже перетаскивание, а не клик по члену группы
+    if (Math.abs(dx) + Math.abs(dy) > 3) pendingSingle = null;
+    groupMoving.orig.forEach((orig, id) => {
+      const o = BD.objects.get(id);
+      if (!o) return;
+      if (o.kind === "pen" || o.kind === "marker") {
+        const pts = orig.pts.slice();
+        for (let i = 0; i < pts.length; i += 2) { pts[i] += dx; pts[i + 1] += dy; }
+        BD.objects.set(id, { ...o, pts });
+      } else {
+        BD.objects.set(id, { ...o, x: orig.x + dx, y: orig.y + dy });
+      }
+    });
+    paint();
+    return;
+  }
+
   if (resizing) {
     const o = BD.objects.get(resizing.id);
     if (!o) return;
@@ -1130,6 +1262,42 @@ canvas.addEventListener("pointermove", e => {
 canvas.addEventListener("pointerup", () => {
   canvas.classList.remove("grabbing");
   if (panning) { panning = null; return; }
+  // Отпустили рамку: выделяем всё, что она пересекла (Miro rubber band).
+  // Клик без движения — просто снятие выделения (уже сделано на pointerdown).
+  if (banding) {
+    const b = normBand(banding);
+    banding = null;
+    if (b.w >= 4 || b.h >= 4) {
+      const ids = [];
+      BD.objects.forEach(o => {
+        if (isService(o)) return;
+        const ob = bounds(o);
+        if (ob.x < b.x + b.w && ob.x + ob.w > b.x
+            && ob.y < b.y + b.h && ob.y + ob.h > b.y) ids.push(o.id);
+      });
+      if (ids.length) setSelection(ids);
+    }
+    return;
+  }
+  // Группа доехала: коммитим все объекты одной undo-записью
+  if (groupMoving) {
+    // Это было перетаскивание, а не клик по члену группы — коммитим
+    if (!pendingSingle) {
+      const items = [];
+      groupMoving.orig.forEach((before, id) => items.push({ id, before }));
+      pushUndo({ type: "multi", items });
+      groupMoving.orig.forEach((_, id) => {
+        const o = BD.objects.get(id);
+        if (o) BD.dirty.set(id, o);
+      });
+      scheduleSync();
+    }
+    groupMoving = null;
+    // Клик по члену группы без движения — схлопывание до одиночного (Miro)
+    if (pendingSingle) setSelection([pendingSingle]);
+    pendingSingle = null;
+    return;
+  }
   if (resizing) {
     const o = BD.objects.get(resizing.id);
     if (o) {
@@ -1150,6 +1318,27 @@ canvas.addEventListener("pointerup", () => {
   }
   finishStroke();
 });
+
+/** Нормализованная рамка-мультивыделение: x/y — левый верх, w/h — размер. */
+function normBand(b) {
+  return { x: Math.min(b.x0, b.x1), y: Math.min(b.y0, b.y1),
+           w: Math.abs(b.x1 - b.x0), h: Math.abs(b.y1 - b.y0) };
+}
+
+/** Общая рамка группы выделенных (объединение рамок всех объектов). */
+function unionBounds() {
+  let x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity;
+  let found = false;
+  BD.selectedSet.forEach(id => {
+    const o = BD.objects.get(id);
+    if (!o) return;
+    const b = bounds(o);
+    found = true;
+    x1 = Math.min(x1, b.x); y1 = Math.min(y1, b.y);
+    x2 = Math.max(x2, b.x + b.w); y2 = Math.max(y2, b.y + b.h);
+  });
+  return found ? { x: x1, y: y1, w: x2 - x1, h: y2 - y1 } : null;
+}
 
 /** Завершить начатый штрих: короткий выбросить, нормальный сохранить.
  *
@@ -1436,10 +1625,11 @@ function applyCustomColor(hex) {
   });
   // Цвет применяется и к выделенному объекту — как у обычных кружков.
   // Залоченное не перекрашивается: замок это и «не менять».
-  if (BD.selected && BD.objects.has(BD.selected)
-      && !BD.objects.get(BD.selected).locked) {
-    put({ ...BD.objects.get(BD.selected), color: hex });
-  }
+  // В мультивыделении красим ВСЕ незалоченные объекты группы.
+  selIds().forEach(id => {
+    const o = BD.objects.get(id);
+    if (o && !o.locked) put({ ...o, color: hex });
+  });
 }
 function buildStyleBar() {
   const colors = $("bd-colors");
@@ -1459,10 +1649,11 @@ function buildStyleBar() {
       document.querySelectorAll(".bd-swatch").forEach(x => x.classList.toggle("active", x === b));
       // Цвет применяется и к выделенному объекту: иначе пришлось бы
       // стирать и рисовать заново. Залоченное — нет: замок это «не менять».
-      if (BD.selected && BD.objects.has(BD.selected)
-          && !BD.objects.get(BD.selected).locked) {
-        put({ ...BD.objects.get(BD.selected), color: name });
-      }
+      // В мультивыделении красим ВСЕ незалоченные объекты группы.
+      selIds().forEach(id => {
+        const o = BD.objects.get(id);
+        if (o && !o.locked) put({ ...o, color: name });
+      });
     });
     colors.appendChild(b);
   });
@@ -1506,18 +1697,22 @@ function buildStyleBar() {
     b.addEventListener("click", () => {
       BD.size = px;
       document.querySelectorAll(".bd-size").forEach(x => x.classList.toggle("active", x === b));
-      if (BD.selected && BD.objects.has(BD.selected)) {
-        const sel = BD.objects.get(BD.selected);
-        // У текста кегль тянет и высоту рамки — пересчитываем сразу.
-        // Залоченное не меняем: замок это и «не менять».
-        if (sel.locked) {
-          toast("Закреплено — сначала сними замок у рамки.");
-        } else if (sel.kind === "text") {
-          put({ ...sel, size: px, h: textHeight(sel.text || "", sel.w || 460, textLH(px)) });
-        } else {
-          put({ ...sel, size: px });
-        }
+      // Размер применяется к выделенным (в мультивыделении — ко всем
+      // незалоченным). Залоченное не меняем: замок это и «не менять».
+      const lockedHit = selIds().some(id => (BD.objects.get(id) || {}).locked);
+      if (lockedHit && selIds().length === 1) {
+        toast("Закреплено — сначала сними замок у рамки.");
       }
+      selIds().forEach(id => {
+        const o = BD.objects.get(id);
+        if (!o || o.locked) return;
+        // У текста кегль тянет и высоту рамки — пересчитываем сразу
+        if (o.kind === "text") {
+          put({ ...o, size: px, h: textHeight(o.text || "", o.w || 460, textLH(px)) });
+        } else {
+          put({ ...o, size: px });
+        }
+      });
     });
     sizes.appendChild(b);
   });
@@ -1590,24 +1785,129 @@ document.querySelectorAll(".bd-tool[data-tool]").forEach(b => {
 
 // Какому закреплённому объекту уже объясняли про замок (см. Delete ниже)
 let delLockHintFor = "";
-document.addEventListener("keydown", e => {
-  if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
-  // Ctrl/Cmd+D — дубликат выделенного со сдвигом (как в Миро): готовую
-  // карточку или фигуру быстрее размножить, чем рисовать заново.
-  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "d") {
-    const o = BD.selected && BD.objects.get(BD.selected);
-    if (o && !isService(o)) {
-      e.preventDefault();
-      const copy = { ...o, id: uid(), rev: 0, locked: 0 };
-      if (copy.pts) copy.pts = copy.pts.map((v, i) => v + 16);
-      else { copy.x += 16; copy.y += 16; }
-      put(copy);
-      BD.selected = copy.id;
-      paint();
+
+/* Дубликат выделенного со сдвигом +20 (Ctrl+D и кнопка мини-панели):
+   в мультивыделении дублируется вся группа и выделяются копии. */
+function duplicateSelection() {
+  const ids = selIds().filter(id => {
+    const o = BD.objects.get(id);
+    return o && !isService(o) && !o.locked;
+  });
+  if (!ids.length) return;
+  const copies = ids.map(id => {
+    const o = BD.objects.get(id);
+    const copy = { ...o, id: uid(), rev: 0, locked: 0 };
+    if (copy.pts) copy.pts = copy.pts.map((v, i) => v + 20);
+    else { copy.x += 20; copy.y += 20; }
+    put(copy);
+    return copy.id;
+  });
+  setSelection(copies);
+}
+
+/* Удаление выделенного (Delete и кнопка мини-панели): залоченное не
+   трогаем и один раз объясняем почему. */
+function deleteSelection() {
+  const ids = selIds();
+  const lockedHit = ids.map(id => BD.objects.get(id)).find(o => o && o.locked);
+  if (lockedHit) {
+    if (delLockHintFor !== lockedHit.id) {
+      delLockHintFor = lockedHit.id;
+      toast("Закреплено — сначала сними замок у рамки, потом Delete.", 3600);
     }
+  }
+  let removed = 0;
+  ids.forEach(id => {
+    const o = BD.objects.get(id);
+    if (o && !o.locked) { remove(id); removed++; }
+  });
+  if (removed > 1) toast(`Удалено объектов: ${removed}.`);
+  setSelection(selIds().filter(id => BD.objects.has(id)));
+}
+
+/* Мини-панель над выделенным: позиция над общей рамкой, места нет —
+   под ней. Прячется при снятии выделения. */
+let minipanelKey = "";
+function updateMiniPanel() {
+  const p = $("bd-minipanel");
+  if (!p) return;
+  const ids = selIds().filter(id => BD.objects.has(id));
+  if (!ids.length) {
+    if (!p.hidden) { p.hidden = true; minipanelKey = ""; }
     return;
   }
-  const map = { v: "select", p: "pen", m: "marker", e: "eraser", s: "note",
+  const uni = ids.length === 1 ? bounds(BD.objects.get(ids[0])) : unionBounds();
+  if (!uni) { p.hidden = true; minipanelKey = ""; return; }
+  const key = ids.join(",") + "|" + BD.role + "|" + Math.round(uni.x * BD.view.k + uni.w * BD.view.k)
+            + "|" + Math.round(uni.y * BD.view.k + uni.h * BD.view.k);
+  if (key === minipanelKey) return;
+  minipanelKey = key;
+  // Цвета: если выделены только стикеры — палитра бумаги, иначе чернила
+  const allNotes = ids.every(id => BD.objects.get(id).kind === "note");
+  const list = allNotes ? NOTE_COLORS : COLORS;
+  p.querySelectorAll(".bd-minicolor").forEach((b, i) => {
+    b.dataset.color = list[i] || "";
+    b.style.background = cssColor(list[i] || "ink");
+    b.hidden = !list[i];
+  });
+  p.hidden = false;
+  $("bd-mp-lock").hidden = BD.role !== "tutor";
+  // Позиция: над рамкой по центру; вверху нет места — под рамкой
+  const sx = uni.x * BD.view.k + BD.view.x + (uni.w * BD.view.k) / 2;
+  const sy = uni.y * BD.view.k + BD.view.y;
+  const plateH = 40;
+  const top = sy - 14 - plateH;
+  p.style.left = Math.max(plateH, Math.min(innerWidth - plateH, sx)) + "px";
+  p.style.transform = "translateX(-50%)";
+  p.style.top = (top > 64 ? top : sy + uni.h * BD.view.k + 14) + "px";
+}
+document.querySelectorAll(".bd-minicolor").forEach(b => {
+  b.addEventListener("click", () => {
+    const name = b.dataset.color;
+    if (!name) return;
+    selIds().forEach(id => {
+      const o = BD.objects.get(id);
+      if (o && !o.locked) put({ ...o, color: name });
+    });
+  });
+});
+function mpResize(d) {
+  selIds().forEach(id => {
+    const o = BD.objects.get(id);
+    if (!o || o.locked) return;
+    const size = Math.min(60, Math.max(1, (o.size || 3) + d));
+    if (o.kind === "text") {
+      put({ ...o, size, h: textHeight(o.text || "", o.w || 460, textLH(size)) });
+    } else {
+      put({ ...o, size });
+    }
+  });
+}
+$("bd-mp-minus").addEventListener("click", () => mpResize(-2));
+$("bd-mp-plus").addEventListener("click", () => mpResize(2));
+$("bd-mp-dup").addEventListener("click", duplicateSelection);
+$("bd-mp-del").addEventListener("click", deleteSelection);
+$("bd-mp-lock").addEventListener("click", () => {
+  // Замок группы: если хоть один незалочен — залочить всё, иначе отпереть
+  const ids = selIds();
+  const target = ids.map(id => BD.objects.get(id)).some(o => o && !o.locked) ? 1 : 0;
+  ids.forEach(id => {
+    const o = BD.objects.get(id);
+    if (o) put({ ...o, locked: target });
+  });
+  toast(target ? "Закреплено." : "Откреплено.");
+});
+
+document.addEventListener("keydown", e => {
+  if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
+  // Ctrl/Cmd+D — дубликат выделенного со сдвигом +20 (как в Миро): готовую
+  // карточку или фигуру быстрее размножить, чем рисовать заново.
+  // В мультивыделении дублируется вся группа и выделяются копии.
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "d") {
+    if (selIds().length) { e.preventDefault(); duplicateSelection(); }
+    return;
+  }
+  const map = { v: "select", p: "pen", m: "marker", e: "eraser", s: "note", n: "note",
                 t: "text", r: "rect", o: "ellipse", a: "arrow", l: "laser" };
   const key = e.key.toLowerCase();
   // Escape из лазера — обратно в выделение: инструмент без рисования
@@ -1616,27 +1916,39 @@ document.addEventListener("keydown", e => {
     document.querySelector('.bd-tool[data-tool="select"]').click();
     return;
   }
+  // Escape — снять выделение (и одиночное, и рамку-мультивыделение)
+  if (e.key === "Escape" && (BD.selected || BD.selectedSet.size)) {
+    setSelection([]);
+    return;
+  }
   if (map[key]) {
     document.querySelector(`.bd-tool[data-tool="${map[key]}"]`).click();
   }
   if (key === "w") $("bd-words").click();
   if ((e.ctrlKey || e.metaKey) && key === "z") { e.preventDefault(); e.shiftKey ? doRedo() : doUndo(); }
-  if ((e.key === "Delete" || e.key === "Backspace") && BD.selected) {
+  // Стрелки — сдвиг выделенного на 1 px (с Shift — на 10), как в Miro.
+  // Залоченные объекты на месте остаются.
+  const ARROW = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
+  if (ARROW[e.key] && selIds().length) {
     e.preventDefault();
-    const o = BD.objects.get(BD.selected);
-    // Закреплённое клавишей не сносим. Всё остальное замок уже бережёт —
-    // не двигается, не тянется, ластик его не трогает, — а Delete сносил:
-    // одна случайная клавиша посреди урока убирала приклеенную страницу
-    // учебника. Предупреждаем один раз на выделенный объект: прижатый
-    // Backspace иначе заспамил бы экран тостами (как ластик — раз за подход).
-    if (o && o.locked) {
-      if (delLockHintFor !== o.id) {
-        delLockHintFor = o.id;
-        toast("Закреплено — сначала сними замок у рамки, потом Delete.", 3600);
+    const step = e.shiftKey ? 10 : 1;
+    const [dx, dy] = ARROW[e.key].map(v => v * step);
+    selIds().forEach(id => {
+      const o = BD.objects.get(id);
+      if (!o || o.locked) return;
+      if (o.kind === "pen" || o.kind === "marker") {
+        const pts = o.pts.slice();
+        for (let i = 0; i < pts.length; i += 2) { pts[i] += dx; pts[i + 1] += dy; }
+        put({ ...o, pts });
+      } else {
+        put({ ...o, x: o.x + dx, y: o.y + dy });
       }
-      return;
-    }
-    remove(BD.selected);
+    });
+    return;
+  }
+  if ((e.key === "Delete" || e.key === "Backspace") && selIds().length) {
+    e.preventDefault();
+    deleteSelection();
   }
 });
 
@@ -2027,8 +2339,17 @@ function applyFollow(f) {
 }
 
 /* ---------- указка ---------- */
-function sendPing(x, y) {
-  const o = { id: "ping-" + uid(), kind: "ping", x, y, w: 0, h: 0,
+/* Двойной клик мышью по пустому месту в режиме «Выделить» — новый
+   текстовый объект, как в Miro. Создание — то же, что у инструмента
+   «Текст»: объект + редактор. */
+function createTextAt(x, y) {
+  const o = { id: uid(), kind: "text", x, y, w: 420, h: 40,
+              color: BD.color, size: BD.size, text: "" };
+  put(o);
+  openEditor(o);
+}
+
+function sendPing(x, y) {  const o = { id: "ping-" + uid(), kind: "ping", x, y, w: 0, h: 0,
               color: "red", size: 3 };
   put(o, false);                             // жест не попадает в отмену
   // Убираем за собой: у второго участника кольцо погаснет само по
