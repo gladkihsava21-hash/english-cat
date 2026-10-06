@@ -85,13 +85,38 @@
             data-icon="lock" data-icon-size="18" hidden></button>
     <button class="bd-btn" id="bd-unlock-all" title="Открепить всё на доске"
             data-icon="unlock" data-icon-size="18" hidden></button>
-    <!-- Таймер урока: ставит репетитор, отсчёт виден обоим -->
-    <button class="bd-btn" id="bd-timer" title="Таймер урока"
-            data-icon="clock" data-icon-size="18" hidden></button>
+    <!-- Таймер урока: ставит репетитор, отсчёт виден обоим.
+         Меню и кнопка в одном .bd-share-wrap: absolute-меню позиционируется
+         от обёртки — отдельный div улетал на 100% высоты за экран. -->
+    <div class="bd-share-wrap">
+      <button class="bd-btn" id="bd-timer" title="Таймер урока"
+              data-icon="clock" data-icon-size="18" hidden></button>
+      <div class="bd-share-menu bd-timer-menu" id="bd-timer-menu" hidden>
+        <button class="bd-btn" data-min="1">1 мин</button>
+        <button class="bd-btn" data-min="3">3 мин</button>
+        <button class="bd-btn" data-min="5">5 мин</button>
+        <button class="bd-btn" data-min="10">10 мин</button>
+        <span class="bd-timer-custom">
+          <input type="number" id="bd-timer-custom" class="bd-input" min="1" max="99" placeholder="мин">
+          <button class="bd-btn" id="bd-timer-custom-ok">Пуск</button>
+        </span>
+      </div>
+    </div>
     <!-- Реакции-эмодзи: живое «смотри, я понял / класс» на уроке,
-         у обоих участников -->
-    <button class="bd-btn" id="bd-react" title="Реакция на доску"
-            data-icon="paw" data-icon-size="18"></button>
+         у обоих участников. Меню — в обёртке с кнопкой (см. таймер). -->
+    <div class="bd-share-wrap">
+      <button class="bd-btn" id="bd-react" title="Реакция на доску"
+              data-icon="paw" data-icon-size="18"></button>
+      <div class="bd-share-menu bd-react-menu" id="bd-react-menu" hidden>
+        <button class="bd-react-emoji" data-emoji="👍" aria-label="класс">👍</button>
+        <button class="bd-react-emoji" data-emoji="❤️" aria-label="сердце">❤️</button>
+        <button class="bd-react-emoji" data-emoji="😂" aria-label="смешно">😂</button>
+        <button class="bd-react-emoji" data-emoji="🔥" aria-label="огонь">🔥</button>
+        <button class="bd-react-emoji" data-emoji="👏" aria-label="аплодисменты">👏</button>
+        <button class="bd-react-emoji" data-emoji="🤔" aria-label="думаю">🤔</button>
+        <button class="bd-react-emoji" data-emoji="🐱" aria-label="кот">🐱</button>
+      </div>
+    </div>
     <button class="bd-btn" id="bd-png" title="Скачать картинкой">
       <span data-icon="download" data-icon-size="18"></span><span class="bd-btn-label"> PNG</span></button>
     <button class="bd-btn" id="bd-clear" title="Очистить доску"
@@ -132,6 +157,10 @@
             data-icon="circle" data-icon-size="22"></button>
     <button class="bd-tool" data-tool="arrow" title="Стрелка (A)"
             data-icon="diagonal" data-icon-size="22"></button>
+    <!-- Фрейм (как в Miro): рамка-подложка с заголовком; контент едет
+         с ней за компанию (по центрам объектов) -->
+    <button class="bd-tool" data-tool="frame" title="Фрейм (F)"
+            data-icon="frame" data-icon-size="22"></button>
     <!-- Лазерная указка: яркая точка за курсором, которую видит только
          владелец (на доске ничего не остаётся). Отличие от указки-пинга
          (двойной тап): пинг общий и гаснет через пару секунд. -->
@@ -233,29 +262,6 @@
   <button class="bd-btn" id="bd-timer-reset" hidden aria-label="Сбросить таймер">✕</button>
 </div>
 
-<!-- Меню реакций: эмодзи — это и есть контент кнопок -->
-<div class="bd-share-menu bd-react-menu" id="bd-react-menu" hidden>
-  <button class="bd-react-emoji" data-emoji="👍" aria-label="класс">👍</button>
-  <button class="bd-react-emoji" data-emoji="❤️" aria-label="сердце">❤️</button>
-  <button class="bd-react-emoji" data-emoji="😂" aria-label="смешно">😂</button>
-  <button class="bd-react-emoji" data-emoji="🔥" aria-label="огонь">🔥</button>
-  <button class="bd-react-emoji" data-emoji="👏" aria-label="аплодисменты">👏</button>
-  <button class="bd-react-emoji" data-emoji="🤔" aria-label="думаю">🤔</button>
-  <button class="bd-react-emoji" data-emoji="🐱" aria-label="кот">🐱</button>
-</div>
-
-<!-- Меню пресетов таймера -->
-<div class="bd-share-menu bd-timer-menu" id="bd-timer-menu" hidden>
-  <button class="bd-btn" data-min="1">1 мин</button>
-  <button class="bd-btn" data-min="3">3 мин</button>
-  <button class="bd-btn" data-min="5">5 мин</button>
-  <button class="bd-btn" data-min="10">10 мин</button>
-  <span class="bd-timer-custom">
-    <input type="number" id="bd-timer-custom" class="bd-input" min="1" max="99" placeholder="мин">
-    <button class="bd-btn" id="bd-timer-custom-ok">Пуск</button>
-  </span>
-</div>
-
 <!-- Ввод текста поверх доски: системные prompt() на сайте запрещены
      (во встроенных браузерах их блокируют), поэтому своё поле. -->
 <div class="bd-editor" id="bd-editor" hidden>
@@ -303,6 +309,8 @@
   <span class="bd-minisep"></span>
   <button class="bd-btn" id="bd-mp-minus" title="Мельче">A−</button>
   <button class="bd-btn" id="bd-mp-plus" title="Крупнее">A+</button>
+  <button class="bd-btn" id="bd-mp-rename" title="Переименовать фрейм"
+          data-icon="edit" data-icon-size="15" hidden></button>
   <button class="bd-btn" id="bd-mp-dup" title="Дублировать (Ctrl+D)"
           data-icon="plus" data-icon-size="15"></button>
   <button class="bd-btn" id="bd-mp-lock" title="Замок / снять замок"

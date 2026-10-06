@@ -148,7 +148,11 @@ function draw(w = innerWidth, h = innerHeight) {
 
   // Порядок один и тот же у обоих участников — по версии объекта,
   // иначе у репетитора стикер сверху, а у ученика под линией.
-  const list = [...BD.objects.values()].sort((a, b) => (a.rev || 0) - (b.rev || 0));
+  // Исключение — фреймы: они подложка и лежат ПОД всем содержимым
+  // (над фоном), независимо от версии (как в Miro).
+  const byRev = [...BD.objects.values()].sort((a, b) => (a.rev || 0) - (b.rev || 0));
+  const list = byRev.filter(o => o.kind === "frame")
+    .concat(byRev.filter(o => o.kind !== "frame"));
   for (const o of list) drawObject(o);
   if (BD.selectedSet.size > 1) {
     // Мультивыделение: тонкая рамка у каждого + общая рамка группы (Miro)
@@ -456,6 +460,31 @@ function drawObject(o) {
     return;
   }
 
+  if (o.kind === "frame") {
+    // Фрейм (как в Miro): светлая подложка ПОД контентом (рисуется
+    // первым, см. сортировку в draw) и заголовок слева сверху.
+    // Цвет из палитры бумаги — как у стикера, но бледнее: подложка,
+    // а не содержимое.
+    const fill = o.color && o.color !== "ink" ? cssColor(o.color) : cssColor("paper");
+    const x0 = o.w < 0 ? o.x + o.w : o.x, y0 = o.h < 0 ? o.y + o.h : o.y;
+    const ww = Math.abs(o.w), hh = Math.abs(o.h);
+    ctx.globalAlpha = 0.45;
+    ctx.fillStyle = fill;
+    ctx.beginPath();
+    roundRect(x0, y0, ww, hh, 12);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = cssColor("grid");
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    // Заголовок: по нему фрейм выделяется и тянется
+    ctx.fillStyle = cssColor("ink-soft");
+    ctx.font = "700 15px Inter, system-ui, sans-serif";
+    ctx.textBaseline = "top";
+    ctx.fillText(o.title || "Фрейм", x0 + 14, y0 + 9);
+    return;
+  }
+
   if (o.kind === "line" || o.kind === "arrow") {
     ctx.strokeStyle = color;
     ctx.fillStyle = color;
@@ -592,7 +621,7 @@ function drawText(text, x, y, maxW, lh, color, weight) {
 
 /** У каких объектов есть смысл тянуть размер за уголок. Линии и штрихи
  *  не растягиваем: у них «размер» — это сама геометрия. */
-const resizable = o => ["image", "rect", "ellipse", "note", "word", "book"].includes(o.kind);
+const resizable = o => ["image", "rect", "ellipse", "note", "word", "book", "frame"].includes(o.kind);
 
 function drawSelection(o, group = false) {
   const b = bounds(o);
@@ -719,6 +748,18 @@ function hitTest(wx, wy) {
       continue;
     }
     const b = bounds(o);
+    if (o.kind === "frame") {
+      // Фрейм ловится только за заголовок или за рамку: заливка-подложка
+      // прозрачна для кликов, иначе фрейм перехватывал бы объекты поверх
+      // себя (как в Miro).
+      const x0 = b.x, y0 = b.y, x1 = b.x + b.w, y1 = b.y + b.h;
+      const inTitle = wx >= x0 && wx <= x1 && wy >= y0 && wy <= y0 + 30;
+      const onBorder = wx >= x0 - 5 && wx <= x1 + 5 && wy >= y0 - 5 && wy <= y1 + 5
+        && (Math.abs(wx - x0) <= 5 || Math.abs(wx - x1) <= 5
+            || Math.abs(wy - y0) <= 5 || Math.abs(wy - y1) <= 5);
+      if (inTitle || onBorder) return o;
+      continue;
+    }
     if (wx >= b.x - 4 && wx <= b.x + b.w + 4 && wy >= b.y - 4 && wy <= b.y + b.h + 4) return o;
   }
   return null;
@@ -1035,7 +1076,10 @@ canvas.addEventListener("pointerdown", e => {
       // было ввести ровно один раз при создании, и всё: повторного входа
       // в редактор не существовало (жалоба владельца). Залоченное не
       // редактируется и учителем — сначала сними замок.
-      if ((hit.kind === "note" || hit.kind === "text") && (e.detail === 2 || isDouble)) {
+      // Дабл-клик по заголовку фрейма — переименовать (заголовок —
+      // единственная «хваталка» фрейма, заливка клики пропускает).
+      if (((hit.kind === "note" || hit.kind === "text") && (e.detail === 2 || isDouble))
+          || (hit.kind === "frame" && (e.detail === 2 || isDouble))) {
         e.preventDefault();
         if (hit.locked) toast("Закреплено — сначала сними замок у рамки.");
         else openEditor(hit);
@@ -1068,9 +1112,19 @@ canvas.addEventListener("pointerdown", e => {
               const o = BD.objects.get(id);
               return o && !o.locked;
             }).map(id => [id, { ...BD.objects.get(id) }])) };
+          // Если в группе есть фрейм — его содержимое едет тоже (контейнер
+          // как в Miro). Уже выделенное не дублируем. Сначала собираем
+          // фреймы, потом добавляем: мутировать Map в его же forEach —
+          // просить нежданчиков.
+          const gmFrames = [];
+          groupMoving.orig.forEach(o => { if (o.kind === "frame") gmFrames.push(o); });
+          gmFrames.forEach(f => frameContents(f, new Set(groupMoving.orig.keys()))
+            .forEach((v, k) => groupMoving.orig.set(k, v)));
           pendingSingle = hit.id;
         } else {
           moving = { id: hit.id, dx: w.x, dy: w.y, orig: { ...hit } };
+          // Фрейм тянет за собой содержимое — как контейнер в Miro.
+          if (hit.kind === "frame") moving.contents = frameContents(hit);
         }
       }
     } else {
@@ -1233,6 +1287,20 @@ canvas.addEventListener("pointermove", e => {
     } else {
       BD.objects.set(o.id, { ...o, x: moving.orig.x + dx, y: moving.orig.y + dy });
     }
+    // Содержимое фрейма едет на ту же дельту (см. frameContents)
+    if (moving.contents) {
+      moving.contents.forEach((orig, id) => {
+        const c = BD.objects.get(id);
+        if (!c) return;
+        if (c.kind === "pen" || c.kind === "marker") {
+          const pts = orig.pts.slice();
+          for (let i = 0; i < pts.length; i += 2) { pts[i] += dx; pts[i + 1] += dy; }
+          BD.objects.set(id, { ...c, pts });
+        } else {
+          BD.objects.set(id, { ...c, x: orig.x + dx, y: orig.y + dy });
+        }
+      });
+    }
     paint();
     return;
   }
@@ -1312,12 +1380,47 @@ canvas.addEventListener("pointerup", () => {
   }
   if (moving) {
     const o = BD.objects.get(moving.id);
-    if (o) { pushUndo({ type: "put", before: moving.orig, id: o.id }); BD.dirty.set(o.id, o); scheduleSync(); }
+    if (o) {
+      // Фрейм с содержимым коммитим ОДНОЙ undo-записью (как мультивыделение):
+      // отмена вернёт рамку и всё её содержимое разом, а не по кусочкам.
+      if (moving.contents && moving.contents.size) {
+        if (o.x !== moving.orig.x || o.y !== moving.orig.y) {
+          const items = [{ id: o.id, before: moving.orig }];
+          moving.contents.forEach((before, id) => items.push({ id, before }));
+          pushUndo({ type: "multi", items });
+          moving.contents.forEach((_, id) => {
+            const c = BD.objects.get(id);
+            if (c) BD.dirty.set(id, c);
+          });
+        }
+        // Клик без движения по фрейму: ничего не изменилось — undo не пишем.
+      } else {
+        pushUndo({ type: "put", before: moving.orig, id: o.id });
+      }
+      BD.dirty.set(o.id, o);
+      scheduleSync();
+    }
     moving = null;
     return;
   }
   finishStroke();
 });
+
+/** Содержимое фрейма для группового переноса (как контейнер в Miro):
+ *  всё, чей ЦЕНТР внутри рамки фрейма. Залоченное не двигаем — замок это
+ *  «закреплено на месте»; вложенные фреймы — независимые контейнеры. */
+function frameContents(frame, exclude) {
+  const b = bounds(frame);
+  const out = new Map();
+  BD.objects.forEach(o => {
+    if (o.id === frame.id || o.kind === "frame" || o.locked || isService(o)) return;
+    if (exclude && exclude.has(o.id)) return;
+    const ob = bounds(o);
+    const cx = ob.x + ob.w / 2, cy = ob.y + ob.h / 2;
+    if (cx >= b.x && cx <= b.x + b.w && cy >= b.y && cy <= b.y + b.h) out.set(o.id, { ...o });
+  });
+  return out;
+}
 
 /** Нормализованная рамка-мультивыделение: x/y — левый верх, w/h — размер. */
 function normBand(b) {
@@ -1369,10 +1472,12 @@ function finishStroke() {
   if ((o.kind === "pen" || o.kind === "marker") && (o.pts || []).length < 4) {
     BD.objects.delete(o.id); paint(); return;      // случайный тычок
   }
-  if (["rect", "ellipse", "arrow", "line"].includes(o.kind)
+  if (["rect", "ellipse", "arrow", "line", "frame"].includes(o.kind)
       && Math.abs(o.w) < 4 && Math.abs(o.h) < 4) {
     BD.objects.delete(o.id); paint(); return;
   }
+  // Фрейму — заголовок по умолчанию (переименовывается дабл-кликом)
+  if (o.kind === "frame" && !o.title) o.title = "Фрейм";
   // Живое превью писало объект в карту во время драга — и put() ниже
   // брал его как «до»: undo свежего штриха превращался в no-op и съедал
   // шаг отмены (чек-лист 27.09). Убираем превью до put: «до» — null,
@@ -1384,7 +1489,7 @@ function finishStroke() {
   // так доска и покрывалась случайными следами (видео владельца 23.09).
   // Ручку и маркер НЕ трогаем: подчеркнуть несколько слов подряд —
   // нормальный сценарий, и липкий инструмент там честнее.
-  if (["rect", "ellipse", "arrow", "line"].includes(o.kind)) {
+  if (["rect", "ellipse", "arrow", "line", "frame"].includes(o.kind)) {
     const sel = document.querySelector('.bd-tool[data-tool="select"]');
     if (sel) sel.click();
   }
@@ -1574,7 +1679,9 @@ function openEditor(o) {
   editing = o;
   const box = $("bd-editor"), input = $("bd-editor-input");
   box.hidden = false;
-  input.value = o.text || "";
+  // У фрейма редактируем заголовок, у остальных — текст
+  input.value = o.kind === "frame" ? (o.title || "") : (o.text || "");
+  input.placeholder = o.kind === "frame" ? "Заголовок фрейма…" : "Текст…";
   // Фокус — после того, как браузер закончит обрабатывать нажатие:
   // синхронный focus() внутри pointerdown он тут же и отбирает
   // (нажатие-то пришло по полотну), поле выглядело открытым, а печать
@@ -1584,7 +1691,10 @@ function openEditor(o) {
 $("bd-editor-ok").addEventListener("click", () => {
   if (!editing) return;
   const text = $("bd-editor-input").value.trim();
-  if (!text) remove(editing.id, false);
+  // У фрейма пустой заголовок — это нормально, объект не удаляем
+  if (editing.kind === "frame") {
+    put({ ...BD.objects.get(editing.id), title: text || "Фрейм" });
+  } else if (!text) remove(editing.id, false);
   else {
     const o = { ...BD.objects.get(editing.id), text };
     // Стикер подгоняем под текст, если его размер не выбирали руками
@@ -1602,7 +1712,10 @@ $("bd-editor-ok").addEventListener("click", () => {
   if (sel) sel.click();
 });
 $("bd-editor-cancel").addEventListener("click", () => {
-  if (editing && !(BD.objects.get(editing.id) || {}).text) remove(editing.id, false);
+  // Отмена удаляет только НОВЫЙ пустой текст/стикер; фрейм без
+  // заголовка — нормальный объект, он остаётся
+  if (editing && editing.kind !== "frame"
+      && !(BD.objects.get(editing.id) || {}).text) remove(editing.id, false);
   $("bd-editor").hidden = true;
   editing = null;
 });
@@ -1734,6 +1847,8 @@ const TOOL_STYLE = {
   rect:    { colors: "ink", sizes: true },
   ellipse: { colors: "ink", sizes: true },
   arrow:   { colors: "ink", sizes: true },
+  // Фрейму — цвет бумаги-подложки, толщина не нужна
+  frame:   { colors: "note", sizes: false },
   // Лазер только показывает точку: ни цвета, ни толщины у него нет
   laser:   { colors: null,  sizes: false },
 };
@@ -1842,8 +1957,12 @@ function updateMiniPanel() {
             + "|" + Math.round(uni.y * BD.view.k + uni.h * BD.view.k);
   if (key === minipanelKey) return;
   minipanelKey = key;
-  // Цвета: если выделены только стикеры — палитра бумаги, иначе чернила
-  const allNotes = ids.every(id => BD.objects.get(id).kind === "note");
+  // Цвета: если выделены только стикеры или фреймы — палитра бумаги,
+  // иначе чернила (фрейм — та же «бумага-подложка», что и стикер)
+  const allNotes = ids.every(id => {
+    const k = BD.objects.get(id).kind;
+    return k === "note" || k === "frame";
+  });
   const list = allNotes ? NOTE_COLORS : COLORS;
   p.querySelectorAll(".bd-minicolor").forEach((b, i) => {
     b.dataset.color = list[i] || "";
@@ -1852,6 +1971,9 @@ function updateMiniPanel() {
   });
   p.hidden = false;
   $("bd-mp-lock").hidden = BD.role !== "tutor";
+  // «Переименовать» — только у одиночного фрейма: заголовок есть только у него
+  const single = ids.length === 1 ? BD.objects.get(ids[0]) : null;
+  $("bd-mp-rename").hidden = !(single && single.kind === "frame" && !single.locked);
   // Позиция: над рамкой по центру; вверху нет места — под рамкой
   const sx = uni.x * BD.view.k + BD.view.x + (uni.w * BD.view.k) / 2;
   const sy = uni.y * BD.view.k + BD.view.y;
@@ -1887,6 +2009,13 @@ $("bd-mp-minus").addEventListener("click", () => mpResize(-2));
 $("bd-mp-plus").addEventListener("click", () => mpResize(2));
 $("bd-mp-dup").addEventListener("click", duplicateSelection);
 $("bd-mp-del").addEventListener("click", deleteSelection);
+$("bd-mp-rename").addEventListener("click", () => {
+  // Тот же редактор заголовка, что и по дабл-клику по фрейму
+  const ids = selIds();
+  if (ids.length !== 1) return;
+  const o = BD.objects.get(ids[0]);
+  if (o && o.kind === "frame" && !o.locked) openEditor(o);
+});
 $("bd-mp-lock").addEventListener("click", () => {
   // Замок группы: если хоть один незалочен — залочить всё, иначе отпереть
   const ids = selIds();
@@ -1908,7 +2037,7 @@ document.addEventListener("keydown", e => {
     return;
   }
   const map = { v: "select", p: "pen", m: "marker", e: "eraser", s: "note", n: "note",
-                t: "text", r: "rect", o: "ellipse", a: "arrow", l: "laser" };
+                t: "text", r: "rect", o: "ellipse", a: "arrow", l: "laser", f: "frame" };
   const key = e.key.toLowerCase();
   // Escape из лазера — обратно в выделение: инструмент без рисования
   // иначе неочевидно чем выключить, а точка так и висела бы за курсором.

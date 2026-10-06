@@ -167,5 +167,32 @@ db.conn().commit()
 r = db.board_sync(bid, [], [], 0, T)
 ok("react" not in r, "протухшая реакция (6 с) не отдаётся")
 
+print("\n7. Фрейм: kind и заголовок доезжают до второй стороны")
+fr = {"id": "frame-1", "kind": "frame", "x": 100, "y": 100, "w": 400, "h": 300,
+      "color": "note", "size": 3, "title": "Грамматика"}
+db.board_sync(bid, [fr], [], 0, T)
+r = db.board_sync(bid, [], [], 0, S)
+objs = {o["id"]: o for o in r["objects"]}
+ok(objs.get("frame-1", {}).get("kind") == "frame",
+   "фрейм прошёл чистильщик и доехал до ученика")
+ok(objs["frame-1"]["title"] == "Грамматика",
+   "заголовок фрейма доехал: %s" % objs["frame-1"].get("title"))
+# переименование — тоже синкается
+db.board_sync(bid, [dict(fr, title="Чтение")], [], 0, T)
+r = db.board_sync(bid, [], [], 0, S)
+objs = {o["id"]: o for o in r["objects"]}
+ok(objs["frame-1"]["title"] == "Чтение",
+   "переименование доехало: %s" % objs["frame-1"].get("title"))
+# в базе заголовок тоже, а не только в ответе опроса
+row = db.get_board(bid)
+data = json.loads(row["data"])
+ok(data.get("frame-1", {}).get("title") == "Чтение", "в базе лежит новый заголовок")
+# залоченный репетитором фрейм ученик не двигает (общая защита замка)
+db.board_sync(bid, [dict(fr, title="Чтение", locked=1)], [], 0, T)
+db.board_sync(bid, [dict(fr, title="Чтение", x=999)], [], 0, S)
+r = db.board_sync(bid, [], [], 0, S)
+objs = {o["id"]: o for o in r["objects"]}
+ok(objs["frame-1"]["x"] == 100, "сдвиг залоченного фрейма учеником отклонён")
+
 print("\n" + ("ПРОВАЛЕНО: %d" % fails if fails else "всё держится"))
 sys.exit(1 if fails else 0)

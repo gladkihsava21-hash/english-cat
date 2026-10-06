@@ -599,6 +599,106 @@ function spoint(w, type, wx, wy, extra = {}) {
     ok(objects(w).length === 1 && p.hidden, "удаление из мини-панели сработало, панель скрылась");
   }
 
+  console.log("\n17. Фрейм: создание, заголовок, перенос с содержимым, хит-тест, мини-панель");
+  {
+    const w = makeBoard();
+    await tick(150);
+    const press = (k, extra = {}) => {
+      const ev = new w.Event("keydown", { bubbles: true });
+      Object.assign(ev, { key: k, preventDefault() {}, ...extra });
+      w.document.dispatchEvent(ev);
+    };
+    // хоткей F
+    press("f");
+    ok(bd(w).tool === "frame", "F включает фрейм");
+    // создание драгом (мировые координаты совпадают с экранными: вид 1:1)
+    point(w, "pointerdown", 100, 100);
+    point(w, "pointermove", 400, 300);
+    point(w, "pointerup", 400, 300);
+    const frame = objects(w).find(o => o.kind === "frame");
+    ok(!!frame, "драг создал фрейм");
+    ok(frame.title === "Фрейм", "заголовок по умолчанию «Фрейм»");
+    ok(bd(w).tool === "select", "после создания — обратно в «Выделить»");
+    const fid = frame.id;
+    // содержимое: стикер внутри (центр 200,190), прямоугольник снаружи
+    w.eval(`BD.objects.set("n1", { id: "n1", kind: "note", x: 150, y: 150, w: 100, h: 80,
+             color: "sun", size: 3, rev: 2, text: "внутри" });
+            BD.objects.set("r1", { id: "r1", kind: "rect", x: 600, y: 400, w: 80, h: 60,
+             color: "ink", size: 3, rev: 3 });`);
+    // z-order: фрейм рисуется первым — под контентом (перехватываем drawObject)
+    const order = w.eval(`(() => { const ord = []; const orig = drawObject;
+      drawObject = o => ord.push(o.kind); draw(); drawObject = orig; return ord; })()`);
+    ok(order[0] === "frame" && order.indexOf("frame") < order.indexOf("note"),
+       "фрейм рисуется первым — под контентом: " + order.join(","));
+    // хит-тест: заголовок выделяет, заливка пропускает клики
+    point(w, "pointerdown", 120, 110);
+    point(w, "pointerup", 120, 110);
+    ok(bd(w).selected === fid, "клик по заголовку выделяет фрейм");
+    point(w, "pointerdown", 380, 280);
+    point(w, "pointerup", 380, 280);
+    ok(bd(w).selected !== fid && !bd(w).selectedSet.has(fid),
+       "клик по заливке фрейм не выделяет — клики проходят сквозь подложку");
+    // перенос за заголовок: содержимое едет вместе (дельта +50,+50)
+    point(w, "pointerdown", 120, 110);
+    point(w, "pointermove", 170, 160);
+    point(w, "pointerup", 170, 160);
+    ok(byId(w, fid).x === 150 && byId(w, fid).y === 150,
+       "фрейм переехал: " + byId(w, fid).x + "," + byId(w, fid).y);
+    ok(byId(w, "n1").x === 200 && byId(w, "n1").y === 200,
+       "стикер внутри переехал вместе с фреймом: " + byId(w, "n1").x + "," + byId(w, "n1").y);
+    ok(byId(w, "r1").x === 600 && byId(w, "r1").y === 400, "объект снаружи остался на месте");
+    // undo/redo переноса — одним шагом для всей группы
+    press("z", { ctrlKey: true });
+    ok(byId(w, fid).x === 100 && byId(w, "n1").x === 150,
+       "Ctrl+Z вернул фрейм и стикер одним шагом");
+    press("z", { ctrlKey: true, shiftKey: true });
+    ok(byId(w, fid).x === 150 && byId(w, "n1").x === 200, "Ctrl+Shift+Z повторил перенос группы");
+    // переименование дабл-кликом по заголовку (фрейм теперь в (150,150), полоса y 150..180)
+    point(w, "pointerdown", 170, 160, { detail: 2 });
+    await tick(20);
+    ok(!w.document.getElementById("bd-editor").hidden, "дабл-клик по заголовку открыл редактор");
+    const inp = w.document.getElementById("bd-editor-input");
+    ok(inp.value === "Фрейм", "в редакторе текущий заголовок");
+    inp.value = "Грамматика";
+    w.document.getElementById("bd-editor-ok").click();
+    ok(byId(w, fid).title === "Грамматика", "заголовок переименован: " + byId(w, fid).title);
+    // Пауза дольше окна двойного тапа (350 мс): иначе следующий клик по
+    // той же точке считается дабл-кликом и открывает редактор вместо
+    // выделения — в жизни так и есть, а тесту нужны РАЗНЫЕ жесты.
+    await tick(400);
+    // мини-панель: палитра бумаги и кнопка «Переименовать»
+    point(w, "pointerdown", 170, 160);
+    point(w, "pointerup", 170, 160);
+    await tick(60);   // кадр: мини-панель позиционируется на отрисовке
+    const p = w.document.getElementById("bd-minipanel");
+    ok(!p.hidden, "мини-панель появилась над фреймом");
+    ok(!w.document.getElementById("bd-mp-rename").hidden, "у фрейма есть кнопка «Переименовать»");
+    const dots = [...p.querySelectorAll(".bd-minicolor")].map(b => b.dataset.color);
+    ok(dots[0] === "note", "у фрейма палитра бумаги, не чернила: " + dots[0]);
+    w.document.getElementById("bd-mp-rename").click();
+    await tick(20);
+    ok(!w.document.getElementById("bd-editor").hidden && inp.value === "Грамматика",
+       "кнопка «Переименовать» открыла редактор с заголовком");
+    w.document.getElementById("bd-editor-cancel").click();
+    await tick(400);   // снова пережидаем окно двойного тапа
+    // залоченное содержимое с фреймом НЕ едет (замок — «закреплено на месте»)
+    w.eval(`BD.objects.get("n1").locked = 1;`);
+    point(w, "pointerdown", 170, 160);
+    point(w, "pointermove", 170, 210);
+    point(w, "pointerup", 170, 210);
+    ok(byId(w, fid).y === 200 && byId(w, "n1").y === 200 && byId(w, "n1").x === 200,
+       "фрейм переехал, залоченный стикер остался: " + byId(w, "n1").x + "," + byId(w, "n1").y);
+    press("z", { ctrlKey: true });   // откат последнего переноса
+    w.eval(`BD.objects.get("n1").locked = 0;`);
+    await tick(400);   // пережидаем окно двойного тапа перед новым жестом
+    // удаление фрейма не трогает содержимое
+    point(w, "pointerdown", 170, 160);
+    point(w, "pointerup", 170, 160);
+    ok(bd(w).selected === fid, "фрейм выделен для удаления");
+    press("Delete");
+    ok(!byId(w, fid) && !!byId(w, "n1"), "фрейм удалён — стикер остался на доске");
+  }
+
   console.log(fails ? `\nПРОВАЛЕНО: ${fails}` : "\nВсё зелено");
   process.exit(fails ? 1 : 0);
 })();
