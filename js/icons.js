@@ -231,6 +231,10 @@ function swapEmoji(root) {
       if (!p || SKIP.has(p.tagName)) return NodeFilter.FILTER_REJECT;
       // картинка к слову остаётся эмодзи — она помогает запоминать
       if (p.closest(".word-art, .cat-avatar")) return NodeFilter.FILTER_REJECT;
+      // Сетки выбора эмодзи на доске и меню реакций: там эмодзи — это
+      // СОДЕРЖИМОЕ кнопки (что видишь, то и вставится), а не оформление.
+      // Подмена на иконку превращала 🔥 в пустую с виду кнопку.
+      if (p.closest(".bd-emoji-panel, .bd-react-menu")) return NodeFilter.FILTER_REJECT;
       return NodeFilter.FILTER_ACCEPT;
     },
   });

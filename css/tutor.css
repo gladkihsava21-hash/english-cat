@@ -50,6 +50,17 @@
 .dw-learning { color: var(--accent-dark); }
 .dw-new { color: var(--muted); }
 
+/* Словарь ученика: кнопка удаления слова и форма добавления (волна 2 —
+   репетитор ведёт словарь и вне урока). */
+.dict-del {
+  border: 0; background: none; cursor: pointer; color: var(--muted);
+  font-size: 13px; padding: 2px 6px; border-radius: 6px;
+}
+.dict-del:hover { color: var(--red); background: var(--accent-soft); }
+.stu-dict-add { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+.stu-dict-add-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.stu-dict-add-row .type-input { flex: 1; min-width: 120px; }
+
 .stu-del { margin-top: 12px; font-size: var(--text-caption); }
 .link-btn.danger { color: var(--red); font-weight: 800; }
 

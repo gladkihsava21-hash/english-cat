@@ -1135,6 +1135,35 @@ class Api:
         return res
 
     @staticmethod
+    def tutor_delete_word(h, p):
+        """Репетитор удаляет слово из словаря СВОЕГО ученика. Те же
+        проверки владения, что у add-word. Если передан boardId, онлайн-
+        ученику едем уведомлением dictDel в ответе синхронизации доски —
+        он уберёт слово из своего состояния, иначе его ближайший снимок
+        воскресил бы удалённое (источник правды — клиент ученика)."""
+        tutor, err = verified_tutor(p)
+        if err:
+            return err
+        row = db.get_student_by_id(int(p.get("studentId") or 0))
+        if not row or row["tutor_id"] != tutor["id"]:
+            return {"ok": False, "error": "not_found"}
+        res = db.student_delete_word(row["id"], p.get("w"))
+        if not res:
+            return {"ok": False, "error": "not_found"}
+        board_id = int(p.get("boardId") or 0)
+        if res.get("ok") and board_id:
+            board = db.get_board(board_id)
+            if board and board["tutor_id"] == tutor["id"]:
+                db.conn().execute(
+                    "UPDATE boards SET dict_del=?, dict_del_at=? WHERE id=?",
+                    (json.dumps({"w": str(p.get("w") or "").strip()[:60],
+                                 "studentId": row["id"],
+                                 "at": int(time.time())}, ensure_ascii=False),
+                     int(time.time()), board_id))
+                db.conn().commit()
+        return res
+
+    @staticmethod
     def tutor_student_note(h, p):
         tutor, err = verified_tutor(p)
         if err:
@@ -1596,7 +1625,14 @@ class Api:
         board, me = Api._call_party(p)
         if not me:
             return {"ok": False, "error": "unauthorized"}
-        ok = db.call_send(board["id"], me, str(p.get("kind", "")), p.get("data"))
+        kind = str(p.get("kind", ""))
+        # Демонстрация экрана — право репетитора (пакет владельца, волна 2):
+        # «screen on» от ученика отклоняем даже в обход интерфейса.
+        # «screen off» пропускаем: гашение безвредно и добивает зависший
+        # показ, если права ужесточили посреди урока.
+        if kind == "screen" and me.startswith("s") and (p.get("data") or {}).get("on"):
+            return {"ok": False, "error": "forbidden"}
+        ok = db.call_send(board["id"], me, kind, p.get("data"))
         return {"ok": bool(ok)}
 
     @staticmethod
@@ -3023,6 +3059,7 @@ ROUTES = {
     "/api/tutor/students": Api.tutor_students,
     "/api/tutor/student": Api.tutor_student_detail,
     "/api/tutor/add-word": Api.tutor_add_word,
+    "/api/tutor/delete-word": Api.tutor_delete_word,
     "/api/tutor/student/note": Api.tutor_student_note,
     "/api/tutor/student/level": Api.tutor_student_level,
     "/api/tutor/student/delete": Api.tutor_student_delete,

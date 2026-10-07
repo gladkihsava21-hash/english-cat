@@ -194,5 +194,55 @@ r = db.board_sync(bid, [], [], 0, S)
 objs = {o["id"]: o for o in r["objects"]}
 ok(objs["frame-1"]["x"] == 100, "сдвиг залоченного фрейма учеником отклонён")
 
+print("\n8. Лазерный след: серия точек доезжает второй стороне, гашение сразу")
+trail = {"pts": [[10.0, 20.0], [30.0, 40.0], [50.0, 60.0]]}
+db.board_sync(bid, [], [], 0, T, laser=trail)
+r = db.board_sync(bid, [], [], 0, T)
+ok("laser" not in r, "автору его след не возвращается")
+r = db.board_sync(bid, [], [], 0, S)
+ok(r.get("laser") and r["laser"].get("pts") == [[10.0, 20.0], [30.0, 40.0], [50.0, 60.0]],
+   "ученик получил серию точек: %s" % (r.get("laser") or {}).get("pts"))
+ok(r["laser"]["x"] == 50.0 and r["laser"]["y"] == 60.0,
+   "одиночная точка — голова следа (совместимость)")
+# старый формат {x,y} тоже принимается
+db.board_sync(bid, [], [], 0, T, laser={"x": 7, "y": 8})
+r = db.board_sync(bid, [], [], 0, S)
+ok(r.get("laser") and r["laser"].get("pts") == [[7.0, 8.0]],
+   "старый формат {x,y} заворачивается в серию из одной точки")
+# гашение: смена инструмента убирает след сразу
+db.board_sync(bid, [], [], 0, T, laser=None)
+r = db.board_sync(bid, [], [], 0, S)
+ok("laser" not in r, "после гашения поля нет")
+# мусор в точках отбрасывается, валидное доезжает; точка с хвостом —
+# не мусор: первые два числа и есть координаты (запас на будущее [x,y,t])
+db.board_sync(bid, [], [], 0, T, laser={"pts": [["a", 1], [1, 2, 3, 4], [5.0, 6.0], None]})
+r = db.board_sync(bid, [], [], 0, S)
+ok(r.get("laser") and r["laser"].get("pts") == [[1.0, 2.0], [5.0, 6.0]],
+   "мусорные точки отброшены: %s" % (r.get("laser") or {}).get("pts"))
+db.board_sync(bid, [], [], 0, T, laser=None)
+
+print("\n9. Эмодзи-объект: символ доезжает; пустые note/text сервер не хранит")
+em = {"id": "emoji-1", "kind": "emoji", "x": 100, "y": 100, "w": 58, "h": 58,
+      "color": "ink", "size": 8, "text": "🐱"}
+db.board_sync(bid, [em], [], 0, T)
+r = db.board_sync(bid, [], [], 0, S)
+objs = {o["id"]: o for o in r["objects"]}
+ok(objs.get("emoji-1", {}).get("text") == "🐱",
+   "эмодзи-объект доехал до ученика с символом: %s" % objs.get("emoji-1", {}).get("text"))
+# пустые тексты сервер не принимает
+db.board_sync(bid, [{"id": "note-empty", "kind": "note", "x": 0, "y": 0, "w": 180,
+                     "h": 120, "color": "note", "size": 3, "text": "  "}], [], 0, T)
+r = db.board_sync(bid, [], [], 0, S)
+ok("note-empty" not in {o["id"] for o in r["objects"]},
+   "пустой стикер сервер не сохранил")
+# живое создание не ломается: тот же id возвращается с текстом
+db.board_sync(bid, [{"id": "note-empty", "kind": "note", "x": 0, "y": 0, "w": 180,
+                     "h": 120, "color": "note", "size": 3, "text": "написал!"}], [], 0, T)
+r = db.board_sync(bid, [], [], 0, S)
+objs = {o["id"]: o for o in r["objects"]}
+ok(objs.get("note-empty", {}).get("text") == "написал!",
+   "тот же объект с текстом принят: %s" % objs.get("note-empty", {}).get("text"))
+db.board_sync(bid, [], ["note-empty", "emoji-1"], 0, T)
+
 print("\n" + ("ПРОВАЛЕНО: %d" % fails if fails else "всё держится"))
 sys.exit(1 if fails else 0)

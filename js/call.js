@@ -508,6 +508,13 @@ async function sendFreshOffer() {
 }
 
 async function startScreenShare() {
+  // Демонстрация — право репетитора (пакет владельца, волна 2). Кнопку
+  // ученик не видит вовсе; этот страж — на случай обхода через консоль,
+  // а сервер отклоняет сигнал «screen on» от ученика самостоятельно.
+  if (BD.role !== "tutor") {
+    toast("Показывать экран может только репетитор.");
+    return;
+  }
   if (!CALL.pc || CALL.state !== "live") {
     toast("Сначала созвонитесь — экран показывается внутри звонка.");
     return;
@@ -701,8 +708,10 @@ function refreshCallStrip() {
     title: !cam.length ? "Камеры нет — " + peer + " вас не видит"
          : cam[0].enabled ? "Камера включена" : "Камера выключена",
   });
-  // Показ экрана есть у обеих сторон (с 22.09.2026 — и у ученика),
-  // значок прячем только там, где браузер его не умеет вовсе.
+  // Показ экрана — репетиторский (волна 2), но значок-статус показываем
+  // обеим сторонам: ученику важно ВИДЕТЬ, что идёт демонстрация, а
+  // репетитору — что показ идёт. Прячем значок только там, где браузер
+  // демонстрацию не умеет вовсе.
   stripChip("cs-screen", {
     hidden: !screenSupported(),
     on: !!SCREEN.track,
@@ -818,6 +827,49 @@ function refreshDial() {
 /* ---------- перетаскивание панели ----------
    Окно звонка закрывало то место доски, где шёл разбор, — теперь его
    можно оттащить за видео в любой угол. Позицию помним между уроками. */
+/* Плитки-окошки внутри звонка (своя камера, лицо собеседника при демке)
+   таскаются мышью/пальцем — как в Zoom: куда поставил, там и висит,
+   и в малом окне, и в .big на весь экран. Позиция локальная
+   (localStorage): второй стороне чужая раскладка не нужна. stopPropagation
+   в pointerdown — иначе за плиткой поехала бы и вся панель звонка
+   (её drag висит на том же событии выше). */
+function makeTileDraggable(el, storageKey) {
+  if (!el) return;
+  let drag = null;
+  const place = (l, t) => {
+    const r = el.getBoundingClientRect();
+    const cl = Math.max(4, Math.min(innerWidth - r.width - 4, l));
+    const ct = Math.max(4, Math.min(innerHeight - r.height - 4, t));
+    el.style.left = cl + "px";
+    el.style.top = ct + "px";
+    el.style.right = "auto";
+    el.style.bottom = "auto";
+  };
+  el.addEventListener("pointerdown", e => {
+    const r = el.getBoundingClientRect();
+    drag = { dx: e.clientX - r.left, dy: e.clientY - r.top };
+    try { el.setPointerCapture(e.pointerId); } catch (err) { /* не беда */ }
+    e.stopPropagation();
+    e.preventDefault();
+  });
+  el.addEventListener("pointermove", e => {
+    if (!drag) return;
+    place(e.clientX - drag.dx, e.clientY - drag.dy);
+  });
+  el.addEventListener("pointerup", () => {
+    if (!drag) return;
+    drag = null;
+    try {
+      localStorage.setItem(storageKey, JSON.stringify({
+        l: parseInt(el.style.left, 10), t: parseInt(el.style.top, 10) }));
+    } catch (e) { /* приватный режим */ }
+  });
+  // Вернуть сохранённое место (и не дать плитке спрятаться за краем)
+  try {
+    const p = JSON.parse(localStorage.getItem(storageKey));
+    if (p && Number.isFinite(p.l)) requestAnimationFrame(() => place(p.l, p.t));
+  } catch (e) { /* не было */ }
+}
 function makeCallDraggable() {
   const box = $("bd-call");
   let drag = null;
@@ -879,10 +931,11 @@ function callBoot() {
   $("call-end").addEventListener("click", () => endCall(true));
   $("call-mic").addEventListener("click", e => toggleTrack("audio", e.currentTarget));
   $("call-cam").addEventListener("click", e => toggleTrack("video", e.currentTarget));
-  // Показ экрана — обеим сторонам: ученику тоже бывает нужно показать
-  // «смотри, где я застрял». Одновременный показ отсекает страж в
-  // startScreenShare. В ГРУППЕ ученику по-прежнему нельзя (см. groupcall.js).
-  if (screenSupported() && $("call-screen")) {
+  // Показ экрана — ТОЛЬКО репетитору (пакет владельца, волна 2): ученику
+  // кнопку не показываем вовсе, а startScreenShare стоит второй линией.
+  // Сервер тоже отклоняет «screen on» от ученика (см. Api.call_send).
+  // В ГРУППЕ ученику было нельзя и раньше (см. groupcall.js).
+  if (screenSupported() && $("call-screen") && BD.role === "tutor") {
     $("call-screen").hidden = false;
     $("call-screen").addEventListener("click", toggleScreenShare);
   }
@@ -957,6 +1010,10 @@ function callBoot() {
   const sbStop = $("screen-bar-stop");
   if (sbStop) sbStop.addEventListener("click", () => stopScreenShare(false));
   makeCallDraggable();
+  // Плитки-окошки таскаются по экрану (как в Zoom): своя камера и лицо
+  // собеседника при демонстрации. Работает и в углу, и в .big-режиме.
+  makeTileDraggable($("call-local"), "savelyTileLocal");
+  makeTileDraggable($("call-remote-cam"), "savelyTileRemoteCam");
   callPollLoop();
   // Пришли по вкладке «Урок»: сразу большой режим. Звонка ещё нет —
   // заставка с «Позвонить»; репетитор уже зовёт — обычный входящий.

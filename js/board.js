@@ -42,6 +42,9 @@ const BD = {
   needsPaint: true,
   laser: null,           // точка лазерной указки {x,y} в ЭКРАННЫХ координатах;
                          // живёт только здесь: не объект доски, не синхронизация
+  laserPts: [],          // след указки: {x,y,t} экранные, t — performance.now();
+                         // из них рисуется затухающий хвост и собирается посылка
+                         // для второй стороны (последние ~15 точек)
 };
 
 const $ = id => document.getElementById(id);
@@ -153,7 +156,12 @@ function draw(w = innerWidth, h = innerHeight) {
   const byRev = [...BD.objects.values()].sort((a, b) => (a.rev || 0) - (b.rev || 0));
   const list = byRev.filter(o => o.kind === "frame")
     .concat(byRev.filter(o => o.kind !== "frame"));
-  for (const o of list) drawObject(o);
+  for (const o of list) {
+    // Пустые окаменелости не рисуем (см. isEmptyText): на доске не должно
+    // быть безымянных квадратов от «создал и передумал».
+    if (isEmptyText(o)) continue;
+    drawObject(o);
+  }
   if (BD.selectedSet.size > 1) {
     // Мультивыделение: тонкая рамка у каждого + общая рамка группы (Miro)
     BD.selectedSet.forEach(id => {
@@ -210,18 +218,20 @@ function draw(w = innerWidth, h = innerHeight) {
      НЕ объект доски: в BD.objects не попадает, в синхронизацию и отмену
      не уезжает (второй участник видит её через поле laser в ответе
      синхронизации — см. syncNow). Не путать с ping: пинг — общий и
-     гаснет сам, лазер живёт, пока активен инструмент. Точка статичная
-     (без анимации), поэтому цикл перерисовки не форсируем: кадр придёт
-     от pointermove. */
+     гаснет сам, лазер живёт, пока активен инструмент. */
   const drawLaserDot = (sx, sy, colorName, label) => {
     ctx.fillStyle = cssColor(colorName);
-    ctx.globalAlpha = 0.28;                 // ореол, чтобы точку было видно и на светлом, и на картинке
+    ctx.globalAlpha = 0.30;                 // ореол, чтобы точку было видно и на светлом, и на картинке
     ctx.beginPath();
-    ctx.arc(sx, sy, 12, 0, 7);
+    ctx.arc(sx, sy, 15, 0, 7);
+    ctx.fill();
+    ctx.globalAlpha = 0.55;                 // вторая оболочка — «свечение»
+    ctx.beginPath();
+    ctx.arc(sx, sy, 9, 0, 7);
     ctx.fill();
     ctx.globalAlpha = 1;
     ctx.beginPath();
-    ctx.arc(sx, sy, 4.5, 0, 7);
+    ctx.arc(sx, sy, 5, 0, 7);
     ctx.fill();
     if (label) {
       ctx.font = "700 11px Inter, system-ui, sans-serif";
@@ -229,20 +239,52 @@ function draw(w = innerWidth, h = innerHeight) {
       ctx.fillText(label, sx + 10, sy + 12);
     }
   };
-  if (BD.tool === "laser" && BD.laser) {
-    drawLaserDot(BD.laser.x, BD.laser.y, "rec");
+  /* След: серия точек позади курсора с затуханием по возрасту (хвост
+     ~1,8 с), голова — яркая светящаяся точка. Пока хвост жив, кадры
+     нужны постоянно — поднимаем needsPaint, иначе затухание замерло бы
+     на первом кадре (точки-то анимируются по времени). */
+  const LASER_TAIL_MS = 1800;
+  const drawLaserTrail = (pts, colorName, label) => {
+    const now = performance.now();
+    let alive = false;
+    ctx.fillStyle = cssColor(colorName);
+    pts.forEach(p => {
+      const age = now - p.t;
+      if (age > LASER_TAIL_MS) return;
+      alive = true;
+      const a = 1 - age / LASER_TAIL_MS;
+      ctx.globalAlpha = 0.4 * a;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 2 + 7 * a, 0, 7);
+      ctx.fill();
+    });
+    ctx.globalAlpha = 1;
+    const head = pts.length ? pts[pts.length - 1] : null;
+    if (head && now - head.t <= LASER_TAIL_MS) {
+      alive = true;
+      drawLaserDot(head.x, head.y, colorName, label);
+    }
+    if (alive) BD.needsPaint = true;
+  };
+  // Цвет по стороне: у учителя точка красная, у ученика синяя — и своя,
+  // и чужая. Раньше своя всегда была красной, и ученик видел у себя
+  // «чужой» цвет.
+  const myLaserColor = BD.role === "student" ? "blue" : "rec";
+  if (BD.tool === "laser" && BD.laserPts.length) {
+    drawLaserTrail(BD.laserPts, myLaserColor);
   }
-  // Лазер второй стороны: приехал в ответе синхронизации, живёт пару
-  // секунд. Цвет по стороне — у учителя красный, у ученика синий, —
-  // и подпись, чья точка (владелец: «точка только для себя»).
-  if (BD.remoteLaser && performance.now() - BD.remoteLaser.seen < 2600) {
+  // Лазер второй стороны: приехал в ответе синхронизации серией точек.
+  if (BD.remoteLaser) {
     const r = BD.remoteLaser;
-    const sx = r.x * BD.view.k + BD.view.x, sy = r.y * BD.view.k + BD.view.y;
     const fromTutor = String(r.by || "").startsWith("t");
-    drawLaserDot(sx, sy, fromTutor ? "rec" : "blue",
-                 fromTutor ? "учитель" : "ученик");
-  } else if (BD.remoteLaser) {
-    BD.remoteLaser = null;
+    const now = performance.now();
+    // Отсекаем протухший хвост целиком: новых порций нет — гасим сами
+    if (now - r.seen > 2000) BD.remoteLaser = null;
+    else drawLaserTrail(
+      r.pts.map(p => ({ x: p.x * BD.view.k + BD.view.x,
+                        y: p.y * BD.view.k + BD.view.y, t: p.t })),
+      fromTutor ? "rec" : "blue",
+      fromTutor ? "учитель" : "ученик");
   }
 }
 
@@ -485,6 +527,16 @@ function drawObject(o) {
     return;
   }
 
+  if (o.kind === "emoji") {
+    // Эмодзи-объект (штамп из меню реакций): одна «буква» крупным кеглем.
+    // Размер — как у текста: o.size через textLH, крутится A−/A+ и углом.
+    const px = textLH(o.size);
+    ctx.font = px + 'px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+    ctx.textBaseline = "top";
+    ctx.fillText(o.text || "🐱", o.x, o.y);
+    return;
+  }
+
   if (o.kind === "line" || o.kind === "arrow") {
     ctx.strokeStyle = color;
     ctx.fillStyle = color;
@@ -620,8 +672,9 @@ function drawText(text, x, y, maxW, lh, color, weight) {
 }
 
 /** У каких объектов есть смысл тянуть размер за уголок. Линии и штрихи
- *  не растягиваем: у них «размер» — это сама геометрия. */
-const resizable = o => ["image", "rect", "ellipse", "note", "word", "book", "frame"].includes(o.kind);
+ *  не растягиваем: у них «размер» — это сама геометрия. У текста уголок
+ *  меняет не рамку, а кегль (см. ветку text в resize-драге). */
+const resizable = o => ["image", "rect", "ellipse", "note", "word", "book", "frame", "text", "emoji"].includes(o.kind);
 
 function drawSelection(o, group = false) {
   const b = bounds(o);
@@ -713,6 +766,14 @@ function bounds(o) {
 /** Служебные объекты: их нельзя выделить, стереть или двигать. */
 const isService = o => o.kind === "ping" || o.kind === "bg";
 
+/** Пустая заметка/текст — «окаменелость»: создали и передумали. Такие не
+ *  рисуем и не ловим кликами; исключение — объект, который прямо сейчас
+ *  набирают в редакторе: он ещё пуст честно, это живое создание, а не
+ *  окаменелость. */
+const isEmptyText = o => (o.kind === "note" || o.kind === "text")
+  && !String(o.text || "").trim()
+  && !(editing && editing.id === o.id);
+
 /** Что стирает ластик: только нарисованное от руки и подписи.
  *
  *  Картинка, страница учебника, карточка слова, задание и его разбор —
@@ -731,6 +792,9 @@ function hitTest(wx, wy) {
   const list = [...BD.objects.values()].sort((a, b) => (b.rev || 0) - (a.rev || 0));
   for (const o of list) {
     if (isService(o)) continue;
+    // Невидимое (пустая окаменелость) не может быть попаданием — иначе
+    // клик по «чистому» месту упирался бы в невидимый пустой стикер.
+    if (isEmptyText(o)) continue;
     if (o.kind === "pen" || o.kind === "marker") {
       // Маркеры, сохранённые сервером до 27.09 (баг `kind=="pen"` в
       // _clean_board_object), лежат в старых досках БЕЗ pts. Отрисовка
@@ -793,6 +857,23 @@ function remove(id, remember = true) {
   paint();
   scheduleSync();
 }
+
+/* Окаменелости со старых времён: пустые заметки/тексты, доехавшие в
+   снимке с сервера. Их не рисуем (isEmptyText) и на первом же снимке
+   выносим — удаление уезжает обычным deletes. Редактор при загрузке
+   ни у кого открыт быть не может, поэтому живое создание не задеваем;
+   а если у второй стороны прямо сейчас открыт пустой черновик, её OK
+   просто пришлёт объект снова, уже с текстом (put воскрешает и надгробие). */
+function sweepEmptyTexts() {
+  let n = 0;
+  BD.objects.forEach(o => {
+    if ((o.kind === "note" || o.kind === "text") && !String(o.text || "").trim()) {
+      remove(o.id, false);
+      n++;
+    }
+  });
+  return n;
+}
 function pushUndo(step) {
   BD.undo.push(step);
   if (BD.undo.length > 80) BD.undo.shift();
@@ -836,6 +917,18 @@ function scheduleSync() {
   syncTimer = setTimeout(syncNow, 250);   // копим штрихи, но не дольше четверти секунды
 }
 
+/** Посылка лазера для syncNow: последние точки следа в МИРОВЫХ
+ *  координатах (хвост второй стороне) или null — «указка выключена».
+ *  null сервер трактует как гашение СВОЕЙ точки (см. db.board_sync). */
+function buildLaserPayload() {
+  if (BD.tool !== "laser" || !BD.laser) return null;
+  const pts = BD.laserPts.slice(-15).map(p => {
+    const w = toWorld(p.x, p.y);
+    return [Math.round(w.x * 10) / 10, Math.round(w.y * 10) / 10];
+  });
+  return pts.length ? { pts } : null;
+}
+
 async function syncNow() {
   if (syncBusy || !BD.boardId) return;
   syncBusy = true;
@@ -851,11 +944,11 @@ async function syncNow() {
       // из этого складывается плашка присутствия у репетитора.
       hidden: document.hidden,
       // Лазерная указка — единственное, что ходит вне объектов доски:
-      // эфемерная точка для второго участника, в базу объектом её класть
-      // нельзя (мусор и лишний трафик). Сервер хранит последнюю на доске
-      // и раздаёт второй стороне пару секунд.
-      laser: (BD.tool === "laser" && BD.laser)
-        ? toWorld(BD.laser.x, BD.laser.y) : null,
+      // эфемерный СЛЕД для второго участника, в базу объектом его класть
+      // нельзя (мусор и лишний трафик). Шлём последние ~15 точек следа:
+      // вторая сторона рисует из них непрерывный хвост, а не одинокую
+      // прыгающую точку (раньше слали одну точку раз в 1,2 с — дёргано).
+      laser: buildLaserPayload(),
       // «Покажи мой вид»: разовая команда репетитора — мировой центр
       // и зум его экрана. Шлётся один раз после нажатия (см. bd-follow);
       // сервер держит её ~10 с и отдаёт стороне ученика.
@@ -879,16 +972,38 @@ async function syncNow() {
     BD.me = res.me || BD.me;
     BD.rev = res.rev;
     // Чужой лазер: сервер отдаёт его только второй стороне и только
-    // свежий (пару секунд). Свой ответ с той же точкой игнорируем —
-    // своя точка рисуется локально.
+    // свежий. Приезжает СЕРИЯ точек следа; метки времени раздаём свои,
+    // с шагом ~90 мс назад от прибытия, — часы двух браузеров не сверены,
+    // и возраст хвоста надо считать по СВОИМ часам. Одинаковую порцию
+    // (та же голова и длина) НЕ перештамповываем: иначе, пока сервер
+    // отдаёт протухшую точку свои пару секунд, хвост бы не гас.
     if (res.laser && res.laser.by !== BD.me) {
-      BD.remoteLaser = { x: res.laser.x, y: res.laser.y,
-                         by: res.laser.by, seen: performance.now() };
+      const pts = (res.laser.pts || []).filter(p => Array.isArray(p) && p.length >= 2);
+      const raw = res.laser.by + "|" + JSON.stringify(pts);
+      if (raw !== BD._laserRaw) {
+        BD._laserRaw = raw;
+        const now = performance.now();
+        BD.remoteLaser = {
+          by: res.laser.by, seen: now,
+          pts: pts.map((p, i) => ({ x: +p[0] || 0, y: +p[1] || 0,
+                                    t: now - (pts.length - 1 - i) * 90 })),
+        };
+      } else if (BD.remoteLaser) {
+        BD.remoteLaser.seen = performance.now();   // порция та же, но доставка живая
+      }
       paint();
       clearTimeout(BD._laserT);
-      // У второй стороны опрос с перерывами: если следующая точка не
+      // У второй стороны опрос с перерывами: если следующая порция не
       // приехала, гасим сами, а не ждём вечно
-      BD._laserT = setTimeout(() => { BD.remoteLaser = null; paint(); }, 2600);
+      BD._laserT = setTimeout(() => { BD.remoteLaser = null; paint(); }, 2000);
+    } else if (!res.laser && BD.remoteLaser) {
+      // Вторая сторона погасила указку (сменила инструмент или увела
+      // курсор с полотна): сервер убрал поле — хвост гасим СРАЗУ,
+      // а не по таймауту.
+      BD.remoteLaser = null;
+      BD._laserRaw = "";
+      clearTimeout(BD._laserT);
+      paint();
     }
     // «Покажи мой вид» от репетитора. Разовая команда: применяем каждую
     // один раз (по метке времени); ученик в другой вкладке — ждёт
@@ -918,6 +1033,15 @@ async function syncNow() {
       BD.dictAddSeen = res.dictAdd.at;
       const rec = studentTakeWord(res.dictAdd);
       if (rec) toast(`Учитель добавил вам слово: «${rec.w}».`);
+    }
+    // Удаление — зеркало добавления: убираем слово из СВОЕГО состояния,
+    // иначе ближайшая синхронизация состояния воскресила бы его на сервере.
+    if (res.dictDel && res.dictDel.at > (BD.dictDelSeen || 0)
+        && "s" + res.dictDel.studentId === BD.me) {
+      BD.dictDelSeen = res.dictDel.at;
+      if (studentDropWord(res.dictDel)) {
+        toast(`Учитель убрал из словаря: «${res.dictDel.w}».`);
+      }
     }
     let changed = false;
     (res.objects || []).forEach(o => {
@@ -998,6 +1122,13 @@ canvas.addEventListener("pointerdown", e => {
   // событие пришло не от «живого» касания), и тогда всё, что ниже,
   // не выполнялось вовсе — рисование просто не начиналось.
   try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* не беда */ }
+  // Открытый редактор закрывается кликом мимо — как в Miro: первое
+  // нажатие по полотну просто применяет текст (пустой — удаляет объект,
+  // этим занимается обработчик OK) и НИЧЕГО не рисует этим кликом.
+  // Раньше клик мимо редактор не закрывал вовсе: следующий openEditor
+  // переключал editing на новый объект, а свежесозданный пустой
+  // текст/стикер так и оставался на доске окаменелостью.
+  if (editing) { $("bd-editor-ok").click(); return; }
   const w = toWorld(e.clientX, e.clientY);
 
   // Средняя кнопка, правая кнопка и пробел — всегда перетаскивание
@@ -1019,6 +1150,18 @@ canvas.addEventListener("pointerdown", e => {
   // завернула бы нажатие в drawing-объект «laser» и угнала бы его
   // в синхронизацию — а указка видна только владельцу.
   if (BD.tool === "laser") return;
+
+  // Штамп-эмодзи: один клик — объект на месте клика (центруем на точку),
+  // и сразу обратно в «Выделить», как после фигуры (см. finishStroke).
+  if (BD.tool === "emoji") {
+    const px = textLH(8);                 // стартовый кегль 48px, дальше A−/A+ и уголок
+    put({ id: uid(), kind: "emoji",
+          x: w.x - px * 0.6, y: w.y - px * 0.6, w: px * 1.2, h: px * 1.2,
+          size: 8, color: "ink", rev: 0, text: BD.pendingEmoji || "🐱" });
+    BD.pendingEmoji = "";
+    document.querySelector('.bd-tool[data-tool="select"]').click();
+    return;
+  }
 
   if (BD.tool === "select") {
     // Уголок выделенного проверяем ДО хит-теста: ручка висит за рамкой
@@ -1216,6 +1359,15 @@ canvas.addEventListener("pointermove", e => {
   // pointermove не множат перерисовки.
   if (BD.tool === "laser") {
     BD.laser = { x: e.clientX, y: e.clientY };
+    // След за курсором: точка раз в ~5 px с локальной меткой времени —
+    // из них рисуется затухающий хвост и собирается посылка второй
+    // стороне. Старые точки подрезаем, чтобы массив не рос бесконечно.
+    const pts = BD.laserPts;
+    const last = pts[pts.length - 1];
+    if (!last || Math.hypot(e.clientX - last.x, e.clientY - last.y) > 5) {
+      pts.push({ x: e.clientX, y: e.clientY, t: performance.now() });
+      if (pts.length > 40) pts.shift();
+    }
     paint();
   }
   if (panning) {
@@ -1266,6 +1418,22 @@ canvas.addEventListener("pointermove", e => {
       const k = Math.max(nw / Math.max(1, b.w), nh / Math.max(1, b.h));
       BD.objects.set(o.id, { ...o, x: b.x, y: b.y,
                              w: Math.max(24, b.w * k), h: Math.max(24, b.h * k) });
+    } else if (o.kind === "text" || o.kind === "emoji") {
+      // Текст за угол растягивается КЕГЛЕМ (как в Miro): ширина рамки
+      // стоит, высота пересчитывается из нового размера — «рамка следует».
+      // Кегль считаем от ИСХОДНОГО на каждый мув: накапливать дробный
+      // множитель по живому значению — значит дёргать размер при каждом
+      // рывке мыши («не скачет»). Пределы — как у textLH: 12–96 на строку.
+      const k = Math.max(nw / Math.max(1, b.w), nh / Math.max(1, b.h));
+      const size = Math.min(16, Math.max(2, (resizing.orig.size || 3) * k));
+      if (o.kind === "emoji") {
+        // У эмодзи кегль — это и есть размер: рамка квадратная под глиф
+        const lh = textLH(size);
+        BD.objects.set(o.id, { ...o, size, w: lh * 1.2, h: lh * 1.2 });
+      } else {
+        BD.objects.set(o.id, { ...o, size,
+          h: textHeight(o.text || "", o.w || 460, textLH(size)) });
+      }
     } else {
       BD.objects.set(o.id, { ...o, x: b.x, y: b.y, w: nw, h: nh });
     }
@@ -1705,6 +1873,7 @@ $("bd-editor-ok").addEventListener("click", () => {
     put(o);
   }
   $("bd-editor").hidden = true;
+  $("bd-editor-emoji-panel").hidden = true;
   editing = null;
   // И тут назад в «Выделить» — та же логика, что у фигур в finishStroke:
   // написал текст — и дальше по доске, а не новый текст на каждый клик.
@@ -1717,6 +1886,7 @@ $("bd-editor-cancel").addEventListener("click", () => {
   if (editing && editing.kind !== "frame"
       && !(BD.objects.get(editing.id) || {}).text) remove(editing.id, false);
   $("bd-editor").hidden = true;
+  $("bd-editor-emoji-panel").hidden = true;
   editing = null;
 });
 $("bd-editor-input").addEventListener("keydown", e => {
@@ -1851,6 +2021,8 @@ const TOOL_STYLE = {
   frame:   { colors: "note", sizes: false },
   // Лазер только показывает точку: ни цвета, ни толщины у него нет
   laser:   { colors: null,  sizes: false },
+  // Штамп-эмодзи: один клик — и обратно в «Выделить», настроек нет
+  emoji:   { colors: null,  sizes: false },
 };
 
 function syncStyleBar() {
@@ -1889,7 +2061,14 @@ document.querySelectorAll(".bd-tool[data-tool]").forEach(b => {
     // Лазеру — свой курсор из css и чистая точка; с любого другого
     // инструмента она погашена (BD.laser выставляется заново при входе).
     canvas.classList.toggle("laser", BD.tool === "laser");
-    if (BD.tool !== "laser") { BD.laser = null; paint(); }
+    if (BD.tool !== "laser" && (BD.laser || BD.laserPts.length)) {
+      BD.laser = null;
+      BD.laserPts = [];
+      paint();
+      // Гашение доезжает до второй стороны сразу, а не по обычному
+      // опросу: след у обоих умирает вместе с инструментом.
+      syncNow();
+    }
     // Форму курсора для «выделить» ставит hoverCursor по месту; для
     // рисующих инструментов возвращаем прицел из css.
     canvas.dataset.cur = "";
@@ -2039,9 +2218,11 @@ document.addEventListener("keydown", e => {
   const map = { v: "select", p: "pen", m: "marker", e: "eraser", s: "note", n: "note",
                 t: "text", r: "rect", o: "ellipse", a: "arrow", l: "laser", f: "frame" };
   const key = e.key.toLowerCase();
-  // Escape из лазера — обратно в выделение: инструмент без рисования
-  // иначе неочевидно чем выключить, а точка так и висела бы за курсором.
-  if (e.key === "Escape" && BD.tool === "laser") {
+  // Escape из лазера или штампа — обратно в выделение: инструмент без
+  // рисования иначе неочевидно чем выключить, а точка/эмодзи под курсором
+  // так и висели бы.
+  if (e.key === "Escape" && (BD.tool === "laser" || BD.tool === "emoji")) {
+    BD.pendingEmoji = "";
     document.querySelector('.bd-tool[data-tool="select"]').click();
     return;
   }
@@ -2104,9 +2285,15 @@ document.addEventListener("keyup", e => {
 });
 // Правая кнопка занята сдвигом полотна — контекстное меню на нём не нужно.
 canvas.addEventListener("contextmenu", e => e.preventDefault());
-// Ушли с полотна — точка не должна замирать на краю экрана.
+// Ушли с полотна — точка не должна замирать на краю экрана, а след —
+// догорать у второй стороны: шлём гашение сразу (см. смену инструмента).
 canvas.addEventListener("pointerleave", () => {
-  if (BD.laser) { BD.laser = null; paint(); }
+  if (BD.laser || BD.laserPts.length) {
+    BD.laser = null;
+    BD.laserPts = [];
+    paint();
+    syncNow();
+  }
 });
 
 /* Шпаргалка по доске: «?» открывает, «Понятно»/Escape/фон закрывают. */
@@ -2219,9 +2406,46 @@ $("bd-theme").addEventListener("click", () => {
  * собирается асинхронно, и за это время цикл отрисовки успевал вернуть
  * и перерисовать обычный вид — в файл уезжал случайный кадр, а то и
  * пустой. Плюс снимок ограничен размером окна (мыло при маленьком окне).
- * Здесь: свой канвас размером с содержимое, с dpr как на ретине, фон
- * доски заливается тем же draw() — он умеет работать на любом размере. */
+ * Здесь: свой канвас, фон доски заливается тем же draw() — он умеет
+ * работать на любом размере.
+ *
+ * Два режима (меню у кнопки): «Вся доска» — канвас по содержимому,
+ * «Текущий вид» — ровно то, что на экране, с живым зумом (viewport). */
+function savePng(off, filename) {
+  off.toBlob(blob => {
+    if (!blob) { toast("Не получилось собрать картинку."); return; }
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  });
+}
+
+/* Подмена на время экспорта: рамка выделения и указка со следом —
+   эфемерное, в конспект не входят. Возвращает функцию-откат. */
+function hideChromeForExport() {
+  const real = { selected: BD.selected, laser: BD.laser,
+                 laserPts: BD.laserPts, remoteLaser: BD.remoteLaser };
+  BD.selected = null;
+  BD.laser = null;
+  BD.laserPts = [];
+  BD.remoteLaser = null;
+  return () => {
+    BD.selected = real.selected;
+    BD.laser = real.laser;
+    BD.laserPts = real.laserPts;
+    BD.remoteLaser = real.remoteLaser;
+  };
+}
+
 $("bd-png").addEventListener("click", () => {
+  const m = $("bd-png-menu");
+  m.hidden = !m.hidden;
+});
+
+$("bd-png-all").addEventListener("click", () => {
+  $("bd-png-menu").hidden = true;
   const list = [...BD.objects.values()].filter(o => !isService(o));
   if (!list.length) { toast("Доска пустая."); return; }
   // рамка содержимого с полем вокруг
@@ -2244,26 +2468,38 @@ $("bd-png").addEventListener("click", () => {
   offCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
   // подменяем контекст и вид на время отрисовки: draw() общая
   const realCtx = ctx, realView = { ...BD.view };
-  const realSelected = BD.selected, realLaser = BD.laser;
-  BD.selected = null;                       // рамка выделения — не содержимое доски
-  BD.laser = null;                          // и точка указки
+  const restore = hideChromeForExport();
   ctx = offCtx;
   BD.view = { x: -x1 * k + pad * k, y: -y1 * k + pad * k, k };
   paint();
   draw(Math.ceil(cw * k), Math.ceil(ch * k));
   ctx = realCtx;
   BD.view = realView;
-  BD.selected = realSelected;
-  BD.laser = realLaser;
+  restore();
   paint();
-  off.toBlob(blob => {
-    if (!blob) { toast("Не получилось собрать картинку."); return; }
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = ($("bd-name").textContent || "доска").trim() + ".png";
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
-  });
+  savePng(off, ($("bd-name").textContent || "доска").trim() + ".png");
+});
+
+$("bd-png-view").addEventListener("click", () => {
+  $("bd-png-menu").hidden = true;
+  // Текущий вид: ровно пиксель в пиксель то, что на экране, — тот же
+  // размер окна и ТОТ ЖЕ BD.view, что у живого полотна (зум и сдвиг
+  // сохраняются, ничего не подгоняется).
+  const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+  const off = document.createElement("canvas");
+  off.width = Math.max(1, Math.round(innerWidth * dpr));
+  off.height = Math.max(1, Math.round(innerHeight * dpr));
+  const offCtx = off.getContext("2d");
+  offCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const realCtx = ctx;
+  const restore = hideChromeForExport();
+  ctx = offCtx;
+  paint();
+  draw(innerWidth, innerHeight);
+  ctx = realCtx;
+  restore();
+  paint();
+  savePng(off, ($("bd-name").textContent || "доска").trim() + " — вид.png");
 });
 
 document.addEventListener("visibilitychange", () => {
@@ -2329,6 +2565,58 @@ function pushReact(emoji, pt, by) {
   if (BD.reacts.length > 8) BD.reacts.shift();   // старые вытесняются
   paint();
 }
+
+/* ---------- эмодзи: в текст и объектом на доску ----------
+   Одна сетка на два применения: в редакторе текста/стикера вставляет
+   эмодзи в каретку, из меню реакций — ставит эмодзи ОБЪЕКТОМ на доску
+   (kind "emoji"): выбрал в сетке → клик по полотну → объект на месте
+   клика, дальше двигается/растягивается как текст. Кот 🐱 — маскот
+   проекта, ему место в первом ряду. */
+const EMOJI_SET = ("🐱 😀 😄 😂 🙂 😉 😍 🤔 😎 😢 😮 😴 🤯 🥳 😇 🙌 "
+  + "👍 👎 👏 🙏 💪 🤝 ✅ ❌ ➕ ➖ ❗ ❓ 💡 ⭐ 🔥 ❤️ "
+  + "🐶 🦊 🐸 🐝 🦋 🐢 🍎 🍕 🍦 ⚽ 🎲 📚 ✏️ 🎨 🎵 🚀").split(" ");
+BD.pendingEmoji = "";      // эмодзи под штамп (инструмент "emoji")
+
+function buildEmojiGrids() {
+  const cell = (ch, onPick) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.textContent = ch;
+    b.addEventListener("click", () => onPick(ch));
+    return b;
+  };
+  const panel = $("bd-editor-emoji-panel");
+  EMOJI_SET.forEach(ch => panel.appendChild(cell(ch, insertEmojiAtCaret)));
+  const board = $("bd-board-emojis");
+  EMOJI_SET.forEach(ch => board.appendChild(cell(ch, armEmojiStamp)));
+}
+
+/* Вставка в каретку, а не в конец: правят обычно середину фразы. */
+function insertEmojiAtCaret(ch) {
+  const input = $("bd-editor-input");
+  const at = input.selectionStart ?? input.value.length;
+  input.setRangeText(ch, at, input.selectionEnd ?? at, "end");
+  input.focus();
+}
+
+$("bd-editor-emoji").addEventListener("click", () => {
+  const p = $("bd-editor-emoji-panel");
+  p.hidden = !p.hidden;
+});
+
+/* Штамп: псевдо-инструмент "emoji" — один клик по полотну ставит объект
+   и возвращает «Выделить», Esc отменяет (ветка рядом с лазерной). */
+function armEmojiStamp(ch) {
+  $("bd-react-menu").hidden = true;
+  BD.pendingEmoji = ch;
+  BD.tool = "emoji";
+  document.querySelectorAll(".bd-tool[data-tool]")
+    .forEach(x => x.classList.remove("active"));
+  canvas.style.cursor = "crosshair";
+  syncStyleBar();
+  toast(`Кликни по доске — поставлю ${ch}. Esc — отмена.`);
+}
+buildEmojiGrids();
 
 /* ---------- таймер урока ----------
    Ставит репетитор (пресеты или своё число), команда едет тем же sync,
@@ -2845,9 +3133,11 @@ async function loadWords(studentId) {
       return;
     }
     wordsOk();
-    // folders нужны группировке списка и форме «добавить слово»
+    // folders нужны группировке списка и форме «добавить слово»,
+    // status — счётчикам в шапке словаря (новое/учится/выучено)
     BD.words = (res.student.dictionary || [])
-      .map(d => ({ w: d.w, t: d.t, cat: d.cat, ex: d.ex || "", folders: d.folders || [] }));
+      .map(d => ({ w: d.w, t: d.t, cat: d.cat, ex: d.ex || "",
+                   folders: d.folders || [], status: d.status || "new" }));
     renderWords();
   } catch (e) {
     // Словарь не обнуляем: список прошлого ученика поверх ошибки
@@ -2861,6 +3151,19 @@ function renderWords() {
   const q = $("bd-search").value.trim().toLowerCase();
   const list = BD.words.filter(x =>
     !q || x.w.toLowerCase().includes(q) || (x.t || "").toLowerCase().includes(q)).slice(0, 300);
+  // Счётчики словаря в шапке панели: всего и по статусам — репетитору
+  // видно состояние словаря ученика, не открывая его карточку.
+  const cnt = $("bd-dict-count");
+  if (cnt) {
+    const st = { new: 0, learning: 0, learned: 0 };
+    BD.words.forEach(x => { st[x.status] = (st[x.status] || 0) + 1; });
+    cnt.textContent = BD.words.length
+      ? `${BD.words.length} ${wordsPlural(BD.words.length)}`
+        + (st.learned ? ` · выучено ${st.learned}` : "")
+        + (st.learning ? ` · учится ${st.learning}` : "")
+        + (st.new ? ` · новых ${st.new}` : "")
+      : "";
+  }
   const box = $("bd-word-list");
   if (!list.length) {
     box.innerHTML = `<p class="bd-hint">Ничего не нашлось.</p>`;
@@ -2875,12 +3178,20 @@ function renderWords() {
     groups.get(f).push({ x, i });
   });
   const names = [...groups.keys()].sort((a, b) => (a === "") - (b === "") || a.localeCompare(b, "ru"));
+  const STATUS_RU = { new: "новое", learning: "учится", learned: "выучено" };
   box.innerHTML = names.map(f =>
-    (f ? `<div class="bd-folder-head">${esc(f)}</div>` : "")
-    + groups.get(f).map(({ x, i }) => `<button class="bd-word" data-i="${i}">${
+    (f ? `<div class="bd-folder-head">${esc(f)} <span class="bd-folder-count">${groups.get(f).length}</span></div>` : "")
+    + groups.get(f).map(({ x, i }) => `<span class="bd-word-row"><button class="bd-word" data-i="${i}">${
         typeof wordArtHTML === "function"
           ? `<span class="bd-word-art">${wordArtHTML(x.w, x.cat)}</span>` : ""
-      }<span class="bd-word-txt"><b>${esc(x.w)}</b><span>${esc(x.t || "")}</span></span></button>`).join("")
+      }<span class="bd-word-txt"><b>${esc(x.w)}</b><span>${esc(x.t || "")}</span></span>${
+        x.status && x.status !== "new"
+          ? `<span class="bd-word-status">${STATUS_RU[x.status] || esc(x.status)}</span>` : ""
+      }</button>${
+        BD.role === "tutor"
+          ? `<button class="bd-word-del" data-del="${i}" title="Удалить слово из словаря"
+                     aria-label="Удалить ${esc(x.w)}">✕</button>` : ""
+      }</span>`).join("")
   ).join("");
   box.querySelectorAll("[data-i]").forEach(b => {
     b.addEventListener("click", () => {
@@ -2888,6 +3199,25 @@ function renderWords() {
       dropWordCard(x);
     });
   });
+  box.querySelectorAll("[data-del]").forEach(b => {
+    b.addEventListener("click", () => deleteWord(list[+b.dataset.del]));
+  });
+}
+
+/* Удаление слова из словаря ученика (репетитор, с доски): сервер чистит
+   свою копию и шлёт онлайн-ученику dictDel — тот убирает слово из своего
+   состояния, иначе его снимок воскресил бы удалённое. */
+async function deleteWord(x) {
+  const studentId = Number($("bd-student").value);
+  if (!studentId) return;
+  const res = await api("/api/tutor/delete-word", {
+    token: BD.token, studentId, w: x.w, boardId: BD.boardId,
+  }).catch(() => null);
+  if (!res || !res.ok) { toast("Не удалилось — " + ((res && res.error) || "нет связи")); return; }
+  BD.words = BD.words.filter(y => y.w.toLowerCase() !== x.w.toLowerCase());
+  renderWords();
+  refreshPanelFolders();
+  toast(res.missing ? `«${x.w}» и так не было в словаре.` : `«${x.w}» удалено из словаря.`);
 }
 
 function wordsPlural(n) {
@@ -2980,6 +3310,21 @@ function studentTakeWord(a) {
   }
   localStorage.setItem("savelyState", JSON.stringify(st));
   return rec;
+}
+
+/* Зеркало studentTakeWord: учитель удалил слово — убираем из своего
+   состояния (источник правды для словаря — оно). Возвращает true, если
+   слово было и удалено. */
+function studentDropWord(a) {
+  const st = readStudentState();
+  st.dictionary = st.dictionary || [];
+  const lw = String(a.w || "").toLowerCase();
+  if (!lw) return false;
+  const kept = st.dictionary.filter(d => (d.w || "").toLowerCase() !== lw);
+  if (kept.length === st.dictionary.length) return false;
+  st.dictionary = kept;
+  localStorage.setItem("savelyState", JSON.stringify(st));
+  return true;
 }
 
 /* ---------- доступ ученику: кого зовём на доску ----------
@@ -3387,6 +3732,9 @@ async function boot() {
   requestAnimationFrame(function loop() { draw(); requestAnimationFrame(loop); });
 
   await syncNow();
+  // Окаменелости (пустые тексты/стикеры прошлых сессий) выметаем сразу
+  // после первого снимка: удаление уедет на сервер ближайшим sync.
+  sweepEmptyTexts();
   // Имена учеников нужны кнопке доступа уже при загрузке: без них
   // «Доска: Ира» рисовалась бы как безликое «один ученик».
   if (BD.role === "tutor") {
@@ -3407,6 +3755,15 @@ async function boot() {
   // Он же — вторая попытка, если первый ответ не дошёл: syncNow сама
   // ставит «нет связи» и снимает syncBusy, дальше дело за опросом.
   setInterval(syncNow, 1200);
+  // Указка живёт на другой частоте: пока водишь лазером — посылки
+  // ~10-15 раз в секунду (иначе вторая сторона видит рывки раз в 1,2 с),
+  // пока смотришь на чужой след — опрос втрое чаще (гашение заметно
+  // сразу). syncNow сама пропускает вызов, пока прошлый ещё в сети.
+  (function laserTick() {
+    const lasing = BD.tool === "laser" && BD.laser;
+    if (lasing || BD.remoteLaser) syncNow();
+    setTimeout(laserTick, lasing ? 90 : 300);
+  })();
 }
 
 boot();

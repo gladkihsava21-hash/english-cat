@@ -115,10 +115,24 @@
         <button class="bd-react-emoji" data-emoji="👏" aria-label="аплодисменты">👏</button>
         <button class="bd-react-emoji" data-emoji="🤔" aria-label="думаю">🤔</button>
         <button class="bd-react-emoji" data-emoji="🐱" aria-label="кот">🐱</button>
+        <!-- Эмодзи ОБЪЕКТОМ на доску (kind "emoji"): выбрал — и кликом
+             по полотну поставил, как штамп. Сетку строит скрипт из
+             EMOJI_SET, реакции выше — временные, это — содержимое. -->
+        <div class="bd-emoji-divider">на доску объектом — выбери и кликни по полотну:</div>
+        <div class="bd-emoji-panel" id="bd-board-emojis"></div>
       </div>
     </div>
-    <button class="bd-btn" id="bd-png" title="Скачать картинкой">
-      <span data-icon="download" data-icon-size="18"></span><span class="bd-btn-label"> PNG</span></button>
+    <!-- Экспорт картинкой: вся доска по содержимому или ровно текущий
+         вид (viewport). Меню в обёртке с кнопкой: отдельный absolute-div
+         уезжал за экран (баг невидимых меню таймера и реакций). -->
+    <div class="bd-share-wrap">
+      <button class="bd-btn" id="bd-png" title="Скачать картинкой">
+        <span data-icon="download" data-icon-size="18"></span><span class="bd-btn-label"> PNG</span></button>
+      <div class="bd-share-menu" id="bd-png-menu" hidden>
+        <button class="bd-btn" id="bd-png-all">Вся доска</button>
+        <button class="bd-btn" id="bd-png-view">Текущий вид</button>
+      </div>
+    </div>
     <button class="bd-btn" id="bd-clear" title="Очистить доску"
             data-icon="trash" data-icon-size="18"></button>
     <button class="bd-btn" id="bd-bg" title="Фон: точки, клетка, линейка"
@@ -211,7 +225,8 @@
      Слова ученика перетаскиваются на доску карточками. -->
 <aside class="bd-panel" id="bd-panel" hidden>
   <div class="bd-panel-head">
-    <b>Слова на доску</b>
+    <b>Словарь ученика</b>
+    <span class="bd-hint" id="bd-dict-count"></span>
     <button class="bd-btn" id="bd-panel-close" aria-label="Закрыть">✕</button>
   </div>
   <select id="bd-student" class="bd-select"></select>
@@ -267,9 +282,12 @@
 <div class="bd-editor" id="bd-editor" hidden>
   <textarea id="bd-editor-input" rows="3" placeholder="Текст…"></textarea>
   <div class="bd-editor-row">
+    <button class="bd-btn" id="bd-editor-emoji" title="Вставить эмодзи">😀</button>
     <button class="bd-btn primary" id="bd-editor-ok">Готово</button>
     <button class="bd-btn" id="bd-editor-cancel">Отмена</button>
   </div>
+  <!-- Сетка эмодзи строится скриптом из EMOJI_SET — та же, что «на доску» -->
+  <div class="bd-emoji-panel" id="bd-editor-emoji-panel" hidden></div>
 </div>
 
 <!-- Добавление слова в словарь с доски (ученик): слово, перевод

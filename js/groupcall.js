@@ -601,7 +601,7 @@ function gcBoot() {
     <div class="gc-bar">
       <button type="button" id="gc-mic" title="Микрофон" aria-pressed="true">${icon("mic")}</button>
       <button type="button" id="gc-cam" title="Камера" aria-pressed="true">${icon("video") || icon("screen")}</button>
-      ${BD.role === "tutor" && screenSupported()
+      ${BD.role === "tutor" && typeof screenSupported === "function" && screenSupported()
         ? `<button type="button" id="gc-screen-btn" title="Показать экран" aria-pressed="false">${icon("screen")}</button>` : ""}
       <button type="button" id="gc-leave" class="gc-danger" title="Выйти из урока">${icon("phone")}</button>
     </div>`;

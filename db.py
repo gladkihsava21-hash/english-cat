@@ -255,6 +255,11 @@ MIGRATIONS = [
     # словаря всё равно клиент (sync_student перезаписывает снимком).
     ("boards", "dict_add", "TEXT DEFAULT ''"),
     ("boards", "dict_add_at", "INTEGER DEFAULT 0"),
+    # Удаление слова репетитором — зеркало dict_add: онлайн-ученик убирает
+    # слово из своего состояния, иначе его ближайший снимок (sync_student)
+    # воскресил бы удалённое на сервере.
+    ("boards", "dict_del", "TEXT DEFAULT ''"),
+    ("boards", "dict_del_at", "INTEGER DEFAULT 0"),
     # Лазерная указка: последняя точка на доске, кто её держит и когда.
     # Не объект доски (эфемерно, пара секунд), поэтому отдельные поля,
     # а не запись в data: второй участник получает её в ответе
@@ -263,6 +268,9 @@ MIGRATIONS = [
     ("boards", "laser_y", "REAL DEFAULT 0"),
     ("boards", "laser_by", "TEXT"),
     ("boards", "laser_at", "INTEGER DEFAULT 0"),
+    # След указки: JSON-массив последних точек [[x,y],...] — вторая
+    # сторона рисует из них непрерывный хвост, а не одинокую точку.
+    ("boards", "laser_pts", "TEXT"),
     # Присутствие ученика на доске: когда его видели и была ли вкладка
     # свёрнута. Пишется при каждом опросе доски, читается репетитором.
     ("boards", "student_seen_at", "INTEGER DEFAULT 0"),
@@ -2572,7 +2580,7 @@ def _clean_board_object(o):
     # (точки, цвет, толщина), отдельной обработки не требует.
     if not oid or kind not in ("pen", "marker", "line", "arrow", "rect", "ellipse",
                                "note", "text", "word", "image", "ping", "bg",
-                               "task", "book", "frame"):
+                               "task", "book", "frame", "emoji"):
         return None
 
     def num(v, lo=-100000, hi=100000):
@@ -2600,9 +2608,20 @@ def _clean_board_object(o):
         # и закрепление остального не переживало синхронизацию.
         "locked": 1 if o.get("locked") else 0,
     }
-    if kind in ("note", "text", "word", "task"):
+    if kind in ("note", "text", "word", "task", "emoji"):
+        # У emoji text — это сам символ (🐱): без сохранения штамп
+        # превращался бы в пустой квадрат. Пустотная чистка ниже его не
+        # трогает нарочно: она про забытые пустые тексты, а эмодзи без
+        # символа не бывает.
         out["text"] = str(o.get("text", ""))[:600]
         out["text2"] = str(o.get("text2", ""))[:600]
+    if kind in ("note", "text") and not out.get("text", "").strip():
+        # Пустые «окаменелости» не храним: доска иначе обрастает пустыми
+        # квадратами от «создал текст и передумал». Живое создание это не
+        # ломает: клиент шлёт свежий объект ещё пустым (редактор открыт),
+        # сервер его просто не запоминает; когда текст набран и редактор
+        # закрыт, объект приезжает повторно — уже с текстом.
+        return None
     if kind == "task":
         # Результат прохождения («Верно 5 из 6 · 14:32») — его пишет
         # ученик, закончив тренировку, прямо в карточку задания.
@@ -2762,22 +2781,39 @@ def board_sync(board_id, changes, deletes, since, author, laser="skip", follow="
 
     if laser != "skip":
         if isinstance(laser, dict):
-            try:
-                lx = max(-100000.0, min(100000.0, float(laser.get("x", 0))))
-                ly = max(-100000.0, min(100000.0, float(laser.get("y", 0))))
-            except (TypeError, ValueError):
-                lx = ly = None
-            if lx is not None:
+            # След указки: серия точек [[x,y],...] (до 30). Старый формат
+            # {x,y} тоже принимаем — это та же серия из одной точки.
+            pts = []
+            raw_pts = laser.get("pts")
+            if isinstance(raw_pts, list):
+                for p in raw_pts[:30]:
+                    if not isinstance(p, (list, tuple)) or len(p) < 2:
+                        continue
+                    try:
+                        px = max(-100000.0, min(100000.0, float(p[0])))
+                        py = max(-100000.0, min(100000.0, float(p[1])))
+                    except (TypeError, ValueError):
+                        continue
+                    pts.append([round(px, 1), round(py, 1)])
+            elif laser.get("x") is not None:
+                try:
+                    pts = [[round(max(-100000.0, min(100000.0, float(laser.get("x")))), 1),
+                            round(max(-100000.0, min(100000.0, float(laser.get("y", 0)))), 1)]]
+                except (TypeError, ValueError):
+                    pts = []
+            if pts:
+                import json as _json
                 conn().execute(
-                    "UPDATE boards SET laser_x=?, laser_y=?, laser_by=?, laser_at=? WHERE id=?",
-                    (lx, ly, author[:24], int(time.time()), board_id))
+                    "UPDATE boards SET laser_x=?, laser_y=?, laser_pts=?, laser_by=?, laser_at=? WHERE id=?",
+                    (pts[-1][0], pts[-1][1], _json.dumps(pts),
+                     author[:24], int(time.time()), board_id))
                 conn().commit()
         else:
             # Лазер выключен (смена инструмента): гасим — но только СВОЮ
             # точку. Клиент шлёт laser=None в каждом опросе, пока сам не
             # водит лазером, и без этой проверки опрос второй стороны
             # стирал бы точку первого (CDP-прогон двух клиентов).
-            conn().execute("UPDATE boards SET laser_by=NULL WHERE id=? AND laser_by=?",
+            conn().execute("UPDATE boards SET laser_by=NULL, laser_pts=NULL WHERE id=? AND laser_by=?",
                            (board_id, author[:24]))
             conn().commit()
 
@@ -2856,14 +2892,19 @@ def board_sync(board_id, changes, deletes, since, author, laser="skip", follow="
         "deleted": [o["id"] for o in fresh if o.get("kind") == "gone"],
         "full": int(since or 0) == 0,
     }
-    # Чужая лазерная точка, свежая (пара секунд): отдаём только второй
-    # стороне — автор видит свою локально. Свежая строка с полями нужна,
-    # потому что laser-апдейт шёл уже после чтения row.
+    # Чужой лазерный след, свежий (~2 с — как раз жизнь хвоста): отдаём
+    # только второй стороне — автор видит свой локально. Свежая строка с
+    # полями нужна, потому что laser-апдейт шёл уже после чтения row.
     row = get_board(board_id)
     lat = int(row["laser_at"] or 0) if "laser_at" in row.keys() else 0
     lby = row["laser_by"] if "laser_by" in row.keys() else None
-    if lat and lby and lby != author and int(time.time()) - lat <= 3:
+    if lat and lby and lby != author and int(time.time()) - lat <= 2:
         out["laser"] = {"x": row["laser_x"], "y": row["laser_y"], "by": lby}
+        if "laser_pts" in row.keys() and row["laser_pts"]:
+            try:
+                out["laser"]["pts"] = json.loads(row["laser_pts"])
+            except (ValueError, TypeError):
+                pass   # битый след не мешает одиночной точке
     # Команда «покажи мой вид»: свежая (~10 с) и не автору — репетитор
     # свой вид и так видит, перелетает только ученик.
     fat = int(row["follow_at"] or 0) if "follow_at" in row.keys() else 0
@@ -2878,6 +2919,14 @@ def board_sync(board_id, changes, deletes, since, author, laser="skip", follow="
     if raw_add and author.startswith("s"):
         try:
             out["dictAdd"] = json.loads(raw_add)
+        except (TypeError, ValueError):
+            pass
+    # Удалённое репетитором слово — тоже ученику (зеркало dictAdd):
+    # он убирает его из своего состояния, иначе снимок его воскресит.
+    raw_del = row["dict_del"] if "dict_del" in row.keys() else ""
+    if raw_del and author.startswith("s"):
+        try:
+            out["dictDel"] = json.loads(raw_del)
         except (TypeError, ValueError):
             pass
     # Таймер: видят ОБЕ стороны, пока идёт или стоит на паузе (недавно
@@ -3200,6 +3249,30 @@ def student_add_word(student_id, w, t, ex="", folders=None):
                    (json.dumps(dictionary, ensure_ascii=False), student_id))
     conn().commit()
     return {"ok": True, "word": rec}
+
+
+def student_delete_word(student_id, w):
+    """Удалить слово из словаря ученика серверной стороной (репетитор).
+
+    Зеркало student_add_word: источник правды — клиент ученика, поэтому
+    онлайн-ученик должен убрать слово и у себя (уведомление dictDel на
+    доску — см. tutor_delete_word в server.py), иначе его ближайший
+    снимок состояния воскресит удалённое."""
+    row = get_student_by_id(student_id)
+    if not row:
+        return None
+    w = str(w or "").strip()[:60]
+    if not w:
+        return {"ok": False, "error": "no_word"}
+    lw = w.lower()
+    dictionary = json.loads(row["dictionary"] or "[]")
+    kept = [d for d in dictionary if (d.get("w") or "").lower() != lw]
+    if len(kept) == len(dictionary):
+        return {"ok": True, "missing": True}   # такого слова и не было
+    conn().execute("UPDATE students SET dictionary=? WHERE id=?",
+                   (json.dumps(kept, ensure_ascii=False), student_id))
+    conn().commit()
+    return {"ok": True}
 CHAT_MONTHLY_LIMIT = 150  # fair-use: отрезает хвост, обычный ученик не заметит
 
 

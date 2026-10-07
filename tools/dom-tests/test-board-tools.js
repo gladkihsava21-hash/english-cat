@@ -699,6 +699,314 @@ function spoint(w, type, wx, wy, extra = {}) {
     ok(!byId(w, fid) && !!byId(w, "n1"), "фрейм удалён — стикер остался на доске");
   }
 
+  console.log("\n18. Паритет сторон: цвета стикеров, кегли, панели — одинаково у обоих");
+  {
+    const w = makeBoard();           // репетитор
+    const sw = makeStudentBoard();   // ученик
+    await tick(150);
+    const swatches = win => {
+      tool(win, "note");
+      return [...win.document.querySelectorAll(".bd-swatch")]
+        .filter(s => !s.hidden).map(s => s.title);
+    };
+    const tSw = swatches(w), sSw = swatches(sw);
+    ok(JSON.stringify(tSw) === JSON.stringify(sSw),
+       "цвета стикера у репетитора и ученика совпадают: " + sSw.join(","));
+    ok(tSw.filter(t => t.startsWith("note")).length === 5
+       && tSw.some(t => t.includes("Свой")),
+       "5 цветов бумаги + «свой цвет» у обоих");
+    // кегли текста (A−/A+ и ряд размеров) — тоже у обоих
+    [w, sw].forEach((win, i) => {
+      tool(win, "text");
+      ok(!win.document.getElementById("bd-sizes").hidden,
+         (i ? "у ученика" : "у репетитора") + " виден ряд кеглей текста");
+    });
+    // мини-панель над стикером: палитра бумаги у обеих ролей
+    for (const [win, role] of [[w, "репетитор"], [sw, "ученик"]]) {
+      win.eval(`BD.objects.set("pn1", { id: "pn1", kind: "note", x: 300, y: 300,
+                 w: 180, h: 120, color: "note", size: 3, rev: 1, text: "стикер" });`);
+      tool(win, "select");
+      win.eval(`BD.selected = "pn1"; BD.selectedSet = new Set(["pn1"]);`);
+      // точечный вызов отрисовки панели без ожидания кадра
+      win.eval("updateMiniPanel()");
+      const dots = [...win.document.querySelectorAll(".bd-minicolor")]
+        .map(b => b.dataset.color);
+      ok(dots[0] === "note", role + ": в мини-панели стикера палитра бумаги: " + dots[0]);
+      ok(!win.document.getElementById("bd-minipanel").hidden,
+         role + ": мини-панель видна");
+      win.eval(`BD.objects.delete("pn1"); BD.selected = null; BD.selectedSet = new Set();`);
+    }
+    // кнопки, общие по смыслу: реакции, PNG, лазер, фрейм — видны обоим;
+    // осознанно репетиторские (очистка, фон) у ученика скрыты
+    for (const [win, role, isStudent] of [[w, "репетитор", 0], [sw, "ученик", 1]]) {
+      ["bd-react", "bd-png"].forEach(id =>
+        ok(!win.document.getElementById(id).hidden, role + ": видна " + id));
+      ok(!!win.document.querySelector('.bd-tool[data-tool="laser"]'), role + ": есть лазер");
+      ok(!!win.document.querySelector('.bd-tool[data-tool="frame"]'), role + ": есть фрейм");
+      ok(win.document.getElementById("bd-clear").hidden === !!isStudent,
+         role + ": очистка доски " + (isStudent ? "скрыта (репетиторская)" : "видна"));
+      ok(win.document.getElementById("bd-bg").hidden === !!isStudent,
+         role + ": фон доски " + (isStudent ? "скрыт (репетиторский)" : "виден"));
+    }
+    // хоткей F (фрейм) работает и у ученика
+    const ev = new sw.Event("keydown", { bubbles: true });
+    Object.assign(ev, { key: "f", preventDefault() {} });
+    sw.document.dispatchEvent(ev);
+    ok(bd(sw).tool === "frame", "у ученика хоткей F включает фрейм");
+  }
+
+  console.log("\n19. Ресайз за угол: текст — кегль (рамка следует), стикер — w/h");
+  {
+    const w = makeBoard();
+    await tick(150);
+    w.eval(`BD.objects.set("t1", { id: "t1", kind: "text", x: 100, y: 100, w: 200, h: 24,
+             color: "ink", size: 4, rev: 1, text: "пример" });`);
+    tool(w, "select");
+    point(w, "pointerdown", 150, 112);   // выделяем текст
+    point(w, "pointerup", 150, 112);
+    ok(bd(w).selected === "t1", "текст выделен");
+    // уголок в (b.x+b.w+6, b.y+b.h+6) = (306, 130); тянем вниз-вправо
+    point(w, "pointerdown", 306, 130);
+    point(w, "pointermove", 406, 180);
+    point(w, "pointerup", 406, 180);
+    const t1 = byId(w, "t1");
+    ok(t1.size > 4, "кегль вырос: size " + t1.size.toFixed(1));
+    ok(t1.h > 24, "рамка следует за кеглем: h " + t1.h.toFixed(0));
+    ok(t1.x === 100 && t1.y === 100 && t1.w === 200,
+       "верхний левый угол и ширина на месте — не скачет");
+    // пределы: рывок далеко — кегль не выше 96/6=16, к нулю — не ниже 2
+    point(w, "pointerdown", 306 + t1.h, 130 + t1.h);   // перехват угла новой рамки…
+    point(w, "pointerup", 306 + t1.h, 130 + t1.h);     // …нет, сначала перевыделим
+    point(w, "pointerdown", 150, 112);
+    point(w, "pointerup", 150, 112);
+    const b2 = w.eval(`(() => { const b = bounds(BD.objects.get("t1")); return b; })()`);
+    point(w, "pointerdown", b2.x + b2.w + 6, b2.y + b2.h + 6);
+    point(w, "pointermove", b2.x + b2.w + 900, b2.y + b2.h + 900);
+    point(w, "pointerup", b2.x + b2.w + 900, b2.y + b2.h + 900);
+    ok(byId(w, "t1").size <= 16, "потолок кегля: size " + byId(w, "t1").size.toFixed(1) + " (lh ≤ 96)");
+    // стикер: уголок меняет w/h
+    w.eval(`BD.objects.set("n9", { id: "n9", kind: "note", x: 500, y: 300, w: 180, h: 120,
+             color: "note", size: 3, rev: 2, text: "стикер" });`);
+    point(w, "pointerdown", 550, 340);
+    point(w, "pointerup", 550, 340);
+    ok(bd(w).selected === "n9", "стикер выделен");
+    point(w, "pointerdown", 686, 426);   // уголок (500+180+6, 300+120+6)
+    point(w, "pointermove", 786, 526);
+    point(w, "pointerup", 786, 526);
+    const n9 = byId(w, "n9");
+    ok(n9.w > 180 && n9.h > 120, "стикер растянулся за угол: " + n9.w + "×" + n9.h);
+  }
+
+  console.log("\n20. Пустые тексты: Esc, клик мимо, выметание окаменелостей");
+  {
+    const w = makeBoard();
+    await tick(150);
+    // создал текст, передумал, Esc — объекта нет
+    tool(w, "text");
+    point(w, "pointerdown", 500, 300);
+    point(w, "pointerup", 500, 300);
+    ok(objects(w).some(o => o.kind === "text"), "текстовый объект создан (редактор открыт)");
+    const esc = new w.Event("keydown", { bubbles: true });
+    Object.assign(esc, { key: "Escape", preventDefault() {} });
+    w.document.getElementById("bd-editor-input").dispatchEvent(esc);
+    ok(!objects(w).some(o => o.kind === "text"), "Esc по пустому — объект удалён");
+    // создал текст, кликнул мимо — тоже чисто (коммит пустого = удаление)
+    point(w, "pointerdown", 500, 300);
+    point(w, "pointerup", 500, 300);
+    ok(!w.document.getElementById("bd-editor").hidden, "редактор снова открыт");
+    point(w, "pointerdown", 700, 500);   // клик мимо редактора
+    point(w, "pointerup", 700, 500);
+    ok(w.document.getElementById("bd-editor").hidden, "клик мимо закрыл редактор");
+    ok(!objects(w).some(o => o.kind === "text"), "клик мимо по пустому — объект удалён");
+    // а с текстом клик мимо — коммит, объект остаётся
+    tool(w, "note");
+    point(w, "pointerdown", 500, 300);
+    point(w, "pointerup", 500, 300);
+    const inp = w.document.getElementById("bd-editor-input");
+    inp.value = "важное";
+    point(w, "pointerdown", 700, 500);
+    point(w, "pointerup", 700, 500);
+    const note = objects(w).find(o => o.kind === "note");
+    ok(!!note && note.text === "важное", "клик мимо с текстом — коммит, стикер остался");
+    // окаменелости со старых времён выметаются первым снимком
+    w.eval(`BD.objects.set("f1", { id: "f1", kind: "note", x: 0, y: 0, w: 180, h: 120,
+             color: "note", size: 3, rev: 5, text: "   " });
+            BD.objects.set("f2", { id: "f2", kind: "text", x: 50, y: 50, w: 200, h: 24,
+             color: "ink", size: 4, rev: 6, text: "" });
+            sweepEmptyTexts();`);
+    ok(!byId(w, "f1") && !byId(w, "f2"), "выметание убрало пустые note и text");
+    // невидимый пустой стикер не перехватывает клики (hitTest пропускает)
+    w.eval(`BD.objects.set("f3", { id: "f3", kind: "note", x: 900, y: 600, w: 180, h: 120,
+             color: "note", size: 3, rev: 7, text: "" });`);
+    tool(w, "select");
+    point(w, "pointerdown", 950, 650);
+    point(w, "pointerup", 950, 650);
+    ok(bd(w).selected !== "f3" && !bd(w).selectedSet.has("f3"),
+       "пустой стикер не ловится кликом");
+  }
+
+  console.log("\n21. Лазер: след за курсором, посылка серией, гашение при смене инструмента");
+  {
+    const w = makeBoard();
+    await tick(150);
+    tool(w, "laser");
+    point(w, "pointermove", 100, 100);
+    point(w, "pointermove", 120, 110);
+    point(w, "pointermove", 140, 120);
+    ok(bd(w).laserPts.length >= 3, "точки следа копятся: " + bd(w).laserPts.length);
+    const payload = w.eval("buildLaserPayload()");
+    ok(!!payload && Array.isArray(payload.pts) && payload.pts.length >= 3,
+       "посылка — серия точек: " + (payload && payload.pts.length));
+    ok(payload.pts.every(p => Array.isArray(p) && p.length === 2),
+       "точки посылки — пары [x,y] в мировых координатах");
+    // смена инструмента — след гаснет сразу (и уедет гашение через syncNow)
+    tool(w, "select");
+    ok(bd(w).laserPts.length === 0 && !bd(w).laser, "смена инструмента погасила след");
+    const off = w.eval("buildLaserPayload()");
+    ok(off === null, "после гашения посылка — null (сервер снимет точку)");
+    // наводка лазером не трогает объекты: pointerdown по объекту ничего не делает
+    w.eval(`BD.objects.set("ln1", { id: "ln1", kind: "note", x: 100, y: 100, w: 180, h: 120,
+             color: "note", size: 3, rev: 1, text: "не тронь" });`);
+    tool(w, "laser");
+    point(w, "pointerdown", 150, 150);
+    point(w, "pointerup", 150, 150);
+    ok(!bd(w).selected && bd(w).selectedSet.size === 0,
+       "клик лазером по стикеру не выделяет его");
+    ok(byId(w, "ln1").x === 100, "и не двигает");
+  }
+
+  console.log("\n22. Эмодзи: вставка в каретку редактора и штамп-объект на доску");
+  {
+    const w = makeBoard();
+    await tick(150);
+    // сетка построена в обоих местах
+    const panel = w.document.getElementById("bd-editor-emoji-panel");
+    const boardGrid = w.document.getElementById("bd-board-emojis");
+    ok(panel.querySelectorAll("button").length >= 30,
+       "в редакторе сетка эмодзи: " + panel.querySelectorAll("button").length);
+    ok(boardGrid.querySelectorAll("button").length === panel.querySelectorAll("button").length,
+       "та же сетка — «на доску» в меню реакций");
+    // вставка в каретку (середину), а не в конец
+    tool(w, "note");
+    point(w, "pointerdown", 500, 300);
+    point(w, "pointerup", 500, 300);
+    const inp = w.document.getElementById("bd-editor-input");
+    inp.value = "котики";
+    inp.selectionStart = inp.selectionEnd = 3;
+    w.document.getElementById("bd-editor-emoji").click();
+    ok(!panel.hidden, "кнопка 😀 открыла сетку");
+    [...panel.querySelectorAll("button")].find(b => b.textContent === "🐱").click();
+    ok(inp.value === "кот🐱ики", "эмодзи встал в позицию каретки: " + inp.value);
+    w.document.getElementById("bd-editor-cancel").click();
+    ok(panel.hidden, "закрытие редактора прячет и сетку");
+    // штамп: выбрал в меню реакций → клик по полотну → объект kind emoji
+    [...boardGrid.querySelectorAll("button")].find(b => b.textContent === "🐱").click();
+    ok(bd(w).tool === "emoji", "после выбора — инструмент-штамп");
+    point(w, "pointerdown", 600, 400);
+    point(w, "pointerup", 600, 400);
+    const em = objects(w).find(o => o.kind === "emoji");
+    ok(!!em && em.text === "🐱", "эмодзи стал объектом на доске: " + (em && em.text));
+    ok(bd(w).tool === "select", "штамп одноразовый — обратно в «Выделить»");
+    // масштаб кнопками A−/A+ (через мини-панель — size растёт)
+    point(w, "pointerdown", em.x + 10, em.y + 10);
+    point(w, "pointerup", em.x + 10, em.y + 10);
+    ok(bd(w).selected === em.id, "эмодзи выделяется");
+    const s0 = byId(w, em.id).size;
+    w.document.getElementById("bd-mp-plus").click();
+    ok(byId(w, em.id).size > s0, "A+ увеличил эмодзи: size " + byId(w, em.id).size);
+    // Esc отменяет вооружённый штамп без объекта
+    [...boardGrid.querySelectorAll("button")].find(b => b.textContent === "🔥").click();
+    const esc = new w.Event("keydown", { bubbles: true });
+    Object.assign(esc, { key: "Escape", preventDefault() {} });
+    w.document.dispatchEvent(esc);
+    ok(bd(w).tool === "select" && objects(w).filter(o => o.kind === "emoji").length === 1,
+       "Esc отменил штамп — лишний объект не появился");
+  }
+
+  console.log("\n23. Экспорт PNG: меню «Вся доска / Текущий вид» в обёртке кнопки");
+  {
+    const w = makeBoard();
+    await tick(150);
+    const menu = w.document.getElementById("bd-png-menu");
+    ok(!!menu && menu.closest(".bd-share-wrap") && menu.closest(".bd-share-wrap").contains(w.document.getElementById("bd-png")),
+       "меню PNG живёт в .bd-share-wrap с кнопкой (баг невидимых меню)");
+    ok(menu.hidden, "меню изначально скрыто");
+    w.document.getElementById("bd-png").click();
+    ok(!menu.hidden, "кнопка PNG открывает меню");
+    ok(!!w.document.getElementById("bd-png-all") && !!w.document.getElementById("bd-png-view"),
+       "есть оба пункта: «Вся доска» и «Текущий вид»");
+    // «Вся доска» на пустой доске честно отказывает, меню закрывается
+    w.document.getElementById("bd-png-all").click();
+    ok(menu.hidden, "после выбора пункта меню закрылось");
+    ok(w.document.getElementById("bd-toast").textContent.includes("пустая"),
+       "пустая доска — тост «Доска пустая», а не молчание");
+  }
+
+  console.log("\n24. Словарь ученика для репетитора: счётчики, статусы, удаление");
+  {
+    const w = makeBoard();
+    await tick(150);
+    // ответы API: ученики, словарь выбранного, перехват удаления
+    const calls = [];
+    w.fetch = (url, opt) => {
+      const u = String(url);
+      calls.push({ url: u, body: opt && opt.body ? JSON.parse(opt.body) : {} });
+      const box = (j) => Promise.resolve({ ok: true, json: () => Promise.resolve(j) });
+      if (u.includes("/api/tutor/students")) {
+        return box({ ok: true, students: [{ id: 1, name: "Петя", words: { total: 3 } }] });
+      }
+      if (u.includes("/api/tutor/student")) {
+        return box({ ok: true, student: { dictionary: [
+          { w: "cat", t: "кот", folders: ["Животные"], status: "learned", ex: "" },
+          { w: "dog", t: "пёс", folders: ["Животные"], status: "learning" },
+          { w: "sun", t: "солнце", folders: [], status: "new" },
+        ] } });
+      }
+      if (u.includes("/api/tutor/delete-word")) return box({ ok: true });
+      return box({ ok: true, rev: 1, objects: [], deleted: [], me: "tutor",
+                   title: "Урок", shared: 0, invited: null });
+    };
+    w.document.getElementById("bd-words").click();
+    await tick(120);   // loadStudents → loadWords → renderWords (асинхронно)
+    ok(!w.document.getElementById("bd-panel").hidden, "панель словаря открылась");
+    const cnt = w.document.getElementById("bd-dict-count").textContent;
+    ok(cnt.includes("3") && cnt.includes("выучено 1") && cnt.includes("учится 1") && cnt.includes("новых 1"),
+       "счётчики в шапке: " + cnt);
+    const head = w.document.querySelector(".bd-folder-head");
+    ok(!!head && head.textContent.includes("Животные") && head.textContent.includes("2"),
+       "папка с количеством: " + (head && head.textContent.trim()));
+    ok([...w.document.querySelectorAll(".bd-word-status")].some(s => s.textContent === "выучено"),
+       "у слов видны статусы");
+    const delBtns = [...w.document.querySelectorAll(".bd-word-del")];
+    ok(delBtns.length === 3, "у репетитора кнопки удаления у каждого слова: " + delBtns.length);
+    // удаление: уходит правильный запрос, слово пропадает из списка
+    delBtns[0].click();
+    await tick(60);
+    const delCall = calls.find(c => c.url.includes("/api/tutor/delete-word"));
+    ok(!!delCall && delCall.body.studentId === 1 && !!delCall.body.w,
+       "запрос удаления: studentId=1, w=" + (delCall && delCall.body.w));
+    ok(w.document.querySelectorAll(".bd-word-del").length === 2,
+       "слово исчезло из списка без перезагрузки");
+    // ученику кнопок удаления нет (и панель — его собственный словарь)
+    const sw = makeStudentBoard();
+    await tick(120);
+    sw.localStorage.setItem("savelyState", JSON.stringify({ dictionary: [
+      { w: "cat", t: "кот", folders: [], status: "new" },
+    ] }));
+    sw.document.getElementById("bd-words").click();
+    await tick(60);
+    ok(sw.document.querySelectorAll(".bd-word-del").length === 0,
+       "у ученика кнопок удаления нет");
+    ok(sw.document.querySelectorAll(".bd-word").length === 1,
+       "а его словарь в панели виден");
+    // dictDel: онлайн-ученик убирает слово из своего состояния
+    const dropped = sw.eval(`studentDropWord({ w: "cat" })`);
+    ok(dropped === true && JSON.parse(sw.localStorage.getItem("savelyState")).dictionary.length === 0,
+       "studentDropWord убрал слово из savelyState");
+    ok(sw.eval(`studentDropWord({ w: "cat" })`) === false,
+       "повторное — честное false (уже нет)");
+  }
+
   console.log(fails ? `\nПРОВАЛЕНО: ${fails}` : "\nВсё зелено");
   process.exit(fails ? 1 : 0);
 })();

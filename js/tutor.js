@@ -666,19 +666,31 @@ async function openStudent(id) {
           `<span class="learned-word">${esc(d.w)} <i>${esc(d.t)}</i></span>`).join("")}</div>
       </details>` : ""}
 
-    ${dict.length ? `
-      <details class="stu-weak stu-dict" style="margin-top:14px">
-        <summary>Весь словарь ученика (${dict.length})</summary>
-        <input type="search" id="stu-dict-search" class="type-input stu-dict-search"
-               placeholder="Найти слово…" aria-label="Поиск по словарю ученика">
-        <div class="weak-list" id="stu-dict-list">${dict.map(d => {
-          const st = d.status === "learned" ? "выучено"
-                   : d.status === "learning" ? "учит" : "новое";
-          const key = (d.w + " " + (d.t || "")).toLowerCase();
-          return `<span class="learned-word dict-word" data-s="${esc(key)}">${esc(d.w)} <i>${esc(d.t || "")}</i> <b class="dw dw-${d.status || "new"}">${st}</b></span>`;
-        }).join("")}</div>
-        <p class="muted-small" id="stu-dict-none" hidden>Ничего не нашлось.</p>
-      </details>` : ""}
+    <details class="stu-weak stu-dict" style="margin-top:14px">
+      <summary>Словарь ученика (<span id="stu-dict-count">${dict.length}</span>)</summary>
+      <input type="search" id="stu-dict-search" class="type-input stu-dict-search"
+             placeholder="Найти слово…" aria-label="Поиск по словарю ученика">
+      <div class="weak-list" id="stu-dict-list"></div>
+      <p class="muted-small" id="stu-dict-none" hidden>Ничего не нашлось.</p>
+      <!-- Добавление слова вне урока: та же серверная ручка, что с доски
+           (/api/tutor/add-word, дубли сливаются там), только без boardId —
+           слово ждёт ученика в серверной копии словаря. -->
+      <div class="stu-dict-add">
+        <div class="stu-dict-add-row">
+          <input type="text" id="stu-add-w" class="type-input" placeholder="Слово по-английски"
+                 autocomplete="off" autocapitalize="off" spellcheck="false">
+          <input type="text" id="stu-add-t" class="type-input" placeholder="Перевод"
+                 autocomplete="off" autocapitalize="off" spellcheck="false">
+        </div>
+        <div class="stu-dict-add-row">
+          <select id="stu-add-folder" class="type-input"></select>
+          <input type="text" id="stu-add-newfolder" class="type-input" placeholder="Новая папка…"
+                 autocomplete="off" hidden>
+          <button class="btn btn-primary btn-small" id="stu-add-ok">Добавить в словарь</button>
+        </div>
+        <p class="type-feedback" id="stu-add-msg"></p>
+      </div>
+    </details>
 
     <p class="stat-label" style="margin-top:18px">Заметка (видите только вы)</p>
     <textarea id="stu-note" class="type-input type-area" rows="3"
@@ -691,22 +703,88 @@ async function openStudent(id) {
 
   openModal("stu-modal");
 
+  // Словарь ученика в карточке: список со статусами, удаление слова
+  // (/api/tutor/delete-word), добавление (та же ручка, что с доски).
+  // Локальная копия — чтобы после добавления/удаления перерисовать без
+  // повторной загрузки карточки.
+  const dictState = { list: dict.slice() };
+  const dlist = $("stu-dict-list"), dnone = $("stu-dict-none");
+  const renderStuDict = () => {
+    $("stu-dict-count").textContent = dictState.list.length;
+    dlist.innerHTML = dictState.list.map((d, i) => {
+      const st = d.status === "learned" ? "выучено"
+               : d.status === "learning" ? "учит" : "новое";
+      const key = (d.w + " " + (d.t || "")).toLowerCase();
+      return `<span class="learned-word dict-word" data-s="${esc(key)}">${esc(d.w)} <i>${esc(d.t || "")}</i> <b class="dw dw-${d.status || "new"}">${st}</b><button class="dict-del" data-i="${i}" title="Удалить слово из словаря" aria-label="Удалить ${esc(d.w)}">✕</button></span>`;
+    }).join("");
+    dlist.querySelectorAll(".dict-del").forEach(b => {
+      b.addEventListener("click", async () => {
+        const d = dictState.list[+b.dataset.i];
+        const res = await api("/api/tutor/delete-word", {
+          token: token(), studentId: id, w: d.w });
+        if (!res || !res.ok) {
+          $("stu-add-msg").textContent = "Не удалилось — " + ((res && res.error) || "нет связи");
+          return;
+        }
+        dictState.list = dictState.list.filter(x => x.w.toLowerCase() !== d.w.toLowerCase());
+        renderStuDict();
+      });
+    });
+    // папки в форму добавления — из текущего словаря
+    const fs = $("stu-add-folder");
+    const folders = [...new Set(dictState.list.flatMap(d => d.folders || []))];
+    const cur = fs.value;
+    fs.innerHTML = `<option value="">без папки</option>`
+      + folders.map(f => `<option${f === cur ? " selected" : ""}>${esc(f)}</option>`).join("")
+      + `<option value="__new__">＋ новая папка…</option>`;
+    // поиск не сбрасываем: перефильтруем свежий список текущим запросом
+    dsearch.dispatchEvent(new Event("input"));
+  };
   // Поиск по словарю ученика: у сильных учеников слов сотни, глазами не
   // найдёшь. Прячем несовпавшие карточки, не перерисовывая список.
   const dsearch = $("stu-dict-search");
-  if (dsearch) {
-    const dlist = $("stu-dict-list"), dnone = $("stu-dict-none");
-    dsearch.addEventListener("input", () => {
-      const q = dsearch.value.trim().toLowerCase();
-      let shown = 0;
-      dlist.querySelectorAll(".dict-word").forEach(el => {
-        const hit = !q || (el.dataset.s || "").includes(q);
-        el.hidden = !hit;
-        if (hit) shown++;
-      });
-      if (dnone) dnone.hidden = shown > 0;
+  dsearch.addEventListener("input", () => {
+    const q = dsearch.value.trim().toLowerCase();
+    let shown = 0;
+    dlist.querySelectorAll(".dict-word").forEach(el => {
+      const hit = !q || (el.dataset.s || "").includes(q);
+      el.hidden = !hit;
+      if (hit) shown++;
     });
-  }
+    if (dnone) dnone.hidden = shown > 0;
+  });
+  $("stu-add-folder").addEventListener("change", () => {
+    const nf = $("stu-add-newfolder");
+    nf.hidden = $("stu-add-folder").value !== "__new__";
+    if (!nf.hidden) nf.focus();
+  });
+  $("stu-add-ok").addEventListener("click", async () => {
+    const w = $("stu-add-w").value.trim(), t = $("stu-add-t").value.trim();
+    if (!w || !t) { $("stu-add-msg").textContent = "Нужны и слово, и перевод."; return; }
+    const sel = $("stu-add-folder").value;
+    const folder = sel === "__new__" ? $("stu-add-newfolder").value.trim() : sel;
+    const res = await api("/api/tutor/add-word", {
+      token: token(), studentId: id, w, t, folders: folder ? [folder] : [] });
+    if (!res || !res.ok) {
+      $("stu-add-msg").textContent = "Не сохранилось — " + ((res && res.error) || "нет связи");
+      return;
+    }
+    if (res.exists) {
+      const have = dictState.list.find(x => x.w.toLowerCase() === w.toLowerCase());
+      if (have && folder && !(have.folders || []).includes(folder)) {
+        (have.folders = have.folders || []).push(folder);
+      }
+    } else {
+      dictState.list.push(res.word);
+    }
+    renderStuDict();
+    $("stu-add-w").value = "";
+    $("stu-add-t").value = "";
+    $("stu-add-msg").textContent = res.exists
+      ? `«${w}» уже было в словаре${folder ? " — добавил папку." : "."}`
+      : `«${w}» — в словаре ученика.`;
+  });
+  renderStuDict();
 
   // Уровень вручную: селект сохраняет сразу, ученик получит его при
   // следующей синхронизации (просьба совладельца — тест иногда врёт,
