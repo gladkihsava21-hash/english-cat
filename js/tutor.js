@@ -132,111 +132,26 @@ $("logout-btn").addEventListener("click", () => {
   location.reload();
 });
 
-// ===== Навигация: пять разделов, прежние десять — подразделы =====
-//
-// Было десять вкладок в одной строке: половина жила за горизонтальной
-// прокруткой без признаков её наличия, а «Выдать домашку» / «Домашки» /
-// «Проверка домашек» различались только вчитыванием. Теперь пять
-// разделов, а внутри — чипы второго уровня. Секции в разметке те же
-// (#tab-homework, #tab-tasks…): содержимое не тронуто, поменялись
-// только входы в него.
-const TAB_SECTIONS = {
-  students: ["students", "invite"],
-  homework: ["homework", "tasks", "tasksets"],
-  checks:   ["photos", "checks"],
-  lesson:   ["boards", "lesson"],
-  account:  ["plan", "security"],
-};
-const SUB_LABELS = {
-  students: "Список", invite: "+ Пригласить",
-  homework: "Выдать", tasks: "Выданные", tasksets: "Банк заданий",
-  photos: "Фото тетрадей", checks: "Разбор Савелием",
-  boards: "Доски", lesson: "Видеоурок",
-  plan: "Подписка", security: "Вход и доступ",
-};
-// Старые имена вкладок → (раздел, подраздел). По ним приходят хэши
-// (#boards из board.html), кнопки data-goto и закладки — ломать нельзя.
-// checks и lesson тут тоже: под этими именами в ссылках («Проверка
-// домашек», «Видеоурок») всегда имели в виду КОНКРЕТНЫЙ экран, а не
-// подраздел по умолчанию нового раздела.
-const TAB_ALIASES = {
-  invite: ["students", "invite"],
-  tasks: ["homework", "tasks"],
-  tasksets: ["homework", "tasksets"],
-  photos: ["checks", "photos"],
-  checks: ["checks", "checks"],
-  boards: ["lesson", "boards"],
-  lesson: ["lesson", "lesson"],
-  plan: ["account", "plan"],
-};
-const ALL_SECTIONS = Object.values(TAB_SECTIONS).flat();
-
-/* Ленивая загрузка данных подраздела — то, что раньше было привязано
- *  к кликам по старым кнопкам вкладок в четырёх файлах. */
-const SUB_LOADERS = {
-  tasks: "renderTasks",
-  checks: "loadChecks",
-  tasksets: "loadTasksets",
-  photos: "loadPhotos",
-  boards: "savelyLoadBoards",
-  plan: "loadPlan",
-};
-
-/** Открыть раздел и подраздел, переставить чипы второго уровня. */
-function openTab(tab, sub) {
-  const subs = TAB_SECTIONS[tab];
-  if (!subs) return;
-  sub = sub && subs.includes(sub) ? sub : subs[0];
-
-  document.querySelectorAll(".nav-btn").forEach(b => {
-    const on = b.dataset.tab === tab;
-    b.classList.toggle("active", on);
-    // Активную вкладку было видно только по цвету — то есть незрячий
-    // репетитор не знал, в каком он разделе. aria-current произносится.
-    if (on) b.setAttribute("aria-current", "page");
-    else b.removeAttribute("aria-current");
-  });
-  ALL_SECTIONS.forEach(s => {
-    const sec = $("tab-" + s);
-    if (sec) sec.classList.toggle("hidden", s !== sub);
-  });
-
-  // Чипы второго уровня. Один подраздел (таких нет, но на будущее) —
-  // без чипов, чтобы не плодить визуальный шум.
-  const slot = $("subnav-slot");
-  if (slot) {
-    slot.innerHTML = subs.length > 1 ? `
-      <div class="subnav" role="tablist" aria-label="Подразделы">
-        ${subs.map(s => `<button type="button" class="chip subnav-chip${s === sub ? " active" : ""}"
-          role="tab" aria-selected="${s === sub}" data-sub="${s}">${SUB_LABELS[s] || s}</button>`).join("")}
-      </div>` : "";
-    slot.querySelectorAll(".subnav-chip").forEach(chip => {
-      chip.addEventListener("click", () => openTab(tab, chip.dataset.sub));
-    });
-  }
-
-  const loader = SUB_LOADERS[sub];
-  if (loader && typeof window[loader] === "function") window[loader]();
-
-  // Оформление (подсветка-маркер, докрутка полосы, появление раздела)
-  // живёт в tutor-nav.js и слушает это событие: программные переходы
-  // через savelyGotoTab не кликают по полосе, и без события маркер
-  // оставался на прежнем разделе.
-  document.dispatchEvent(new CustomEvent("savely:tab", { detail: { tab, sub } }));
-}
-
-/** Открыть раздел по имени — новому или СТАРОМУ. Все переходы
- *  «→ вкладка» из кода и хэши из адресной строки идут сюда. */
-function gotoTab(name) {
-  const hit = TAB_ALIASES[name] || (TAB_SECTIONS[name] && [name, TAB_SECTIONS[name][0]]);
-  if (hit) openTab(hit[0], hit[1]);
-}
-// Читают tutor-nav.js (хэши) и переходы data-goto в других файлах.
-window.TAB_ALIASES = TAB_ALIASES;
-window.savelyGotoTab = gotoTab;
-
+// ===== Навигация =====
 document.querySelectorAll(".nav-btn").forEach(btn => {
-  btn.addEventListener("click", () => openTab(btn.dataset.tab));
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".nav-btn").forEach(b => {
+      const on = b === btn;
+      b.classList.toggle("active", on);
+      // Активную вкладку было видно только по цвету — то есть незрячий
+      // репетитор не знал, в каком он разделе. aria-current произносится.
+      if (on) b.setAttribute("aria-current", "page");
+      else b.removeAttribute("aria-current");
+    });
+    // Список вкладок берём из самих кнопок: захардкоженный перечень
+    // молча ломал каждую новую вкладку — она просто не открывалась
+    document.querySelectorAll(".nav-btn").forEach(b => {
+      const sec = $("tab-" + b.dataset.tab);
+      if (sec) sec.classList.toggle("hidden", b.dataset.tab !== btn.dataset.tab);
+    });
+    if (btn.dataset.tab === "tasks") renderTasks();
+    if (btn.dataset.tab === "checks") loadChecks();
+  });
 });
 
 document.querySelectorAll(".stu-sort").forEach(btn => {
@@ -255,9 +170,6 @@ function pendingEmail() { return localStorage.getItem("savelyTutorEmail") || "";
 async function openPanel() {
   $("screen-auth").classList.add("hidden");
   $("app").classList.remove("hidden");
-  // Раздел по умолчанию — «Ученики»: рисует чипы второго уровня и
-  // гарантирует, что видна ровно одна секция.
-  openTab("students");
   // Словарь нужен только внутри панели — выбрать слова для домашки.
   // На экране входа он не нужен вообще, а это 326 КБ сжатыми: раньше
   // их качал каждый, кто просто открыл форму. Не ждём: список учеников

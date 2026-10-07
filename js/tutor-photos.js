@@ -129,8 +129,9 @@ async function loadPhotos() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  // Обновление при открытии подраздела — в tutor.js (SUB_LOADERS):
-  // «Фото тетрадей» теперь подраздел «Проверки», своей кнопки нет.
+  document.querySelectorAll('[data-tab="photos"]').forEach(b => {
+    b.addEventListener("click", loadPhotos);
+  });
   setTimeout(loadPhotos, 1200);
 
   // Счётчик на вкладке обновляем сам, раз в минуту.

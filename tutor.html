@@ -205,12 +205,14 @@
            «страница без названия»: непонятно, куда попал. -->
       <h1 class="brand-h1"><button class="brand"><span class="brand-cat cat-avatar" data-cat="hello" aria-hidden="true"></span> Савелий<span class="brand-sub"> · панель</span></button></h1>
       <a class="help-btn" href="faq.html#tutor" title="Вопросы и ответы" aria-label="Вопросы и ответы">?</a>
-      <!-- Разделы панели — ПЯТЬ вместо десяти. Прежние десять вкладок
-           стали подразделами внутри них (чипы второго уровня рисует
-           tutor.js в #subnav-slot), а старые имена принимает алиасами
-           savelyGotoTab — ссылки из писем и кнопки data-goto не ломаются.
+      <!-- Разделы панели. Одна строка с прокруткой, а не перенос на две:
+           десять пунктов в две строки съедали треть первого экрана и
+           разъезжались при каждом изменении ширины. Иконки — чтобы
+           находить раздел взглядом, а не читать десять подписей.
            Под кнопками ездит подсветка (.nav-marker) — она показывает,
-           откуда и куда переехали, и связывает нажатие с разделом. -->
+           откуда и куда переехали, и связывает нажатие с разделом.
+           (Группировка 10→5 из коммита 357d1f90 откачена по решению
+           владельца: вернули десять плашек, как было.) -->
       <nav class="nav" aria-label="Разделы панели">
         <div class="nav-strip" id="nav-strip">
           <span class="nav-marker" id="nav-marker" aria-hidden="true"></span>
@@ -220,36 +222,46 @@
             <span id="stu-count" class="badge">0</span></button>
           <button class="nav-btn" data-tab="homework">
             <span class="nav-ico" data-icon="send" data-icon-size="18" aria-hidden="true"></span>
-            <span class="nav-label">Домашка</span></button>
+            <span class="nav-label">Выдать домашку</span></button>
+          <button class="nav-btn" data-tab="tasks">
+            <span class="nav-ico" data-icon="check" data-icon-size="18" aria-hidden="true"></span>
+            <span class="nav-label">Домашки</span></button>
+          <button class="nav-btn" data-tab="tasksets">
+            <span class="nav-ico" data-icon="personal" data-icon-size="18" aria-hidden="true"></span>
+            <span class="nav-label">Свои задания</span></button>
+          <button class="nav-btn" data-tab="photos">
+            <span class="nav-ico" data-icon="camera" data-icon-size="18" aria-hidden="true"></span>
+            <span class="nav-label">Фото тетрадей</span>
+            <span id="photo-count" class="badge">0</span></button>
           <button class="nav-btn" data-tab="checks">
             <span class="nav-ico" data-icon="eye" data-icon-size="18" aria-hidden="true"></span>
-            <span class="nav-label">Проверка</span>
-            <span id="photo-count" class="badge">0</span></button>
+            <span class="nav-label">Проверка домашек</span></button>
+          <button class="nav-btn" data-tab="boards">
+            <span class="nav-ico" data-icon="marker" data-icon-size="18" aria-hidden="true"></span>
+            <span class="nav-label">Доски</span></button>
           <button class="nav-btn" data-tab="lesson">
-            <span class="nav-ico" data-icon="video" data-icon-size="18" aria-hidden="true"></span>
-            <span class="nav-label">Урок</span></button>
-          <button class="nav-btn" data-tab="account">
-            <span class="nav-ico" data-icon="settings" data-icon-size="18" aria-hidden="true"></span>
-            <span class="nav-label">Кабинет</span></button>
+            <span class="nav-ico" data-icon="mic" data-icon-size="18" aria-hidden="true"></span>
+            <span class="nav-label">Видеоурок</span></button>
+          <button class="nav-btn" data-tab="invite">
+            <span class="nav-ico" data-icon="target" data-icon-size="18" aria-hidden="true"></span>
+            <span class="nav-label">Ссылка для учеников</span></button>
+          <button class="nav-btn" data-tab="plan">
+            <span class="nav-ico" data-icon="star" data-icon-size="18" aria-hidden="true"></span>
+            <span class="nav-label">Подписка</span></button>
         </div>
       </nav>
       <div class="plan-chip" id="plan-chip" title="Тариф и занятые места"></div>
       <div class="user-chip">
         <span id="tutor-name"></span>
-        <!-- «пароль», «приложение» и «выйти» переехали в раздел «Кабинет»
-             (секция tab-security): шапка на телефоне собиралась в три ряда
-             и съедала половину первого экрана. Кнопки темы и языка
-             монтируются сюда скриптами — им контейнер нужен. -->
+        <button id="pass-btn" class="link-btn">пароль</button>
+        <button id="totp-btn" class="link-btn" title="Приложение для кодов — запасной ключ, если забудете пароль">приложение</button>
+        <button id="logout-btn" class="link-btn">выйти</button>
       </div>
     </div>
   </header>
 
   <div id="access-bar-slot"></div>
   <main class="wide">
-    <!-- Чипы второго уровня для раздела (Выдать/Выданные/Банк заданий и т.п.).
-         Рисует tutor.js при переключении вкладки; вне секций, чтобы чипы
-         не прыгали вместе с содержимым. -->
-    <div id="subnav-slot"></div>
     <!-- Ученики -->
     <section id="tab-students">
       <div id="onboard-slot"></div>
@@ -493,24 +505,6 @@
             повторения. Только если есть что сказать: пустых писем не будет.</span>
         </label>
         <p class="type-feedback" id="notify-msg" role="status" aria-live="polite"></p>
-      </div>
-    </section>
-
-    <!-- «Вход и доступ» — подраздел «Кабинета». Кнопки жили в шапке
-         текстовыми ссылками: на телефоне шапка собиралась в три ряда,
-         а действия уровня «раз в полгода» занимали её наравне с именем.
-         id прежние — обработчики в tutor.js привязаны к ним. -->
-    <section id="tab-security" class="hidden">
-      <h2 class="section-title">Вход и доступ</h2>
-      <div class="card">
-        <p class="stat-label">Безопасность кабинета</p>
-        <p class="muted-note">Пароль, запасной вход через приложение для кодов
-          и выход из кабинета на этом устройстве.</p>
-        <div class="quiz-buttons security-buttons">
-          <button id="pass-btn" class="btn btn-ghost">Сменить пароль</button>
-          <button id="totp-btn" class="btn btn-ghost" title="Приложение для кодов — запасной ключ, если забудете пароль">Приложение для кодов</button>
-          <button id="logout-btn" class="btn btn-ghost">Выйти из кабинета</button>
-        </div>
       </div>
     </section>
 

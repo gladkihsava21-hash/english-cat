@@ -153,9 +153,7 @@
       location.href = "board.html?id=" + res.board.id;
     });
 
-    // «Доски» — подраздел «Урока», своей кнопки вкладки больше нет.
-    // Отдаём загрузчик наружу: его зовёт tutor.js (SUB_LOADERS) при
-    // открытии подраздела.
-    window.savelyLoadBoards = load;
+    document.querySelectorAll('.nav-btn[data-tab="boards"]').forEach(b =>
+      b.addEventListener("click", load));
   });
 })();

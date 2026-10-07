@@ -97,13 +97,6 @@
     revealActive();
     animateSection();
   });
-  // Программные переходы (savelyGotoTab: хэши, data-goto, чипы подразделов)
-  // клика по полосе не делают — двигаем оформление по их событию.
-  document.addEventListener("savely:tab", () => {
-    moveMarker();
-    revealActive();
-    animateSection();
-  });
 
   // Клавиатура: стрелками между разделами. Панель — рабочее место,
   // и репетитор, который не любит мышь, не должен зависеть от неё.
@@ -145,19 +138,10 @@
    * Нужно не для красоты: панель — рабочее место, и на неё кидают ссылки
    * («открой доски», «посмотри фото тетрадей»). Раньше любая ссылка вела
    * на «Учеников», и человек искал нужный раздел глазами. Заодно адрес
-   * теперь можно положить в закладки.
-   *
-   * Хэши со СТАРЫМИ именами вкладок тоже работают: разделы сгруппированы
-   * (десять → пять), а ссылки из писем и закладок остались — их
-   * разбирает savelyGotoTab через алиасы (js/tutor.js). */
+   * теперь можно положить в закладки. */
   function openFromHash() {
     const want = (location.hash || "").replace("#", "");
     if (!want) return;
-    if (typeof window.savelyGotoTab === "function") {
-      const known = window.TAB_ALIASES && window.TAB_ALIASES[want];
-      const btn = strip.querySelector(`.nav-btn[data-tab="${CSS.escape(want)}"]`);
-      if (known || btn) { window.savelyGotoTab(want); return; }
-    }
     const btn = strip.querySelector(`.nav-btn[data-tab="${CSS.escape(want)}"]`);
     if (btn && !btn.classList.contains("active")) btn.click();
   }
