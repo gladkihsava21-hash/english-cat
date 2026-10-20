@@ -671,10 +671,10 @@ function drawText(text, x, y, maxW, lh, color, weight) {
   }
 }
 
-/** У каких объектов есть смысл тянуть размер за уголок. Линии и штрихи
- *  не растягиваем: у них «размер» — это сама геометрия. У текста уголок
- *  меняет не рамку, а кегль (см. ветку text в resize-драге). */
-const resizable = o => ["image", "rect", "ellipse", "note", "word", "book", "frame", "text", "emoji"].includes(o.kind);
+/** У каких объектов есть смысл тянуть размер за уголок — теперь у всех,
+ *  кроме служебных (пинг, фон): фигуры и картинки — w/h, текст и эмодзи —
+ *  кегль, штрихи — масштаб точек (заказ владельца «тянуть всё»). */
+const resizable = o => !isService(o);
 
 function drawSelection(o, group = false) {
   const b = bounds(o);
@@ -929,6 +929,15 @@ function buildLaserPayload() {
   return pts.length ? { pts } : null;
 }
 
+/** Свой viewport для PNG «как видит другая сторона»: мировой центр
+ *  экрана + зум + размер окна. Шлём в каждом sync — сервер хранит
+ *  последний на сторону и отдаёт второй (peerView). */
+function currentViewPayload() {
+  const c = toWorld(innerWidth / 2, innerHeight / 2);
+  return { cx: Math.round(c.x * 10) / 10, cy: Math.round(c.y * 10) / 10,
+           k: BD.view.k, vw: innerWidth, vh: innerHeight };
+}
+
 async function syncNow() {
   if (syncBusy || !BD.boardId) return;
   syncBusy = true;
@@ -958,6 +967,10 @@ async function syncNow() {
       timer: timerCmd === undefined ? "skip" : timerCmd,
       // Реакция-эмодзи: разовая, как лазер, — поле react в том же теле.
       react: reactCmd || "skip",
+      // Свой viewport для экспорта «как видит другая сторона»: мировой
+      // центр, зум и размер экрана. Пассивная телеметрия — follow
+      // («посмотри сюда») отдельное поле, они друг друга не трогают.
+      view: currentViewPayload(),
     });
     if (res.ok) { BD.followCmd = null; timerCmd = undefined; reactCmd = undefined; }
     if (!res.ok) {
@@ -1005,6 +1018,11 @@ async function syncNow() {
       clearTimeout(BD._laserT);
       paint();
     }
+    // Viewport второй стороны для PNG «как видит ученик/учитель»:
+    // сервер отдаёт чужой и свежий (~60 с); нет поля — пункт меню
+    // выключен с подсказкой (см. updatePngPeerItem).
+    BD.peerView = res.peerView || null;
+    updatePngPeerItem();
     // «Покажи мой вид» от репетитора. Разовая команда: применяем каждую
     // один раз (по метке времени); ученик в другой вкладке — ждёт
     // возвращения, но дольше 10 секунд не ждём: устаревшая не нужна.
@@ -1410,22 +1428,34 @@ canvas.addEventListener("pointermove", e => {
     const o = BD.objects.get(resizing.id);
     if (!o) return;
     const b = resizing.b;
-    const nw = Math.max(24, w.x - b.x - 6);
-    const nh = Math.max(24, w.y - b.y - 6);
-    if (o.kind === "image") {
+    // Нижний предел — разумные 4 px, верхнего НЕТ (заказ владельца:
+    // тянуть за угол до любых размеров, хоть на всю доску).
+    const nw = Math.max(4, w.x - b.x - 6);
+    const nh = Math.max(4, w.y - b.y - 6);
+    if (o.kind === "pen" || o.kind === "marker") {
+      // Штрих масштабируем как картинку: точки — от левого верхнего угла
+      // исходной рамки и строго от ИСХОДНЫХ на каждый мув (накопление
+      // дробного множителя дёргало бы линию). hitTest и рамка выделения
+      // следуют сами — считаются по точкам.
+      const k = Math.max(nw / Math.max(1, b.w), nh / Math.max(1, b.h));
+      const pts = resizing.orig.pts.slice();
+      for (let i = 0; i < pts.length; i += 2) {
+        pts[i] = b.x + (pts[i] - b.x) * k;
+        pts[i + 1] = b.y + (pts[i + 1] - b.y) * k;
+      }
+      BD.objects.set(o.id, { ...o, pts });
+    } else if (o.kind === "image") {
       // Картинку тянем с сохранением пропорций: перекошенное фото
       // на доске никому не нужно, а два ползунка — лишняя возня.
       const k = Math.max(nw / Math.max(1, b.w), nh / Math.max(1, b.h));
       BD.objects.set(o.id, { ...o, x: b.x, y: b.y,
-                             w: Math.max(24, b.w * k), h: Math.max(24, b.h * k) });
+                             w: Math.max(4, b.w * k), h: Math.max(4, b.h * k) });
     } else if (o.kind === "text" || o.kind === "emoji") {
-      // Текст за угол растягивается КЕГЛЕМ (как в Miro): ширина рамки
-      // стоит, высота пересчитывается из нового размера — «рамка следует».
-      // Кегль считаем от ИСХОДНОГО на каждый мув: накапливать дробный
-      // множитель по живому значению — значит дёргать размер при каждом
-      // рывке мыши («не скачет»). Пределы — как у textLH: 12–96 на строку.
+      // Текст и эмодзи за угол растягиваются КЕГЛЕМ (как в Miro). Кегль
+      // считаем от ИСХОДНОГО на каждый мув («не скачет»). Потолка нет —
+      // тянул и растёт хоть на всю доску; пол задаёт textLH (кегль 8).
       const k = Math.max(nw / Math.max(1, b.w), nh / Math.max(1, b.h));
-      const size = Math.min(16, Math.max(2, (resizing.orig.size || 3) * k));
+      const size = Math.max(1.4, (resizing.orig.size || 3) * k);
       if (o.kind === "emoji") {
         // У эмодзи кегль — это и есть размер: рамка квадратная под глиф
         const lh = textLH(size);
@@ -1794,7 +1824,10 @@ const NOTE_MIN_H = 120, NOTE_MAX_H = 320, NOTE_TEXT_LIMIT = 600;
 /* Размер текстового объекта: size — не толщина (ей текст не рисуется),
  * а кегль: высота строки = size × 6 в разумных пределах 12–96 px.
  * Меняется рядом толщин в панели стиля — у текста это и есть «размер». */
-const textLH = size => Math.min(96, Math.max(12, (size || 3) * 6));
+// Кегль строки текста от «размера» объекта. Верхнего потолка НЕТ
+// (волна 3: текст тянется за угол хоть на всю доску), нижний — кегль 8:
+// меньше уже не текст, а пыль.
+const textLH = size => Math.max(8, (size || 3) * 6);
 
 /** Высота текстового объекта под переносы: рамка выделения и хит-тест
  *  обязаны совпадать с тем, что реально нарисовано. */
@@ -1873,7 +1906,6 @@ $("bd-editor-ok").addEventListener("click", () => {
     put(o);
   }
   $("bd-editor").hidden = true;
-  $("bd-editor-emoji-panel").hidden = true;
   editing = null;
   // И тут назад в «Выделить» — та же логика, что у фигур в finishStroke:
   // написал текст — и дальше по доске, а не новый текст на каждый клик.
@@ -1886,7 +1918,6 @@ $("bd-editor-cancel").addEventListener("click", () => {
   if (editing && editing.kind !== "frame"
       && !(BD.objects.get(editing.id) || {}).text) remove(editing.id, false);
   $("bd-editor").hidden = true;
-  $("bd-editor-emoji-panel").hidden = true;
   editing = null;
 });
 $("bd-editor-input").addEventListener("keydown", e => {
@@ -2176,7 +2207,9 @@ function mpResize(d) {
   selIds().forEach(id => {
     const o = BD.objects.get(id);
     if (!o || o.locked) return;
-    const size = Math.min(60, Math.max(1, (o.size || 3) + d));
+    // Верхнего предела нет нарочно: A−/A+ обязаны согласовываться с тем,
+    // что натянули углом (волна 3), а не обрезать его обратно.
+    const size = Math.max(1, (o.size || 3) + d);
     if (o.kind === "text") {
       put({ ...o, size, h: textHeight(o.text || "", o.w || 460, textLH(size)) });
     } else {
@@ -2502,6 +2535,47 @@ $("bd-png-view").addEventListener("click", () => {
   savePng(off, ($("bd-name").textContent || "доска").trim() + " — вид.png");
 });
 
+/* Пункт «Как видит ученик/учитель»: доступен, только пока свежий
+   peerView (сервер держит ~60 с). Подпись и состояние обновляются после
+   каждой синхронизации. */
+function updatePngPeerItem() {
+  const b = $("bd-png-peer");
+  if (!b) return;
+  const other = BD.role === "tutor" ? "ученик" : "учитель";
+  b.textContent = "Как видит " + other;
+  b.disabled = !BD.peerView;
+  b.title = BD.peerView
+    ? `PNG с экрана ${other}а: его зум и центр`
+    : `Пока нет данных: ${other} не на доске или давно не присылал вид`;
+}
+
+$("bd-png-peer").addEventListener("click", () => {
+  const pv = BD.peerView;
+  if (!pv) return;                       // пункт выключен — данных нет
+  $("bd-png-menu").hidden = true;
+  // Рендерим доску с ЧУЖИМ видом: его зум, его центр и ЕГО соотношение
+  // сторон (размер его экрана), dpr до 2.5 — как у своих экспортов.
+  const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+  const off = document.createElement("canvas");
+  off.width = Math.max(1, Math.round(pv.vw * dpr));
+  off.height = Math.max(1, Math.round(pv.vh * dpr));
+  const offCtx = off.getContext("2d");
+  offCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const realCtx = ctx, realView = { ...BD.view };
+  const restore = hideChromeForExport();
+  ctx = offCtx;
+  BD.view = { x: pv.vw / 2 - pv.cx * pv.k,
+              y: pv.vh / 2 - pv.cy * pv.k, k: pv.k };
+  paint();
+  draw(pv.vw, pv.vh);
+  ctx = realCtx;
+  BD.view = realView;
+  restore();
+  paint();
+  const other = BD.role === "tutor" ? "ученик" : "учитель";
+  savePng(off, ($("bd-name").textContent || "доска").trim() + ` — вид ${other}а.png`);
+});
+
 document.addEventListener("visibilitychange", () => {
   if (BD.boardId) syncNow();
   // Вернулись на доску — применить ждущую команду «покажи мой вид»,
@@ -2566,48 +2640,141 @@ function pushReact(emoji, pt, by) {
   paint();
 }
 
-/* ---------- эмодзи: в текст и объектом на доску ----------
-   Одна сетка на два применения: в редакторе текста/стикера вставляет
-   эмодзи в каретку, из меню реакций — ставит эмодзи ОБЪЕКТОМ на доску
-   (kind "emoji"): выбрал в сетке → клик по полотну → объект на месте
-   клика, дальше двигается/растягивается как текст. Кот 🐱 — маскот
-   проекта, ему место в первом ряду. */
-const EMOJI_SET = ("🐱 😀 😄 😂 🙂 😉 😍 🤔 😎 😢 😮 😴 🤯 🥳 😇 🙌 "
-  + "👍 👎 👏 🙏 💪 🤝 ✅ ❌ ➕ ➖ ❗ ❓ 💡 ⭐ 🔥 ❤️ "
-  + "🐶 🦊 🐸 🐝 🦋 🐢 🍎 🍕 🍦 ⚽ 🎲 📚 ✏️ 🎨 🎵 🚀").split(" ");
+/* ---------- эмодзи: полный пикер, в текст и объектом на доску ----------
+   Один пикер (js/emoji-data.js: ~1900 символов, категории, поиск ру/en)
+   на три применения: вставка в каретку редактора, реакция («ещё…» в
+   меню реакций), штамп-объект на доске. Оверлей один на всё — открываем
+   рядом с кнопкой, которая его позвала. swapEmoji из icons.js пикер не
+   трогает: класс bd-emoji-panel в его пропусках с прошлой волны. */
 BD.pendingEmoji = "";      // эмодзи под штамп (инструмент "emoji")
 
-function buildEmojiGrids() {
-  const cell = (ch, onPick) => {
+let emojiPickerEl = null, emojiPickerPick = null, emojiPickerCat = "";
+
+function ensureEmojiPicker() {
+  if (emojiPickerEl) return emojiPickerEl;
+  const el = document.createElement("div");
+  el.className = "bd-emoji-panel bd-emoji-picker";
+  el.hidden = true;
+  el.innerHTML = `
+    <input type="search" class="bd-emoji-search" placeholder="Найти эмодзи…"
+           aria-label="Поиск эмодзи">
+    <div class="bd-emoji-tabs" role="tablist"></div>
+    <div class="bd-emoji-grid"></div>`;
+  document.body.appendChild(el);
+  const tabs = el.querySelector(".bd-emoji-tabs");
+  EMOJI_CATEGORIES.forEach(c => {
     const b = document.createElement("button");
     b.type = "button";
-    b.textContent = ch;
-    b.addEventListener("click", () => onPick(ch));
-    return b;
-  };
-  const panel = $("bd-editor-emoji-panel");
-  EMOJI_SET.forEach(ch => panel.appendChild(cell(ch, insertEmojiAtCaret)));
-  const board = $("bd-board-emojis");
-  EMOJI_SET.forEach(ch => board.appendChild(cell(ch, armEmojiStamp)));
+    b.className = "bd-emoji-tab";
+    b.textContent = c.icon;
+    b.title = c.name;
+    b.dataset.cat = c.id;
+    b.addEventListener("click", () => {
+      emojiPickerCat = c.id;
+      el.querySelector(".bd-emoji-search").value = "";
+      tabs.querySelectorAll(".bd-emoji-tab").forEach(x =>
+        x.classList.toggle("on", x === b));
+      fillEmojiGrid();
+    });
+    tabs.appendChild(b);
+  });
+  tabs.querySelector(".bd-emoji-tab").classList.add("on");
+  emojiPickerCat = EMOJI_CATEGORIES[0].id;
+  el.querySelector(".bd-emoji-search").addEventListener("input", fillEmojiGrid);
+  // Клик мимо и Esc закрывают — как у любого всплывающего меню доски
+  document.addEventListener("pointerdown", e => {
+    if (!el.hidden && !el.contains(e.target)) el.hidden = true;
+  });
+  document.addEventListener("keydown", e => {
+    if (e.key === "Escape" && !el.hidden) el.hidden = true;
+  });
+  function fillEmojiGrid() {
+    const grid = el.querySelector(".bd-emoji-grid");
+    const q = el.querySelector(".bd-emoji-search").value.trim().toLowerCase();
+    let html = "";
+    if (q) {
+      // Поиск: имя/id категории или ключевые слова символа (ру/en)
+      EMOJI_CATEGORIES.forEach(c => {
+        const catHit = c.name.toLowerCase().includes(q) || c.id.includes(q);
+        c.emojis.split(" ").forEach(ch => {
+          if (!ch) return;
+          if (catHit || (EMOJI_KEYWORDS[ch] || "").includes(q)) {
+            html += `<button type="button" data-ch="${ch}">${ch}</button>`;
+          }
+        });
+      });
+      if (!html) html = `<p class="bd-emoji-none">Ничего не нашлось.</p>`;
+    } else {
+      const c = EMOJI_CATEGORIES.find(x => x.id === emojiPickerCat)
+             || EMOJI_CATEGORIES[0];
+      c.emojis.split(" ").forEach(ch => {
+        if (ch) html += `<button type="button" data-ch="${ch}">${ch}</button>`;
+      });
+    }
+    grid.innerHTML = html;
+    grid.querySelectorAll("[data-ch]").forEach(b => {
+      b.addEventListener("click", () => {
+        el.hidden = true;
+        const pick = emojiPickerPick;
+        emojiPickerPick = null;
+        if (pick) pick(b.dataset.ch);
+      });
+    });
+  }
+  el._fill = fillEmojiGrid;
+  emojiPickerEl = el;
+  return el;
 }
 
-/* Вставка в каретку, а не в конец: правят обычно середину фразы. */
+function openEmojiPicker(anchor, onPick) {
+  const el = ensureEmojiPicker();
+  emojiPickerPick = onPick;
+  el.hidden = false;
+  el._fill();
+  // позиция рядом с кнопкой, не выезжая за экран
+  const r = anchor.getBoundingClientRect();
+  const w = Math.min(340, innerWidth - 16);
+  el.style.width = w + "px";
+  el.style.left = Math.max(8, Math.min(innerWidth - w - 8, r.left)) + "px";
+  const below = r.bottom + 8 + 320 <= innerHeight;
+  el.style.top = (below ? r.bottom + 8 : Math.max(8, r.top - 320 - 8)) + "px";
+  el.querySelector(".bd-emoji-search").focus();
+}
+
+/* Вставка в каретку, а не в конец: правят обычно середину фразы. Каретка
+   — из запомненной при открытии пикера (см. ниже), а не живая: поле
+   поиска пикера забирает фокус, и выделение в textarea после этого
+   читать нельзя (в jsdom оно и вовсе схлопывается — тесты и поймали). */
 function insertEmojiAtCaret(ch) {
   const input = $("bd-editor-input");
-  const at = input.selectionStart ?? input.value.length;
-  input.setRangeText(ch, at, input.selectionEnd ?? at, "end");
+  const c = BD._editorCaret || { s: input.selectionStart ?? input.value.length,
+                                 e: input.selectionEnd ?? input.value.length };
+  BD._editorCaret = null;
+  input.setRangeText(ch, c.s, c.e, "end");
   input.focus();
 }
 
-$("bd-editor-emoji").addEventListener("click", () => {
-  const p = $("bd-editor-emoji-panel");
-  p.hidden = !p.hidden;
+$("bd-editor-emoji").addEventListener("click", e => {
+  const inp = $("bd-editor-input");
+  BD._editorCaret = { s: inp.selectionStart ?? inp.value.length,
+                      e: inp.selectionEnd ?? inp.value.length };
+  openEmojiPicker(e.currentTarget, insertEmojiAtCaret);
+});
+
+/* Реакция из полного пикера: та же логика, что у быстрых семи выше. */
+$("bd-react-more").addEventListener("click", e => {
+  $("bd-react-menu").hidden = true;
+  openEmojiPicker(e.currentTarget, ch => {
+    const pt = toWorld(innerWidth / 2 + (Math.random() * 120 - 60), innerHeight - 60);
+    pushReact(ch, pt, BD.me || "me");
+    reactCmd = { emoji: ch, x: pt.x, y: pt.y };
+    scheduleSync();
+  });
 });
 
 /* Штамп: псевдо-инструмент "emoji" — один клик по полотну ставит объект
    и возвращает «Выделить», Esc отменяет (ветка рядом с лазерной). */
 function armEmojiStamp(ch) {
-  $("bd-react-menu").hidden = true;
   BD.pendingEmoji = ch;
   BD.tool = "emoji";
   document.querySelectorAll(".bd-tool[data-tool]")
@@ -2616,7 +2783,10 @@ function armEmojiStamp(ch) {
   syncStyleBar();
   toast(`Кликни по доске — поставлю ${ch}. Esc — отмена.`);
 }
-buildEmojiGrids();
+$("bd-stamp-open").addEventListener("click", e => {
+  $("bd-react-menu").hidden = true;
+  openEmojiPicker(e.currentTarget, armEmojiStamp);
+});
 
 /* ---------- таймер урока ----------
    Ставит репетитор (пресеты или своё число), команда едет тем же sync,

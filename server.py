@@ -1465,7 +1465,11 @@ class Api:
                             # Таймер урока — репетитор запускает, видят оба.
                             timer=p.get("timer", "skip") if can_write else "skip",
                             # Реакция-эмодзи — слать могут оба участника.
-                            react=p.get("react", "skip") if can_write else "skip")
+                            react=p.get("react", "skip") if can_write else "skip",
+                            # Viewport стороны для PNG «как видит другая
+                            # сторона» — пассивная телеметрия вида, не путать
+                            # с follow (разовая команда «посмотри сюда»).
+                            view=p.get("view", "skip") if can_write else "skip")
         if res is None:
             return {"ok": False, "error": "Доска не найдена."}
         if res.get("error") == "board_full":
@@ -1626,12 +1630,38 @@ class Api:
         if not me:
             return {"ok": False, "error": "unauthorized"}
         kind = str(p.get("kind", ""))
-        # Демонстрация экрана — право репетитора (пакет владельца, волна 2):
-        # «screen on» от ученика отклоняем даже в обход интерфейса.
-        # «screen off» пропускаем: гашение безвредно и добивает зависший
-        # показ, если права ужесточили посреди урока.
-        if kind == "screen" and me.startswith("s") and (p.get("data") or {}).get("on"):
+        data = p.get("data") or {}
+        # Демонстрация экрана по запросу (волна 3): запрос — только
+        # ученик, ответ и стоп — только репетитор; «screen on» от ученика
+        # — только со свежим разрешением (окно 120 с, одноразовое).
+        # Самостоятельный показ ученика, approve самому себе и стоп чужой
+        # демки учеником так отсекаются на любых клиентах.
+        if kind == "screen-req" and not me.startswith("s"):
             return {"ok": False, "error": "forbidden"}
+        if kind in ("screen-answer", "screen-stop") and me.startswith("s"):
+            return {"ok": False, "error": "forbidden"}
+        if kind == "screen-answer":
+            db.conn().execute("UPDATE boards SET screen_allow_at=? WHERE id=?",
+                              (int(time.time()) if data.get("allow") else 0, board["id"]))
+            db.conn().commit()
+        if kind == "screen-stop":
+            db.conn().execute("UPDATE boards SET screen_allow_at=0 WHERE id=?",
+                              (board["id"],))
+            db.conn().commit()
+        if kind == "screen" and me.startswith("s"):
+            row = db.get_board(board["id"])
+            allow_at = int(row["screen_allow_at"] or 0) if row and "screen_allow_at" in row.keys() else 0
+            if data.get("on"):
+                if int(time.time()) - allow_at > 120:
+                    return {"ok": False, "error": "forbidden"}
+                # разрешение одноразовое: расходуем на этот показ
+                db.conn().execute("UPDATE boards SET screen_allow_at=0 WHERE id=?",
+                                  (board["id"],))
+                db.conn().commit()
+            else:
+                db.conn().execute("UPDATE boards SET screen_allow_at=0 WHERE id=?",
+                                  (board["id"],))
+                db.conn().commit()
         ok = db.call_send(board["id"], me, kind, p.get("data"))
         return {"ok": bool(ok)}
 

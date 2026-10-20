@@ -260,6 +260,17 @@ MIGRATIONS = [
     # воскресил бы удалённое на сервере.
     ("boards", "dict_del", "TEXT DEFAULT ''"),
     ("boards", "dict_del_at", "INTEGER DEFAULT 0"),
+    # Viewport каждой стороны (мировой центр, зум, размер экрана) — для
+    # экспорта PNG «как видит ученик/учитель». Как laser/follow: не объект
+    # доски, а свежая строка на сторону; протухает за ~60 с.
+    ("boards", "view_tutor", "TEXT DEFAULT ''"),
+    ("boards", "view_tutor_at", "INTEGER DEFAULT 0"),
+    ("boards", "view_student", "TEXT DEFAULT ''"),
+    ("boards", "view_student_at", "INTEGER DEFAULT 0"),
+    # Разрешение на демонстрацию экрана учеником (волна 3): репетитор
+    # отвечает «разрешаю» — ученику открывается окно 120 с на старт.
+    # Одноразовое: расходуется первым «screen on» или стопом.
+    ("boards", "screen_allow_at", "INTEGER DEFAULT 0"),
     # Лазерная указка: последняя точка на доске, кто её держит и когда.
     # Не объект доски (эфемерно, пара секунд), поэтому отдельные поля,
     # а не запись в data: второй участник получает её в ответе
@@ -2600,7 +2611,10 @@ def _clean_board_object(o):
         "w": num(o.get("w"), -20000, 20000),
         "h": num(o.get("h"), -20000, 20000),
         "color": str(o.get("color", ""))[:24],
-        "size": max(1, min(60, int(num(o.get("size", 3), 1, 60)))),
+        # Потолок размера поднят под «текст на всю доску» (волна 3):
+        # кегль объекта это size*6 px, 2000 хватает с запасом, а бездонный
+        # лимит заодно страхует от мусора в числах.
+        "size": max(1, min(2000, int(num(o.get("size", 3), 1, 2000)))),
         "rev": int(num(o.get("rev", 0), 0, 10**9)),
         "by": str(o.get("by", ""))[:24],
         # Замок теперь у любого объекта (фигуры, стикеры, текст, слова) —
@@ -2701,7 +2715,7 @@ def board_presence(row):
     return "here" if ago <= 6 else "gone"
 
 
-def board_sync(board_id, changes, deletes, since, author, laser="skip", follow="skip", timer="skip", react="skip"):
+def board_sync(board_id, changes, deletes, since, author, laser="skip", follow="skip", timer="skip", react="skip", view="skip"):
     """Слить изменения и вернуть то, чего у клиента ещё нет.
 
     Правило слияния — «последний по объекту побеждает». Для доски на
@@ -2778,6 +2792,29 @@ def board_sync(board_id, changes, deletes, since, author, laser="skip", follow="
                     "UPDATE boards SET follow_x=?, follow_y=?, follow_k=?, follow_by=?, follow_at=? WHERE id=?",
                     (fx, fy, fk, author[:24], int(time.time()), board_id))
                 conn().commit()
+
+    # Viewport стороны для экспорта «как видит другая сторона»: свой
+    # мировой центр, зум и размер экрана. Пишем в слот автора, читает
+    # вторая сторона (см. ниже peerView). Это ОТДЕЛЬНОЕ поле от follow:
+    # follow — разовая команда «посмотри сюда», view — пассивное «я сейчас
+    # вижу так», и одно другого не ломает.
+    if view != "skip" and isinstance(view, dict):
+        try:
+            vx = max(-100000.0, min(100000.0, float(view.get("cx", 0))))
+            vy = max(-100000.0, min(100000.0, float(view.get("cy", 0))))
+            vk = max(0.05, min(20.0, float(view.get("k", 1))))
+            vw = max(100, min(8000, int(float(view.get("vw", 1280)))))
+            vh = max(100, min(8000, int(float(view.get("vh", 800)))))
+        except (TypeError, ValueError):
+            vx = None
+        if vx is not None:
+            slot = "tutor" if author.startswith("t") else "student"
+            conn().execute(
+                f"UPDATE boards SET view_{slot}=?, view_{slot}_at=? WHERE id=?",
+                (json.dumps({"cx": round(vx, 1), "cy": round(vy, 1),
+                             "k": round(vk, 3), "vw": vw, "vh": vh}),
+                 int(time.time()), board_id))
+            conn().commit()
 
     if laser != "skip":
         if isinstance(laser, dict):
@@ -2929,6 +2966,16 @@ def board_sync(board_id, changes, deletes, since, author, laser="skip", follow="
             out["dictDel"] = json.loads(raw_del)
         except (TypeError, ValueError):
             pass
+    # Viewport ВТОРОЙ стороны для PNG «как видит ученик/учитель»: свежий
+    # (~60 с) и только чужой — свой клиент знает сам.
+    peer_slot = "student" if author.startswith("t") else "tutor"
+    raw_view = row["view_" + peer_slot] if "view_" + peer_slot in row.keys() else ""
+    view_at = int(row["view_" + peer_slot + "_at"] or 0) if "view_" + peer_slot + "_at" in row.keys() else 0
+    if raw_view and view_at and int(time.time()) - view_at <= 60:
+        try:
+            out["peerView"] = json.loads(raw_view)
+        except (TypeError, ValueError):
+            pass
     # Таймер: видят ОБЕ стороны, пока идёт или стоит на паузе (недавно
     # истёкший ещё минуту показываем как «время!»), и новый заход тоже.
     t_until = float(row["timer_until"] or 0) if "timer_until" in row.keys() else 0
@@ -2981,7 +3028,10 @@ def call_send(board_id, sender, kind, data):
     # и ступень качества связи. Едет редко — только при смене состояния,
     # не по таймеру, — чтобы вторая сторона видела, слышно и видно ли
     # тебя, не раздувая опрос.
-    if kind not in ("offer", "answer", "ice", "bye", "needfix", "screen", "hello", "media"):
+    # screen-req/screen-answer/screen-stop — демонстрация по запросу
+    # (волна 3): ученик просит, репетитор разрешает/отклоняет/останавливает.
+    if kind not in ("offer", "answer", "ice", "bye", "needfix", "screen", "hello", "media",
+                    "screen-req", "screen-answer", "screen-stop"):
         return False
     blob = json.dumps(data or {}, ensure_ascii=False)
     if len(blob) > CALL_MSG_MAX:

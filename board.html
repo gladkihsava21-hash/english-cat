@@ -115,11 +115,12 @@
         <button class="bd-react-emoji" data-emoji="👏" aria-label="аплодисменты">👏</button>
         <button class="bd-react-emoji" data-emoji="🤔" aria-label="думаю">🤔</button>
         <button class="bd-react-emoji" data-emoji="🐱" aria-label="кот">🐱</button>
-        <!-- Эмодзи ОБЪЕКТОМ на доску (kind "emoji"): выбрал — и кликом
-             по полотну поставил, как штамп. Сетку строит скрипт из
-             EMOJI_SET, реакции выше — временные, это — содержимое. -->
+        <!-- Полный пикер (категории + поиск, ~1900): «ещё…» — для
+             реакции, ниже — для штампа-объекта на доске. -->
+        <button class="bd-react-emoji" id="bd-react-more" title="Ещё эмодзи…"
+                aria-label="Ещё эмодзи">⋯</button>
         <div class="bd-emoji-divider">на доску объектом — выбери и кликни по полотну:</div>
-        <div class="bd-emoji-panel" id="bd-board-emojis"></div>
+        <button class="bd-btn" id="bd-stamp-open">Выбрать эмодзи…</button>
       </div>
     </div>
     <!-- Экспорт картинкой: вся доска по содержимому или ровно текущий
@@ -131,6 +132,7 @@
       <div class="bd-share-menu" id="bd-png-menu" hidden>
         <button class="bd-btn" id="bd-png-all">Вся доска</button>
         <button class="bd-btn" id="bd-png-view">Текущий вид</button>
+        <button class="bd-btn" id="bd-png-peer" disabled>Как видит ученик</button>
       </div>
     </div>
     <button class="bd-btn" id="bd-clear" title="Очистить доску"
@@ -286,8 +288,6 @@
     <button class="bd-btn primary" id="bd-editor-ok">Готово</button>
     <button class="bd-btn" id="bd-editor-cancel">Отмена</button>
   </div>
-  <!-- Сетка эмодзи строится скриптом из EMOJI_SET — та же, что «на доску» -->
-  <div class="bd-emoji-panel" id="bd-editor-emoji-panel" hidden></div>
 </div>
 
 <!-- Добавление слова в словарь с доски (ученик): слово, перевод
@@ -465,6 +465,8 @@
      что у ученика, панель слов показывает их превью. -->
 <script defer src="js/images.js?v=324"></script>
 <script defer src="js/word-photos.js?v=324"></script>
+<!-- Полный пикер эмодзи (категории + поиск): данные отдельно от логики -->
+<script defer src="js/emoji-data.js?v=324"></script>
 <script defer src="js/board.js?v=324"></script>
 <script defer src="js/call.js?v=324"></script>
 <!-- Групповой урок идёт после call.js: пользуется его ICE_SERVERS,

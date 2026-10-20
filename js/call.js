@@ -101,6 +101,42 @@ function handleCallMsg(m) {
     CALL.remoteScreen = !!(m.data && m.data.on);
     layoutRemote();
     setCallState(CALL.remoteScreen ? "вам показывают экран" : "соединено");
+    // У репетитора во время демки ученика кнопка становится стопом чужой
+    // демки; как показ кончился — снова «Показать экран».
+    const sb = $("call-screen");
+    if (sb) {
+      sb.title = (BD.role === "tutor" && CALL.remoteScreen)
+        ? "Остановить демку ученика" : "Показать экран";
+      sb.classList.toggle("on", BD.role === "tutor" && CALL.remoteScreen);
+    }
+    return;
+  }
+  // Ученик просит разрешение на демонстрацию (волна 3) — плашка с
+  // Разрешить/Отклонить; отвечать может только репетитор (и сервер
+  // следит, чтобы ответ не прислал ученик). Сообщения с флагом g —
+  // группового урока, их разбирает groupcall.js: отвечать надо тем же
+  // каналом, а не личным.
+  if (m.kind === "screen-req" && !(m.data && m.data.g) && BD.role === "tutor") {
+    return askScreenApprove(allow => callSend("screen-answer", { allow }));
+  }
+  if (m.kind === "screen-answer" && !(m.data && m.data.g) && BD.role !== "tutor") {
+    const allow = !!(m.data && m.data.allow);
+    SCREEN.requested = false;
+    clearTimeout(SCREEN.reqTimer);
+    if (allow) {
+      SCREEN.approved = true;
+      startScreenShare();
+    } else {
+      toast("Учитель не разрешил показ экрана.", 3600);
+    }
+    return;
+  }
+  // Репетитор остановил демку ученика: глушим свою демонстрацию сами.
+  if (m.kind === "screen-stop" && !(m.data && m.data.g) && BD.role !== "tutor") {
+    if (SCREEN.track) {
+      toast("Учитель остановил показ экрана.");
+      stopScreenShare(true);
+    }
     return;
   }
   // Вторая сторона сообщила о своих устройствах и связи: рисуем
@@ -478,7 +514,10 @@ function endCall(sendBye) {
    Показывать может любая сторона (ученику разрешили 22.09.2026: на
    уроке бывает «смотри, что у меня не получается»), но ОДНА за раз —
    см. страж в startScreenShare. */
-const SCREEN = { track: null, sender: null };
+const SCREEN = { track: null, sender: null,
+                 audioTrack: null, audioSender: null,   // звук демки (волна 3)
+                 approved: false,      // ученику разрешил репетитор
+                 requested: false, reqTimer: 0 };       // ждём ответа на запрос
 
 function screenSupported() {
   return !!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia);
@@ -508,13 +547,9 @@ async function sendFreshOffer() {
 }
 
 async function startScreenShare() {
-  // Демонстрация — право репетитора (пакет владельца, волна 2). Кнопку
-  // ученик не видит вовсе; этот страж — на случай обхода через консоль,
-  // а сервер отклоняет сигнал «screen on» от ученика самостоятельно.
-  if (BD.role !== "tutor") {
-    toast("Показывать экран может только репетитор.");
-    return;
-  }
+  // Репетитор стартует свободно; ученик — только с разрешения (кнопка
+  // ведёт через sendScreenRequest, страж — Api.call_send: «screen on»
+  // от ученика без свежего разрешения отклоняется).
   if (!CALL.pc || CALL.state !== "live") {
     toast("Сначала созвонитесь — экран показывается внутри звонка.");
     return;
@@ -528,29 +563,42 @@ async function startScreenShare() {
   }
   let stream;
   try {
+    // audio: true — просим и звук вкладки/системы (волна 3). Пользователь
+    // может не отдать звук в диалоге браузера: тогда аудиотрека просто
+    // нет, и демка стартует беззвучной (тост ниже).
     stream = await navigator.mediaDevices.getDisplayMedia({
-      video: { frameRate: { ideal: 12 } }, audio: false,
+      video: { frameRate: { ideal: 12 } }, audio: true,
     });
   } catch (e) { return; }               // передумал в системном окне — не ошибка
   const track = stream.getVideoTracks()[0];
   if (!track) return;
+  const audioTrack = stream.getAudioTracks()[0] || null;
   // Экран уходит ОТДЕЛЬНЫМ вторым треком, камера продолжает идти своей
   // дорожкой — у второй стороны видны и страница, и лицо (как в Zoom).
   // Раньше replaceTrack подменял лицо экраном, и учитель «исчезал».
+  // Звук демки кладём в ТОТ ЖЕ поток: принимающая сторона собирает его в
+  // большом видео автоматически (layoutRemote миксует все аудиотреки).
+  // Mute микрофона его не трогает — тот глушит дорожку микрофона
+  // (CALL.stream), а не звук экрана.
   try {
-    SCREEN.sender = CALL.pc.addTrack(track, new MediaStream([track]));
+    const screenStream = new MediaStream([track].concat(audioTrack ? [audioTrack] : []));
+    SCREEN.sender = CALL.pc.addTrack(track, screenStream);
+    if (audioTrack) SCREEN.audioSender = CALL.pc.addTrack(audioTrack, screenStream);
     await sendFreshOffer();
   } catch (e) {
     track.stop();
+    if (audioTrack) audioTrack.stop();
     toast("Не получилось начать показ. Попробуйте перезвонить.");
     return;
   }
   SCREEN.track = track;
+  SCREEN.audioTrack = audioTrack;
   await callSend("screen", { on: true });
   $("call-screen").classList.add("on");
   $("screen-bar").hidden = false;
   setCallState("вы показываете экран");
   refreshCallStrip();
+  if (!audioTrack) toast("Звук не выбран — показ идёт без звука.", 3600);
   // «Прекратить показ» в плашке браузера должен работать как наша кнопка
   track.onended = () => stopScreenShare(false);
 }
@@ -561,6 +609,13 @@ async function stopScreenShare(silent) {
   SCREEN.track = null;
   track.onended = null;
   try { track.stop(); } catch (e) { /* уже остановлен */ }
+  // Звук демки гасим вместе с картинкой; разрешение ученика одноразовое —
+  // на новый показ он просит снова.
+  if (SCREEN.audioTrack) {
+    try { SCREEN.audioTrack.stop(); } catch (e) { /* уже остановлен */ }
+    SCREEN.audioTrack = null;
+  }
+  SCREEN.approved = false;
   $("call-screen").classList.remove("on");
   $("screen-bar").hidden = true;
   refreshCallStrip();
@@ -568,6 +623,7 @@ async function stopScreenShare(silent) {
   try {
     if (SCREEN.sender) CALL.pc.removeTrack(SCREEN.sender);
     SCREEN.sender = null;
+    if (SCREEN.audioSender) { CALL.pc.removeTrack(SCREEN.audioSender); SCREEN.audioSender = null; }
     await sendFreshOffer();
   } catch (e) { /* конец звонка */ }
   await callSend("screen", { on: false });
@@ -575,8 +631,65 @@ async function stopScreenShare(silent) {
 }
 
 function toggleScreenShare() {
-  if (SCREEN.track) stopScreenShare(false);
-  else startScreenShare();
+  if (SCREEN.track) { stopScreenShare(false); return; }
+  // Репетитор во время демки УЧЕНИКА: эта же кнопка — «остановить демку
+  // ученика» (волна 3). Ученик демку репетитора остановить не может —
+  // у него кнопка ведёт в свой запрос, а «screen-stop» от ученика
+  // сервер отклоняет (Api.call_send).
+  if (BD.role === "tutor" && CALL.remoteScreen) {
+    callSend("screen-stop", {});
+    toast("Остановил показ ученика.");
+    return;
+  }
+  // Ученик сначала просит разрешения; репетитор стартует сразу.
+  if (BD.role !== "tutor" && !SCREEN.approved) { sendScreenRequest(); return; }
+  startScreenShare();
+}
+
+/* Ученик просит разрешение на демонстрацию: запрос летит репетитору
+   сигналом "screen-req", 30 секунд ждём ответа — молчание равно отказу. */
+function sendScreenRequest() {
+  if (SCREEN.requested) return;
+  if (!CALL.pc || CALL.state !== "live") {
+    toast("Сначала созвонитесь — экран показывается внутри звонка.");
+    return;
+  }
+  SCREEN.requested = true;
+  callSend("screen-req", {});
+  toast("Просим у учителя разрешение показать экран…");
+  clearTimeout(SCREEN.reqTimer);
+  SCREEN.reqTimer = setTimeout(() => {
+    if (!SCREEN.requested) return;
+    SCREEN.requested = false;
+    toast("Учитель не ответил — показ не разрешён.", 3600);
+  }, 30000);
+}
+
+/* Плашка «просят показать экран» у репетитора: Разрешить/Отклонить,
+   30 секунд на решение — дальше сами отклоняем (тот же срок, что ждёт
+   ученик). Одна заявка за раз: новая заменяет висящую.
+   sendAnswer(allow) — канал ответа: в личном звонке callSend, в
+   групповом gcSend (у них g:1-сообщения, иначе ответ съест не тот цикл). */
+let scrReqEl = null, scrReqTimer = 0;
+function askScreenApprove(sendAnswer) {
+  if (scrReqEl) scrReqEl.remove();
+  scrReqEl = document.createElement("div");
+  scrReqEl.className = "bd-share-menu bd-scrreq";
+  scrReqEl.innerHTML = `
+    <b>Ученик просит показать экран</b>
+    <div class="bd-scrreq-row">
+      <button type="button" class="bd-btn primary" data-a="1">Разрешить</button>
+      <button type="button" class="bd-btn" data-a="0">Отклонить</button>
+    </div>`;
+  document.body.appendChild(scrReqEl);
+  const answer = allow => {
+    clearTimeout(scrReqTimer);
+    if (scrReqEl) { scrReqEl.remove(); scrReqEl = null; }
+    sendAnswer(allow);
+  };
+  scrReqEl.querySelector('[data-a="1"]').addEventListener("click", () => answer(true));
+  scrReqEl.querySelector('[data-a="0"]').addEventListener("click", () => answer(false));
+  scrReqTimer = setTimeout(() => answer(false), 30000);
 }
 
 /* ---------- качество связи ----------
@@ -931,11 +1044,11 @@ function callBoot() {
   $("call-end").addEventListener("click", () => endCall(true));
   $("call-mic").addEventListener("click", e => toggleTrack("audio", e.currentTarget));
   $("call-cam").addEventListener("click", e => toggleTrack("video", e.currentTarget));
-  // Показ экрана — ТОЛЬКО репетитору (пакет владельца, волна 2): ученику
-  // кнопку не показываем вовсе, а startScreenShare стоит второй линией.
-  // Сервер тоже отклоняет «screen on» от ученика (см. Api.call_send).
-  // В ГРУППЕ ученику было нельзя и раньше (см. groupcall.js).
-  if (screenSupported() && $("call-screen") && BD.role === "tutor") {
+  // Показ экрана — у обеих сторон (волна 3): репетитор стартует сразу,
+  // ученик через запрос разрешения (toggleScreenShare → sendScreenRequest;
+  // сервер следит за ролями сигналов). Стоп чужой демки — только
+  // репетитору, той же кнопкой.
+  if (screenSupported() && $("call-screen")) {
     $("call-screen").hidden = false;
     $("call-screen").addEventListener("click", toggleScreenShare);
   }

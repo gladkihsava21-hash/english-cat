@@ -244,5 +244,30 @@ ok(objs.get("note-empty", {}).get("text") == "написал!",
    "тот же объект с текстом принят: %s" % objs.get("note-empty", {}).get("text"))
 db.board_sync(bid, [], ["note-empty", "emoji-1"], 0, T)
 
+print("\n10. Viewport стороны для PNG «как видит другая сторона»")
+db.board_sync(bid, [], [], 0, T, view={"cx": 100, "cy": 200, "k": 1.5, "vw": 1280, "vh": 800})
+r = db.board_sync(bid, [], [], 0, S)
+ok(r.get("peerView") and r["peerView"]["cx"] == 100.0 and r["peerView"]["k"] == 1.5
+   and r["peerView"]["vw"] == 1280,
+   "ученик получил вид репетитора: %s" % r.get("peerView"))
+r = db.board_sync(bid, [], [], 0, T, view={"cx": 0, "cy": 0, "k": 1, "vw": 800, "vh": 600})
+ok(r.get("peerView") is None or r["peerView"]["cx"] != 0,
+   "репетитору его собственный вид не возвращается как чужой")
+db.board_sync(bid, [], [], 0, S, view={"cx": -50, "cy": 40, "k": 0.8, "vw": 390, "vh": 844})
+r = db.board_sync(bid, [], [], 0, T)
+ok(r.get("peerView") and r["peerView"]["vw"] == 390 and r["peerView"]["cx"] == -50.0,
+   "репетитор получил вид ученика: %s" % r.get("peerView"))
+# протухший (>60 с) не отдаётся
+db.conn().execute("UPDATE boards SET view_student_at=? WHERE id=?",
+                  (int(time.time()) - 90, bid))
+db.conn().commit()
+r = db.board_sync(bid, [], [], 0, T)
+ok("peerView" not in r, "вид старше 60 с не отдаётся")
+# мусор в полях зажат рамками
+db.board_sync(bid, [], [], 0, S, view={"cx": 10**9, "k": 999, "vw": 99999, "vh": 600})
+r = db.board_sync(bid, [], [], 0, T)
+ok(r["peerView"]["cx"] == 100000.0 and r["peerView"]["k"] == 20.0 and r["peerView"]["vw"] == 8000,
+   "поля зажаты рамками: %s" % r["peerView"])
+
 print("\n" + ("ПРОВАЛЕНО: %d" % fails if fails else "всё держится"))
 sys.exit(1 if fails else 0)

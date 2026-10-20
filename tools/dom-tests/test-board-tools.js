@@ -33,7 +33,7 @@ function makeBoard() {
       : { ok: true, rev: 1, objects: [], deleted: [], me: "tutor",
           title: "Урок", shared: 0, invited: null }) });
   w.navigator.serviceWorker = undefined;
-  ["js/icons.js", "js/util.js", "js/images.js", "js/word-photos.js", "js/board.js"]
+  ["js/icons.js", "js/util.js", "js/images.js", "js/word-photos.js", "js/emoji-data.js", "js/board.js"]
     .forEach(f => {
       const s = w.document.createElement("script");
       s.textContent = fs.readFileSync(path.join(ROOT, f), "utf8");
@@ -78,7 +78,7 @@ function makeStudentBoard() {
       : { ok: true, rev: 1, objects: [], deleted: [], me: "student",
           title: "Урок", shared: 0, invited: null }) });
   sw.navigator.serviceWorker = undefined;
-  ["js/icons.js", "js/util.js", "js/images.js", "js/word-photos.js", "js/board.js"]
+  ["js/icons.js", "js/util.js", "js/images.js", "js/word-photos.js", "js/emoji-data.js", "js/board.js"]
     .forEach(f => {
       const s = sw.document.createElement("script");
       s.textContent = fs.readFileSync(path.join(ROOT, f), "utf8");
@@ -301,8 +301,10 @@ function spoint(w, type, wx, wy, extra = {}) {
     const txt = objects(w).find(o => o.kind === "text");
     ok(!!txt, "текст создан");
     const lhOf = size => w.eval(`textLH(${size})`);
-    ok(lhOf(2) === 12 && lhOf(14) === 84 && lhOf(30) === 96,
-       "кегль в разумных пределах 12–96: " + [lhOf(2), lhOf(14), lhOf(30)].join("/"));
+    // Волна 3: потолок кегля снят (текст тянется хоть на всю доску),
+    // пол — кегль 8. Раньше здесь был предел 96.
+    ok(lhOf(2) === 12 && lhOf(14) === 84 && lhOf(30) === 180 && lhOf(1) === 8,
+       "кегль: пол 8, потолка нет: " + [lhOf(1), lhOf(2), lhOf(14), lhOf(30)].join("/"));
     // выделить и увеличить: размер и высота рамки следуют за кеглем
     tool(w, "select");
     point(w, "pointerdown", 500, 400);
@@ -347,7 +349,7 @@ function spoint(w, type, wx, wy, extra = {}) {
         : { ok: true, rev: 1, objects: [], deleted: [], me: "student",
             title: "Урок", shared: 0, invited: null }) });
     sw.navigator.serviceWorker = undefined;
-    ["js/icons.js", "js/util.js", "js/images.js", "js/word-photos.js", "js/board.js"]
+    ["js/icons.js", "js/util.js", "js/images.js", "js/word-photos.js", "js/emoji-data.js", "js/board.js"]
       .forEach(f => {
         const s = sw.document.createElement("script");
         s.textContent = fs.readFileSync(path.join(ROOT, f), "utf8");
@@ -783,7 +785,8 @@ function spoint(w, type, wx, wy, extra = {}) {
     point(w, "pointerdown", b2.x + b2.w + 6, b2.y + b2.h + 6);
     point(w, "pointermove", b2.x + b2.w + 900, b2.y + b2.h + 900);
     point(w, "pointerup", b2.x + b2.w + 900, b2.y + b2.h + 900);
-    ok(byId(w, "t1").size <= 16, "потолок кегля: size " + byId(w, "t1").size.toFixed(1) + " (lh ≤ 96)");
+    // Волна 3: потолка НЕТ — тянем хоть на всю доску (раньше упиралось в 16)
+    ok(byId(w, "t1").size > 16, "потолка нет: size " + byId(w, "t1").size.toFixed(1) + " (было бы 16)");
     // стикер: уголок меняет w/h
     w.eval(`BD.objects.set("n9", { id: "n9", kind: "note", x: 500, y: 300, w: 180, h: 120,
              color: "note", size: 3, rev: 2, text: "стикер" });`);
@@ -875,18 +878,10 @@ function spoint(w, type, wx, wy, extra = {}) {
     ok(byId(w, "ln1").x === 100, "и не двигает");
   }
 
-  console.log("\n22. Эмодзи: вставка в каретку редактора и штамп-объект на доску");
+  console.log("\n22. Эмодзи: полный пикер (категории, поиск), вставка в каретку, штамп");
   {
     const w = makeBoard();
     await tick(150);
-    // сетка построена в обоих местах
-    const panel = w.document.getElementById("bd-editor-emoji-panel");
-    const boardGrid = w.document.getElementById("bd-board-emojis");
-    ok(panel.querySelectorAll("button").length >= 30,
-       "в редакторе сетка эмодзи: " + panel.querySelectorAll("button").length);
-    ok(boardGrid.querySelectorAll("button").length === panel.querySelectorAll("button").length,
-       "та же сетка — «на доску» в меню реакций");
-    // вставка в каретку (середину), а не в конец
     tool(w, "note");
     point(w, "pointerdown", 500, 300);
     point(w, "pointerup", 500, 300);
@@ -894,13 +889,51 @@ function spoint(w, type, wx, wy, extra = {}) {
     inp.value = "котики";
     inp.selectionStart = inp.selectionEnd = 3;
     w.document.getElementById("bd-editor-emoji").click();
-    ok(!panel.hidden, "кнопка 😀 открыла сетку");
-    [...panel.querySelectorAll("button")].find(b => b.textContent === "🐱").click();
+    await tick(30);
+    const picker = w.document.querySelector(".bd-emoji-picker");
+    ok(!!picker && !picker.hidden, "кнопка 😀 открыла полный пикер");
+    ok(picker.querySelectorAll(".bd-emoji-tab").length === 9,
+       "9 категорий-вкладок: " + picker.querySelectorAll(".bd-emoji-tab").length);
+    ok(picker.querySelector(".bd-emoji-grid").querySelectorAll("[data-ch]").length > 80,
+       "первая категория заполнена: " + picker.querySelector(".bd-emoji-grid").querySelectorAll("[data-ch]").length);
+    // поиск по-русски: «кот» находит 🐱
+    const search = picker.querySelector(".bd-emoji-search");
+    search.value = "кот";
+    search.dispatchEvent(new w.Event("input", { bubbles: true }));
+    // nwsapi (селекторы jsdom) путается в не-BMP символах внутри
+    // атрибутных селекторов — эмодзи ищем сравнением строк, а не CSS.
+    const pickEmoji = ch => [...picker.querySelectorAll("[data-ch]")]
+      .find(b => b.dataset.ch === ch);
+    const cat = pickEmoji("🐱");
+    ok(!!cat, "поиск «кот» нашёл 🐱");
+    cat.click();
     ok(inp.value === "кот🐱ики", "эмодзи встал в позицию каретки: " + inp.value);
+    ok(picker.hidden, "после выбора пикер закрылся");
     w.document.getElementById("bd-editor-cancel").click();
-    ok(panel.hidden, "закрытие редактора прячет и сетку");
-    // штамп: выбрал в меню реакций → клик по полотну → объект kind emoji
-    [...boardGrid.querySelectorAll("button")].find(b => b.textContent === "🐱").click();
+    // поиск по имени категории: «флаг» показывает флаги
+    w.document.getElementById("bd-editor-emoji").click();
+    await tick(30);
+    search.value = "флаг";
+    search.dispatchEvent(new w.Event("input", { bubbles: true }));
+    ok(w.document.querySelector(".bd-emoji-grid").querySelectorAll("[data-ch]").length > 50,
+       "поиск «флаг» показал флаги: " + w.document.querySelector(".bd-emoji-grid").querySelectorAll("[data-ch]").length);
+    // пикер НЕ тронут swapEmoji из icons.js: кнопки остаются эмодзи
+    ok([...w.document.querySelectorAll(".bd-emoji-grid [data-ch]")].every(b => !b.querySelector("svg")),
+       "swapEmoji не тронул пикер (нет svg-подмен)");
+    w.document.dispatchEvent(Object.assign(new w.Event("keydown", { bubbles: true }),
+      { key: "Escape", preventDefault() {} }));
+    // штамп: «Выбрать эмодзи…» в меню реакций → пикер → клик по полотну
+    w.document.getElementById("bd-react").click();
+    await tick(30);
+    ok(!!w.document.getElementById("bd-react-more"), "в меню реакций есть «ещё…»");
+    w.document.getElementById("bd-stamp-open").click();
+    await tick(30);
+    const picker2 = w.document.querySelector(".bd-emoji-picker");
+    ok(!picker2.hidden, "«Выбрать эмодзи…» открыл пикер");
+    const search2 = picker2.querySelector(".bd-emoji-search");
+    search2.value = "кот";
+    search2.dispatchEvent(new w.Event("input", { bubbles: true }));
+    [...picker2.querySelectorAll("[data-ch]")].find(b => b.dataset.ch === "🐱").click();
     ok(bd(w).tool === "emoji", "после выбора — инструмент-штамп");
     point(w, "pointerdown", 600, 400);
     point(w, "pointerup", 600, 400);
@@ -915,12 +948,64 @@ function spoint(w, type, wx, wy, extra = {}) {
     w.document.getElementById("bd-mp-plus").click();
     ok(byId(w, em.id).size > s0, "A+ увеличил эмодзи: size " + byId(w, em.id).size);
     // Esc отменяет вооружённый штамп без объекта
-    [...boardGrid.querySelectorAll("button")].find(b => b.textContent === "🔥").click();
+    w.document.getElementById("bd-react").click();
+    await tick(30);
+    w.document.getElementById("bd-stamp-open").click();
+    await tick(30);
+    const picker3 = w.document.querySelector(".bd-emoji-picker");
+    picker3.querySelector(".bd-emoji-search").value = "огонь";
+    picker3.querySelector(".bd-emoji-search").dispatchEvent(new w.Event("input", { bubbles: true }));
+    [...picker3.querySelectorAll("[data-ch]")].find(b => b.dataset.ch === "🔥").click();
     const esc = new w.Event("keydown", { bubbles: true });
     Object.assign(esc, { key: "Escape", preventDefault() {} });
     w.document.dispatchEvent(esc);
     ok(bd(w).tool === "select" && objects(w).filter(o => o.kind === "emoji").length === 1,
        "Esc отменил штамп — лишний объект не появился");
+  }
+
+  console.log("\n25. Ресайз без потолка: штрих масштабируется, текст растёт без упора, A+ не обрезает");
+  {
+    const w = makeBoard();
+    await tick(150);
+    // штрих pen: уголок масштабирует точки
+    w.eval(`BD.objects.set("p1", { id: "p1", kind: "pen", color: "ink", size: 3, rev: 1,
+             pts: [100, 100, 140, 100, 140, 140, 180, 140] });`);
+    tool(w, "select");
+    point(w, "pointerdown", 120, 102);   // выделяем штрих (точка на линии, порог 8)
+    point(w, "pointerup", 120, 102);
+    ok(bd(w).selected === "p1", "штрих выделен (у него есть уголок)");
+    const b1 = w.eval(`bounds(BD.objects.get("p1"))`);
+    point(w, "pointerdown", b1.x + b1.w + 6, b1.y + b1.h + 6);
+    point(w, "pointermove", b1.x + b1.w + 86, b1.y + b1.h + 46);
+    point(w, "pointerup", b1.x + b1.w + 86, b1.y + b1.h + 46);
+    const b2 = w.eval(`bounds(BD.objects.get("p1"))`);
+    ok(b2.w > b1.w * 1.5 && b2.h > b1.h * 1.5,
+       `штрих вырос за угол: ${b1.w}×${b1.h} → ${Math.round(b2.w)}×${Math.round(b2.h)}`);
+    ok(Math.abs(b2.x - b1.x) < 1 && Math.abs(b2.y - b1.y) < 1,
+       "левый верхний угол штриха на месте — масштаб от угла");
+    // undo возвращает исходные точки
+    const z = new w.Event("keydown", { bubbles: true });
+    Object.assign(z, { key: "z", ctrlKey: true, preventDefault() {} });
+    w.document.dispatchEvent(z);
+    ok(w.eval(`bounds(BD.objects.get("p1")).w`) === b1.w, "Ctrl+Z вернул штрих");
+    // текст растёт без потолка: тянем далеко — size уходит за 16 (бывший 96/6)
+    w.eval(`BD.objects.set("t9", { id: "t9", kind: "text", x: 100, y: 400, w: 200, h: 24,
+             color: "ink", size: 4, rev: 2, text: "большой" });`);
+    point(w, "pointerdown", 150, 410);
+    point(w, "pointerup", 150, 410);
+    const bt = w.eval(`bounds(BD.objects.get("t9"))`);
+    point(w, "pointerdown", bt.x + bt.w + 6, bt.y + bt.h + 6);
+    point(w, "pointermove", bt.x + bt.w + 1600, bt.y + bt.h + 800);
+    point(w, "pointerup", bt.x + bt.w + 1600, bt.y + bt.h + 800);
+    ok(byId(w, "t9").size > 16, "текст натянули огромным: size " + byId(w, "t9").size.toFixed(0));
+    // A+ не обрезает натянутое (волна 3): растёт дальше, а не сжимает к 60
+    const huge = byId(w, "t9").size;
+    w.document.getElementById("bd-mp-plus").click();
+    ok(byId(w, "t9").size === huge + 2, "A+ не обрезал: " + huge + " → " + byId(w, "t9").size);
+    // hitTest следует за новым размером штриха: клик по увеличенной линии
+    w.eval(`BD.selected = "p1"; BD.selectedSet = new Set(["p1"]);`);
+    ok(w.eval(`(() => { const b = bounds(BD.objects.get("p1")); return b.w; })()`) === b1.w,
+       "штрих снова в исходном размере перед проверкой хит-теста");
   }
 
   console.log("\n23. Экспорт PNG: меню «Вся доска / Текущий вид» в обёртке кнопки");

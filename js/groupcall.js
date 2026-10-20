@@ -101,6 +101,34 @@ function gcHandle(kind, d) {
   if (kind === "hello") return gcOnHello(d);
   if (kind === "bye") return gcDropPeer(d.from, "вышел из урока");
   if (kind === "screen") return gcOnScreen(d);
+  // Демонстрация по запросу (волна 3, учитель ведущий): запрос — плашка
+  // репетитору (общая с личным звонком, call.js), ответ ученику —
+  // запуск; стоп от репетитора — гашение. Отвечает репетитор тем же
+  // групповым каналом (g:1), чтобы личный звонок сообщение не съел.
+  if (kind === "screen-req") {
+    if (BD.role === "tutor") askScreenApprove(allow => gcSend("screen-answer", { allow }));
+    return;
+  }
+  if (kind === "screen-answer") {
+    if (BD.role !== "tutor") {
+      GC_SCREEN.requested = false;
+      clearTimeout(GC_SCREEN.reqTimer);
+      if (d.allow) {
+        GC_SCREEN.approved = true;
+        gcScreenStart(document.getElementById("gc-screen-btn"));
+      } else {
+        toast("Учитель не разрешил показ экрана.", 3600);
+      }
+    }
+    return;
+  }
+  if (kind === "screen-stop") {
+    if (BD.role !== "tutor" && GC_SCREEN.track) {
+      toast("Учитель остановил показ экрана.");
+      gcScreenStop();
+    }
+    return;
+  }
   if (d.to !== GC.myId) return;            // адресные — только нам
   if (kind === "offer") return gcOnOffer(d);
   if (kind === "answer") return gcOnAnswer(d);
@@ -500,7 +528,13 @@ function gcRenderTiles() {
       stage2.playsInline = true;
       stage.insertBefore(stage2, stage.firstChild);
     }
-    const ms = new MediaStream([screenPeer.track]);
+    const pauds = (screenPeer.p.tracks || [])
+      .filter(t => t.kind === "audio" && t.readyState === "live");
+    // звук демки — последний аудиотрек показывающего: та же эвристика,
+    // что у видео (экран добавляется позже микрофона). Микрофон в сцену
+    // не дублируем: он и так звучит из плитки.
+    const ms = new MediaStream([screenPeer.track,
+      ...(pauds.length ? [pauds[pauds.length - 1]] : [])]);
     if (stage2.srcObject !== ms) stage2.srcObject = ms;
     stage.classList.add("gc-with-screen");
   } else if (stage2) {
@@ -536,33 +570,62 @@ function gcToggle(kindName, btn) {
    приехало бы N входящих экранов — сцена не знает, чей показывать, а
    домашний аплинк ученика с чужими лицами и чужим экраном просто ложится.
    В 1:1 ученику показ разрешён: там ровно один получатель. */
-const GC_SCREEN = { track: null, senders: [] };
+const GC_SCREEN = { track: null, senders: [], audioTrack: null,
+                    approved: false,      // ученику разрешил репетитор
+                    requested: false, reqTimer: 0 };
 
 async function gcScreenToggle(btn) {
   if (GC_SCREEN.track) return gcScreenStop();
-  if (BD.role !== "tutor") {
-    toast("В групповом уроке экран показывает только репетитор.");
+  // Ученик — через запрос разрешения у репетителя: те же правила, что в
+  // личном звонке (волна 3, учитель ведущий); 30 секунд молчания = отказ.
+  if (BD.role !== "tutor" && !GC_SCREEN.approved) {
+    if (GC_SCREEN.requested) return;
+    GC_SCREEN.requested = true;
+    gcSend("screen-req", {});
+    toast("Просим у учителя разрешение показать экран…");
+    clearTimeout(GC_SCREEN.reqTimer);
+    GC_SCREEN.reqTimer = setTimeout(() => {
+      if (!GC_SCREEN.requested) return;
+      GC_SCREEN.requested = false;
+      toast("Учитель не ответил — показ не разрешён.", 3600);
+    }, 30000);
     return;
   }
+  return gcScreenStart(btn);
+}
+
+async function gcScreenStart(btn) {
   let stream;
   try {
+    // audio: true — просим и звук вкладки/системы; не отдадут в диалоге —
+    // стартуем беззвучно (тост ниже), как в личном звонке.
     stream = await navigator.mediaDevices.getDisplayMedia({
-      video: { frameRate: { ideal: 12 } }, audio: false });
+      video: { frameRate: { ideal: 12 } }, audio: true });
   } catch (e) { return; }        // передумали в системном окне — не ошибка
   const track = stream.getVideoTracks()[0];
   if (!track) return;
+  const audioTrack = stream.getAudioTracks()[0] || null;
   GC_SCREEN.track = track;
+  GC_SCREEN.audioTrack = audioTrack;
   GC_SCREEN.senders = [];
   for (const [id, p] of GC.peers) {
     if (!p.pc) continue;
     try {
-      GC_SCREEN.senders.push(p.pc.addTrack(track, new MediaStream([track])));
+      // звук демки — в том же потоке: принимающая сторона собирает его в
+      // сцене экрана (последний аудиотрек, по той же эвристике, что
+      // последнее видео — сам экран)
+      const ss = new MediaStream([track].concat(audioTrack ? [audioTrack] : []));
+      GC_SCREEN.senders.push(p.pc.addTrack(track, ss));
+      if (audioTrack) GC_SCREEN.senders.push(p.pc.addTrack(audioTrack, ss));
       await gcOffer(id);          // новая дорожка = новая договорённость
     } catch (e) { /* пара перестроится по hello */ }
   }
   await gcSend("screen", { on: true });
-  btn.classList.add("on");
-  btn.setAttribute("aria-pressed", "true");
+  if (btn) {
+    btn.classList.add("on");
+    btn.setAttribute("aria-pressed", "true");
+  }
+  if (!audioTrack) toast("Звук не выбран — показ идёт без звука.", 3600);
   track.onended = () => gcScreenStop();
 }
 
@@ -572,6 +635,12 @@ async function gcScreenStop() {
   GC_SCREEN.track = null;
   track.onended = null;
   try { track.stop(); } catch (e) { /* уже */ }
+  // звук демки — вместе с картинкой; разрешение ученика одноразовое
+  if (GC_SCREEN.audioTrack) {
+    try { GC_SCREEN.audioTrack.stop(); } catch (e) { /* уже */ }
+    GC_SCREEN.audioTrack = null;
+  }
+  GC_SCREEN.approved = false;
   for (const [id, p] of GC.peers) {
     if (!p.pc) continue;
     for (const s of GC_SCREEN.senders) {
@@ -601,7 +670,7 @@ function gcBoot() {
     <div class="gc-bar">
       <button type="button" id="gc-mic" title="Микрофон" aria-pressed="true">${icon("mic")}</button>
       <button type="button" id="gc-cam" title="Камера" aria-pressed="true">${icon("video") || icon("screen")}</button>
-      ${BD.role === "tutor" && typeof screenSupported === "function" && screenSupported()
+      ${typeof screenSupported === "function" && screenSupported()
         ? `<button type="button" id="gc-screen-btn" title="Показать экран" aria-pressed="false">${icon("screen")}</button>` : ""}
       <button type="button" id="gc-leave" class="gc-danger" title="Выйти из урока">${icon("phone")}</button>
     </div>`;

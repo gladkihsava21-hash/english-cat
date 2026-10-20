@@ -724,6 +724,46 @@
   width: 100%; margin: 6px 8px 0; font-size: 12px; color: var(--ink-soft);
 }
 
+/* Полный пикер эмодзи (волна 3): оверлей с поиском и вкладками категорий.
+   Класс bd-emoji-panel на нём — не только ради стилей: swapEmoji из
+   icons.js его пропускает по этому классу (там эмодзи — содержимое). */
+.bd-emoji-picker {
+  position: fixed; z-index: 60; display: flex; flex-direction: column;
+  max-height: 320px;
+  background: var(--bd-panel, var(--surface));
+  border: 1px solid var(--border); border-radius: 12px;
+  padding: 8px; box-shadow: 0 14px 34px rgba(0, 0, 0, .22);
+  gap: 6px;
+}
+.bd-emoji-picker .bd-emoji-search {
+  width: 100%; box-sizing: border-box;
+  border: 1px solid var(--border); border-radius: 8px;
+  background: var(--paper); color: var(--ink); padding: 8px 10px; font: inherit;
+}
+.bd-emoji-tabs { display: flex; gap: 2px; flex-wrap: wrap; }
+.bd-emoji-tab {
+  font-size: 17px; line-height: 1; padding: 5px 6px;
+  border: 0; background: none; cursor: pointer; border-radius: 8px;
+}
+.bd-emoji-tab:hover { background: var(--accent-soft); }
+.bd-emoji-tab.on { background: var(--accent-soft); outline: 1px solid var(--accent-line); }
+.bd-emoji-picker .bd-emoji-grid {
+  overflow-y: auto; margin-top: 0;
+  grid-template-columns: repeat(auto-fill, minmax(34px, 1fr));
+}
+.bd-emoji-picker .bd-emoji-grid button { font-size: 22px; padding: 5px 2px; }
+.bd-emoji-none { margin: 8px; font-size: 13px; color: var(--ink-soft); }
+
+/* Плашка «ученик просит показать экран» (волна 3): поверх доски по
+   центру, с теми же кнопками, что у меню доски. */
+.bd-scrreq {
+  position: fixed; top: 64px; left: 50%; right: auto;
+  transform: translateX(-50%);
+  z-index: 60; display: flex; flex-direction: column; gap: 8px; min-width: 260px;
+}
+.bd-scrreq-row { display: flex; gap: 8px; }
+.bd-scrreq-row .bd-btn { flex: 1; text-align: center; }
+
 /* Мини-панель над выделенным (Miro-style) */
 .bd-minipanel {
   position: fixed;
