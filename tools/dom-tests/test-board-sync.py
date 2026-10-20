@@ -269,5 +269,37 @@ r = db.board_sync(bid, [], [], 0, T)
 ok(r["peerView"]["cx"] == 100000.0 and r["peerView"]["k"] == 20.0 and r["peerView"]["vw"] == 8000,
    "поля зажаты рамками: %s" % r["peerView"])
 
+print("\n11. Кубик: clean с value/sides; roll — обе стороны, протухший нет")
+dc = {"id": "dice-1", "kind": "dice", "x": 100, "y": 100, "w": 96, "h": 96,
+      "color": "note2", "size": 3, "sides": 20, "value": 17}
+db.board_sync(bid, [dc], [], 0, T)
+r = db.board_sync(bid, [], [], 0, S)
+objs = {o["id"]: o for o in r["objects"]}
+ok(objs.get("dice-1", {}).get("sides") == 20 and objs["dice-1"]["value"] == 17,
+   "кубик доехал с гранями и значением: d%s=%s" % (objs.get("dice-1", {}).get("sides"),
+                                                    objs.get("dice-1", {}).get("value")))
+# мусорные грани/значение зажимаются
+db.board_sync(bid, [dict(dc, id="dice-2", sides=7, value=99)], [], 0, T)
+r = db.board_sync(bid, [], [], 0, S)
+objs = {o["id"]: o for o in r["objects"]}
+ok(objs.get("dice-2", {}).get("sides") == 6 and objs["dice-2"]["value"] == 6,
+   "d7 со значением 99 → d6=6: %s" % objs.get("dice-2"))
+# roll: репетитор бросает — ученик видит, автору не возвращается
+db.board_sync(bid, [], [], 0, T, roll={"diceId": "dice-1", "result": 13})
+r = db.board_sync(bid, [], [], 0, S)
+ok(r.get("roll") and r["roll"]["diceId"] == "dice-1" and r["roll"]["result"] == 13,
+   "ученик получил бросок: %s" % r.get("roll"))
+r = db.board_sync(bid, [], [], 0, T)
+ok("roll" not in r, "автору его бросок не возвращается")
+# ученик тоже может бросать (число всё равно случайное)
+db.board_sync(bid, [], [], 0, S, roll={"diceId": "dice-1", "result": 4})
+r = db.board_sync(bid, [], [], 0, T)
+ok(r.get("roll") and r["roll"]["result"] == 4, "бросок ученика доехал до репетитора")
+# протухший (>10 с) не отдаётся
+db.conn().execute("UPDATE boards SET roll_at=? WHERE id=?", (int(time.time()) - 12, bid))
+db.conn().commit()
+r = db.board_sync(bid, [], [], 0, T)
+ok("roll" not in r, "бросок старше 10 с не отдаётся")
+
 print("\n" + ("ПРОВАЛЕНО: %d" % fails if fails else "всё держится"))
 sys.exit(1 if fails else 0)

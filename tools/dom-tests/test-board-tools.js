@@ -1092,6 +1092,126 @@ function spoint(w, type, wx, wy, extra = {}) {
        "повторное — честное false (уже нет)");
   }
 
+  console.log("\n26. Поиск по доске: Ctrl+F, живой поиск, навигация, перелёт и пульс");
+  {
+    const w = makeBoard();
+    await tick(150);
+    w.eval(`BD.objects.set("s1", { id: "s1", kind: "note", x: 500, y: 300, w: 180, h: 120,
+             color: "note", size: 3, rev: 1, text: "рыбалка завтра" });
+            BD.objects.set("s2", { id: "s2", kind: "frame", x: 900, y: 600, w: 400, h: 300,
+             color: "note", size: 3, rev: 2, title: "Рыбы и звери" });
+            BD.objects.set("s3", { id: "s3", kind: "word", x: 100, y: 100, w: 200, h: 62,
+             color: "green", size: 3, rev: 3, text: "cat", text2: "кот" });
+            BD.objects.set("s4", { id: "s4", kind: "emoji", x: 300, y: 500, w: 58, h: 58,
+             color: "ink", size: 8, rev: 4, text: "🐱" });`);
+    // Ctrl+F открывает свою панель и не даёт браузерной
+    const ev = (k, extra = {}) => {
+      const e = new w.Event("keydown", { bubbles: true, cancelable: true });
+      Object.assign(e, { key: k, preventDefault() {}, ...extra });
+      w.document.dispatchEvent(e);
+      return e;
+    };
+    const f = ev("f", { ctrlKey: true });
+    ok(!w.document.getElementById("bd-searchbox").hidden, "Ctrl+F открыл поиск");
+    // живой поиск без регистра: «РЫБ» находит и стикер, и фрейм
+    const inp = w.document.getElementById("bd-searchbox-input");
+    inp.value = "РЫБ";
+    inp.dispatchEvent(new w.Event("input", { bubbles: true }));
+    ok(bd(w).search.results.length === 2, "«РЫБ» нашла 2 объекта (стикер и фрейм)");
+    ok(w.document.getElementById("bd-searchbox-count").textContent === "1/2",
+       "счётчик 1/2: " + w.document.getElementById("bd-searchbox-count").textContent);
+    // слово и эмодзи: «кот» находит и word, и объект 🐱 (по ключам)
+    inp.value = "кот";
+    inp.dispatchEvent(new w.Event("input", { bubbles: true }));
+    ok(bd(w).search.results.length === 2,
+       "«кот» нашёл слово и эмодзи: " + bd(w).search.results.map(x => x.o.kind));
+    // стрелки листают, Enter — перелёт к объекту и пульс
+    inp.dispatchEvent(Object.assign(new w.Event("keydown", { bubbles: true }),
+      { key: "ArrowDown", preventDefault() {} }));
+    ok(bd(w).search.idx === 1, "стрелка вниз сдвинула указатель");
+    const viewBefore = { ...bd(w).view };
+    inp.dispatchEvent(Object.assign(new w.Event("keydown", { bubbles: true }),
+      { key: "Enter", preventDefault() {} }));
+    ok(!!bd(w).search.pulse, "после Enter — пульс на объекте");
+    await tick(700);   // перелёт 500 мс
+    const c = w.eval(`(() => { const b = bounds(BD.objects.get("s4")); return { x: b.x + b.w / 2, y: b.y + b.h / 2 }; })()`);
+    const scr = w.eval(`(() => { const b = bounds(BD.objects.get("s4")); return { x: (b.x + b.w / 2) * BD.view.k + BD.view.x, y: (b.y + b.h / 2) * BD.view.k + BD.view.y }; })()`);
+    ok(Math.abs(scr.x - 512) < 40 && Math.abs(scr.y - 400) < 40,
+       `вид центрирован на эмодзи: экран ${Math.round(scr.x)},${Math.round(scr.y)} (окно 1024×800)`);
+    // буквы в поле поиска не хоткеи: печать «d» не включает кубик
+    inp.value = "d";
+    inp.dispatchEvent(new w.Event("input", { bubbles: true }));
+    ok(bd(w).tool !== "dice", "печать в поле поиска не переключает инструменты");
+    // Esc закрывает; клик мимо — тоже
+    inp.dispatchEvent(Object.assign(new w.Event("keydown", { bubbles: true }),
+      { key: "Escape", preventDefault() {} }));
+    ok(w.document.getElementById("bd-searchbox").hidden, "Esc закрыл панель");
+    // Ctrl+F В РЕДАКТОРЕ стикера не перехватываем (там браузерный)
+    tool(w, "note");
+    point(w, "pointerdown", 100, 100);
+    point(w, "pointerup", 100, 100);
+    const ta = w.document.getElementById("bd-editor-input");
+    const ev2 = new w.Event("keydown", { bubbles: true, cancelable: true });
+    Object.assign(ev2, { key: "f", ctrlKey: true, preventDefault() {} });
+    ta.dispatchEvent(ev2);
+    ok(w.document.getElementById("bd-searchbox").hidden,
+       "Ctrl+F в редакторе — не наш (панель не открылась)");
+    w.document.getElementById("bd-editor-cancel").click();
+  }
+
+  console.log("\n27. Кубик: ставка, бросок в пределах граней, грани, замок, undo");
+  {
+    const w = makeBoard();
+    await tick(150);
+    // хоткей D включает кубик
+    const ev = new w.Event("keydown", { bubbles: true });
+    Object.assign(ev, { key: "d", preventDefault() {} });
+    w.document.dispatchEvent(ev);
+    ok(bd(w).tool === "dice", "D включает кубик");
+    // ставка кликом
+    point(w, "pointerdown", 400, 300);
+    point(w, "pointerup", 400, 300);
+    const dice = objects(w).find(o => o.kind === "dice");
+    ok(!!dice && dice.sides === 6 && dice.value >= 1 && dice.value <= 6,
+       "кубик поставлен: d6, значение " + (dice && dice.value));
+    ok(bd(w).tool === "select", "после ставки — обратно в «Выделить»");
+    // undo ставки убирает объект
+    const z = new w.Event("keydown", { bubbles: true });
+    Object.assign(z, { key: "z", ctrlKey: true, preventDefault() {} });
+    w.document.dispatchEvent(z);
+    ok(!byId(w, dice.id), "Ctrl+Z снял ставку кубика");
+    w.document.dispatchEvent(Object.assign(new w.Event("keydown", { bubbles: true }),
+      { key: "z", ctrlKey: true, shiftKey: true, preventDefault() {} }));
+    ok(!!byId(w, dice.id), "redo вернул кубик");
+    // клик по кубику — бросок: анимация, потом значение в пределах граней
+    point(w, "pointerdown", dice.x + 20, dice.y + 20);
+    point(w, "pointerup", dice.x + 20, dice.y + 20);
+    ok(bd(w).diceAnims.has(dice.id), "клик запустил бросок (мерцание)");
+    await tick(1100);   // мерцание 900 мс
+    const v1 = byId(w, dice.id).value;
+    ok(v1 >= 1 && v1 <= 6, "после броска значение в гранях: " + v1);
+    // мини-панель: «Перебросить» и чипы граней у одиночного кубика
+    point(w, "pointerdown", dice.x + 20, dice.y + 20);
+    point(w, "pointerup", dice.x + 20, dice.y + 20);
+    await tick(60);
+    ok(!w.document.getElementById("bd-mp-roll").hidden, "в мини-панели есть «Перебросить»");
+    ok(!w.document.getElementById("bd-mp-sides").hidden, "и чипы граней");
+    ok(w.document.querySelectorAll(".bd-mp-side").length === 6, "чипов 4/6/8/10/12/20: "
+       + w.document.querySelectorAll(".bd-mp-side").length);
+    // смена граней на d20: sides меняется, значение зажато, undo-шаг обычный
+    [...w.document.querySelectorAll(".bd-mp-side")].find(b => +b.dataset.sides === 20).click();
+    ok(byId(w, dice.id).sides === 20, "кубик стал d20");
+    ok(byId(w, dice.id).value <= 20, "значение в новых гранях: " + byId(w, dice.id).value);
+    await tick(1000);   // второй бросок (клик по кубику для мини-панели) догорает
+    // залоченный кубик не бросается (кликом — кнопка в панели замком скрыта)
+    w.eval(`BD.objects.set("${dice.id}", { ...BD.objects.get("${dice.id}"), locked: 1 });`);
+    const vLock = byId(w, dice.id).value;
+    point(w, "pointerdown", dice.x + 20, dice.y + 20);
+    point(w, "pointerup", dice.x + 20, dice.y + 20);
+    ok(!bd(w).diceAnims.has(dice.id) && byId(w, dice.id).value === vLock,
+       "залоченный кубик не бросается");
+  }
+
   console.log(fails ? `\nПРОВАЛЕНО: ${fails}` : "\nВсё зелено");
   process.exit(fails ? 1 : 0);
 })();

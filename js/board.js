@@ -45,6 +45,7 @@ const BD = {
   laserPts: [],          // след указки: {x,y,t} экранные, t — performance.now();
                          // из них рисуется затухающий хвост и собирается посылка
                          // для второй стороны (последние ~15 точек)
+  diceAnims: new Map(),  // броски кубиков в полёте: id → {t0, dur, final, mine}
 };
 
 const $ = id => document.getElementById(id);
@@ -285,6 +286,31 @@ function draw(w = innerWidth, h = innerHeight) {
                         y: p.y * BD.view.k + BD.view.y, t: p.t })),
       fromTutor ? "rec" : "blue",
       fromTutor ? "учитель" : "ученик");
+  }
+  // Пульс результата поиска: кольцо из центра объекта с затуханием
+  // (~1,6 с), цветом выделения — как ping, но «нашлось здесь».
+  if (BD.search && BD.search.pulse) {
+    const p = BD.search.pulse;
+    const age = performance.now() - p.t0;
+    if (age > 1600) BD.search.pulse = null;
+    else {
+      BD.needsPaint = true;
+      const a = 1 - age / 1600;
+      const sx = p.x * BD.view.k + BD.view.x, sy = p.y * BD.view.k + BD.view.y;
+      const r0 = (p.r + 14 + age / 24) * BD.view.k;
+      ctx.strokeStyle = cssColor("green");
+      ctx.globalAlpha = 0.85 * a;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(sx, sy, r0, 0, 7);
+      ctx.stroke();
+      ctx.globalAlpha = 0.25 * a;
+      ctx.lineWidth = 8;
+      ctx.beginPath();
+      ctx.arc(sx, sy, r0 + 6, 0, 7);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
   }
 }
 
@@ -534,6 +560,64 @@ function drawObject(o) {
     ctx.font = px + 'px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
     ctx.textBaseline = "top";
     ctx.fillText(o.text || "🐱", o.x, o.y);
+    return;
+  }
+
+  if (o.kind === "dice") {
+    // Кубик: бумажная плитка со скруглением, значение — точки как на
+    // настоящем (d6) или крупная цифра (остальные грани) + подпись dN.
+    // Бросок — мерцание значений ~0,9 с с затихающей тряской (BD.diceAnims);
+    // финал один у обеих сторон (команда roll в синхронизации).
+    const anim = BD.diceAnims.get(o.id);
+    const now = performance.now();
+    let val = o.value || 1, shakeX = 0, shakeY = 0;
+    if (anim) {
+      const age = now - anim.t0;
+      if (age >= anim.dur) {
+        finishDiceAnim(o, anim);
+      } else {
+        BD.needsPaint = true;                 // мерцание идёт — кадры нужны
+        // барабан замедляется к финалу: сначала каждые 60 мс, потом реже
+        const flickEvery = 60 + age / 8;
+        val = 1 + (Math.floor(age / flickEvery) * 7919) % (o.sides || 6);
+        const s = Math.sin(age / 26) * Math.max(0, 3 - age / 300);
+        shakeX = s; shakeY = -s * 0.6;
+      }
+    }
+    const x0 = o.x + shakeX, y0 = o.y + shakeY, ww = o.w, hh = o.h;
+    ctx.fillStyle = o.color && o.color !== "ink" ? cssColor(o.color) : cssColor("paper");
+    ctx.beginPath();
+    roundRect(x0, y0, ww, hh, Math.min(14, ww * 0.18));
+    ctx.fill();
+    ctx.strokeStyle = cssColor("ink-soft");
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    if ((o.sides || 6) === 6) {
+      // Точки настоящего кубика: раскладки 1–6 в долях плитки
+      const P = { tl: [0.28, 0.28], tr: [0.72, 0.28], c: [0.5, 0.5],
+                  bl: [0.28, 0.72], br: [0.72, 0.72], ml: [0.28, 0.5], mr: [0.72, 0.5] };
+      const L = { 1: ["c"], 2: ["tl", "br"], 3: ["tl", "c", "br"],
+                  4: ["tl", "tr", "bl", "br"], 5: ["tl", "tr", "c", "bl", "br"],
+                  6: ["tl", "ml", "bl", "tr", "mr", "br"] };
+      ctx.fillStyle = cssColor("ink");
+      (L[Math.max(1, Math.min(6, val))] || L[1]).forEach(k => {
+        const [fx, fy] = P[k];
+        ctx.beginPath();
+        ctx.arc(x0 + ww * fx, y0 + hh * fy, Math.max(2.5, ww * 0.07), 0, 7);
+        ctx.fill();
+      });
+    } else {
+      ctx.fillStyle = cssColor("ink");
+      ctx.font = `700 ${Math.round(hh * 0.5)}px Inter, system-ui, sans-serif`;
+      ctx.textBaseline = "middle";
+      ctx.textAlign = "center";
+      ctx.fillText(String(val), x0 + ww / 2, y0 + hh / 2 + 1);
+      ctx.textAlign = "left";
+    }
+    ctx.fillStyle = cssColor("ink-soft");
+    ctx.font = `600 ${Math.max(9, Math.round(hh * 0.11))}px Inter, system-ui, sans-serif`;
+    ctx.textBaseline = "bottom";
+    ctx.fillText("d" + (o.sides || 6), x0 + ww * 0.08, y0 + hh - hh * 0.07);
     return;
   }
 
@@ -967,12 +1051,14 @@ async function syncNow() {
       timer: timerCmd === undefined ? "skip" : timerCmd,
       // Реакция-эмодзи: разовая, как лазер, — поле react в том же теле.
       react: reactCmd || "skip",
+      // Бросок кубика: разовая команда, как реакция, — поле roll.
+      roll: rollCmd || "skip",
       // Свой viewport для экспорта «как видит другая сторона»: мировой
       // центр, зум и размер экрана. Пассивная телеметрия — follow
       // («посмотри сюда») отдельное поле, они друг друга не трогают.
       view: currentViewPayload(),
     });
-    if (res.ok) { BD.followCmd = null; timerCmd = undefined; reactCmd = undefined; }
+    if (res.ok) { BD.followCmd = null; timerCmd = undefined; reactCmd = undefined; rollCmd = undefined; }
     if (!res.ok) {
       // Отправленное не подтвердилось — возвращаем в очередь, иначе
       // штрих просто пропадёт у второго участника.
@@ -1040,6 +1126,17 @@ async function syncNow() {
     if (res.react && (res.react.by + ":" + res.react.at) !== BD.reactSeen) {
       BD.reactSeen = res.react.by + ":" + res.react.at;
       pushReact(res.react.emoji, { x: res.react.x, y: res.react.y }, res.react.by);
+    }
+    // Бросок кубика второй стороны: та же анимация с ТЕМ ЖЕ числом
+    // (одноразово по метке, как реакцию, — иначе каждый опрос перебрасывал).
+    if (res.roll && (res.roll.by + ":" + res.roll.at) !== BD.rollSeen) {
+      BD.rollSeen = res.roll.by + ":" + res.roll.at;
+      const o = BD.objects.get(res.roll.diceId);
+      if (o && o.kind === "dice") {
+        BD.diceAnims.set(o.id, { t0: performance.now(), dur: 900,
+                                 final: res.roll.result, mine: false });
+        paint();
+      }
     }
     // Слово от репетитора (добавлено им в мой словарь с доски):
     // кладём в СВОЁ состояние — источник правды для словаря именно оно,
@@ -1177,6 +1274,20 @@ canvas.addEventListener("pointerdown", e => {
           x: w.x - px * 0.6, y: w.y - px * 0.6, w: px * 1.2, h: px * 1.2,
           size: 8, color: "ink", rev: 0, text: BD.pendingEmoji || "🐱" });
     BD.pendingEmoji = "";
+    document.querySelector('.bd-tool[data-tool="select"]').click();
+    return;
+  }
+
+  // Кубик ставится кликом, как фигура, — и обратно в «Выделить». Стартовое
+  // значение — сразу честный бросок локальный (в sync не едет: не событие).
+  if (BD.tool === "dice") {
+    const sides = 6;
+    const o = { id: uid(), kind: "dice", x: w.x - 48, y: w.y - 48, w: 96, h: 96,
+                color: NOTE_COLORS.includes(BD.color) || String(BD.color).startsWith("#")
+                  ? BD.color : "note",
+                size: 3, sides, value: 1 + Math.floor(Math.random() * sides) };
+    put(o);
+    BD.selected = o.id;
     document.querySelector('.bd-tool[data-tool="select"]').click();
     return;
   }
@@ -1579,6 +1690,14 @@ canvas.addEventListener("pointerup", () => {
   if (moving) {
     const o = BD.objects.get(moving.id);
     if (o) {
+      // Кубик: клик без движения — это БРОСОК, а не no-op перемещение.
+      // Залоченный не бросается (замок — «не менять»).
+      if (o.kind === "dice" && !o.locked
+          && o.x === moving.orig.x && o.y === moving.orig.y) {
+        rollDice(o);
+        moving = null;
+        return;
+      }
       // Фрейм с содержимым коммитим ОДНОЙ undo-записью (как мультивыделение):
       // отмена вернёт рамку и всё её содержимое разом, а не по кусочкам.
       if (moving.contents && moving.contents.size) {
@@ -2054,6 +2173,8 @@ const TOOL_STYLE = {
   laser:   { colors: null,  sizes: false },
   // Штамп-эмодзи: один клик — и обратно в «Выделить», настроек нет
   emoji:   { colors: null,  sizes: false },
+  // Кубику — цвет плитки из бумажной палитры, толщины нет
+  dice:    { colors: "note", sizes: false },
 };
 
 function syncStyleBar() {
@@ -2167,11 +2288,11 @@ function updateMiniPanel() {
             + "|" + Math.round(uni.y * BD.view.k + uni.h * BD.view.k);
   if (key === minipanelKey) return;
   minipanelKey = key;
-  // Цвета: если выделены только стикеры или фреймы — палитра бумаги,
-  // иначе чернила (фрейм — та же «бумага-подложка», что и стикер)
+  // Цвета: если выделены только стикеры, фреймы или кубики — палитра
+  // бумаги, иначе чернила (все трое — «бумага-подложка», а не чернила)
   const allNotes = ids.every(id => {
     const k = BD.objects.get(id).kind;
-    return k === "note" || k === "frame";
+    return k === "note" || k === "frame" || k === "dice";
   });
   const list = allNotes ? NOTE_COLORS : COLORS;
   p.querySelectorAll(".bd-minicolor").forEach((b, i) => {
@@ -2184,6 +2305,14 @@ function updateMiniPanel() {
   // «Переименовать» — только у одиночного фрейма: заголовок есть только у него
   const single = ids.length === 1 ? BD.objects.get(ids[0]) : null;
   $("bd-mp-rename").hidden = !(single && single.kind === "frame" && !single.locked);
+  // Кубику — «Перебросить» и чипы граней (тоже только у одиночного)
+  $("bd-mp-roll").hidden = !(single && single.kind === "dice" && !single.locked);
+  const sd = $("bd-mp-sides");
+  sd.hidden = !(single && single.kind === "dice");
+  if (!sd.hidden) {
+    sd.querySelectorAll("button").forEach(b =>
+      b.classList.toggle("on", +b.dataset.sides === (single.sides || 6)));
+  }
   // Позиция: над рамкой по центру; вверху нет места — под рамкой
   const sx = uni.x * BD.view.k + BD.view.x + (uni.w * BD.view.k) / 2;
   const sy = uni.y * BD.view.k + BD.view.y;
@@ -2228,6 +2357,30 @@ $("bd-mp-rename").addEventListener("click", () => {
   const o = BD.objects.get(ids[0]);
   if (o && o.kind === "frame" && !o.locked) openEditor(o);
 });
+// Кубик в мини-панели: «Перебросить» и чипы граней (как в Holst)
+[4, 6, 8, 10, 12, 20].forEach(n => {
+  const b = document.createElement("button");
+  b.className = "bd-btn bd-mp-side";
+  b.dataset.sides = n;
+  b.textContent = n;
+  b.title = "Граней: " + n;
+  b.addEventListener("click", () => {
+    selIds().forEach(id => {
+      const o = BD.objects.get(id);
+      // смена граней — редактура: в undo и синк идёт как обычный put,
+      // значение зажимаем в новые грани
+      if (o && o.kind === "dice" && !o.locked) {
+        put({ ...o, sides: n, value: Math.min(o.value || 1, n) });
+      }
+    });
+  });
+  $("bd-mp-sides").appendChild(b);
+});
+$("bd-mp-roll").addEventListener("click", () => {
+  const ids = selIds();
+  if (ids.length !== 1) return;
+  rollDice(BD.objects.get(ids[0]));
+});
 $("bd-mp-lock").addEventListener("click", () => {
   // Замок группы: если хоть один незалочен — залочить всё, иначе отпереть
   const ids = selIds();
@@ -2241,6 +2394,14 @@ $("bd-mp-lock").addEventListener("click", () => {
 
 document.addEventListener("keydown", e => {
   if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
+  // Ctrl/Cmd+F — СВОЙ поиск по доске (страница приложения, браузерному
+  // тут искать нечего). В поле текста/редакторе не перехватываем — там
+  // работает браузерный (см. return выше).
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "f") {
+    e.preventDefault();
+    openSearch();
+    return;
+  }
   // Ctrl/Cmd+D — дубликат выделенного со сдвигом +20 (как в Миро): готовую
   // карточку или фигуру быстрее размножить, чем рисовать заново.
   // В мультивыделении дублируется вся группа и выделяются копии.
@@ -2249,7 +2410,8 @@ document.addEventListener("keydown", e => {
     return;
   }
   const map = { v: "select", p: "pen", m: "marker", e: "eraser", s: "note", n: "note",
-                t: "text", r: "rect", o: "ellipse", a: "arrow", l: "laser", f: "frame" };
+                t: "text", r: "rect", o: "ellipse", a: "arrow", l: "laser", f: "frame",
+                d: "dice" };
   const key = e.key.toLowerCase();
   // Escape из лазера или штампа — обратно в выделение: инструмент без
   // рисования иначе неочевидно чем выключить, а точка/эмодзи под курсором
@@ -2923,6 +3085,180 @@ function applyFollow(f) {
   };
   requestAnimationFrame(step);
   toast("Учитель зовёт посмотреть сюда.");
+}
+
+/* Плавный перелёт вида к мировой точке с заданным зумом — общий механизм
+   «покажи мой вид» и поиска по доске. */
+function flyTo(wx, wy, k) {
+  const from = { ...BD.view };
+  const to = { x: innerWidth / 2 - wx * k, y: innerHeight / 2 - wy * k, k };
+  BD.userMoved = true;
+  const t0 = performance.now();
+  const step = now => {
+    const t = Math.min(1, (now - t0) / 500);
+    const e = t < 0.5 ? 2 * t * t : 1 - ((-2 * t + 2) ** 2) / 2;
+    BD.view = {
+      x: from.x + (to.x - from.x) * e,
+      y: from.y + (to.y - from.y) * e,
+      k: from.k + (to.k - from.k) * e,
+    };
+    paint();
+    if (t < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+
+/* ---------- поиск по доске ----------
+   Ctrl/Cmd+F или лупа в шапке: СВОЯ панель (страница приложения, поэтому
+   браузерный поиск тут бессилен). Локальная: объекты уже у клиента,
+   синк не нужен. Ищем по тексту стикеров и текстов, заголовкам фреймов,
+   карточкам слов, эмодзи (символ и его ключевые слова), названиям книжек.
+   Выбор результата — перелёт к объекту (зум тот же; не влезает — чуть
+   отдалим) и пульс-кольцо поверх, по стилю доски. */
+BD.search = { q: "", results: [], idx: 0, pulse: null };
+
+const SEARCH_KIND_RU = { note: "стикер", text: "текст", frame: "фрейм",
+                         word: "слово", emoji: "эмодзи", book: "книга" };
+
+function openSearch() {
+  const box = $("bd-searchbox");
+  box.hidden = false;
+  const inp = $("bd-searchbox-input");
+  inp.focus();
+  inp.select();
+  runSearch(inp.value);
+}
+function closeSearch() {
+  $("bd-searchbox").hidden = true;
+}
+$("bd-search-open").addEventListener("click", () => {
+  const box = $("bd-searchbox");
+  if (box.hidden) openSearch(); else closeSearch();
+});
+// Клик мимо панели — закрыть (как у меню доски); по самой панели — нет
+document.addEventListener("pointerdown", e => {
+  const box = $("bd-searchbox");
+  if (!box.hidden && !box.contains(e.target)
+      && e.target.id !== "bd-search-open") closeSearch();
+});
+
+function searchables() {
+  const out = [];
+  BD.objects.forEach(o => {
+    if (isService(o) || isEmptyText(o)) return;
+    let text = "", extra = "";
+    if (o.kind === "note" || o.kind === "text") text = o.text || "";
+    else if (o.kind === "frame") text = o.title || "";
+    else if (o.kind === "word") { text = o.text || ""; extra = o.text2 || ""; }
+    else if (o.kind === "emoji") {
+      text = o.text || "";
+      // эмодзи ищется и по слову: «кот» найдёт объект 🐱 (те же ключи,
+      // что у пикера)
+      extra = (typeof EMOJI_KEYWORDS !== "undefined" && EMOJI_KEYWORDS[o.text]) || "";
+    }
+    else if (o.kind === "book") text = o.text || "";
+    else return;   // фигуры и штрихи искать не по чему
+    if (text || extra) out.push({ o, text, extra });
+  });
+  return out;
+}
+
+function runSearch(q) {
+  const s = BD.search;
+  s.q = q;
+  const needle = q.trim().toLowerCase();
+  s.results = !needle ? [] : searchables().filter(x =>
+    (x.text + " " + x.extra).toLowerCase().includes(needle));
+  s.idx = 0;
+  renderSearchResults();
+}
+
+function renderSearchResults() {
+  const s = BD.search;
+  const list = $("bd-searchbox-list");
+  const count = $("bd-searchbox-count");
+  const needle = s.q.trim();
+  if (!needle) { list.innerHTML = ""; count.textContent = ""; return; }
+  count.textContent = s.results.length ? `${Math.min(s.idx + 1, s.results.length)}/${s.results.length}` : "0/0";
+  if (!s.results.length) {
+    list.innerHTML = `<p class="bd-hint">Ничего не нашлось.</p>`;
+    return;
+  }
+  list.innerHTML = s.results.slice(0, 50).map((x, i) => {
+    const snip = (x.text || x.extra || "").replace(/\s+/g, " ").trim().slice(0, 42);
+    return `<button class="bd-search-hit${i === s.idx ? " on" : ""}" data-i="${i}">
+      <span class="bd-search-kind">${SEARCH_KIND_RU[x.o.kind] || x.o.kind}</span>
+      <span class="bd-search-snip">${esc(snip || "—")}</span></button>`;
+  }).join("");
+  list.querySelectorAll("[data-i]").forEach(b => {
+    b.addEventListener("click", () => {
+      BD.search.idx = +b.dataset.i;
+      jumpToSearchResult();
+    });
+  });
+}
+
+function searchStep(d) {
+  const s = BD.search;
+  if (!s.results.length) return;
+  s.idx = (s.idx + d + s.results.length) % s.results.length;
+  renderSearchResults();
+}
+
+/* Перелёт к выбранному результату: зум сохраняем, если объект не влезает
+   в экран — чуть отдаляем (0,7 окна), и пульс поверх. */
+function jumpToSearchResult() {
+  const s = BD.search;
+  const x = s.results[s.idx];
+  if (!x) return;
+  const b = bounds(x.o);
+  let k = BD.view.k;
+  if (b.w * k > innerWidth * 0.7 || b.h * k > innerHeight * 0.7) {
+    k = Math.min(k, innerWidth * 0.7 / Math.max(1, b.w),
+                    innerHeight * 0.7 / Math.max(1, b.h));
+  }
+  flyTo(b.x + b.w / 2, b.y + b.h / 2, k);
+  BD.search.pulse = { x: b.x + b.w / 2, y: b.y + b.h / 2,
+                      r: Math.max(b.w, b.h) / 2, t0: performance.now() };
+  paint();
+  renderSearchResults();
+}
+
+$("bd-searchbox-input").addEventListener("input",
+  e => runSearch(e.target.value));
+$("bd-searchbox-input").addEventListener("keydown", e => {
+  if (e.key === "Enter") { e.preventDefault(); jumpToSearchResult(); searchStep(1); }
+  if (e.key === "ArrowDown") { e.preventDefault(); searchStep(1); }
+  if (e.key === "ArrowUp") { e.preventDefault(); searchStep(-1); }
+  if (e.key === "Escape") closeSearch();
+});
+
+/* ---------- кубик ----------
+   Бросок инициирует любая сторона, но результат ОДИН у обоих: инициатор
+   генерирует число и шлёт команду roll в sync (сервер держит ~10 с и
+   отдаёт второй стороне, как react). Сам бросок — событие, а не
+   редактура: в undo не попадает (remember=false). */
+let rollCmd;                 // undefined — ничего не шлём
+function rollDice(o) {
+  if (!o || o.kind !== "dice") return;
+  if (o.locked) { toast("Закреплено — сначала сними замок у рамки."); return; }
+  const result = 1 + Math.floor(Math.random() * (o.sides || 6));
+  BD.diceAnims.set(o.id, { t0: performance.now(), dur: 900, final: result, mine: true });
+  rollCmd = { diceId: o.id, result };
+  scheduleSync();
+  paint();
+}
+
+/* Конец мерцания: инициатор пишет финал в объект (синк увезёт второй
+   стороне), вторая сторона просто показывает то же число — объект с
+   финалом уже едет синхронизацией от инициатора. */
+function finishDiceAnim(o, anim) {
+  BD.diceAnims.delete(o.id);
+  const cur = BD.objects.get(o.id);
+  if (!cur) return;
+  if (anim.mine) put({ ...cur, value: anim.final }, false);
+  else BD.objects.set(o.id, { ...cur, value: anim.final });
+  paint();
 }
 
 /* ---------- указка ---------- */

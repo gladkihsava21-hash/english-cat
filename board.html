@@ -141,6 +141,10 @@
             data-icon="categories" data-icon-size="18"></button>
     <button class="bd-btn" id="bd-theme" title="День и ночь"
             data-icon="moon" data-icon-size="18"></button>
+    <!-- Поиск по доске (Ctrl+F): своя панель, не браузерная — ищем
+         по объектам доски и центрируем вид на найденном -->
+    <button class="bd-btn" id="bd-search-open" title="Поиск по доске (Ctrl+F)"
+            data-icon="wordsearch" data-icon-size="18"></button>
     <button class="bd-btn help-btn help-btn-board" id="bd-help-open" title="Как пользоваться доской" aria-label="Как пользоваться доской">?</button>
   </div>
 </header>
@@ -177,6 +181,10 @@
          с ней за компанию (по центрам объектов) -->
     <button class="bd-tool" data-tool="frame" title="Фрейм (F)"
             data-icon="frame" data-icon-size="22"></button>
+    <!-- Кубик: клик по доске ставит, клик по кубику — бросок; результат
+         один у обеих сторон (команда roll в синхронизации) -->
+    <button class="bd-tool" data-tool="dice" title="Кубик (D)"
+            data-icon="dice" data-icon-size="22"></button>
     <!-- Лазерная указка: яркая точка за курсором, которую видит только
          владелец (на доске ничего не остаётся). Отличие от указки-пинга
          (двойной тап): пинг общий и гаснет через пару секунд. -->
@@ -329,6 +337,11 @@
   <button class="bd-btn" id="bd-mp-plus" title="Крупнее">A+</button>
   <button class="bd-btn" id="bd-mp-rename" title="Переименовать фрейм"
           data-icon="edit" data-icon-size="15" hidden></button>
+  <button class="bd-btn" id="bd-mp-roll" title="Перебросить"
+          data-icon="dice" data-icon-size="15" hidden></button>
+  <!-- Чипы граней кубика: видны, только когда выделен один кубик;
+       кнопки строятся скриптом из списка 4/6/8/10/12/20 -->
+  <span class="bd-mp-sides" id="bd-mp-sides" hidden></span>
   <button class="bd-btn" id="bd-mp-dup" title="Дублировать (Ctrl+D)"
           data-icon="plus" data-icon-size="15"></button>
   <button class="bd-btn" id="bd-mp-lock" title="Замок / снять замок"
@@ -338,6 +351,18 @@
 </div>
 
 <p class="bd-toast" id="bd-toast" hidden></p>
+
+<!-- Поиск по доске: поле, счётчик «3/12», результаты списком. Enter и
+     стрелки — навигация, Esc и клик мимо — закрыть. Локальный поиск по
+     объектам клиента, синхронизации не требует. -->
+<div class="bd-searchbox" id="bd-searchbox" hidden>
+  <div class="bd-searchbox-row">
+    <input type="search" id="bd-searchbox-input" class="bd-input"
+           placeholder="Найти на доске…" autocomplete="off">
+    <span class="bd-searchbox-count" id="bd-searchbox-count"></span>
+  </div>
+  <div class="bd-searchbox-list" id="bd-searchbox-list"></div>
+</div>
 
 <!-- Шпаргалка по доске: открывается по «?» и не уводит со страницы —
      вопрос «а как тут…» возникает посреди урока, а не до него.

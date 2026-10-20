@@ -1466,6 +1466,9 @@ class Api:
                             timer=p.get("timer", "skip") if can_write else "skip",
                             # Реакция-эмодзи — слать могут оба участника.
                             react=p.get("react", "skip") if can_write else "skip",
+                            # Бросок кубика — тоже оба: результат генерирует
+                            # инициатор, сервер раздаёт второй стороне ~10 с.
+                            roll=p.get("roll", "skip") if can_write else "skip",
                             # Viewport стороны для PNG «как видит другая
                             # сторона» — пассивная телеметрия вида, не путать
                             # с follow (разовая команда «посмотри сюда»).

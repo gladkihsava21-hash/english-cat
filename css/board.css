@@ -754,6 +754,31 @@
 .bd-emoji-picker .bd-emoji-grid button { font-size: 22px; padding: 5px 2px; }
 .bd-emoji-none { margin: 8px; font-size: 13px; color: var(--ink-soft); }
 
+/* Поиск по доске (Ctrl+F): панель в стиле меню доски, правый верх. */
+.bd-searchbox {
+  position: fixed; top: 56px; right: 12px; z-index: 60; width: min(320px, 92vw);
+  display: flex; flex-direction: column; gap: 6px;
+  background: var(--bd-panel, var(--surface));
+  border: 1px solid var(--border); border-radius: 12px;
+  padding: 8px; box-shadow: 0 14px 34px rgba(0, 0, 0, .22);
+}
+.bd-searchbox-row { display: flex; align-items: center; gap: 8px; }
+.bd-searchbox-row .bd-input { flex: 1; min-width: 0; }
+.bd-searchbox-count { font-size: 12px; color: var(--ink-soft); white-space: nowrap; }
+.bd-searchbox-list { display: flex; flex-direction: column; gap: 2px; max-height: 320px; overflow-y: auto; }
+.bd-search-hit {
+  display: flex; align-items: baseline; gap: 8px; text-align: left;
+  border: 0; background: none; cursor: pointer; font: inherit; color: inherit;
+  padding: 7px 8px; border-radius: 8px;
+}
+.bd-search-hit:hover { background: var(--accent-soft); }
+.bd-search-hit.on { background: var(--accent-soft); outline: 1px solid var(--accent-line); }
+.bd-search-kind {
+  font-size: 11px; color: var(--ink-soft); flex: none;
+  border: 1px solid var(--line-soft); border-radius: 6px; padding: 1px 6px;
+}
+.bd-search-snip { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 /* Плашка «ученик просит показать экран» (волна 3): поверх доски по
    центру, с теми же кнопками, что у меню доски. */
 .bd-scrreq {

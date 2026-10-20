@@ -232,6 +232,12 @@ MIGRATIONS = [
     ("boards", "react_y", "REAL DEFAULT 0"),
     ("boards", "react_by", "TEXT"),
     ("boards", "react_at", "INTEGER DEFAULT 0"),
+    # Бросок кубика: последний на доске, кто и когда. Временная (~10 с)
+    # команда, как react: не объект доски, а эфемерное событие.
+    ("boards", "roll_dice", "TEXT DEFAULT ''"),
+    ("boards", "roll_value", "INTEGER DEFAULT 0"),
+    ("boards", "roll_by", "TEXT"),
+    ("boards", "roll_at", "INTEGER DEFAULT 0"),
     # Таймер на доске: кому принадлежит команда, когда была, и состояние —
     # либо until (до какого момента идёт), либо paused_left (сколько
     # осталось на паузе). Как laser/follow: не объект доски, а свежая
@@ -2591,7 +2597,7 @@ def _clean_board_object(o):
     # (точки, цвет, толщина), отдельной обработки не требует.
     if not oid or kind not in ("pen", "marker", "line", "arrow", "rect", "ellipse",
                                "note", "text", "word", "image", "ping", "bg",
-                               "task", "book", "frame", "emoji"):
+                               "task", "book", "frame", "emoji", "dice"):
         return None
 
     def num(v, lo=-100000, hi=100000):
@@ -2645,6 +2651,12 @@ def _clean_board_object(o):
         # над рамкой. Без этой строки переименование жило бы только до
         # первой синхронизации.
         out["title"] = str(o.get("title", ""))[:120]
+    if kind == "dice":
+        # Кубик: стандартные грани из списка, значение в их пределах —
+        # иначе на доску легло бы что угодно (d3 со значением 99).
+        sides = int(num(o.get("sides", 6), 2, 1000))
+        out["sides"] = sides if sides in (4, 6, 8, 10, 12, 20) else 6
+        out["value"] = max(1, min(out["sides"], int(num(o.get("value", 1), 1, out["sides"]))))
     if kind == "book":
         # Страница PDF-книжки. Сама картинка НЕ едет в объекте — только
         # ссылка на книгу и номер страницы, картинку каждый клиент берёт
@@ -2715,7 +2727,7 @@ def board_presence(row):
     return "here" if ago <= 6 else "gone"
 
 
-def board_sync(board_id, changes, deletes, since, author, laser="skip", follow="skip", timer="skip", react="skip", view="skip"):
+def board_sync(board_id, changes, deletes, since, author, laser="skip", follow="skip", timer="skip", react="skip", view="skip", roll="skip"):
     """Слить изменения и вернуть то, чего у клиента ещё нет.
 
     Правило слияния — «последний по объекту побеждает». Для доски на
@@ -2777,6 +2789,23 @@ def board_sync(board_id, changes, deletes, since, author, laser="skip", follow="
             conn().execute(
                 "UPDATE boards SET react_emoji=?, react_x=?, react_y=?, react_by=?, react_at=? WHERE id=?",
                 (rem, rx, ry, author[:24], int(time.time()), board_id))
+            conn().commit()
+
+    if isinstance(roll, dict):
+        # Бросок кубика: результат генерирует инициатор, сервер просто
+        # держит последний ~10 с и отдаёт второй стороне (как react) —
+        # обе стороны проигрывают одну анимацию с одним числом. Бросать
+        # может любая сторона: жульничать «в свою пользу» здесь нечем,
+        # число всё равно случайное.
+        try:
+            rid = str(roll.get("diceId", ""))[:40]
+            rval = int(float(roll.get("result", 0)))
+        except (TypeError, ValueError):
+            rid, rval = "", 0
+        if rid and rval >= 1:
+            conn().execute(
+                "UPDATE boards SET roll_dice=?, roll_value=?, roll_by=?, roll_at=? WHERE id=?",
+                (rid, rval, author[:24], int(time.time()), board_id))
             conn().commit()
 
     if follow != "skip" and author.startswith("t"):
@@ -2990,6 +3019,14 @@ def board_sync(board_id, changes, deletes, since, author, laser="skip", follow="
         out["react"] = {"emoji": row["react_emoji"] or "",
                         "x": row["react_x"], "y": row["react_y"],
                         "by": rby, "at": rat}
+    # Бросок кубика: свежий (~10 с) и только второй стороне — автор свою
+    # анимацию уже проиграл локально.
+    lat2 = int(row["roll_at"] or 0) if "roll_at" in row.keys() else 0
+    lby2 = row["roll_by"] if "roll_by" in row.keys() else None
+    if lat2 and lby2 and lby2 != author and int(time.time()) - lat2 <= 10:
+        out["roll"] = {"diceId": row["roll_dice"] or "",
+                       "result": int(row["roll_value"] or 0),
+                       "by": lby2, "at": lat2}
     return out
 
 

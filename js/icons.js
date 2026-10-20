@@ -54,6 +54,8 @@ const ICONS = {
   unlock:     '<rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 7.8-1.3"/>',
   // Фрейм (как в Miro): рамка с заголовком слева сверху
   frame:      '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h9"/>',
+  // Кубик на доску: плитка с тремя точками по диагонали (как д3 на d6)
+  dice:       '<rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="9" cy="9" r="1.5" fill="currentColor"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><circle cx="15" cy="15" r="1.5" fill="currentColor"/>',
   // Карандаш для кнопки «Переименовать» в мини-панели фрейма
   edit:       '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
   check:      '<path d="M3 12.5l6 6L21 5.5"/>',
