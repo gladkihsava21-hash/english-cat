@@ -291,7 +291,20 @@
      (во встроенных браузерах их блокируют), поэтому своё поле. -->
 <div class="bd-editor" id="bd-editor" hidden>
   <textarea id="bd-editor-input" rows="3" placeholder="Текст…"></textarea>
+  <!-- Подсказка разметки видна, пока редактируют текст/стикер (не заголовок
+       фрейма): после первого раза маркеры читаются сами -->
+  <p class="bd-editor-hint" id="bd-editor-hint">**жирный** &nbsp; *курсив* &nbsp; __подчёрк__ &nbsp; ~~зачёрк~~</p>
   <div class="bd-editor-row">
+    <!-- Кнопки форматирования: mousedown без default, чтобы не красть
+         фокус и выделение у поля -->
+    <span class="bd-editor-fmt" id="bd-editor-fmt">
+      <button type="button" class="bd-btn" data-fmt="b" title="Жирный **..**"><b>B</b></button>
+      <button type="button" class="bd-btn" data-fmt="i" title="Курсив *..*"><i>I</i></button>
+      <button type="button" class="bd-btn" data-fmt="u" title="Подчёркнуть __..__"><u>U</u></button>
+      <button type="button" class="bd-btn" data-fmt="s" title="Зачеркнуть ~~..~~"><s>S</s></button>
+      <button type="button" class="bd-btn" data-fmt="ul" title="Список •">•</button>
+      <button type="button" class="bd-btn" data-fmt="ol" title="Нумерованный список">1.</button>
+    </span>
     <button class="bd-btn" id="bd-editor-emoji" title="Вставить эмодзи">😀</button>
     <button class="bd-btn primary" id="bd-editor-ok">Готово</button>
     <button class="bd-btn" id="bd-editor-cancel">Отмена</button>

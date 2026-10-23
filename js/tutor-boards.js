@@ -8,6 +8,9 @@
 (function () {
   const $ = id => document.getElementById(id);
   const listBox = () => $("boards-list");
+  // Кэш пометок «урок у доски» — см. load(): share/rename/delete доску
+  // перерисовывают список без повторного запроса расписания.
+  let lastLessonByBoard = {};
 
   /** Дата по-человечески: «сегодня», «вчера», иначе число. */
   function when(iso) {
@@ -20,7 +23,7 @@
     return d.toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
   }
 
-  function render(boards) {
+  function render(boards, lessonByBoard) {
     const box = listBox();
     if (!box) return;
     if (!boards.length) {
@@ -32,7 +35,9 @@
       <div class="card board-row" data-id="${b.id}">
         <div class="board-main">
           <p class="board-title">${esc(b.title)}
-            ${b.shared ? `<span class="at-tag paid">открыта ученикам</span>` : ""}</p>
+            ${b.shared ? `<span class="at-tag paid">открыта ученикам</span>` : ""}${
+            lessonByBoard && lessonByBoard[b.id]
+              ? `<span class="board-lesson">${esc(lessonNote(lessonByBoard[b.id]))}</span>` : ""}</p>
           <p class="muted-note">${b.objects} ${wordsOnBoard(b.objects)} ·
             изменена ${esc(when(b.updatedAt))}</p>
         </div>
@@ -62,7 +67,9 @@
   async function call(body) {
     const res = await api("/api/board/update", { token: token(), ...body });
     if (!res.ok) { toastMsg(res.error || "Не получилось."); return null; }
-    render(res.boards);
+    // Пометки уроков держим из последней загрузки: share/rename/delete
+    // доску не меняют расписание, а без кэша они бы пропадали до F5.
+    render(res.boards, lastLessonByBoard);
     return res;
   }
 
@@ -115,7 +122,41 @@
   async function load() {
     const res = await api("/api/board/list", { token: token() });
     if (!res.ok) return;
-    render(res.boards || []);
+    // Пометка «урок завтра 17:00» у доски с привязанным будущим уроком.
+    // Расписание — второй запрос, но вкладку «Доски» открывают редко,
+    // а обрыв расписания не должен прятать сами доски: тихо без пометок.
+    lastLessonByBoard = {};
+    try {
+      const lr = await api("/api/tutor/lessons", { token: token() });
+      if (lr.ok) {
+        const now = Date.now() / 1000;
+        lr.lessons.forEach(l => {
+          if (!l.boardId) return;
+          // Для пометки нужен ближайший ПОКАЗ: еженедельный, заведённый
+          // месяц назад, — это урок на этой неделе, а не «давно прошёл».
+          const next = l.repeatWeekly
+            ? l.startsAt + Math.max(0, Math.floor((now - l.startsAt) / (7 * 86400)) + 1) * 7 * 86400
+            : l.startsAt;
+          if (next < now - 86400) return;   // прошедшие не помечаем
+          if (!lastLessonByBoard[l.boardId] || next < lastLessonByBoard[l.boardId]) {
+            lastLessonByBoard[l.boardId] = next;
+          }
+        });
+      }
+    } catch (e) { /* нет связи — доски важнее пометок */ }
+    render(res.boards || [], lastLessonByBoard);
+  }
+
+  /** «урок завтра 17:00» / «урок 25 октября 17:00» — коротко, в плашку. */
+  function lessonNote(ts) {
+    const d = new Date(ts * 1000);
+    const hm = String(d.getHours()).padStart(2, "0") + ":"
+             + String(d.getMinutes()).padStart(2, "0");
+    const days = Math.floor((new Date(d.getFullYear(), d.getMonth(), d.getDate())
+      - new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate())) / 864e5);
+    if (days <= 0) return `урок сегодня ${hm}`;
+    if (days === 1) return `урок завтра ${hm}`;
+    return "урок " + d.toLocaleDateString("ru-RU", { day: "numeric", month: "long" }) + " " + hm;
   }
 
   document.addEventListener("DOMContentLoaded", () => {

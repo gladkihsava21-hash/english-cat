@@ -1157,3 +1157,78 @@ function renderLessonBox() {
     </div>`;
   if (typeof paintCats === "function") paintCats(box);
 }
+
+
+// ===== Расписание уроков: пометка на Главной =====
+//
+// Репетитор отмечает урок в карточке ученика, ученик видит пометку здесь.
+// Хранение — в памяти (массив ниже), не в state: пометка на сегодня не
+// должна переживать завтра и не едет в sync, а при каждом заходе на
+// главную всё равно просим свежее (pollLessons).
+let scheduledLessons = [];
+let lessonsFetchedAt = 0;
+
+async function pollLessons(force) {
+  if (!studentToken() || syncStopped || apiDown) return;
+  const now = Date.now();
+  if (!force && now - lessonsFetchedAt < 60000) return; // не чаще раза в минуту
+  lessonsFetchedAt = now;
+  try {
+    const res = await api("/api/student/lessons", { token: studentToken() });
+    if (res.ok) {
+      scheduledLessons = res.lessons || [];
+      renderScheduleBox();
+    }
+  } catch (e) { /* офлайн — пометка просто остаётся прежней или пустой */ }
+}
+
+/** Русская пометка о ближайшем уроке: «сегодня в 17:00», «завтра в 17:00»,
+ *  «25 октября в 17:00», а до двух часов — «через 40 мин». */
+function scheduleText(l, nowSec) {
+  const d = new Date(l.nextAt * 1000);
+  const hm = String(d.getHours()).padStart(2, "0") + ":"
+           + String(d.getMinutes()).padStart(2, "0");
+  const title = l.title && l.title !== "Урок" ? l.title + " — " : "";
+  const minsLeft = Math.round((l.nextAt - nowSec) / 60);
+  if (minsLeft > 0 && minsLeft < 120) {
+    return `${title}через ${minsLeft} ${plural(minsLeft, "минута", "минуты", "минут")}, в ${hm}`;
+  }
+  const day0 = new Date(nowSec * 1000);
+  const startOf = x => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const days = Math.round((startOf(d) - startOf(day0)) / 864e5);
+  if (days <= 0) return `${title}сегодня в ${hm}`;
+  if (days === 1) return `${title}завтра в ${hm}`;
+  const mon = ["января", "февраля", "марта", "апреля", "мая", "июня",
+               "июля", "августа", "сентября", "октября", "ноября", "декабря"][d.getMonth()];
+  return `${title}${d.getDate()} ${mon} в ${hm}`;
+}
+
+function renderScheduleBox() {
+  const box = document.getElementById("schedule-box");
+  if (!box) return;
+  const nowSec = Date.now() / 1000;
+  // Ближайший значимый: идущий сейчас или будущий. Закончившийся час
+  // назад еженедельный уже не зовём — nextAt у него на следующей неделе.
+  const upcoming = scheduledLessons
+    .filter(l => l.nextAt + (l.durationMin || 60) * 60 > nowSec - 900)
+    .sort((a, b) => a.nextAt - b.nextAt)[0];
+  if (!upcoming) { box.classList.add("hidden"); box.innerHTML = ""; return; }
+  // За 15 минут до начала и всё занятие карточка зелёная с кнопкой:
+  // ребёнку пора идти, а не читать.
+  const active = nowSec >= upcoming.nextAt - 900
+              && nowSec <= upcoming.nextAt + (upcoming.durationMin || 60) * 60;
+  box.classList.remove("hidden");
+  box.innerHTML = `
+    <div class="card lesson-card ${active ? "lesson-live" : ""}">
+      <div class="cat-avatar cat-small" data-cat="${active ? "happy" : "hello"}"></div>
+      <div class="lesson-text">
+        <p class="lesson-kicker">${iconInline("calendar", 15)} ${active ? "Урок начинается" : "Урок по расписанию"}</p>
+        <p class="lesson-note">${esc(scheduleText(upcoming, nowSec))}${
+          upcoming.repeatWeekly ? " · каждую неделю" : ""}</p>
+      </div>
+      ${active ? `<a class="btn btn-primary lesson-go" href="${
+        upcoming.boardId ? "board.html?id=" + upcoming.boardId + "#video" : "board.html#video"
+      }">На урок</a>` : ""}
+    </div>`;
+  if (typeof paintCats === "function") paintCats(box);
+}

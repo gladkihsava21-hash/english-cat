@@ -773,3 +773,37 @@
   color: var(--accent); cursor: pointer; text-decoration: underline dotted;
 }
 .level-edit-hint:hover { text-decoration-style: solid; }
+
+/* ---------- Расписание уроков в карточке ученика ----------
+   Ряд с датой и крестиком — как строки сообщений (.msg-row): тот же ритм,
+   чтобы карточка не собиралась из разных почерков. Форма — те же поля,
+   что везде (.type-input), только компактнее. */
+.sched-list { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
+.sched-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 6px 0; border-top: 1px solid var(--border);
+  font-size: var(--text-caption); font-weight: 600;
+}
+.sched-row:first-child { border-top: 0; }
+.sched-rep { color: var(--accent-dark); font-weight: 900; }
+.sched-del { font-size: 12px; }
+.sched-form {
+  display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+.sched-form .type-input { flex: 1 1 auto; min-width: 0; width: auto; }
+.sched-form input[type="date"] { max-width: 150px; }
+.sched-form input[type="time"] { max-width: 90px; }
+.sched-form select { max-width: 100px; }
+.sched-weekly {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 36px;
+  font-size: var(--text-caption); font-weight: 600; cursor: pointer;
+}
+.sched-weekly input { width: 18px; height: 18px; accent-color: var(--accent); }
+
+/* Пометка у доски во вкладке «Доски»: будущий урок привязан */
+.board-lesson {
+  display: inline-block; margin-left: 8px;
+  font-size: var(--text-caption); font-weight: 800; color: var(--accent-dark);
+  background: var(--accent-soft); border-radius: 20px; padding: 2px 10px;
+}

@@ -150,6 +150,27 @@ CREATE TABLE IF NOT EXISTS boards (
 );
 CREATE INDEX IF NOT EXISTS idx_boards_tutor ON boards(tutor_id);
 
+-- Расписание уроков. Репетитор отмечает, когда у ученика урок, а ученик
+-- видит пометку на Главной («Урок сегодня в 17:00»). Отдельная таблица,
+-- а не поле в students: уроков у ученика несколько (будущие + еженедельные).
+-- starts_at — unix-секунды (с ними не бывает путаницы поясов при сравнении);
+-- repeat_weekly=1: урок повторяется еженедельно в то же время, ближайшее
+-- показывание считаем при чтении (next_lesson_occurrence).
+CREATE TABLE IF NOT EXISTS lessons (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    tutor_id      INTEGER NOT NULL REFERENCES tutors(id),
+    student_id    INTEGER NOT NULL REFERENCES students(id),
+    title         TEXT NOT NULL DEFAULT 'Урок',
+    starts_at     INTEGER NOT NULL,
+    duration_min  INTEGER NOT NULL DEFAULT 60,
+    repeat_weekly INTEGER NOT NULL DEFAULT 0,
+    board_id      INTEGER,
+    created_at    TEXT NOT NULL,
+    cancelled     INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_lessons_tutor ON lessons(tutor_id);
+CREATE INDEX IF NOT EXISTS idx_lessons_student ON lessons(student_id);
+
 -- PDF-книжки репетитора для доски. Сам PDF и картинки страниц лежат
 -- файлами вне public_html (savely-data/books/), тут только опись.
 -- Страницы рендерятся по требованию и кэшируются: заливка книги при
@@ -1620,6 +1641,79 @@ def archive_homework(tutor_id, hw_id):
         "UPDATE homework SET archived=1 WHERE id=? AND tutor_id=?", (hw_id, tutor_id)
     )
     conn().commit()
+
+
+# ---------- расписание уроков ----------
+
+def create_lesson(tutor_id, student_id, starts_at, duration_min=60,
+                  repeat_weekly=False, title="", board_id=None):
+    cur = conn().execute(
+        "INSERT INTO lessons (tutor_id, student_id, title, starts_at, duration_min,"
+        " repeat_weekly, board_id, created_at) VALUES (?,?,?,?,?,?,?,?)",
+        (tutor_id, student_id, (title or "").strip()[:120] or "Урок",
+         int(starts_at), int(duration_min), 1 if repeat_weekly else 0,
+         board_id, now()),
+    )
+    conn().commit()
+    return conn().execute("SELECT * FROM lessons WHERE id=?", (cur.lastrowid,)).fetchone()
+
+
+def list_lessons(tutor_id):
+    """Все неотменённые уроки репетитора, ближайшие вперёд."""
+    return conn().execute(
+        "SELECT * FROM lessons WHERE tutor_id=? AND cancelled=0"
+        " ORDER BY starts_at", (tutor_id,)).fetchall()
+
+
+def list_lessons_for_student(student_id, since_ts):
+    """Неотменённые уроки ученика не раньше отметки (для ученика это
+    полуночь сегодня: прошедшие сегодня тоже видны — вдруг опоздал)."""
+    return conn().execute(
+        "SELECT * FROM lessons WHERE student_id=? AND cancelled=0"
+        " AND (starts_at>=? OR repeat_weekly=1) ORDER BY starts_at",
+        (student_id, int(since_ts))).fetchall()
+
+
+def cancel_lesson(tutor_id, lesson_id):
+    """Отмена — флаг, а не DELETE: у ученика уже могла загрузиться пометка,
+    и строка с cancelled=1 отвечает «урока не будет», а не «урока не было»."""
+    conn().execute(
+        "UPDATE lessons SET cancelled=1 WHERE id=? AND tutor_id=?",
+        (lesson_id, tutor_id))
+    conn().commit()
+
+
+def next_lesson_occurrence(row, from_ts):
+    """Момент ближайшего показа урока начиная с from_ts (unix).
+    Разовый — сам starts_at; еженедельный — то же время ближайшей недели."""
+    start = int(row["starts_at"])
+    if not row["repeat_weekly"]:
+        return start
+    week = 7 * 86400
+    if start >= from_ts:
+        return start
+    # Целое число недель вперёд, чтобы оказаться не раньше отметки
+    weeks = (int(from_ts) - start) // week + 1
+    return start + weeks * week
+
+
+def lesson_public(row, student_name=None, from_ts=None):
+    out = {
+        "id": row["id"],
+        "studentId": row["student_id"],
+        "title": row["title"],
+        "startsAt": int(row["starts_at"]),
+        "durationMin": int(row["duration_min"]),
+        "repeatWeekly": bool(row["repeat_weekly"]),
+        "boardId": row["board_id"],
+    }
+    if student_name is not None:
+        out["studentName"] = student_name
+    if from_ts is not None:
+        # Ученику разовый и еженедельный выглядят одинаково — «когда
+        # ближайший», поэтому считаем показ на его стороне один раз здесь.
+        out["nextAt"] = next_lesson_occurrence(row, from_ts)
+    return out
 
 
 # ---------- сообщения ученикам ----------

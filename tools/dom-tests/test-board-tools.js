@@ -1212,6 +1212,98 @@ function spoint(w, type, wx, wy, extra = {}) {
        "залоченный кубик не бросается");
   }
 
+  console.log("\n28. Rich-текст: перенос по ширине (\\u00A0 тоже), разметка, списки, поиск без маркеров");
+  {
+    const w = makeBoard();
+    await tick(150);
+    // перенос из Word: неразрывные пробелы — не одна «слово-полоса»
+    const nb = "раз два раз два раз два раз два раз два раз два".replace(/ /g, " ");
+    const lines = w.eval(`layoutRichText(${JSON.stringify(nb)}, 60, 16, "600")`);
+    ok(lines.length > 2, "текст с \\u00A0 переносится: " + lines.length + " строк (было 1)");
+    // \n остаются абзацами
+    const paras = w.eval(`layoutRichText("один\\nдва\\nтри", 900, 16, "600")`);
+    ok(paras.length === 3, "три абзаца — три строки: " + paras.length);
+    // auto-height растёт с числом строк
+    const h1 = w.eval(`textHeight("раз два", 900, 24)`);
+    const h2 = w.eval(`textHeight("раз\\nдва\\nтри\\nчетыре", 900, 24)`);
+    ok(h2 > h1 * 3, "высота по строкам: " + h1 + " → " + h2);
+    // разметка: **жирный**, *курсив*, а «2 * 3 = 6» — не разметка
+    const segs = w.eval(`parseRichLine("**жир** и *кр*, а 2 * 3 = 6")`);
+    ok(segs.some(s => s.b && s.text === "жир") && segs.some(s => s.i && s.text === "кр"),
+       "жирный и курсив распарсились");
+    const last = segs[segs.length - 1];
+    ok(last.text.includes("2 * 3 = 6") && !last.i && !last.b,
+       "«2 * 3 = 6» осталось обычным текстом: " + JSON.stringify(last.text));
+    ok(w.eval(`stripRich("**жир** *кр*")`) === "жир кр",
+       "stripRich снимает маркеры: " + w.eval(`stripRich("**жир** *кр*")`));
+    // списки: буллет и нумерация с отступом
+    const lst = w.eval(`layoutRichText("• раз\\n• два\\n1. первый", 900, 16, "600")`);
+    ok(lst[0].bullet === "•" && lst[0].indent === 1 && lst[2].bullet === "1.",
+       "буллеты и номер распознаны");
+    // поиск по доске — по тексту БЕЗ маркеров
+    w.eval(`BD.objects.set("m1", { id: "m1", kind: "note", x: 100, y: 100, w: 180, h: 120,
+             color: "note", size: 3, rev: 1, text: "**сирень** цветёт" });`);
+    const found = w.eval(`searchables().filter(x =>
+      (x.text + " " + x.extra).toLowerCase().includes("сирень"))`);
+    ok(found.length === 1 && found[0].text.includes("сирень") && !found[0].text.includes("**"),
+       "поиск нашёл «сирень» без маркеров: " + (found[0] && found[0].text));
+    // редактор: подсказка и панель форматирования у текста, скрыты у фрейма
+    tool(w, "note");
+    point(w, "pointerdown", 500, 300);
+    point(w, "pointerup", 500, 300);
+    ok(!w.document.getElementById("bd-editor-hint").hidden
+       && !w.document.getElementById("bd-editor-fmt").hidden,
+       "у текста видны подсказка и кнопки B/I/U/S/•/1.");
+    const h = w.document.getElementById("bd-editor-input").style.height;
+    ok(!!h, "поле выросло по содержимому (inline height): " + h);
+    // кнопка B оборачивает выделение маркерами, повтор — снимает
+    const inp = w.document.getElementById("bd-editor-input");
+    inp.value = "кот спит";
+    inp.selectionStart = 0; inp.selectionEnd = 3;
+    w.eval("editorWrapSelection('**', '**')");
+    ok(inp.value === "**кот** спит", "B обернула: " + inp.value);
+    inp.selectionStart = 2; inp.selectionEnd = 5;
+    w.eval("editorWrapSelection('**', '**')");
+    ok(inp.value === "кот спит", "повторная B сняла: " + inp.value);
+    // кнопка • превращает выделенные строки в буллеты
+    inp.value = "раз\nдва";
+    inp.selectionStart = 0; inp.selectionEnd = 7;
+    w.eval("editorListLines(false)");
+    ok(inp.value === "• раз\n• два", "строки стали буллетами: " + JSON.stringify(inp.value));
+    inp.selectionStart = 0; inp.selectionEnd = inp.value.length;
+    w.eval("editorListLines(true)");
+    ok(inp.value === "1. раз\n2. два", "и нумерованными: " + JSON.stringify(inp.value));
+    // фрейму разметка не показывается
+    w.document.getElementById("bd-editor-cancel").click();
+    w.eval(`BD.objects.set("f9", { id: "f9", kind: "frame", x: 100, y: 600, w: 300, h: 200,
+             color: "note", size: 3, rev: 2, title: "Фрейм" });
+            BD.selected = "f9"; openEditor(BD.objects.get("f9"));`);
+    ok(w.document.getElementById("bd-editor-hint").hidden
+       && w.document.getElementById("bd-editor-fmt").hidden,
+       "у заголовка фрейма подсказка и панель скрыты");
+    w.document.getElementById("bd-editor-cancel").click();
+  }
+
+  console.log("\n29. Рисование без лага: coalesced-точки, инкремент, троттлинг paint");
+  {
+    const w = makeBoard();
+    await tick(150);
+    tool(w, "pen");
+    point(w, "pointerdown", 100, 100);
+    point(w, "pointermove", 120, 110);
+    point(w, "pointermove", 140, 120);
+    const dr = objects(w).find(o => o.kind === "pen");
+    ok(!!dr && dr.pts.length >= 6, "штрих копит точки: " + (dr && dr.pts.length / 2));
+    w.eval("drawStrokeTail(BD.objects.get('" + dr.id + "'))");
+    ok(dr._tailDone === dr.pts.length, "инкремент дорисовал хвост: _tailDone=" + dr._tailDone);
+    const full1 = dr._lastFull;
+    ok(!!full1, "первая полная перерисовка была");
+    point(w, "pointermove", 150, 130);
+    ok(dr._lastFull === full1, "следующие 200 мс paint не дёргается (троттлинг)");
+    point(w, "pointerup", 150, 130);
+    ok(!!byId(w, dr.id), "штрих сохранён на доске");
+  }
+
   console.log(fails ? `\nПРОВАЛЕНО: ${fails}` : "\nВсё зелено");
   process.exit(fails ? 1 : 0);
 })();

@@ -314,8 +314,34 @@ function draw(w = innerWidth, h = innerHeight) {
   }
 }
 
-function bgMode() {
-  // Фон — общий объект доски (id зашит): меняет один, видят оба.
+/** Инкрементальная дорисовка хвоста штриха между полными кадрами
+ *  (см. pointermove пера): только новые сегменты поверх живого канваса,
+ *  в том же стиле, что drawObject. На отпускании полный кадр всё равно
+ *  перерисует всё из точек — визуально шов неотличим. */
+function drawStrokeTail(o) {
+  const pts = o.pts, n = pts.length;
+  if (n < 4) return;
+  // сколько точек уже дорисовано — живёт на самом штрихе
+  const done = o._tailDone || 2;
+  if (n <= done) return;
+  ctx.save();
+  ctx.translate(BD.view.x, BD.view.y);
+  ctx.scale(BD.view.k, BD.view.k);
+  ctx.globalAlpha = o.kind === "marker" ? 0.35 : 1;
+  ctx.strokeStyle = cssColor(o.color);
+  ctx.lineWidth = o.size * (o.kind === "marker" ? 4 : 1);
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.beginPath();
+  ctx.moveTo(pts[done - 2], pts[done - 1]);
+  for (let i = done; i < n; i += 2) ctx.lineTo(pts[i], pts[i + 1]);
+  ctx.stroke();
+  ctx.restore();
+  ctx.globalAlpha = 1;
+  o._tailDone = n;
+}
+
+function bgMode() {  // Фон — общий объект доски (id зашит): меняет один, видят оба.
   const o = BD.objects.get("board-bg");
   return (o && o.text) || "dots";
 }
@@ -731,27 +757,149 @@ function roundRect(x, y, w, h, r) {
   ctx.closePath();
 }
 
+/* ---------- rich-текст: перенос по ширине, разметка, списки ----------
+   Разметка в тексте объекта (волна 5, лента Word у Ирины):
+   **жирный**, *курсив*, __подчёрк__, ~~зачёрк~~; строки «• »/«- » —
+   буллеты, «1. » — нумерация. Маркер без пары — обычный текст
+   («2 * 3 = 6» не ломается). Раскладка общая для отрисовки и замера
+   высоты — они обязаны совпадать, иначе рамка врёт.
+   Заодно лечится перенос текста из Word: слова режутся по \s (неразрывный
+   пробел \u00A0 туда входит — раньше [ \t] его пропускал, и весь абзац
+   становился одним «словом» бесконечной полосой вправо). */
+const RICH_SPACE_K = 0.3;   // ширина пробела в долях кегля
+
+function richFont(s, px, weight) {
+  return (s.i ? "italic " : "") + (s.b ? "800" : weight)
+    + " " + Math.round(px) + "px Nunito, system-ui, sans-serif";
+}
+
+/* Одна строка → сегменты {text,b,i,u,s} без маркеров. Двойной маркер
+   без пары — ЦЕЛИКОМ обычный текст (иначе закрывающий «**» разваливался
+   на литерал + ложный курсивный «*»). */
+function parseRichLine(line) {
+  const segs = [];
+  const st = { b: false, i: false, u: false, s: false };
+  let buf = "";
+  const push = () => { if (buf) { segs.push({ text: buf, ...st }); buf = ""; } };
+  let i = 0;
+  const pairAt = (tok, from) => {
+    const close = line.indexOf(tok, from + tok.length);
+    return close > from + tok.length ? close : -1;
+  };
+  while (i < line.length) {
+    // сначала двухбуквенные маркеры
+    const two = line.startsWith("**", i) ? ["**", "b"]
+              : line.startsWith("~~", i) ? ["~~", "s"]
+              : line.startsWith("__", i) ? ["__", "u"] : null;
+    if (two) {
+      // ЗАКРЫТИЕ — всегда (пары после него нет и не надо), ОТКРЫТИЕ —
+      // только когда впереди есть чем закрыться (иначе «2 * 3» курсивило бы)
+      if (st[two[1]] || pairAt(two[0], i) !== -1) {
+        push();
+        st[two[1]] = !st[two[1]];
+      } else {
+        buf += two[0];           // не пара — литерал целиком
+      }
+      i += 2;
+      continue;
+    }
+    if (line[i] === "*" && (st.i || pairAt("*", i) !== -1)) {
+      push();
+      st.i = !st.i;
+      i++;
+      continue;
+    }
+    buf += line[i];
+    i++;
+  }
+  push();
+  return segs;
+}
+
+/* Текст без маркеров — для поиска по доске и любых замеров. */
+function stripRich(text) {
+  return String(text).replace(/\r\n?/g, "\n").split("\n")
+    .map(l => parseRichLine(l).map(s => s.text).join("")).join(" ");
+}
+
+/* Кэш раскладки: мерить каждое слово каждым шрифтом на КАЖДОМ кадре —
+   дорого, а текст статичен между правками. Ключ — сам текст с параметрами;
+   потолок, чтобы не разрасталась. */
+const richLayoutCache = new Map();
+const RICH_CACHE_MAX = 300;
+
+/* Раскладка rich-текста в визуальные линии: перенос по словам с мерой
+   ширины ЕГО шрифтом (жирный шире), списки с отступом, маркеры не видны.
+   Возвращает [{segs:[{text,b,i,u,s}], bullet, indent}]. */
+function layoutRichText(text, maxW, px, weight) {
+  const key = maxW + "|" + px + "|" + weight + "|" + String(text);
+  const hit = richLayoutCache.get(key);
+  if (hit) return hit;
+  const out = [];
+  const norm = String(text).replace(/\r\n?/g, "\n");
+  for (const para of norm.split("\n")) {
+    let bullet = null, body = para, indent = 0;
+    const mb = para.match(/^\s*([•\-])\s+/);
+    const mn = para.match(/^\s*(\d+)[.)]\s+/);
+    if (mb) { bullet = "•"; body = para.slice(mb[0].length); indent = 1; }
+    else if (mn) { bullet = mn[1] + "."; body = para.slice(mn[0].length); indent = 1; }
+    const words = [];
+    parseRichLine(body).forEach(seg => {
+      seg.text.split(/\s+/).filter(Boolean)
+        .forEach(w => words.push({ b: seg.b, i: seg.i, u: seg.u, s: seg.s, text: w }));
+    });
+    if (!words.length) { out.push({ segs: [], bullet, indent }); continue; }
+    const spaceW = px * RICH_SPACE_K;
+    const avail = maxW - (indent ? px * 1.4 : 0);
+    let segs = [], curW = 0, firstLine = true;
+    const flush = () => {
+      out.push({ segs, bullet: firstLine ? bullet : null, indent });
+      firstLine = false;
+      segs = []; curW = 0;
+    };
+    for (const w of words) {
+      ctx.font = richFont(w, px, weight);
+      const ww = ctx.measureText(w.text).width;
+      if (curW + ww > avail && segs.length) flush();
+      segs.push(w);
+      curW += ww + spaceW;
+    }
+    if (segs.length) out.push({ segs, bullet: firstLine ? bullet : null, indent });
+  }
+  if (richLayoutCache.size >= RICH_CACHE_MAX) {
+    richLayoutCache.delete(richLayoutCache.keys().next().value);
+  }
+  richLayoutCache.set(key, out);
+  return out;
+}
+
 function drawText(text, x, y, maxW, lh, color, weight) {
+  const px = lh * 0.86;
+  const lines = layoutRichText(text, maxW, px, weight);
   ctx.fillStyle = color;
-  ctx.font = `${weight} ${Math.round(lh * 0.86)}px Nunito, system-ui, sans-serif`;
   ctx.textBaseline = "top";
   let ty = y;
-  // Абзацы: Enter в редакторе — это \n, и он ОБЯЗАН остаться абзацем
-  // на доске. Раньше split(/\s+/) съедал переносы вместе с пробелами,
-  // и стикер превращал любой список в сплошную строку.
-  for (const para of String(text).split("\n")) {
-    let line = "";
-    const words = para.split(/[ \t]+/).filter(Boolean);
-    if (!words.length) { ty += lh; continue; }   // пустая строка = отступ
-    for (const word of words) {
-      const test = line ? line + " " + word : word;
-      if (ctx.measureText(test).width > maxW && line) {
-        ctx.fillText(line, x, ty);
-        ty += lh;
-        line = word;
-      } else line = test;
+  for (const ln of lines) {
+    let tx = x + (ln.indent ? px * 1.4 : 0);
+    if (ln.bullet) {
+      ctx.font = richFont({}, px, weight);
+      ctx.fillText(ln.bullet, x, ty);
     }
-    if (line) { ctx.fillText(line, x, ty); ty += lh; }
+    for (const seg of ln.segs) {
+      ctx.font = richFont(seg, px, weight);
+      ctx.fillText(seg.text, tx, ty);
+      const w = ctx.measureText(seg.text).width;
+      if (seg.u || seg.s) {
+        ctx.strokeStyle = color;
+        ctx.lineWidth = Math.max(1, px * 0.06);
+        ctx.beginPath();
+        ctx.moveTo(tx, seg.u ? ty + px * 0.92 : ty + px * 0.5);
+        ctx.lineTo(tx + w, seg.u ? ty + px * 0.92 : ty + px * 0.5);
+        ctx.stroke();
+      }
+      tx += w + px * RICH_SPACE_K;
+    }
+    ty += lh;
   }
 }
 
@@ -1620,13 +1768,33 @@ canvas.addEventListener("pointermove", e => {
     return;
   }
   if (drawing.kind === "pen" || drawing.kind === "marker") {
-    const n = drawing.pts.length;
-    // Не пишем точку, пока рука не сдвинулась заметно: иначе линия
-    // из тысячи точек на пару сантиметров, и доска тяжелеет зря.
-    if (Math.hypot(w.x - drawing.pts[n - 2], w.y - drawing.pts[n - 1]) > 1.4 / BD.view.k) {
-      drawing.pts.push(w.x, w.y);
+    // Точки забираем пачкой: при быстрой руке браузер сливает несколько
+    // движений пера в одно событие — без coalesced штрих угловатый.
+    const events = e.getCoalescedEvents ? e.getCoalescedEvents() : [e];
+    let added = false;
+    for (const ev of events) {
+      const we = toWorld(ev.clientX, ev.clientY);
+      const n = drawing.pts.length;
+      // Не пишем точку, пока рука не сдвинулась заметно: иначе линия
+      // из тысячи точек на пару сантиметров, и доска тяжелеет зря.
+      if (Math.hypot(we.x - drawing.pts[n - 2], we.y - drawing.pts[n - 1]) > 1.4 / BD.view.k) {
+        drawing.pts.push(we.x, we.y);
+        added = true;
+      }
+    }
+    if (added) {
       BD.objects.set(drawing.id, drawing);
-      paint();
+      // Новые сегменты — ИНКРЕМЕНТАЛЬНО поверх живого канваса, сразу:
+      // рука не ждёт кадра. Полная перерисовка всей доски (сотня объектов
+      // + сетка) на КАЖДОМ движении и была «задержкой рисования» у
+      // владельца: теперь она раз в ~200 мс и на отпускании (finishStroke
+      // сам перерисует через put).
+      drawStrokeTail(drawing);
+      const now = performance.now();
+      if (!drawing._lastFull || now - drawing._lastFull > 200) {
+        drawing._lastFull = now;
+        paint();
+      }
     }
     return;
   }
@@ -1952,40 +2120,19 @@ const textLH = size => Math.max(8, (size || 3) * 6);
  *  обязаны совпадать с тем, что реально нарисовано. */
 function textHeight(text, w, lh) {
   ctx.save();
-  ctx.font = "600 " + Math.round(lh * 0.86) + "px Nunito, system-ui, sans-serif";
-  let lines = 0;
-  for (const para of String(text).split("\n")) {
-    const words = para.split(/[ \t]+/).filter(Boolean);
-    if (!words.length) { lines++; continue; }   // пустая строка = отступ, как в drawText
-    let line = "";
-    for (const word of words) {
-      const t = line ? line + " " + word : word;
-      if (ctx.measureText(t).width > w && line) { lines++; line = word; }
-      else line = t;
-    }
-    if (line) lines++;
-  }
+  // та же раскладка, что в drawText: маркеры не видны, перенос по словам
+  const lines = layoutRichText(text, w, lh * 0.86, "600");
   ctx.restore();
-  return Math.max(lh, lines * lh);
+  return Math.max(lh, lines.length * lh);
 }
 
 function noteHeight(text, w) {
   ctx.save();
-  ctx.font = "600 " + Math.round(NOTE_LH * 0.86) + "px Nunito, system-ui, sans-serif";
-  let lines = 0;
-  for (const para of String(text).slice(0, NOTE_TEXT_LIMIT).split("\n")) {
-    const words = para.split(/[ \t]+/).filter(Boolean);
-    if (!words.length) { lines++; continue; }   // пустая строка = отступ, как в drawText
-    let line = "";
-    for (const word of words) {
-      const t = line ? line + " " + word : word;
-      if (ctx.measureText(t).width > w - NOTE_PAD * 2 && line) { lines++; line = word; }
-      else line = t;
-    }
-    if (line) lines++;
-  }
+  // и здесь общая раскладка: стикер рендерится тем же drawText
+  const lines = layoutRichText(String(text).slice(0, NOTE_TEXT_LIMIT),
+    w - NOTE_PAD * 2, NOTE_LH * 0.86, "600");
   ctx.restore();
-  return Math.max(NOTE_MIN_H, Math.min(NOTE_MAX_H, lines * NOTE_LH + NOTE_PAD * 2));
+  return Math.max(NOTE_MIN_H, Math.min(NOTE_MAX_H, lines.length * NOTE_LH + NOTE_PAD * 2));
 }
 
 /* Высота, выбранная руками за уголок, важнее автороста: человек сам
@@ -1995,6 +2142,16 @@ function noteHeight(text, w) {
 const noteManualH = new Set();
 
 let editing = null;
+/* Поле растёт по содержимому до ~40% экрана, дальше — скролл: упражнение
+   на 30 строк перестало быть мучением в трёхрядной textarea (волна 5). */
+function autoGrowEditor() {
+  const input = $("bd-editor-input");
+  const max = Math.round(innerHeight * 0.4);
+  input.style.height = "auto";
+  const need = input.scrollHeight + 4;
+  input.style.height = Math.min(max, Math.max(72, need)) + "px";
+  input.style.overflowY = need > max ? "auto" : "hidden";
+}
 function openEditor(o) {
   editing = o;
   const box = $("bd-editor"), input = $("bd-editor-input");
@@ -2002,12 +2159,22 @@ function openEditor(o) {
   // У фрейма редактируем заголовок, у остальных — текст
   input.value = o.kind === "frame" ? (o.title || "") : (o.text || "");
   input.placeholder = o.kind === "frame" ? "Заголовок фрейма…" : "Текст…";
+  // Подсказка разметки — только для текстов: заголовку фрейма она не нужна
+  $("bd-editor-hint").hidden = o.kind === "frame";
+  $("bd-editor-fmt").hidden = o.kind === "frame";
+  autoGrowEditor();
   // Фокус — после того, как браузер закончит обрабатывать нажатие:
   // синхронный focus() внутри pointerdown он тут же и отбирает
   // (нажатие-то пришло по полотну), поле выглядело открытым, а печать
-  // уходила в никуда.
-  setTimeout(() => { input.focus(); input.select(); }, 0);
+  // уходила в никуда. Скролл и каретка — в НАЧАЛО: у длинного текста
+  // править начинают обычно с первой строки.
+  setTimeout(() => {
+    input.focus();
+    input.setSelectionRange(0, input.value.length);
+    input.scrollTop = 0;
+  }, 0);
 }
+$("bd-editor-input").addEventListener("input", autoGrowEditor);
 $("bd-editor-ok").addEventListener("click", () => {
   if (!editing) return;
   const text = $("bd-editor-input").value.trim();
@@ -2042,6 +2209,55 @@ $("bd-editor-cancel").addEventListener("click", () => {
 $("bd-editor-input").addEventListener("keydown", e => {
   if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) $("bd-editor-ok").click();
   if (e.key === "Escape") $("bd-editor-cancel").click();
+});
+
+/* Панель форматирования редактора (волна 3 по видео Ирины): B/I/U/S
+   оборачивают ВЫДЕЛЕННЫЙ фрагмент маркерами (повторное нажатие снимает),
+   • и 1. превращают выделенные СТРОКИ в пункты. mousedown без default
+   выше в разметке — выделение в поле переживает нажатие. */
+function editorWrapSelection(before, after) {
+  const input = $("bd-editor-input");
+  const s = input.selectionStart, e = input.selectionEnd;
+  const val = input.value;
+  // уже обёрнуто — снимаем маркеры (тоггл, как в редакторах)
+  if (val.slice(s - before.length, s) === before
+      && val.slice(e, e + after.length) === after) {
+    input.setRangeText("", s - before.length, s, "end");
+    const s2 = s - before.length;
+    input.setRangeText("", s2 + (e - s), s2 + (e - s) + after.length, "end");
+    input.setSelectionRange(s2, s2 + (e - s));
+  } else {
+    input.setRangeText(before + val.slice(s, e) + after, s, e, "end");
+    input.setSelectionRange(s + before.length, e + before.length);
+  }
+  autoGrowEditor();
+}
+function editorListLines(numbered) {
+  const input = $("bd-editor-input");
+  const s = input.selectionStart, e = input.selectionEnd;
+  const val = input.value;
+  // работаем построчно: от начала первой выделенной строки до конца последней
+  const l0 = val.lastIndexOf("\n", s - 1) + 1;
+  const l1 = val.indexOf("\n", e);
+  const end = l1 === -1 ? val.length : l1;
+  const lines = val.slice(l0, end).split("\n").map((l, i) => {
+    const clean = l.replace(/^\s*(?:[•\-]|\d+[.)])\s+/, "");   // снять старый маркер
+    return numbered ? `${i + 1}. ${clean}` : `• ${clean}`;
+  });
+  input.setRangeText(lines.join("\n"), l0, end, "end");
+  input.setSelectionRange(l0, l0 + lines.join("\n").length);
+  autoGrowEditor();
+}
+document.querySelectorAll("#bd-editor-fmt [data-fmt]").forEach(b => {
+  // не отдаём кнопке фокус: иначе выделение в поле схлопнется до вставки
+  b.addEventListener("mousedown", e => e.preventDefault());
+  b.addEventListener("click", () => {
+    const f = b.dataset.fmt;
+    if (f === "ul") return editorListLines(false);
+    if (f === "ol") return editorListLines(true);
+    editorWrapSelection({ b: "**", i: "*", u: "__", s: "~~" }[f],
+                        { b: "**", i: "*", u: "__", s: "~~" }[f]);
+  });
 });
 
 /* ---------- панели ---------- */
@@ -3147,7 +3363,8 @@ function searchables() {
   BD.objects.forEach(o => {
     if (isService(o) || isEmptyText(o)) return;
     let text = "", extra = "";
-    if (o.kind === "note" || o.kind === "text") text = o.text || "";
+    // поиск идёт по тексту БЕЗ маркеров: «**жирный**» находится по «жирный»
+    if (o.kind === "note" || o.kind === "text") text = stripRich(o.text || "");
     else if (o.kind === "frame") text = o.title || "";
     else if (o.kind === "word") { text = o.text || ""; extra = o.text2 || ""; }
     else if (o.kind === "emoji") {

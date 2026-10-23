@@ -210,10 +210,14 @@ function show(screen) {
   if (screen === "test") resetTestScreen();
   if (screen === "dashboard") renderDashboard();
   if (screen === "dashboard" && typeof renderLessonBox === "function") renderLessonBox();
+  if (screen === "dashboard" && typeof renderScheduleBox === "function") renderScheduleBox();
   // Пока ученик был в упражнении, репетитор мог позвать его на доску:
   // спрашиваем на входе, а не через круг опроса — иначе главная десять
   // секунд показывает вчерашнюю картину.
   if (screen === "dashboard" && typeof pollBoard === "function") pollBoard();
+  // …и мог добавить урок в расписание — пометку подтягиваем с той же
+  // пружинкой, что и доску: на входе на главную, не чаще раза в минуту.
+  if (screen === "dashboard" && typeof pollLessons === "function") pollLessons();
   if (screen === "dictionary") renderDictionary();
   if (screen === "trainer") startTraining();
   if (screen === "practice") renderPracticeHub();

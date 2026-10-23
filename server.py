@@ -398,6 +398,11 @@ _HIT_LIMITS = {
     # удаление стирает аккаунт. Ключ у всех — токен, то есть лимит
     # считается на аккаунт, а не на весь класс с одного школьного вайфая.
     "/api/student/profile": (60, 300),
+    "/api/student/lessons": (60, 300),
+    # Расписание пишется руками по кнопке — запас с головой
+    "/api/tutor/lessons": (60, 300),
+    "/api/tutor/lesson-add": (30, 600),
+    "/api/tutor/lesson-del": (30, 600),
     "/api/student/name": (20, 600),
     "/api/student/code/new": (5, 600),
     "/api/student/delete": (5, 600),
@@ -1093,7 +1098,96 @@ class Api:
         if not row or row["tutor_id"] != tutor["id"]:
             return {"ok": False, "error": "not_found"}
         hw = db.homework_for_student(db.list_homework(tutor["id"]), row)
-        return {"ok": True, "student": db.student_public(row, hw, detail=True)}
+        # Расписание едет в той же карточке: экран всё равно об этом,
+        # а отдельный запрос — лишний круг до сервера. Репетитору, как и
+        # ученику, нужны будущие + сегодняшние: прошедшие в карточке —
+        # архив, которого тут никто не читает.
+        local = time.localtime()
+        midnight = time.mktime((local.tm_year, local.tm_mon, local.tm_mday,
+                                0, 0, 0, 0, 0, -1))
+        future = db.list_lessons_for_student(row["id"], midnight)
+        lessons = [db.lesson_public(x) for x in future
+                   if x["tutor_id"] == tutor["id"]]
+        return {"ok": True, "student": db.student_public(row, hw, detail=True),
+                "lessons": lessons}
+
+    # --- расписание уроков ---
+    #
+    # Отдельная ручка на чтение, а не только часть карточки ученика:
+    # вкладка «Доски» помечает доски с привязанным уроком и берёт список
+    # целиком, не открывая каждого ученика.
+
+    @staticmethod
+    def tutor_lessons(h, p):
+        tutor, err = verified_tutor(p)
+        if err:
+            return err
+        names = {s["id"]: s["name"] for s in db.list_students(tutor["id"])}
+        return {"ok": True, "lessons": [
+            db.lesson_public(x, student_name=names.get(x["student_id"], ""))
+            for x in db.list_lessons(tutor["id"])]}
+
+    @staticmethod
+    def tutor_lesson_add(h, p):
+        tutor, err = verified_tutor(p)
+        if err:
+            return err
+        # Ученик — только свой: id приходит из формы, подставить чужой —
+        # одна правка в консоли (та же проверка, что у карточки и домашки).
+        stu = db.get_student_by_id(int(p.get("studentId") or 0))
+        if not stu or stu["tutor_id"] != tutor["id"]:
+            return {"ok": False, "error": "not_found"}
+        try:
+            starts_at = int(p.get("startsAt"))
+        except (TypeError, ValueError):
+            return {"ok": False, "error": "Нужны дата и время урока."}
+        now_ts = time.time()
+        # Небольшой люфт «только что начался» разрешаем — репетитор может
+        # отметить урок, идущий прямо сейчас; дальше суток в прошлое —
+        # опечатка, а не расписание. Для ЕЖЕНЕДЕЛЬНОГО прошлое законно:
+        # это точка отсчёта повтора («по вторникам с сентября»).
+        if starts_at > now_ts + 2 * 366 * 86400:
+            return {"ok": False, "error": "Проверьте дату: урок не может быть так далеко."}
+        if not p.get("repeatWeekly") and starts_at < now_ts - 86400:
+            return {"ok": False, "error": "Проверьте дату: урок уже прошёл."}
+        duration = int(p.get("durationMin") or 60)
+        if duration not in (30, 45, 60, 90):
+            duration = 60
+        # Доска необязательна, но если указана — только своя: привязка
+        # ученику чужой доски открыла бы её содержимое постороннему.
+        board_id = None
+        if p.get("boardId"):
+            board = db.get_board(int(p.get("boardId")))
+            if not board or board["tutor_id"] != tutor["id"]:
+                return {"ok": False, "error": "Доска не найдена."}
+            board_id = board["id"]
+        row = db.create_lesson(
+            tutor["id"], stu["id"], starts_at, duration,
+            repeat_weekly=bool(p.get("repeatWeekly")),
+            title=str(p.get("title") or ""), board_id=board_id)
+        return {"ok": True, "lesson": db.lesson_public(row)}
+
+    @staticmethod
+    def tutor_lesson_del(h, p):
+        tutor, err = verified_tutor(p)
+        if err:
+            return err
+        db.cancel_lesson(tutor["id"], int(p.get("id") or 0))
+        return {"ok": True}
+
+    @staticmethod
+    def student_lessons(h, p):
+        row, err = student_owner(p)
+        if err:
+            return err
+        # Будущие + сегодняшние: полуночь по локали сервера. Пояс ученика
+        # не знаем, а «сегодня» считать по Гринвичу — значит врать вечером.
+        local = time.localtime()
+        midnight = time.mktime((local.tm_year, local.tm_mon, local.tm_mday,
+                                0, 0, 0, 0, 0, -1))
+        return {"ok": True, "lessons": [
+            db.lesson_public(x, from_ts=midnight)
+            for x in db.list_lessons_for_student(row["id"], midnight)]}
 
     @staticmethod
     def tutor_add_word(h, p):
@@ -3098,6 +3192,10 @@ ROUTES = {
     "/api/tutor/student/delete": Api.tutor_student_delete,
     "/api/tutor/homework": Api.tutor_homework_create,
     "/api/tutor/homework/archive": Api.tutor_homework_archive,
+    "/api/tutor/lessons": Api.tutor_lessons,
+    "/api/tutor/lesson-add": Api.tutor_lesson_add,
+    "/api/tutor/lesson-del": Api.tutor_lesson_del,
+    "/api/student/lessons": Api.student_lessons,
     "/api/tutor/tasksets": Api.tutor_tasksets,
     "/api/tutor/taskset/save": Api.tutor_taskset_save,
     "/api/tutor/taskset/delete": Api.tutor_taskset_delete,

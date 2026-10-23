@@ -604,6 +604,24 @@ async function openStudent(id) {
       </div>
     </details>
 
+    <p class="stat-label" style="margin-top:18px">Расписание</p>
+    <div id="sched-list" class="sched-list"></div>
+    <div class="sched-form">
+      <input type="date" id="sched-date" class="type-input">
+      <input type="time" id="sched-time" class="type-input" value="17:00">
+      <select id="sched-dur" class="type-input">
+        <option value="30">30 мин</option>
+        <option value="45">45 мин</option>
+        <option value="60" selected>60 мин</option>
+        <option value="90">90 мин</option>
+      </select>
+      <label class="sched-weekly">
+        <input type="checkbox" id="sched-weekly"> каждую неделю
+      </label>
+      <button class="btn btn-primary btn-small" id="sched-add">Добавить</button>
+      <p class="type-feedback" id="sched-msg"></p>
+    </div>
+
     <p class="stat-label" style="margin-top:18px">Заметка (видите только вы)</p>
     <textarea id="stu-note" class="type-input type-area" rows="3"
       placeholder="Например: пропускает вторники, догнать времена">${esc(s.note || "")}</textarea>
@@ -614,6 +632,61 @@ async function openStudent(id) {
     <p class="type-feedback" id="note-msg"></p>`;
 
   openModal("stu-modal");
+
+  // Расписание уроков ученика. Список приехал вместе с карточкой
+  // (res.lessons — см. tutor_student_detail), локальная копия — чтобы
+  // после добавления/удаления перерисовать без повторной загрузки.
+  const schedState = { list: (res.lessons || []).slice() };
+  const schedList = $("sched-list"), schedMsg = $("sched-msg");
+  const fmtWhen = ts => {
+    const d = new Date(ts * 1000);
+    const wd = ["вс", "пн", "вт", "ср", "чт", "пт", "сб"][d.getDay()];
+    const mon = ["янв", "фев", "мар", "апр", "мая", "июн",
+                 "июл", "авг", "сен", "окт", "ноя", "дек"][d.getMonth()];
+    const hm = String(d.getHours()).padStart(2, "0") + ":"
+             + String(d.getMinutes()).padStart(2, "0");
+    return `${wd}, ${d.getDate()} ${mon}, ${hm}`;
+  };
+  const renderSched = () => {
+    schedState.list.sort((a, b) => a.startsAt - b.startsAt);
+    schedList.innerHTML = schedState.list.length
+      ? schedState.list.map(l => `
+        <div class="sched-row">
+          <span class="sched-when">${fmtWhen(l.startsAt)} · ${l.durationMin} мин${
+            l.repeatWeekly ? ` <span class="sched-rep" title="Каждую неделю">↻</span>` : ""}</span>
+          <button class="link-btn sched-del" data-del="${l.id}" title="Убрать урок">✕</button>
+        </div>`).join("")
+      : `<p class="muted-small">Уроков не запланировано — добавьте первый,
+         и ученик увидит пометку у себя на главной.</p>`;
+    schedList.querySelectorAll("[data-del]").forEach(b => {
+      b.addEventListener("click", async () => {
+        const id = Number(b.dataset.del);
+        const r = await api("/api/tutor/lesson-del", { token: token(), id });
+        if (!r.ok) { schedMsg.textContent = r.error || "Не получилось."; return; }
+        schedState.list = schedState.list.filter(x => x.id !== id);
+        renderSched();
+      });
+    });
+  };
+  renderSched();
+  $("sched-add").addEventListener("click", async () => {
+    const date = $("sched-date").value, time = $("sched-time").value;
+    if (!date || !time) { schedMsg.textContent = "Нужны и дата, и время."; return; }
+    // Местное время репетитора: ученик живёт в том же городе, а unix
+    // не зависит от того, кто в каком поясе смотрит.
+    const startsAt = Math.round(new Date(date + "T" + time).getTime() / 1000);
+    if (!startsAt) { schedMsg.textContent = "Проверьте дату."; return; }
+    schedMsg.textContent = "";
+    const r = await api("/api/tutor/lesson-add", {
+      token: token(), studentId: s.id, startsAt,
+      durationMin: Number($("sched-dur").value),
+      repeatWeekly: $("sched-weekly").checked,
+    });
+    if (!r.ok) { schedMsg.textContent = r.error || "Не получилось."; return; }
+    schedState.list.push(r.lesson);
+    $("sched-weekly").checked = false;
+    renderSched();
+  });
 
   // Словарь ученика в карточке: список со статусами, удаление слова
   // (/api/tutor/delete-word), добавление (та же ручка, что с доски).
