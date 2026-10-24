@@ -237,6 +237,10 @@
   <div class="bd-panel-head">
     <b>Словарь ученика</b>
     <span class="bd-hint" id="bd-dict-count"></span>
+    <!-- Форма добавления свёрнута по умолчанию: раскрытая она съедала
+         треть панели, и список слов уезжал за нижний край без скролла
+         (скрин владельца «где её слова»). Открывается по «+ слово». -->
+    <button class="bd-btn" id="bd-panel-add-toggle" hidden>+ слово</button>
     <button class="bd-btn" id="bd-panel-close" aria-label="Закрыть">✕</button>
   </div>
   <select id="bd-student" class="bd-select"></select>

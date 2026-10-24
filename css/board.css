@@ -312,7 +312,7 @@
   padding: 8px 4px 2px;
   text-transform: uppercase;
 }
-.bd-word-list { overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+.bd-word-list { overflow-y: auto; display: flex; flex-direction: column; gap: 6px; min-height: 0; flex: 1; }
 .bd-word {
   display: flex; align-items: baseline; gap: 8px;
   padding: 9px 12px;

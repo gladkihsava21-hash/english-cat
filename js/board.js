@@ -3900,11 +3900,19 @@ $("bd-words").addEventListener("click", () => {
     if (!BOOKS.length) loadBooks();
   }
   // Форма «добавить слово» — репетиторская (ученик добавляет себе сам,
-  // у него своя кнопка в шапке и у карточек)
+  // у него своя кнопка в шапке и у карточек). По умолчанию свёрнута:
+  // показываем только тумблер «+ слово», саму форму он раскрывает сам.
   if ($("bd-panel-add")) {
-    $("bd-panel-add").hidden = panel.hidden || BD.role !== "tutor";
-    if (!$("bd-panel-add").hidden) refreshPanelFolders();
+    $("bd-panel-add").hidden = true;
+    if ($("bd-panel-add-toggle"))
+      $("bd-panel-add-toggle").hidden = panel.hidden || BD.role !== "tutor";
   }
+});
+
+$("bd-panel-add-toggle").addEventListener("click", () => {
+  const f = $("bd-panel-add");
+  f.hidden = !f.hidden;
+  if (!f.hidden) { refreshPanelFolders(); $("bd-add-w").focus(); }
 });
 
 /* Папки в форме добавления — из словаря выбранного ученика. */
