@@ -3120,6 +3120,19 @@ addEventListener("hashchange", screenFromHash);
 if (state.user && state.level) {
   show("dashboard");
   ensureWords().then(() => { renderDashboard(); }).catch(() => {});
+  // Подсказки первого входа: 4–5 плашек по главным кнопкам, один раз
+  // (флаг в состоянии ученика — живёт и в синхронизации).
+  document.addEventListener("DOMContentLoaded", () => {
+    if (!state.coachSeen && typeof runCoachmarks === "function") {
+      runCoachmarks([
+        { sel: '[data-nav="dashboard"]', text: "Главная — задание дня и твой прогресс. Заглядывай сюда каждый день." },
+        { sel: '[data-nav="practice"]', text: "Тренировки — карточки и упражнения на слова. Пять минут в день — и слова твои." },
+        { sel: '[data-nav="dictionary"]', text: "Словарь — все слова, что ты учишь и уже знаешь." },
+        { sel: '[data-nav="chat"]', text: "Чат с Савелием — спрашивай про английский что угодно." },
+        { sel: "#nav-lesson", text: "Урок с репетитором — доска и звонок прямо на сайте, ничего ставить не нужно." },
+      ], () => { state.coachSeen = true; saveStateQuiet(); });
+    }
+  });
   // Ссылка на тренировку главнее главной. Вызов — строго после
   // DOMContentLoaded: этот блок исполняется при разборе app.js, когда
   // exercises.js (там живёт отрисовка «Тренировок») ещё не распарсен,

@@ -220,6 +220,13 @@ function renderPlan() {
       </div>
       <div class="xp-bar"><div class="xp-bar-fill${left === 0 ? " full" : ""}" style="width:${pct}%"></div></div>
       <p class="muted-note">${left ? `Свободно мест: ${left}` : "Мест не осталось — новый ученик не сможет подключиться по ссылке"}</p>
+      <!-- Подпись, что входит по ИИ (владелец): на платном тарифе —
+          безлимит чата, проверка фото и разбор недели; на бесплатном —
+          честные 10 сообщений в день ученику. -->
+      <p class="muted-note plan-ai">${t.access === "paid"
+        ? "ИИ в вашем тарифе: чат с Савелием безлимитно ✓ · проверка фото ✓ · разбор недели ✓"
+        : "ИИ сейчас: чат с Савелием — 10 сообщений в день у ученика. "
+          + "На платном тарифе: чат безлимитно ✓ · проверка фото ✓ · разбор недели ✓"}</p>
       <div class="plan-actions">
         <button class="btn btn-primary btn-small" id="add-slot-btn">Добавить место — ${planData.extraPrice} ₽/мес</button>
         <button class="btn btn-ghost btn-small" id="add-slot5-btn">Добавить 5 мест — ${planData.extraPrice * 5} ₽/мес</button>
@@ -250,6 +257,8 @@ function renderPlan() {
           <span class="plan-row-price">${pl.price ? pl.price + " ₽/мес" : "—"}</span>
         </div>`).join("")}
     </div>
+    <p class="muted-note">Во все платные тарифы входит ИИ: чат с Савелием безлимитно ✓ ·
+      проверка фото тетрадей ✓ · разбор ошибок недели ✓. На бесплатном — чат 10 сообщений в день.</p>
     <p class="reset-note">Счёт и смена тарифа — в телеграме
       <a class="tg-link" href="https://t.me/KOTSAVELII" target="_blank" rel="noopener">@KOTSAVELII</a>.</p>`;
 

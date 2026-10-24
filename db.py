@@ -200,6 +200,14 @@ CREATE TABLE IF NOT EXISTS call_msgs (
 );
 CREATE INDEX IF NOT EXISTS idx_call_board ON call_msgs(board_id, id);
 
+-- Недельный разбор ошибок ученика: генерируется лениво при открытии
+-- карточки (крона на шаред-хостинге нет), кеш — неделя.
+CREATE TABLE IF NOT EXISTS weekly_digest (
+    student_id  INTEGER PRIMARY KEY,
+    text        TEXT NOT NULL DEFAULT '',
+    built_at    INTEGER NOT NULL DEFAULT 0
+);
+
 -- Ограничение частоты запросов. Раньше счётчик был обычным словарём
 -- в памяти процесса — и на боевом хостинге не работал ВООБЩЕ.
 -- Запросы там обслуживает не один процесс, а сколько поднимет Apache,
@@ -392,6 +400,8 @@ MIGRATIONS = [
     # Телемост, что угодно. Хранится у РЕПЕТИТОРА, а не у ученика: комната
     # у него одна, а учеников двадцать.
     ("tutors", "lesson_url", "TEXT DEFAULT ''"),
+    # Показаны ли coachmarks первого входа (один раз на репетитора)
+    ("tutors", "coach_seen", "INTEGER DEFAULT 0"),
     # Когда репетитор нажал «начать урок». Ученик по этому времени видит
     # «идёт урок» и не заходит в пустую комнату гадать, придёт ли кто-то.
     ("tutors", "lesson_open_at", "TEXT"),
@@ -1910,6 +1920,7 @@ def tutor_public(row):
         "trialHoursLeft": trial_left(row),
         "paidDaysLeft": paid_left(row),
         "trialDays": TRIAL_DAYS,
+        "coachSeen": bool(row["coach_seen"]) if "coach_seen" in keys else True,
         "lessonUrl": (row["lesson_url"] if "lesson_url" in keys else "") or "",
         "lessonLive": lesson_state(row)["live"],
         "notifyWork": notify_on(row, "work"),
@@ -3485,7 +3496,7 @@ def check_state(student_id):
     чтобы не заводить отдельную задачу в cron ради одной цифры."""
     row = conn().execute(
         "SELECT s.check_pack, s.checks_used, s.checks_extra, s.checks_period,"
-        "       t.checks_free "
+        "       t.checks_free, t.paid_until, t.trial_ends_at "
         "FROM students s JOIN tutors t ON t.id = s.tutor_id WHERE s.id=?",
         (student_id,)).fetchone()
     if not row:
@@ -3497,12 +3508,16 @@ def check_state(student_id):
     free = bool(row["checks_free"])
     pack = check_pack_by_id(row["check_pack"])
 
-    if free:
-        # Репетиторы, у которых проверка была включена в базовый тариф,
-        # получают самый большой пакет — но не безлимит: без потолка один
-        # сломанный клиент способен выесть месячный бюджет на ИИ.
+    if access_state(row) == "paid":
+        # Платный тариф включает проверку фото (решение владельца):
+        # потолок самого большого пакета в месяц — это защита бюджета от
+        # сломанного клиента, а не квота продаж.
         limit = CHECK_PACKS[-1]["limit"]
     elif pack:
+        # Купленные ранее пакеты не отменяем задним числом: человек
+        # заплатил — пользуется до конца месяца. Новых «бесплатных
+        # проверок» при этом нет: поле checks_free из раннего запуска
+        # игнорируется (помечено решением владельца).
         limit = pack["limit"]
     else:
         limit = 0
@@ -3533,8 +3548,11 @@ def use_check(student_id):
     if st is None:
         return False, None, "Ученик не найден."
     if st["limit"] <= 0:
-        return False, st, ("Проверка домашек не подключена. "
-                           "Попроси репетитора включить её в панели.")
+        # Текст-заглушка в стиле кота: ученик не виноват в чужом тарифе,
+        # поэтому не «запрещено», а «пока не подключено» + куда идти.
+        return False, st, ("Проверка фото — на платном тарифе. "
+                           "Попроси репетитора перейти: там и разбор фото, "
+                           "и безлимитный чат со мной, и разбор недели. 🐾")
     if st["overdraftLeft"] <= 0:
         return False, st, ("Проверки на этот месяц закончились. "
                            "Репетитор может докупить пакет побольше — "
@@ -3738,6 +3756,70 @@ def tutor_active(tutor_id):
         return False
     row = conn().execute("SELECT * FROM tutors WHERE id=?", (tutor_id,)).fetchone()
     return bool(row) and access_state(row) != "expired"
+
+
+def tutor_is_paid(tutor_id):
+    """Репетитор на активном ПЛАТНОМ тарифе (не триал и не expired).
+    Фичи ИИ-тарифа — безлимит чата, проверка фото, разбор недели —
+    только за него (решение владельца); tutor_active шире, он включает
+    и триал, поэтому для тарифных фич отдельная точка правды здесь."""
+    if not tutor_id:
+        return False
+    row = conn().execute("SELECT * FROM tutors WHERE id=?", (tutor_id,)).fetchone()
+    return bool(row) and access_state(row) == "paid"
+
+
+# ---------- недельный разбор ошибок ----------
+
+DIGEST_TTL = 7 * 86400   # кеш разбора недели — собственно неделя
+
+
+def digest_get_fresh(student_id):
+    """Свежий кеш разбора (моложе DIGEST_TTL) или None."""
+    row = conn().execute(
+        "SELECT text, built_at FROM weekly_digest WHERE student_id=?",
+        (student_id,)).fetchone()
+    if row and row["text"] and int(time.time()) - int(row["built_at"] or 0) < DIGEST_TTL:
+        return {"text": row["text"], "builtAt": int(row["built_at"])}
+    return None
+
+
+def digest_put(student_id, text):
+    conn().execute(
+        "INSERT INTO weekly_digest (student_id, text, built_at) VALUES (?, ?, ?) "
+        "ON CONFLICT(student_id) DO UPDATE SET text=excluded.text,"
+        " built_at=excluded.built_at",
+        (student_id, text, int(time.time())))
+    conn().commit()
+
+
+def digest_data(student_id):
+    """Компактные агрегаты для недельного разбора: сжатое состояние ученика,
+    а не весь журнал — оно и в модель едет, и в карточке видно."""
+    row = get_student_by_id(student_id)
+    if not row:
+        return None
+    dictionary = json.loads(row["dictionary"] or "[]")
+    # топ забытых — те же «проблемные слова», что в карточке репетитора
+    weak = sorted(
+        [d for d in dictionary
+         if (d.get("forgot") or 0) > 0 and (d.get("forgot") or 0) >= (d.get("knew") or 0)],
+        key=lambda d: (d.get("forgot") or 0) - (d.get("knew") or 0),
+        reverse=True)[:6]
+    overdue, scheduled = student_overdue(dictionary)
+    activity = json.loads(row["activity"] or "{}")
+    return {
+        "name": row["name"],
+        "level": row["level"] or "A1",
+        "streak": row["streak"] or 0,
+        "xpWeek": xp_since(activity, 7),
+        "overdue": overdue,
+        "scheduled": scheduled,
+        "wordsTotal": len(dictionary),
+        "weak": [{"w": d.get("w"), "t": d.get("t"),
+                  "forgot": d.get("forgot") or 0, "knew": d.get("knew") or 0}
+                 for d in weak],
+    }
 
 
 def access_state(row):

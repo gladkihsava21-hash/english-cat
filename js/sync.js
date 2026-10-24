@@ -1135,9 +1135,9 @@ function renderLessonBox() {
   box.classList.remove("hidden");
   box.classList.toggle("lesson-live", live);
   const tutorName = localStorage.getItem("savelyTutorName") || "репетитор";
-  // Главный путь — наш видеоурок на доске (звонок + доска, ничего не
-  // ставить). Ссылка на Zoom/Телемост, если репетитор её задал, остаётся
-  // запасным путём — привычки и запасной аэродром никто не отменял.
+  // Главный и ЕДИНСТВЕННЫЙ путь — наш видеоурок на доске (звонок + доска,
+  // ничего не ставить). Внешней ссылки на Zoom/Телемост у ученика больше
+  // нет: «запасной путь» убрали решением владельца — две кнопки путали.
   box.innerHTML = `
     <div class="card lesson-card">
       <div class="cat-avatar cat-small" data-cat="${live ? "happy" : "hello"}"></div>
@@ -1151,9 +1151,6 @@ function renderLessonBox() {
       </div>
       ${hasTutor ? `<a class="btn ${live ? "btn-primary" : "btn-ghost"} lesson-go"
          href="board.html#video">На урок</a>` : ""}
-      ${l.url ? `<a class="btn btn-ghost lesson-go lesson-go-ext"
-         href="${esc(l.url)}" target="_blank" rel="noopener noreferrer">${
-           hasTutor ? "В " + (l.url.includes("telemost") ? "Телемост" : "Zoom") : "На урок"}</a>` : ""}
     </div>`;
   if (typeof paintCats === "function") paintCats(box);
 }

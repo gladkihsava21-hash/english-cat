@@ -57,6 +57,14 @@
   font-size: 13px; padding: 2px 6px; border-radius: 6px;
 }
 .dict-del:hover { color: var(--red); background: var(--accent-soft); }
+
+/* Разбор недели в карточке ученика (платный тариф): акцентная карточка,
+   чтобы не сливалась со статистикой */
+.week-digest {
+  margin-top: 18px;
+  border-left: 3px solid var(--accent-line);
+}
+.week-digest-text { margin: 6px 0 0; line-height: 1.55; }
 .stu-dict-add { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
 .stu-dict-add-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .stu-dict-add-row .type-input { flex: 1; min-width: 120px; }

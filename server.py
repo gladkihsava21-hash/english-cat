@@ -981,6 +981,71 @@ def render_book_page(book_id, page):
 
 # ---------- API ----------
 
+# ---------- недельный разбор ошибок (платный тариф) ----------
+
+def digest_template(data):
+    """Разбор недели без нейросети: честный шаблон из тех же агрегатов.
+    Нужен и как запасной путь при сбое модели, и в тестах без ключей."""
+    parts = []
+    weak = data["weak"]
+    if weak:
+        words = ", ".join("«%s» (%s)" % (x["w"], x["t"]) for x in weak[:4])
+        parts.append("Топ забытых слов недели: %s — они просятся в "
+                     "карточки." % words)
+    else:
+        parts.append("Забытых слов за неделю нет — словарный запас держится.")
+    if data["overdue"]:
+        parts.append("Ждут повторения: %d %s." % (
+            data["overdue"],
+            "слово" if data["overdue"] == 1 else
+            "слова" if data["overdue"] < 5 else "слов"))
+    tips = []
+    if weak:
+        tips.append("прогнать «Карточки» по слабым словам (5–7 минут в день)")
+    if data["overdue"]:
+        tips.append("начать урок с повторения просроченного, новое — после")
+    if data["streak"] < 3:
+        tips.append("ритм важнее длины: короткое занятие каждый день, "
+                    "чем длинный раз в неделю")
+    if not tips:
+        tips.append("держать темп: разбор следующей недели скажет больше")
+    parts.append("Рекомендации: " + "; ".join(tips) + ".")
+    return " ".join(parts)
+
+
+def build_weekly_digest(student_id):
+    """Разбор недели по ученику: агрегаты компактно (db.digest_data),
+    YandexGPT-lite, когда она есть; без неё — тот же смысл шаблоном.
+    Кладём в кеш на неделю — дергается раз в неделю, а не на каждое
+    открытие карточки."""
+    data = db.digest_data(student_id)
+    if not data:
+        return None
+    text = None
+    if alice_ready():
+        weak = "; ".join("%s (%s) forgot %d/knew %d"
+                         % (x["w"], x["t"], x["forgot"], x["knew"])
+                         for x in data["weak"]) or "нет"
+        prompt = (
+            "Ты — Савелий, кот-помощник репетитора по английскому. Дай "
+            "разбор недели ученика репетитору: 3–4 предложения по делу, "
+            "тепло, без воды. Сначала главную проблему, потом что хорошо, "
+            "в конце 2–3 конкретные рекомендации заданий (карточки, "
+            "повторение, чтение, диктант). Данные: имя %s, уровень %s, "
+            "стрик %d дн., очков за неделю %d, ждут повторения %d из %d, "
+            "всего слов %d. Топ забытых слов (забыл/знал): %s."
+            % (data["name"], data["level"], data["streak"], data["xpWeek"],
+               data["overdue"], data["scheduled"], data["wordsTotal"], weak))
+        try:
+            text = _alice_complete(ALICE_CHAT_MODEL, prompt, max_tokens=450)
+        except Exception:
+            text = None
+    if not text:
+        text = digest_template(data)
+    db.digest_put(student_id, text)
+    return {"text": text, "builtAt": int(time.time())}
+
+
 class Api:
     """Каждый метод получает (handler, payload) и возвращает dict."""
 
@@ -1108,8 +1173,18 @@ class Api:
         future = db.list_lessons_for_student(row["id"], midnight)
         lessons = [db.lesson_public(x) for x in future
                    if x["tutor_id"] == tutor["id"]]
-        return {"ok": True, "student": db.student_public(row, hw, detail=True),
-                "lessons": lessons}
+        res = {"ok": True, "student": db.student_public(row, hw, detail=True),
+               "lessons": lessons}
+        # Разбор недели — фича платного тарифа: неплатным секция не едет
+        # вовсе. Генерация ленивая при открытии карточки, кеш неделя в БД
+        # (крона на шаред-хостинге нет — поэтому не по расписанию).
+        if db.tutor_is_paid(tutor["id"]):
+            dg = db.digest_get_fresh(row["id"])
+            if not dg:
+                dg = build_weekly_digest(row["id"])
+            if dg:
+                res["student"]["weekDigest"] = dg
+        return res
 
     # --- расписание уроков ---
     #
@@ -2274,6 +2349,18 @@ class Api:
                 "plans": db.PLANS, "extraPrice": db.EXTRA_STUDENT_PRICE}
 
     @staticmethod
+    def tutor_coach_seen(h, p):
+        """Отметить показ coachmarks первого входа: один раз на репетитора,
+        флаг в базе, а не в браузере — с другого устройства серия не
+        покажется заново."""
+        tutor, err = verified_tutor(p)
+        if err:
+            return err
+        db.conn().execute("UPDATE tutors SET coach_seen=1 WHERE id=?", (tutor["id"],))
+        db.conn().commit()
+        return {"ok": True}
+
+    @staticmethod
     def tutor_add_slot(h, p):
         """Расширить лимит на N учеников. Оплата пока не подключена —
         место открывается сразу, счёт выставляется вручную."""
@@ -2600,7 +2687,9 @@ class Api:
         if not allowed:
             db.set_photo_check(photo["id"], "no_quota", None)
             notify_tutor_later(row["tutor_id"], row["name"])
-            return {"ok": True, "quota": quota, "notice": why,
+            # paywall=true — клиент показывает не просто «нет проверок»,
+            # а заглушку тарифа с кнопкой «Тарифы» (волна ИИ-платки)
+            return {"ok": True, "quota": quota, "notice": why, "paywall": True,
                     "photo": db.photo_public(db.get_photo(photo["id"]))}
 
         try:
@@ -2773,7 +2862,9 @@ class Api:
     # ключе Claude один увлёкшийся ученик выел бы месяц за вечер, а гость
     # с витрины не ограничен вообще ничем, кроме частоты. Каждое сообщение
     # стоит реальных денег — потолки must have (чек-лист совладельца, п. 1).
-    CHAT_DAILY_STUDENT = 40   # сообщений ученику в сутки; средний день — 5
+    CHAT_DAILY_STUDENT = 10   # ученику бесплатного/триального репетитора
+                              # в сутки (тарификация ИИ — владелец);
+                              # ученику платного — без дневного потолка
     CHAT_DAILY_SOLO = 15      # одиночке без репетитора: чат оставляем, но
                               # скромно — за его нейросеть никто не платит
     CHAT_DAILY_GUEST = 15     # гостю с витрины на адрес в сутки — попробовать хватает
@@ -2841,8 +2932,13 @@ class Api:
             return {"ok": True, "limitReached": True,
                     "reply": "Мур… пока занятия на паузе, я вздремну. "
                              "Карточки и тренировки со мной всегда — пойдём туда? 🐈"}
-        # Дневной потолок проверяем ДО списания месячной квоты: отказ
-        # не должен съедать сообщение из месяца.
+        # Дневной потолок по тарифу РЕПЕТИТОРА (решение владельца):
+        # ученики платных репетиторов болтают без дневного потолка
+        # (месячный fair-use use_chat остаётся защитой от сломанного
+        # клиента — это не квота, а страховка), ученики бесплатных и
+        # триальных — 10 сообщений в день. Счётчик дня живёт в rate_hits
+        # — той же таблице БД, где лежат все частотные лимиты: сброс
+        # «завтра» получается сам окном в 86400 с, без крона.
         # Гость — единственный, кого не держит именной счётчик use_chat.
         # Кроме дневного лимита на (спуфимый) адрес ставим ОБЩИЙ потолок
         # гостевых вызовов в сутки: его ротацией заголовка не обойти.
@@ -2850,13 +2946,17 @@ class Api:
             return {"ok": True, "limitReached": True,
                     "reply": "Мяу! Сегодня меня уже много спрашивали — загляни завтра "
                              "или заведи свой кабинет, там я болтаю без очереди. 🐈"}
-        day_key = ("chat-day|%d" % row["id"]) if row else ("chat-guest|%s" % p.get("_ip"))
-        day_limit = (Api.CHAT_DAILY_STUDENT if row and row["tutor_id"]
-                     else Api.CHAT_DAILY_SOLO if row else Api.CHAT_DAILY_GUEST)
-        if not db.rate_hit(day_key, day_limit, 86400):
-            return {"ok": True, "limitReached": True,
-                    "reply": "Мур… на сегодня я наговорился — вернусь завтра со свежей головой! 🐈‍⬛ "
-                             "А карточки и тренировки со мной всегда, пойдём туда?"}
+        tutor_paid = bool(row and row["tutor_id"] and db.tutor_is_paid(row["tutor_id"]))
+        if not tutor_paid:
+            day_key = ("chat-day|%d" % row["id"]) if row else ("chat-guest|%s" % p.get("_ip"))
+            day_limit = (Api.CHAT_DAILY_STUDENT if row and row["tutor_id"]
+                         else Api.CHAT_DAILY_SOLO if row else Api.CHAT_DAILY_GUEST)
+            if not db.rate_hit(day_key, day_limit, 86400):
+                return {"ok": True, "limitReached": True,
+                        "reply": "Савелий устал мурчать на сегодня 🐈‍⬛ "
+                                 "Безлимитно я болтаю, когда твой репетитор на платном "
+                                 "тарифе — скажи ему об этом! А карточки и тренировки "
+                                 "со мной всегда, пойдём туда?"}
         if row:
             allowed, quota = db.use_chat(row["id"])
             if not allowed:
@@ -3244,6 +3344,7 @@ ROUTES = {
     "/api/admin/errors/clear": Api.admin_errors_clear,
     "/api/tutor/notify/set": Api.tutor_notify_set,
     "/api/tutor/plan": Api.tutor_plan,
+    "/api/tutor/coach-seen": Api.tutor_coach_seen,
     "/api/tutor/add-slot": Api.tutor_add_slot,
     "/api/tutor/verify/send": Api.tutor_verify_send,
     "/api/tutor/verify/check": Api.tutor_verify_check,

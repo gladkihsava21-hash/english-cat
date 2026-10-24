@@ -239,8 +239,18 @@ async function loadStudents() {
   renderGroups();
   renderStudents();
   renderInvite();
-  if (typeof renderLesson === "function") renderLesson();
+  // «Запасного пути» через внешнюю комнату больше нет — рендерить нечего.
   if (typeof renderNotify === "function") renderNotify();
+  // Подсказки первого входа репетитора: один раз (флаг в базе, не в
+  // браузере — со второго устройства серия не покажется заново).
+  if (!tutor.coachSeen && typeof runCoachmarks === "function") {
+    runCoachmarks([
+      { sel: '[data-tab="students"]', text: "Ученики — прогресс каждого: слова, очки, домашки, отметка «был недавно»." },
+      { sel: '[data-tab="homework"]', text: "Выдать домашку — слова по теме из банка или своё задание текстом." },
+      { sel: '[data-tab="boards"]', text: "Доски — чистый лист на урок: вы пишете и рисуете вместе с учеником в одном окне." },
+      { sel: '[data-tab="checks"]', text: "Проверка домашек — фото тетрадей с разбором ИИ. Входит в платный тариф." },
+    ], () => { api("/api/tutor/coach-seen", { token: token() }); });
+  }
   if (typeof fillGameSelect === "function") fillGameSelect();
   fillStudentSelect();
   fillMsgTarget();
@@ -561,6 +571,15 @@ async function openStudent(id) {
 
     <p class="stat-label" style="margin-top:18px">Занятия за 4 недели</p>
     ${activityStrip(s.activity || {})}
+
+    ${s.weekDigest ? `
+      <!-- Разбор недели — фича платного тарифа: секция приезжает только
+           платным (сервер её просто не кладёт остальным). Кеш неделя. -->
+      <div class="card week-digest">
+        <p class="stat-label">Разбор недели · ${new Date(s.weekDigest.builtAt * 1000)
+          .toLocaleDateString("ru-RU", { day: "numeric", month: "long" })}</p>
+        <p class="week-digest-text">${esc(s.weekDigest.text)}</p>
+      </div>` : ""}
 
     ${s.homework && s.homework.filter(h => h.total || h.kind === "task").length ? `
       <p class="stat-label" style="margin-top:18px">Домашки</p>
@@ -1537,66 +1556,10 @@ document.getElementById("lesson-board-go")?.addEventListener("click", async () =
 });
 
 /* ===== Видеоурок =====
- * Комнату не создаём: у репетитора она своя. Наша работа — донести её до
- * ученика в нужный момент одной кнопкой. Расчёт, почему не встроенное
- * видео, лежит в db.py у LESSON_OPEN_MINUTES.
+ * Единственный путь — урок прямо на сайте (доска + звонок). «Запасного
+ * пути» через внешнюю комнату больше нет (решение владельца): две кнопки
+ * «на урок» у ученика путали, а свои звонки уже работают.
  */
-function renderLesson() {
-  const url = (tutor && tutor.lessonUrl) || "";
-  const input = $("lesson-url");
-  if (!input) return;
-  // Не затираем то, что человек печатает прямо сейчас: renderLesson
-  // зовётся и по таймеру обновления списка учеников.
-  if (document.activeElement !== input) input.value = url;
-  $("lesson-live-box").classList.toggle("hidden", !url);
-  const live = tutor && tutor.lessonLive;
-  $("lesson-open").classList.toggle("hidden", !!live);
-  $("lesson-close").classList.toggle("hidden", !live);
-  $("lesson-live-note").textContent = live
-    ? "Идёт урок — ученики видят кнопку «На урок»."
-    : "";
-}
-
-document.addEventListener("DOMContentLoaded", () => {
-  const save = $("lesson-save");
-  if (!save) return;
-
-  save.addEventListener("click", async () => {
-    const msg = $("lesson-msg");
-    msg.className = "type-feedback";
-    msg.textContent = "Сохраняю…";
-    const res = await api("/api/tutor/lesson/set", {
-      token: token(), url: $("lesson-url").value.trim(),
-    });
-    if (!res.ok) {
-      msg.className = "type-feedback err";
-      msg.textContent = res.error || "Не получилось сохранить.";
-      return;
-    }
-    msg.className = "type-feedback ok";
-    msg.textContent = res.url ? "Ссылка сохранена." : "Ссылка убрана — кнопки у учеников больше нет.";
-    if (tutor) { tutor.lessonUrl = res.url; tutor.lessonLive = false; }
-    renderLesson();
-  });
-
-  const toggle = async on => {
-    const msg = $("lesson-msg");
-    const res = await api("/api/tutor/lesson/open", { token: token(), on });
-    if (!res.ok) {
-      msg.className = "type-feedback err";
-      msg.textContent = res.error || "Не получилось.";
-      return;
-    }
-    if (tutor) tutor.lessonLive = on;
-    msg.className = "type-feedback ok";
-    msg.textContent = on
-      ? `Ученики приглашены. Кнопка у них горит ${res.minutes} минут.`
-      : "Урок закрыт.";
-    renderLesson();
-  };
-  $("lesson-open").addEventListener("click", () => toggle(true));
-  $("lesson-close").addEventListener("click", () => toggle(false));
-});
 
 /* ===== Письма на почту =====
  * Два переключателя: «о новых работах» и «раз в неделю — кто пропал».
