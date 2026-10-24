@@ -2633,6 +2633,14 @@ function updateMiniPanel() {
     if (!p.hidden) { p.hidden = true; minipanelKey = ""; }
     return;
   }
+  // Открыт редактор текста — панель прячем: она наслаивается на редактор
+  // и на плавающую панель форматирования (скрин владельца: три панели
+  // одна на другой). Форматирование при этом доступно: в редакторе
+  // статичная и плавающая панели дублируют кнопки мини-панели.
+  if (editing) {
+    if (!p.hidden) { p.hidden = true; minipanelKey = ""; }
+    return;
+  }
   const ids = selIds().filter(id => BD.objects.has(id));
   if (!ids.length) {
     if (!p.hidden) { p.hidden = true; minipanelKey = ""; }
