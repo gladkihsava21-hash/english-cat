@@ -632,6 +632,22 @@ document.addEventListener("DOMContentLoaded", () => {
     box.appendChild(v);
     v.play().catch(() => { /* не дали автозапуск — остаются кнопки плеера */ });
   });
+  // Подробная обучалка (5 минут): тот же ленивый плеер в том же блоке,
+  // файл другой — tutorial.mp4, версия общая с туром (data-v блока).
+  const tut = document.getElementById("tutorial-play");
+  if (tut) tut.addEventListener("click", () => {
+    const v = document.createElement("video");
+    const ver = box.dataset.v ? "?v=" + box.dataset.v : "";
+    v.src = "video/tutorial.mp4" + ver;
+    v.poster = "video/tour-poster.jpg" + ver;
+    v.controls = true;
+    v.playsInline = true;
+    v.preload = "auto";
+    v.setAttribute("aria-label", "Подробная обучалка по сайту");
+    box.innerHTML = "";
+    box.appendChild(v);
+    v.play().catch(() => {});
+  });
 });
 
 /** Открыть окно выхода. Раньше оно вызывалось только из шапки, а шапка

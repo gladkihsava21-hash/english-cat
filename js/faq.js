@@ -80,3 +80,20 @@
     }
   }
 })();
+
+// Видео-обучалка: ленивый плеер, как у тура на главной — файл тянем
+// только по клику, версия из data-v блока (проставляет bump).
+document.getElementById("fq-tutorial-play")?.addEventListener("click", () => {
+  const box = document.getElementById("fq-video");
+  const v = document.createElement("video");
+  const ver = box.dataset.v ? "?v=" + box.dataset.v : "";
+  v.src = "video/tutorial.mp4" + ver;
+  v.poster = "video/tour-poster.jpg" + ver;
+  v.controls = true;
+  v.playsInline = true;
+  v.preload = "auto";
+  v.setAttribute("aria-label", "Подробная обучалка по сайту");
+  box.innerHTML = "";
+  box.appendChild(v);
+  v.play().catch(() => {});
+});
