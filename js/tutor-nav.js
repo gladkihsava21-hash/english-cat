@@ -22,13 +22,19 @@
 
   /** Переставить подсветку под активный пункт.
    *  Считаем от смещения внутри полосы, а не от координат окна: полоса
-   *  прокручивается, и оконные координаты «уезжают» вместе с ней. */
+   *  прокручивается, и оконные координаты «уезжают» вместе с ней.
+   *  Y нужен в двухрядном десктопном режиме: маркер стоит в ряду кнопки,
+   *  а не всегда в первом (offsetTop минус отступ маркера сверху). */
   function moveMarker(instant) {
     const active = strip.querySelector(".nav-btn.active");
     if (!active) { marker.classList.remove("ready"); return; }
     if (instant) marker.style.transition = "none";
     marker.style.width = active.offsetWidth + "px";
-    marker.style.transform = `translateX(${active.offsetLeft}px)`;
+    // высота — тоже от кнопки: иначе в двухрядном режиме рамка (top+bottom
+    // в CSS) растягивалась бы на обе строки сразу
+    marker.style.height = active.offsetHeight + "px";
+    marker.style.transform =
+      `translate(${active.offsetLeft}px, ${active.offsetTop - 4}px)`;
     marker.classList.add("ready");
     if (instant) {
       // Возвращаем плавность в следующем кадре: иначе первое же нажатие

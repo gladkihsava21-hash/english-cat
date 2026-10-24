@@ -341,6 +341,45 @@ function drawStrokeTail(o) {
   o._tailDone = n;
 }
 
+/** Текст по центру фигуры: перенос по ширине, кегль из o.size (A−/A+),
+ *  вертикальное центрирование по строкам. Разметка та же, что в drawText. */
+function drawShapeText(o) {
+  const lh = textLH(o.size);
+  const px = lh * 0.86;
+  const pad = Math.max(10, px * 0.6);
+  const maxW = Math.abs(o.w) - pad * 2;
+  const lines = layoutRichText(o.text, maxW, px, "600");
+  const totalH = lines.length * lh;
+  let ty = o.y + (o.h - totalH) / 2;
+  const cx = o.x + o.w / 2;
+  ctx.fillStyle = cssColor(o.color && o.color !== "ink" ? o.color : "ink");
+  ctx.textBaseline = "top";
+  for (const ln of lines) {
+    // каждую строку центруем по её собственной ширине
+    let lineW = 0;
+    ln.segs.forEach(seg => {
+      ctx.font = richFont(seg, px, "600");
+      lineW += ctx.measureText(seg.text).width + px * RICH_SPACE_K;
+    });
+    let tx = cx - lineW / 2;
+    for (const seg of ln.segs) {
+      ctx.font = richFont(seg, px, "600");
+      ctx.fillText(seg.text, tx, ty);
+      const w = ctx.measureText(seg.text).width;
+      if (seg.u || seg.s) {
+        ctx.strokeStyle = ctx.fillStyle;
+        ctx.lineWidth = Math.max(1, px * 0.06);
+        ctx.beginPath();
+        ctx.moveTo(tx, seg.u ? ty + px * 0.92 : ty + px * 0.5);
+        ctx.lineTo(tx + w, seg.u ? ty + px * 0.92 : ty + px * 0.5);
+        ctx.stroke();
+      }
+      tx += w + px * RICH_SPACE_K;
+    }
+    ty += lh;
+  }
+}
+
 function bgMode() {  // Фон — общий объект доски (id зашит): меняет один, видят оба.
   const o = BD.objects.get("board-bg");
   return (o && o.text) || "dots";
@@ -551,6 +590,9 @@ function drawObject(o) {
     if (o.kind === "rect") roundRect(o.x, o.y, o.w, o.h, 8);
     else ctx.ellipse(o.x + o.w / 2, o.y + o.h / 2, Math.abs(o.w / 2), Math.abs(o.h / 2), 0, 0, 7);
     ctx.stroke();
+    // Текст внутри фигуры (волна 6): по центру, перенос по ширине фигуры,
+    // разметка форматирования — та же, что у текстового объекта
+    if (o.text) drawShapeText(o);
     return;
   }
 
@@ -1498,8 +1540,10 @@ canvas.addEventListener("pointerdown", e => {
       // редактируется и учителем — сначала сними замок.
       // Дабл-клик по заголовку фрейма — переименовать (заголовок —
       // единственная «хваталка» фрейма, заливка клики пропускает).
+      // Дабл-клик по фигуре — текст ВНУТРИ неё (волна 6, как в Miro).
       if (((hit.kind === "note" || hit.kind === "text") && (e.detail === 2 || isDouble))
-          || (hit.kind === "frame" && (e.detail === 2 || isDouble))) {
+          || (hit.kind === "frame" && (e.detail === 2 || isDouble))
+          || ((hit.kind === "rect" || hit.kind === "ellipse") && (e.detail === 2 || isDouble))) {
         e.preventDefault();
         if (hit.locked) toast("Закреплено — сначала сними замок у рамки.");
         else openEditor(hit);
@@ -1594,8 +1638,11 @@ canvas.addEventListener("pointerdown", e => {
     // Клик по УЖЕ существующей заметке или тексту — редактирование, а не
     // новая запись поверх: «дописать» — самое частое, что делают дальше.
     // Залоченное не редактируется (замок это и «не менять»).
+    // Фигура С текстом — тоже редактирование её текста (волна 6), а не
+    // новый текст поверх фигуры.
     const hit = hitTest(w.x, w.y);
-    if (hit && (hit.kind === "note" || hit.kind === "text") && !hit.locked) {
+    if (hit && (hit.kind === "note" || hit.kind === "text"
+        || ((hit.kind === "rect" || hit.kind === "ellipse") && hit.text)) && !hit.locked) {
       e.preventDefault();
       BD.selected = hit.id;
       openEditor(hit);
@@ -2181,6 +2228,9 @@ $("bd-editor-ok").addEventListener("click", () => {
   // У фрейма пустой заголовок — это нормально, объект не удаляем
   if (editing.kind === "frame") {
     put({ ...BD.objects.get(editing.id), title: text || "Фрейм" });
+  } else if (editing.kind === "rect" || editing.kind === "ellipse") {
+    // Текст внутри фигуры: пустой — просто без текста, фигура остаётся
+    put({ ...BD.objects.get(editing.id), text });
   } else if (!text) remove(editing.id, false);
   else {
     const o = { ...BD.objects.get(editing.id), text };
@@ -2258,6 +2308,89 @@ document.querySelectorAll("#bd-editor-fmt [data-fmt]").forEach(b => {
     editorWrapSelection({ b: "**", i: "*", u: "__", s: "~~" }[f],
                         { b: "**", i: "*", u: "__", s: "~~" }[f]);
   });
+});
+
+/* Плавающая панель форматирования НАД выделением (как в Word, волна 6):
+   появляется, когда в поле есть выделенный фрагмент, прячется при
+   снятии выделения или клике мимо. Кнопки — те же обёртки, что у
+   статичной панели снизу (editorWrapSelection/editorListLines). */
+let fmtFloatEl = null;
+function ensureFmtFloat() {
+  if (fmtFloatEl) return fmtFloatEl;
+  const el = document.createElement("div");
+  el.className = "bd-editor-fmt bd-fmt-float";
+  el.hidden = true;
+  el.innerHTML = `
+    <button type="button" class="bd-btn" data-fmt="b" title="Жирный"><b>B</b></button>
+    <button type="button" class="bd-btn" data-fmt="i" title="Курсив"><i>I</i></button>
+    <button type="button" class="bd-btn" data-fmt="u" title="Подчёркнуть"><u>U</u></button>
+    <button type="button" class="bd-btn" data-fmt="s" title="Зачеркнуть"><s>S</s></button>
+    <button type="button" class="bd-btn" data-fmt="ul" title="Список •">•</button>
+    <button type="button" class="bd-btn" data-fmt="ol" title="Нумерованный список">1.</button>`;
+  document.body.appendChild(el);
+  el.querySelectorAll("[data-fmt]").forEach(b => {
+    b.addEventListener("mousedown", e => e.preventDefault());
+    b.addEventListener("click", () => {
+      const f = b.dataset.fmt;
+      if (f === "ul") return editorListLines(false);
+      if (f === "ol") return editorListLines(true);
+      editorWrapSelection({ b: "**", i: "*", u: "__", s: "~~" }[f],
+                          { b: "**", i: "*", u: "__", s: "~~" }[f]);
+      updateFmtFloat();
+    });
+  });
+  fmtFloatEl = el;
+  return el;
+}
+
+/* Позиция каретки внутри textarea: зеркальный div с тем же шрифтом —
+   единственный способ без браузерного API (caret-rect у textarea нет). */
+function caretRectInTextarea(input, index) {
+  const cs = getComputedStyle(input);
+  const div = document.createElement("div");
+  div.style.cssText = "position:absolute;visibility:hidden;white-space:pre-wrap;"
+    + `overflow-wrap:break-word;font:${cs.font};line-height:${cs.lineHeight};`
+    + `padding:${cs.padding};width:${input.clientWidth}px;box-sizing:${cs.boxSizing};`;
+  div.textContent = input.value.slice(0, index);
+  const marker = document.createElement("span");
+  marker.textContent = input.value[index] || " ";
+  div.appendChild(marker);
+  document.body.appendChild(div);
+  const r = marker.getBoundingClientRect();
+  const dr = div.getBoundingClientRect();
+  div.remove();
+  return { top: r.top - dr.top, left: r.left - dr.left };
+}
+
+function updateFmtFloat() {
+  const input = $("bd-editor-input");
+  const el = ensureFmtFloat();
+  const collapsed = input.selectionStart === input.selectionEnd;
+  if ($("bd-editor").hidden || collapsed || document.activeElement !== input) {
+    el.hidden = true;
+    return;
+  }
+  const er = $("bd-editor").getBoundingClientRect();
+  const ir = input.getBoundingClientRect();
+  const caret = caretRectInTextarea(input, input.selectionStart);
+  const w = Math.min(240, innerWidth - 16);
+  el.style.width = w + "px";
+  // над выделением; не влезает — под ним; по горизонтали — в краях редактора
+  const x = Math.max(er.left + 6,
+    Math.min(er.right - w - 6, ir.left + caret.left - 20));
+  let y = ir.top + caret.top - 44;
+  if (y < er.top) y = ir.top + caret.top + 28;
+  el.style.left = Math.round(x) + "px";
+  el.style.top = Math.round(y) + "px";
+  el.hidden = false;
+}
+["select", "keyup", "mouseup"].forEach(ev =>
+  $("bd-editor-input").addEventListener(ev, updateFmtFloat));
+document.addEventListener("pointerdown", e => {
+  // клик мимо панели и поля — прячем (клик по кнопке не доходит сюда:
+  // mousedown на кнопках отменён)
+  if (fmtFloatEl && !fmtFloatEl.hidden && !fmtFloatEl.contains(e.target)
+      && e.target !== $("bd-editor-input")) fmtFloatEl.hidden = true;
 });
 
 /* ---------- панели ---------- */
@@ -2493,6 +2626,13 @@ let minipanelKey = "";
 function updateMiniPanel() {
   const p = $("bd-minipanel");
   if (!p) return;
+  // Во время перетаскивания/ресайза панель прячем: иначе она остаётся на
+  // старом месте и отвисает за объектом (видео владельца). На pointerup
+  // появится над новым положением — updateMiniPanel вызовется отрисовкой.
+  if (moving || resizing || groupMoving) {
+    if (!p.hidden) { p.hidden = true; minipanelKey = ""; }
+    return;
+  }
   const ids = selIds().filter(id => BD.objects.has(id));
   if (!ids.length) {
     if (!p.hidden) { p.hidden = true; minipanelKey = ""; }
@@ -2521,6 +2661,11 @@ function updateMiniPanel() {
   // «Переименовать» — только у одиночного фрейма: заголовок есть только у него
   const single = ids.length === 1 ? BD.objects.get(ids[0]) : null;
   $("bd-mp-rename").hidden = !(single && single.kind === "frame" && !single.locked);
+  // B/I/U — у одиночного стикера/текста: форматируют ВЕСЬ текст объекта
+  const fmtFor = single && (single.kind === "note" || single.kind === "text") && !single.locked;
+  $("bd-mp-bold").hidden = !fmtFor;
+  $("bd-mp-italic").hidden = !fmtFor;
+  $("bd-mp-under").hidden = !fmtFor;
   // Кубику — «Перебросить» и чипы граней (тоже только у одиночного)
   $("bd-mp-roll").hidden = !(single && single.kind === "dice" && !single.locked);
   const sd = $("bd-mp-sides");
@@ -2596,6 +2741,29 @@ $("bd-mp-roll").addEventListener("click", () => {
   const ids = selIds();
   if (ids.length !== 1) return;
   rollDice(BD.objects.get(ids[0]));
+});
+
+/* Форматирование ВСЕГО текста объекта из мини-панели (волна 6): каждая
+   непустая строка оборачивается маркером (разметка построчная — один
+   маркер на весь объект много строк не покрывает); повтор — снимает. */
+function wrapWholeText(text, tok) {
+  const lines = String(text || "").split("\n");
+  const plain = lines.filter(l => l.trim());
+  const wrapped = plain.length > 0
+    && plain.every(l => l.startsWith(tok) && l.endsWith(tok) && l.length > tok.length * 2);
+  return lines.map(l => {
+    if (!l.trim()) return l;
+    return wrapped ? l.slice(tok.length, l.length - tok.length) : tok + l + tok;
+  }).join("\n");
+}
+[["bd-mp-bold", "**"], ["bd-mp-italic", "*"], ["bd-mp-under", "__"]].forEach(([id, tok]) => {
+  $(id).addEventListener("click", () => {
+    const ids = selIds();
+    if (ids.length !== 1) return;
+    const o = BD.objects.get(ids[0]);
+    if (!o || o.locked || (o.kind !== "note" && o.kind !== "text")) return;
+    put({ ...o, text: wrapWholeText(o.text, tok) });
+  });
 });
 $("bd-mp-lock").addEventListener("click", () => {
   // Замок группы: если хоть один незалочен — залочить всё, иначе отпереть
@@ -3590,13 +3758,15 @@ $("bd-bg").addEventListener("click", () => {
    Если id разойдутся, у ученика откроется просто список тренировок —
    страница на неизвестный id не падает (см. trainFromHash в app.js). */
 const TASK_EXERCISES = [
-  ["flashcards", "Карточки"],
-  ["matching",   "Сопоставление"],
-  ["mcq",        "Выбор варианта"],
-  ["spelling",   "Ввод слова"],
-  ["scramble",   "Собери слово"],
-  ["listening",  "Аудирование"],
-  ["dictation",  "Диктант"],
+  // id совпадает и с js/exercises.js, и с иконками js/icons.js —
+  // поэтому карточка собирается без отдельной таблицы картинок
+  ["flashcards", "Карточки",     "слово — перевод"],
+  ["matching",   "Сопоставление", "соедини пары"],
+  ["mcq",        "Выбор варианта", "один верный из четырёх"],
+  ["spelling",   "Ввод слова",    "напиши по буквам"],
+  ["scramble",   "Собери слово",  "из рассыпанных букв"],
+  ["listening",  "Аудирование",   "узнай на слух"],
+  ["dictation",  "Диктант",       "пиши с голоса"],
 ];
 
 let pendingTask = null;
@@ -3669,11 +3839,14 @@ function renderTaskChips() {
   const box = $("bd-task-list");
   if (!box) return;
   box.innerHTML = "";
-  TASK_EXERCISES.forEach(([id, name]) => {
+  // Карточки-кнопки с иконкой и микроподписью вместо чёрных прямоугольников
+  // (видео Ирины «по красоте»): сетка 2 колонки в css/board.css
+  TASK_EXERCISES.forEach(([id, name, sub]) => {
     const b = document.createElement("button");
     b.type = "button";
-    b.className = "bd-word";
-    b.textContent = name;
+    b.className = "bd-task-card";
+    b.innerHTML = `<span class="bd-task-ico" data-icon="${id}" data-icon-size="22"></span>
+      <span class="bd-task-txt"><b>${name}</b><span>${sub}</span></span>`;
     b.addEventListener("click", () => {
       const at = toWorld(innerWidth / 2, innerHeight / 2);
       const cardId = uid();
@@ -3692,6 +3865,7 @@ function renderTaskChips() {
     });
     box.appendChild(b);
   });
+  if (typeof paintIcons === "function") paintIcons(box);
 }
 
 /* ---------- слова ученика ---------- */

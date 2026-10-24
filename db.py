@@ -2722,11 +2722,13 @@ def _clean_board_object(o):
         # и закрепление остального не переживало синхронизацию.
         "locked": 1 if o.get("locked") else 0,
     }
-    if kind in ("note", "text", "word", "task", "emoji"):
+    if kind in ("note", "text", "word", "task", "emoji", "rect", "ellipse"):
         # У emoji text — это сам символ (🐱): без сохранения штамп
         # превращался бы в пустой квадрат. Пустотная чистка ниже его не
         # трогает нарочно: она про забытые пустые тексты, а эмодзи без
         # символа не бывает.
+        # У rect/ellipse text — подпись внутри фигуры (волна 6); чистка
+        # пустых их тоже не касается: фигура без подписи — нормальный объект.
         out["text"] = str(o.get("text", ""))[:600]
         out["text2"] = str(o.get("text2", ""))[:600]
     if kind in ("note", "text") and not out.get("text", "").strip():

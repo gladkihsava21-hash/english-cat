@@ -615,6 +615,21 @@
 }
 .nav-strip::-webkit-scrollbar { display: none; }
 
+/* Десктоп: вкладки в ДВЕ строки без прокрутки (видео владельца — десять
+   плашек одной строкой приходилось крутить). Переносом flex занимается
+   сам раскладчик, маркер активного пункта получает Y в js/tutor-nav.js.
+   На телефоне остаётся привычная прокрутка одной строкой с подтаиванием
+   краёв — там она читается лучше, чем три ряда мелких кнопок. */
+@media (min-width: 900px) {
+  .nav-strip {
+    flex-wrap: wrap;
+    overflow-x: visible;
+    row-gap: 2px;
+    -webkit-mask-image: none;
+            mask-image: none;
+  }
+}
+
 .tutor-body .nav-btn {
   position: relative;
   z-index: 1;                         /* над подсветкой */

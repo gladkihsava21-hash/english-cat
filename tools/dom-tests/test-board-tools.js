@@ -239,7 +239,7 @@ function spoint(w, type, wx, wy, extra = {}) {
     await tick(200);
     w.document.getElementById("bd-words").click();
     await tick(120);
-    const chip = w.document.querySelector("#bd-task-list .bd-word");
+    const chip = w.document.querySelector("#bd-task-list .bd-task-card");
     ok(!!chip, "список заданий построен");
     chip.click();
     const task = objects(w).find(o => o.kind === "task");
@@ -1302,6 +1302,60 @@ function spoint(w, type, wx, wy, extra = {}) {
     ok(dr._lastFull === full1, "следующие 200 мс paint не дёргается (троттлинг)");
     point(w, "pointerup", 150, 130);
     ok(!!byId(w, dr.id), "штрих сохранён на доске");
+  }
+
+  console.log("\n30. Мини-панель: прячется при драге, B/I/U всего текста; текст в фигуре");
+  {
+    const w = makeBoard();
+    await tick(150);
+    // B/I/U всего текста из мини-панели: тоггл построчный
+    ok(w.eval(`wrapWholeText("раз\\nдва", "**")`) === "**раз**\n**два**",
+       "обёртка всех строк: " + JSON.stringify(w.eval(`wrapWholeText("раз\\nдва", "**")`)));
+    ok(w.eval(`wrapWholeText("**раз**\\n**два**", "**")`) === "раз\nдва",
+       "и снятие: " + JSON.stringify(w.eval(`wrapWholeText("**раз**\\n**два**", "**")`)));
+    w.eval(`BD.objects.set("n1", { id: "n1", kind: "note", x: 400, y: 300, w: 180, h: 120,
+             color: "note", size: 3, rev: 1, text: "первая\\nвторая" });`);
+    tool(w, "select");
+    point(w, "pointerdown", 450, 340);
+    point(w, "pointerup", 450, 340);
+    await tick(60);
+    ok(!w.document.getElementById("bd-mp-bold").hidden, "у стикера видны B/I/U");
+    w.document.getElementById("bd-mp-bold").click();
+    ok(byId(w, "n1").text === "**первая**\n**вторая**", "B обернула весь стикер");
+    w.document.getElementById("bd-mp-bold").click();
+    ok(byId(w, "n1").text === "первая\nвторая", "повторная B сняла обёртку");
+    await tick(400);   // пережидаем окно двойного тапа перед новым жестом
+    // панель прячется при драге и возвращается на pointerup
+    point(w, "pointerdown", 450, 340);
+    await tick(60);
+    ok(w.document.getElementById("bd-minipanel").hidden, "при драге панель скрыта");
+    point(w, "pointermove", 550, 440);
+    point(w, "pointerup", 550, 440);
+    await tick(80);
+    ok(!w.document.getElementById("bd-minipanel").hidden, "на pointerup панель вернулась");
+    // текст в фигуре: дабл-клик → редактор → текст по центру, пустой — фигура цела
+    w.eval(`BD.objects.set("r1", { id: "r1", kind: "rect", x: 700, y: 300, w: 240, h: 140,
+             color: "ink", size: 3, rev: 2 });`);
+    point(w, "pointerdown", 780, 350, { detail: 2 });
+    await tick(30);
+    ok(!w.document.getElementById("bd-editor").hidden, "дабл-клик по фигуре открыл редактор");
+    const inp = w.document.getElementById("bd-editor-input");
+    inp.value = "**Подпись** внутри";
+    w.document.getElementById("bd-editor-ok").click();
+    ok(byId(w, "r1").text === "**Подпись** внутри", "текст записан в фигуру");
+    w.eval("drawShapeText(BD.objects.get('r1'))");   // не падает на канвасе-прокси
+    // инструмент «текст» по фигуре С текстом — редактирует её, а не создаёт новый
+    tool(w, "text");
+    point(w, "pointerdown", 780, 350);
+    point(w, "pointerup", 780, 350);
+    await tick(30);
+    ok(!w.document.getElementById("bd-editor").hidden
+       && objects(w).filter(o => o.kind === "text").length === 0,
+       "клик текст-инструментом по фигуре — редактор её текста");
+    inp.value = "";
+    w.document.getElementById("bd-editor-ok").click();
+    ok(!!byId(w, "r1") && byId(w, "r1").text === "",
+       "пустой текст — фигура осталась без подписи, не удалена");
   }
 
   console.log(fails ? `\nПРОВАЛЕНО: ${fails}` : "\nВсё зелено");
