@@ -173,7 +173,7 @@ function saveStateQuiet() {
 
 // ===== Навигация =====
 const screens = ["welcome", "test", "dashboard", "dictionary", "trainer", "practice",
-                 "exercise", "achievements", "chat", "account"];
+                 "exercise", "achievements", "chat", "account", "hwmedia"];
 
 function show(screen) {
   screens.forEach(s => {
@@ -1498,7 +1498,11 @@ function todayPlan() {
       const p = homeworkProgress(t);
       return p.total && p.done < p.total;
     }
-    return kind === "task" && !homeworkIsDone(t);
+    if (kind === "task") return !homeworkIsDone(t);
+    // Медиа-домашки (hw-media) — только явные: старые «сфоткай тетрадь»
+    // в карточку дня не поднимались никогда, и незачем начинать.
+    if ((kind === "photo" || kind === "listening") && t.kind) return !homeworkIsDone(t);
+    return false;
   });
   if (hw) {
     const kind = homeworkKind(hw);
@@ -1507,6 +1511,18 @@ function todayPlan() {
         state: "homework", cat: "hello", kicker: `${iconInline("personal", 16)} Задание от репетитора`,
         title: hw.title,
         sub: `${typeof taskKindLabel === "function" ? taskKindLabel(hw) : "Задание"}. Результат увидит репетитор.`,
+        btn: "Открыть задание",
+        act: () => startHomeworkLesson(hw),
+        alt: { label: "другое занятие", nav: "practice" },
+      };
+    }
+    if (kind === "photo" || kind === "listening") {
+      return {
+        state: "homework", cat: "hello", kicker: `${iconInline("personal", 16)} Задание от репетитора`,
+        title: hw.title,
+        sub: kind === "photo"
+          ? "Задание на фото от репетитора — открой и сделай в тетради."
+          : "Аудирование: слушай и отвечай на вопросы. Ответы увидит репетитор.",
         btn: "Открыть задание",
         act: () => startHomeworkLesson(hw),
         alt: { label: "другое занятие", nav: "practice" },
@@ -1636,6 +1652,192 @@ document.addEventListener("click", e => {
 
 /** То же самое для домашки: слова задания уезжают в словарь, и ученик
  *  сразу оказывается в карточках, а не в списке из двадцати тренировок. */
+// ===== Медиа-домашки: фото-задание и аудирование (hw-media) =====
+//
+// Репетитор прикрепляет задание снимками (страница учебника, распечатка)
+// или собирает аудирование (свой файл или текст → озвучка на сервере).
+// Карточке домашки четыре фото и плеер с вопросами не помещаются —
+// у этих видов свой экран.
+
+/** Файл вложения с сервера: API отдаёт байты POST'ом (GET раздаёт только
+ *  статику), поэтому картинку и аудио превращаем в objectURL. */
+async function fetchAssetUrl(name) {
+  try {
+    const res = await fetch("/api/asset", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token: studentToken(), name }),
+    });
+    if (!res.ok) return "";
+    return URL.createObjectURL(await res.blob());
+  } catch (e) { return ""; }
+}
+
+function openHwMedia(task) {
+  const body = document.getElementById("hwmedia-body");
+  if (!body || !task) return;
+  if (homeworkKind(task) === "listening") renderHwListening(body, task);
+  else renderHwPhoto(body, task);
+  show("hwmedia");
+}
+
+// --- фото-задание: снимки от репетитора + текст, тап — полноэкранно ---
+async function renderHwPhoto(body, task) {
+  const photos = (task.assets || []).filter(a => a.type === "image");
+  body.innerHTML = `
+    <p><button class="btn btn-ghost btn-small" data-nav="dashboard">← На главную</button></p>
+    <p class="hw-label">${iconInline("camera", 15)} Домашка от репетитора · фото</p>
+    <h2 class="hw-title">${esc(task.title)}</h2>
+    ${task.taskText ? `<p class="hw-task">${esc(task.taskText)}</p>` : ""}
+    <div class="hwmedia-grid" id="hwmedia-grid">
+      ${photos.map((a, i) => `<p class="stat-note" data-ph-load="${i}">Загружаю фото…</p>`).join("")}
+    </div>
+    <div class="card hwmedia-hint">
+      <p class="stat-note">Сделал задание в тетради? Можешь прислать её фото на проверку.</p>
+      <button class="btn btn-ghost btn-small" id="hwmedia-to-photo">${iconInline("camera", 15)} Сфоткать домашку</button>
+    </div>`;
+  // Фото грузим по одному: каждое до 8 МБ, четыре параллельных — лишний
+  // напор на слабом канале, а смотрит ученик всё равно по очереди.
+  const urls = [];
+  for (let i = 0; i < photos.length; i++) {
+    const url = await fetchAssetUrl(photos[i].path);
+    urls.push(url);
+    const slot = body.querySelector(`[data-ph-load="${i}"]`);
+    if (!slot) continue;
+    if (!url) { slot.textContent = "Фото не загрузилось — проверь интернет."; continue; }
+    const img = document.createElement("img");
+    img.src = url;
+    img.alt = photos[i].name || `Фото задания ${i + 1}`;
+    img.className = "hwmedia-thumb";
+    img.addEventListener("click", () => openHwPhotoZoom(urls, i));
+    slot.replaceWith(img);
+  }
+  // Подсказка ведёт на существующую отправку фото (js/photo.js): уходим
+  // на главную и нажимаем её родную кнопку, а не дублируем поток.
+  body.querySelector("#hwmedia-to-photo").addEventListener("click", () => {
+    show("dashboard");
+    const pb = document.getElementById("photo-btn");
+    if (pb) pb.click();
+  });
+}
+
+/** Полноэкранный просмотр с листанием: на телефоне мелкий текст страницы
+ *  учебника с превью не читается. */
+function openHwPhotoZoom(urls, idx) {
+  const ov = document.createElement("div");
+  ov.className = "hwmedia-zoom";
+  ov.innerHTML = `
+    <button class="hwmedia-zoom-close" aria-label="Закрыть">✕</button>
+    ${urls.length > 1 ? `<button class="hwmedia-zoom-prev" aria-label="Предыдущее фото">‹</button>
+    <button class="hwmedia-zoom-next" aria-label="Следующее фото">›</button>` : ""}
+    <img src="${urls[idx]}" alt="Фото задания">
+    <p class="hwmedia-zoom-count">${idx + 1} / ${urls.length}</p>`;
+  let cur = idx;
+  const img = ov.querySelector("img");
+  const set = i => {
+    cur = (i + urls.length) % urls.length;
+    img.src = urls[cur];
+    ov.querySelector(".hwmedia-zoom-count").textContent = `${cur + 1} / ${urls.length}`;
+  };
+  ov.querySelector(".hwmedia-zoom-close").addEventListener("click", () => ov.remove());
+  const prev = ov.querySelector(".hwmedia-zoom-prev");
+  const next = ov.querySelector(".hwmedia-zoom-next");
+  if (prev) prev.addEventListener("click", () => set(cur - 1));
+  if (next) next.addEventListener("click", () => set(cur + 1));
+  // Тап по тёмному фону закрывает — как во всех просмотрщиках фото.
+  ov.addEventListener("click", e => { if (e.target === ov) ov.remove(); });
+  document.body.appendChild(ov);
+}
+
+// --- аудирование: плеер + вопросы с полями ответов ---
+async function renderHwListening(body, task) {
+  const audio = (task.assets || []).find(a => a.type === "audio");
+  const qs = task.payload || [];
+  const doneBefore = homeworkResult(task);
+  body.innerHTML = `
+    <p><button class="btn btn-ghost btn-small" data-nav="dashboard">← На главную</button></p>
+    <p class="hw-label">${iconInline("listening", 15)} Домашка от репетитора · аудирование</p>
+    <h2 class="hw-title">${esc(task.title)}</h2>
+    <div class="card hwmedia-player">
+      <p class="stat-note" id="hwmedia-audio-note">Загружаю аудио…</p>
+      <audio id="hwmedia-audio" controls class="hidden"></audio>
+      <div class="hwmedia-speed hidden" id="hwmedia-speed">
+        <span class="muted-small">Скорость:</span>
+        ${[0.75, 1, 1.25].map(v =>
+          `<button class="chip${v === 1 ? " active" : ""}" data-speed="${v}">×${v}</button>`).join("")}
+      </div>
+    </div>
+    <div class="card">
+      <p class="stat-label">Вопросы</p>
+      ${qs.map((q, i) => `
+        <div class="hwmedia-q">
+          <p class="hwmedia-q-text">${i + 1}. ${esc(q.q)}</p>
+          <input type="text" class="type-input hwmedia-a" data-q="${i}" maxlength="600"
+                 placeholder="Твой ответ" autocomplete="off" autocapitalize="off">
+        </div>`).join("")}
+      <button class="btn btn-primary btn-wide" id="hwmedia-submit">Сдать</button>
+      <p class="type-feedback" id="hwmedia-msg"></p>
+    </div>
+    ${doneBefore ? `<p class="stat-note" style="margin-top:10px">Уже сдано: ${doneBefore.correct} из ${doneBefore.total}. Можно пересдать — репетитору уйдут свежие ответы.</p>` : ""}`;
+  // Плеер появляется, когда файл долетел: серый «Загружаю…» сменяется
+  // рабочим элементом, а не висит рядом с ним.
+  const player = body.querySelector("#hwmedia-audio");
+  if (audio) {
+    const url = await fetchAssetUrl(audio.path);
+    if (url) {
+      player.src = url;
+      player.classList.remove("hidden");
+      body.querySelector("#hwmedia-speed").classList.remove("hidden");
+      body.querySelector("#hwmedia-audio-note").classList.add("hidden");
+    } else {
+      body.querySelector("#hwmedia-audio-note").textContent =
+        "Аудио не загрузилось — проверь интернет и открой задание ещё раз.";
+    }
+  }
+  body.querySelectorAll("[data-speed]").forEach(b => {
+    b.addEventListener("click", () => {
+      player.playbackRate = Number(b.dataset.speed);
+      body.querySelectorAll("[data-speed]").forEach(x => x.classList.toggle("active", x === b));
+    });
+  });
+  body.querySelector("#hwmedia-submit").addEventListener("click", () => {
+    const msg = body.querySelector("#hwmedia-msg");
+    const answers = qs.map((q, i) =>
+      (body.querySelector(`[data-q="${i}"]`).value || "").trim());
+    if (answers.every(a => !a)) {
+      msg.className = "type-feedback err";
+      msg.textContent = "Напиши хотя бы один ответ — пустое сдавать нечего.";
+      return;
+    }
+    // Автопроверка — только по вопросам, где репетитор задал правильный
+    // ответ; остальные он читает глазами. Сравнение мягкое: регистр и
+    // пробелы по краям на ошибку ребёнка влиять не должны.
+    let correct = 0;
+    qs.forEach((q, i) => {
+      const key = String(q.a || "").trim().toLowerCase();
+      if (key && answers[i].toLowerCase() === key) correct++;
+    });
+    // Та же структура taskResults, что у упражнений (см. recordTaskResult),
+    // плюс сами ответы — репетитор читает их в карточке домашки.
+    state.taskResults = state.taskResults || {};
+    const id = String(task.id);
+    const prev = state.taskResults[id];
+    state.taskResults[id] = {
+      correct, total: qs.length, answers,
+      at: new Date().toISOString(),
+      first: prev && prev.first !== undefined ? prev.first : correct,
+      tries: (prev && prev.tries ? prev.tries : 0) + 1,
+    };
+    saveState();   // уедет репетитору с ближайшей синхронизацией
+    if (typeof renderHomework === "function") renderHomework();
+    const keyed = qs.filter(q => String(q.a || "").trim()).length;
+    msg.className = "type-feedback ok";
+    msg.textContent = keyed
+      ? `Сдано! Совпало с ключом: ${correct} из ${keyed}. Все ответы ушли репетитору — он их прочитает.`
+      : "Сдано! Ответы ушли репетитору — он их проверит.";
+  });
+}
+
 function startHomeworkLesson(task) {
   const kind = typeof homeworkKind === "function" ? homeworkKind(task) : "words";
   // Задание-упражнение без слов: свой набор репетитора или встроенные
@@ -1648,6 +1850,13 @@ function startHomeworkLesson(task) {
     if (typeof openExercise === "function") {
       openExercise(task.game === "wordform" ? "wordform" : "grammar");
     }
+    return;
+  }
+  // Медиа-домашки (hw-media): аудирование всегда на своём экране,
+  // фото-задание — когда у него есть снимки от репетитора. Старая
+  // фото-домашка без вложений — прежнее поведение (сдаётся фото тетради).
+  if (kind === "listening" || (kind === "photo" && (task.assets || []).length)) {
+    openHwMedia(task);
     return;
   }
   if (kind === "photo") { show("dashboard"); return; }   // сдаётся фото или чтением, открывать нечего

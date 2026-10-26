@@ -1046,6 +1046,45 @@ def build_weekly_digest(student_id):
     return {"text": text, "builtAt": int(time.time())}
 
 
+def _clean_hw_assets(raw):
+    """Вложения домашки: не больше 4 фото и 1 аудио, только существующие
+    файлы в папке вложений (имя приходит из формы — проверяем на диске).
+
+    Живут вне класса Api: это чистая валидация payload'а без запроса,
+    как остальные _clean_* над классом."""
+    out = []
+    if not isinstance(raw, list):
+        return out
+    for a in raw[:8]:
+        if not isinstance(a, dict):
+            continue
+        atype = "audio" if a.get("type") == "audio" else "image"
+        path = str(a.get("path") or "")[:48]
+        if not db.asset_path(path):
+            continue
+        out.append({"type": atype, "path": path,
+                    "name": str(a.get("name") or "")[:80]})
+    imgs = [x for x in out if x["type"] == "image"][:4]
+    auds = [x for x in out if x["type"] == "audio"][:1]
+    return imgs + auds
+
+
+def _clean_hw_questions(raw):
+    """Вопросы аудирования: 1–5 штук, у каждого текст; правильный ответ —
+    по желанию (без него автопроверки нет, репетитор читает сам)."""
+    out = []
+    if not isinstance(raw, list):
+        return out
+    for q in raw[:5]:
+        if not isinstance(q, dict):
+            continue
+        text = str(q.get("q") or "").strip()[:300]
+        if not text:
+            continue
+        out.append({"q": text, "a": str(q.get("a") or "").strip()[:200]})
+    return out
+
+
 class Api:
     """Каждый метод получает (handler, payload) и возвращает dict."""
 
@@ -1419,6 +1458,90 @@ class Api:
         return {"ok": True}
 
     @staticmethod
+    def tutor_upload_asset(h, p):
+        """Вложение репетитора к домашке (фото задания или аудио для
+        аудирования). Зеркало ученической загрузки: те же dataURL и рамки,
+        только складываем в папку вложений (db.ASSET_DIR), а не в фото
+        учеников — там лежит тетрадь на проверку, смысл другой."""
+        tutor, err = verified_tutor(p)
+        if err:
+            return err
+        kind = str(p.get("kind") or "image")
+        if kind not in ("image", "audio"):
+            return {"ok": False, "error": "unknown_kind"}
+        raw = str(p.get("image") or "")
+        if "," in raw and raw.startswith("data:"):
+            head, raw = raw.split(",", 1)
+            media = head.split(";")[0].replace("data:", "")
+        else:
+            media = "image/jpeg" if kind == "image" else "audio/mpeg"
+        EXTS = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp",
+                "audio/mpeg": "mp3", "audio/mp3": "mp3", "audio/x-m4a": "m4a",
+                "audio/mp4": "m4a", "audio/wav": "wav", "audio/x-wav": "wav",
+                "audio/ogg": "ogg"}
+        media = media.lower()
+        if kind == "image" and media not in ("image/jpeg", "image/png", "image/webp"):
+            return {"ok": False, "error": "Картинка нужна в JPEG, PNG или WebP."}
+        if kind == "audio" and media not in EXTS or (kind == "audio"
+                                                     and EXTS[media] not in db.ASSET_AUDIO_EXTS):
+            return {"ok": False, "error": "Аудио нужно в mp3, m4a, wav или ogg."}
+        try:
+            blob = base64.b64decode(raw, validate=True)
+        except Exception:
+            return {"ok": False, "error": "Файл не распознан — попробуйте ещё раз."}
+        limit = 8 * 1024 * 1024 if kind == "image" else 10 * 1024 * 1024
+        if not 100 <= len(blob) <= limit:
+            return {"ok": False, "error":
+                    "Фото до 8 МБ." if kind == "image" else "Аудио до 10 МБ."}
+        name = db.save_asset_file(blob, EXTS[media])
+        return {"ok": True,
+                "asset": {"type": kind, "path": name,
+                          "name": str(p.get("name") or "")[:80]}}
+
+    @staticmethod
+    def tutor_tts_asset(h, p):
+        """Текст задания-аудирования → готовый аудиофайл-вложение (TTS).
+        Тот же alice_tts, что в озвучке слов: репетитор слышит превью до
+        выдачи, файл сразу живёт как asset и в превью, и в домашке."""
+        tutor, err = verified_tutor(p)
+        if err:
+            return err
+        if not alice_ready():
+            return {"ok": False, "error": "no_tts"}
+        text = str(p.get("text") or "").strip()[:600]
+        if not text:
+            return {"ok": False, "error": "Напишите текст для озвучки."}
+        try:
+            audio = alice_tts(text)
+        except Exception:
+            return {"ok": False, "error": "tts_failed"}
+        if not audio:
+            return {"ok": False, "error": "empty"}
+        name = db.save_asset_file(audio, "mp3")
+        return {"ok": True, "asset": {"type": "audio", "path": name,
+                                      "name": text[:80]}}
+
+    @staticmethod
+    def asset_fetch(h, p):
+        """Отдаём файл вложения. Доступ — любой валидный токен участника
+        (репетитор или ученик): имена случайные и неугадываемые, а задание
+        видят все ученики репетитора."""
+        tutor = db.get_tutor_by_token(p.get("token"))
+        student = db.get_student_by_token(p.get("token"))
+        if not tutor and not student:
+            return {"ok": False, "error": "unauthorized"}
+        full = db.asset_path(str(p.get("name") or ""))
+        if not full:
+            return {"ok": False, "error": "not_found"}
+        with open(full, "rb") as f:
+            blob = f.read()
+        ext = os.path.splitext(full)[1].lstrip(".").lower()
+        mime = {"jpg": "image/jpeg", "png": "image/png", "webp": "image/webp",
+                "mp3": "audio/mpeg", "m4a": "audio/mp4", "wav": "audio/wav",
+                "ogg": "audio/ogg"}.get(ext, "application/octet-stream")
+        return {"_raw": blob, "_type": mime, "_cache": 86400}
+
+    @staticmethod
     def tutor_homework_create(h, p):
         tutor, err = verified_tutor(p)
         if err:
@@ -1443,7 +1566,29 @@ class Api:
         # (фото), чтение вслух, свой набор или встроенные упражнения со своими
         # заданиями — грамматика и словообразование.
         exercise_only = game in ("grammar", "wordform", "custom")
-        if not words and not has_task and not has_reading and not exercise_only:
+        # Фото- и аудирование-домашки (волна hw-media): свой тип, свои
+        # вложения и вопросы. Валидация их состава — здесь, а не в форме.
+        hw_kind = str(p.get("kind") or "")[:16]
+        if hw_kind not in ("", "photo", "listening"):
+            return {"ok": False, "error": "Неизвестный вид домашки."}
+        assets = _clean_hw_assets(p.get("assets"))
+        payload = ""
+        if hw_kind == "photo":
+            images = [a for a in assets if a["type"] == "image"]
+            if not images:
+                return {"ok": False, "error": "Прикрепите хотя бы одно фото."}
+            if not has_task:
+                return {"ok": False, "error": "Напишите текст задания («сделай упр. 3 на фото»)."}
+        if hw_kind == "listening":
+            auds = [a for a in assets if a["type"] == "audio"]
+            questions = _clean_hw_questions(p.get("questions"))
+            if not auds:
+                return {"ok": False, "error": "Загрузите аудио или озвучьте текст."}
+            if not questions:
+                return {"ok": False, "error": "Добавьте хотя бы один вопрос."}
+            payload = json.dumps(questions, ensure_ascii=False)
+        if not words and not has_task and not has_reading and not exercise_only \
+                and hw_kind not in ("photo", "listening"):
             return {"ok": False,
                     "error": "Добавьте слова, задание текстом, текст для чтения или выберите задание."}
         clean = []
@@ -1479,6 +1624,12 @@ class Api:
             # Папка словаря ученика для этих слов. Необязательна: пустая
             # строка — слова падают без папки, как раньше.
             folder=str(p.get("folder") or ""),
+            # Фото- и аудирование-домашки: явный тип и вложения (их
+            # загрузили заранее через /api/tutor/upload-asset — сами файлы
+            # сюда не едут, только имена)
+            kind=hw_kind,
+            assets=assets,
+            payload=payload,
         )
         return {"ok": True, "id": row["id"]}
 
@@ -2120,6 +2271,11 @@ class Api:
                 # Папка словаря, в которую ученик сложит слова домашки
                 # (startHomeworkLesson в js/app.js). Пусто — без папки.
                 "folder": (x["folder"] if "folder" in k else "") or "",
+                # Фото- и аудирование-домашки: тип, вложения (имена файлов),
+                # вопросы аудирования. Клиент открывает свой экран по типу.
+                "kind": (x["kind"] if "kind" in k else "") or "",
+                "assets": json.loads((x["assets"] if "assets" in k else "[]") or "[]"),
+                "payload": json.loads((x["payload"] if "payload" in k else "") or "null") or [],
             }
             # Свой набор — целиком, вместе с домашкой: отдельная ручка ради
             # пары килобайт это лишний запрос на каждое открытие задания.
@@ -3287,6 +3443,9 @@ ROUTES = {
     "/api/tutor/student": Api.tutor_student_detail,
     "/api/tutor/add-word": Api.tutor_add_word,
     "/api/tutor/delete-word": Api.tutor_delete_word,
+    "/api/tutor/upload-asset": Api.tutor_upload_asset,
+    "/api/tutor/tts-asset": Api.tutor_tts_asset,
+    "/api/asset": Api.asset_fetch,
     "/api/tutor/student/note": Api.tutor_student_note,
     "/api/tutor/student/level": Api.tutor_student_level,
     "/api/tutor/student/delete": Api.tutor_student_delete,

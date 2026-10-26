@@ -762,8 +762,12 @@ function homeworkProgress(task) {
 /** Чем домашка сдаётся — то же деление, что у сервера (db.homework_kind):
  *  words — по словарю; task — упражнением (свой набор репетитора,
  *  грамматика, словообразование), результат в state.taskResults;
- *  photo — фото тетради или чтением вслух. */
+ *  photo — фото тетради или чтением вслух.
+ *  Явный kind (photo/listening, волна hw-media) главнее вычисления —
+ *  как и на сервере: фото-домашка с вложениями и аудирование из состава
+ *  не угадываются. */
 function homeworkKind(task) {
+  if (task.kind === "photo" || task.kind === "listening") return task.kind;
   if ((task.words || []).length) return "words";
   if (task.taskset || ["grammar", "wordform", "custom"].includes(task.game)) return "task";
   return "photo";
@@ -782,6 +786,11 @@ function homeworkIsDone(task) {
   if (kind === "task") {
     const r = homeworkResult(task);
     return !!r && !r.rushed;   // прокликанный подход домашку не закрывает
+  }
+  // Аудирование (hw-media): сдано, когда ответы ушли репетитору — тот же
+  // taskResults, что у упражнений, только с текстовыми ответами внутри.
+  if (kind === "listening") {
+    return !!homeworkResult(task);
   }
   return false;
 }
@@ -839,15 +848,32 @@ function renderHomework() {
           : `Сделано: ${result.correct} из ${result.total}${result.tries > 1 ? ` · попыток: ${result.tries}` : ""}${
               result.correct === result.total ? " — всё верно, мяу! 🎉" : " — можно улучшить"}`;
       btn = !result ? "Открыть задание" : result.rushed ? "Пройти по-честному" : "Пройти ещё раз";
+    } else if (kind === "listening") {
+      // Аудирование (hw-media): сдаётся текстовыми ответами на своём экране.
+      const r = homeworkResult(task);
+      pct = r && r.total ? Math.round((r.correct / r.total) * 100) : 0;
+      finished = !!r;
+      sub = !r
+        ? "Слушай аудио и отвечай на вопросы — ответы уйдут репетитору."
+        : `Сдано: совпало с ключом ${r.correct} из ${r.total}${r.tries > 1 ? ` · попыток: ${r.tries}` : ""}. Репетитор прочитает ответы.`;
+      btn = !r ? "Слушать и отвечать" : "Пересдать";
+    } else if (task.kind === "photo" && (task.assets || []).length) {
+      // Фото-задание от репетитора (hw-media): открывается своим экраном.
+      sub = "Задание на фото от репетитора — сделай в тетради, снимок можно прислать на проверку.";
+      btn = "Открыть задание";
     } else {
       sub = task.readingText && !task.taskText
         ? "Прочитай текст вслух — результат уйдёт репетитору."
         : "Сделай задание в тетради и пришли фото — кнопка «Сфоткать домашку» ниже.";
     }
+    // Иконка вида домашки: по ней ученик из списка понимает, что его ждёт,
+    // ещё до открытия.
+    const kindIcon = kind === "listening" ? "listening"
+                   : kind === "photo" && (task.assets || []).length ? "camera" : "book";
     return `
       <div class="card hw-card${finished ? " hw-done" : ""}">
         <div class="hw-head">
-          <span class="hw-label">${iconInline("book", 15)} Домашка от репетитора</span>
+          <span class="hw-label">${iconInline(kindIcon, 15)} Домашка от репетитора</span>
           ${task.dueDate ? `<span class="hw-due">до ${esc(task.dueDate)}</span>` : ""}
         </div>
         <p class="hw-title">${esc(task.title)}</p>

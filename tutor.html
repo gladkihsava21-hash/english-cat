@@ -310,12 +310,93 @@
           <label for="hw-student">Кому</label>
           <select id="hw-student"></select>
         </div>
+
+        <!-- Вид домашки (волна hw-media). «Обычная» — слова/упражнения, как
+             раньше; «Фото» — задание картинками (распечатка, страница
+             учебника); «Аудирование» — аудио + вопросы с текстовыми
+             ответами. Плитки, как у «Чем тренировать»: выпадающий список
+             посреди формы никто не находил, а вид задания репетитор выбирает
+             глазами. Значение держим в data-kind кнопок, серверная
+             валидация дублирует клиентскую. -->
         <div class="vs-row">
-          <label for="hw-task">Задание текстом (необязательно)</label>
+          <label id="hw-kind-label">Вид домашки</label>
+          <div class="game-field">
+            <div class="game-grid" id="hw-kind-grid" role="radiogroup"
+                 aria-labelledby="hw-kind-label">
+              <button type="button" class="game-tile picked" data-kind=""
+                      role="radio" aria-checked="true" tabindex="0">
+                <span class="game-tile-ico">📝</span>
+                <span class="game-tile-name">Обычная</span>
+              </button>
+              <button type="button" class="game-tile" data-kind="photo"
+                      role="radio" aria-checked="false" tabindex="-1">
+                <span class="game-tile-ico">📷</span>
+                <span class="game-tile-name">Фото</span>
+              </button>
+              <button type="button" class="game-tile" data-kind="listening"
+                      role="radio" aria-checked="false" tabindex="-1">
+                <span class="game-tile-ico">🎧</span>
+                <span class="game-tile-name">Аудирование</span>
+              </button>
+            </div>
+            <span class="plan-hint" id="hw-kind-hint"></span>
+          </div>
+        </div>
+
+        <!-- Подформа фото-домашки: 1–4 снимка задания. Прикрепить можно
+             кнопкой, вставкой Ctrl+V и перетаскиванием на карточку —
+             у репетитора картинка чаще всего уже в буфере или на рабочем
+             столе. Текст задания — обычное поле ниже, в этом виде оно
+             обязательно («сделай упр. 3 на фото»). -->
+        <div class="vs-row hidden" id="hw-photo-row">
+          <label>Фото задания (1–4)</label>
+          <input type="file" id="hw-photo-file" class="hidden" multiple
+                 accept="image/jpeg,image/png,image/webp">
+          <div class="hw-attach-zone" id="hw-photo-drop">
+            <button type="button" class="btn btn-ghost" id="hw-photo-add">📷 Прикрепить фото</button>
+            <span class="muted-small">или вставьте Ctrl+V, или перетащите на форму</span>
+          </div>
+          <div class="hw-attach-previews" id="hw-photo-previews"></div>
+        </div>
+
+        <!-- Подформа аудирования. Аудио двумя способами: свой файл или
+             текст, который озвучивает сервер (превью-плеер до выдачи —
+             репетитор слышит, что получит ученик). Вопросы 1–5, правильный
+             ответ у вопроса необязателен: где он задан, ученику считаем
+             автопроверку, где нет — репетитор читает ответы сам. -->
+        <div id="hw-listen-block" class="hidden">
+          <div class="vs-row">
+            <label>Аудио</label>
+            <div class="hw-pick-controls">
+              <button type="button" class="chip active" id="hw-listen-tab-file">свой файл</button>
+              <button type="button" class="chip" id="hw-listen-tab-text">текст → озвучка</button>
+            </div>
+            <div id="hw-listen-file-row">
+              <input type="file" id="hw-listen-file" class="hidden"
+                     accept="audio/mpeg,audio/mp3,audio/mp4,audio/x-m4a,audio/wav,audio/x-wav,audio/ogg">
+              <button type="button" class="btn btn-ghost" id="hw-listen-add">🎧 Выбрать аудио (mp3, m4a, wav, ogg · до 10 МБ)</button>
+            </div>
+            <div id="hw-listen-text-row" class="hidden">
+              <textarea id="hw-listen-text" rows="3" maxlength="600"
+                placeholder="Текст, который кот прочитает вслух. Например: The cat sat on the mat."></textarea>
+              <button type="button" class="btn btn-ghost" id="hw-listen-tts">Озвучить текст</button>
+            </div>
+            <div class="hw-attach-previews" id="hw-listen-preview"></div>
+          </div>
+          <div class="vs-row">
+            <label>Вопросы (1–5)</label>
+            <div id="hw-listen-qs"></div>
+            <button type="button" class="link-btn" id="hw-listen-q-add">+ ещё вопрос</button>
+            <span class="muted-small">«Правильный ответ» необязателен: без него ответ ученика придёт вам на проверку.</span>
+          </div>
+        </div>
+
+        <div class="vs-row" id="hw-task-row">
+          <label for="hw-task" id="hw-task-label">Задание текстом (необязательно)</label>
           <textarea id="hw-task" rows="3" maxlength="4000"
             placeholder="Упражнение 5 на стр. 42. Ученик сфотографирует тетрадь — вы увидите её на вкладке «Фото тетрадей»."></textarea>
         </div>
-        <div class="vs-row">
+        <div class="vs-row" id="hw-reading-row">
           <label for="hw-reading">Текст для чтения вслух (необязательно)</label>
           <textarea id="hw-reading" rows="3" maxlength="2000"
             placeholder="My name is Masha. I have a cat. He is very funny."></textarea>
@@ -340,7 +421,7 @@
              сетка ужималась до одной колонки в 190px, плитки вставали
              столбиком в четырнадцать рядов, а подсказка висела справа
              от столбика. -->
-        <div class="vs-row game-row">
+        <div class="vs-row game-row" id="hw-game-row">
           <label id="hw-game-label">Чем тренировать</label>
           <div class="game-field">
             <div class="game-grid" id="hw-game-grid" role="radiogroup"
@@ -359,6 +440,7 @@
           </div>
         </div>
 
+        <div id="hw-words-block">
         <p class="muted-small" style="margin:14px 0 8px">Выберите слова из базы или добавьте свои:</p>
         <div class="hw-picker">
           <div class="hw-pick-controls">
@@ -377,13 +459,14 @@
         </form>
 
         <div class="hw-selected" id="hw-selected"></div>
+        </div><!-- /hw-words-block -->
 
         <!-- Папка в словаре ученика, куда упадут выданные слова. Варианты
              подставляет js/tutor.js из словаря выбранного ученика; для
              «всем» и группы показать чужие папки не из чего — там только
              «без папки» или новая. Своя строка для названия, а не prompt():
              системные диалоги в продукте запрещены. -->
-        <div class="vs-row">
+        <div class="vs-row" id="hw-folder-row">
           <label for="hw-folder">Папка для слов (необязательно)</label>
           <select id="hw-folder"></select>
         </div>

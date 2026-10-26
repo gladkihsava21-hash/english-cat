@@ -312,6 +312,47 @@ body {
 /* Вид задания под названием: «Викторина · 10 вопросов» */
 .hw-kind { color: var(--muted); font-weight: 700; font-size: var(--text-caption); margin: -6px 0 10px; }
 .hw-card .btn { margin-top: 12px; }
+
+/* ---------- медиа-домашки: фото-задание и аудирование (hw-media) ---------- */
+/* Сетка снимков задания: на телефоне — по два в ряд, тап открывает
+   полноэкранный просмотр с листанием. */
+.hwmedia-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 12px 0 18px; }
+.hwmedia-thumb {
+  width: 100%; border-radius: 12px; border: var(--border-w) solid var(--line);
+  cursor: zoom-in; display: block; background: var(--accent-soft);
+}
+.hwmedia-hint { padding: 14px 18px; }
+.hwmedia-zoom {
+  position: fixed; inset: 0; z-index: 60; background: rgba(20, 24, 20, .92);
+  display: flex; align-items: center; justify-content: center; padding: 18px;
+}
+.hwmedia-zoom img {
+  max-width: 100%; max-height: 100%; border-radius: 10px;
+  object-fit: contain; cursor: zoom-out;
+}
+.hwmedia-zoom-close, .hwmedia-zoom-prev, .hwmedia-zoom-next {
+  position: absolute; z-index: 2; border: 0; cursor: pointer;
+  background: rgba(255, 255, 255, .14); color: #fff; border-radius: 50%;
+  width: 44px; height: 44px; font-size: 22px; font-weight: 800; line-height: 1;
+}
+.hwmedia-zoom-close { top: 14px; right: 14px; }
+.hwmedia-zoom-prev { left: 10px; top: 50%; transform: translateY(-50%); }
+.hwmedia-zoom-next { right: 10px; top: 50%; transform: translateY(-50%); }
+.hwmedia-zoom-count {
+  position: absolute; bottom: 14px; left: 0; right: 0; text-align: center;
+  color: #fff; font-weight: 700; font-size: var(--text-caption);
+}
+/* Плеер аудирования: переключатель скорости — те же chip, что фильтры */
+.hwmedia-player { padding: 14px 18px; }
+.hwmedia-player audio { width: 100%; }
+.hwmedia-speed { display: flex; align-items: center; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.hwmedia-speed .chip { padding: 6px 14px; }
+.hwmedia-speed .chip.active {
+  background: var(--accent); color: var(--on-accent); border-color: var(--accent);
+}
+.hwmedia-q { margin-bottom: 14px; }
+.hwmedia-q-text { font-weight: 700; font-size: var(--text-body-sm); margin-bottom: 6px; }
+
 /* ---------- образы слов ---------- */
 .word-art {
   display: flex; align-items: center; justify-content: center;

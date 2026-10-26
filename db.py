@@ -458,6 +458,13 @@ MIGRATIONS = [
     # домашку, а не поле в JSON каждого слова: папку выбирает репетитор
     # при выдаче, и разным словам одной домашки разные папки не нужны.
     ("homework", "folder", "TEXT DEFAULT ''"),
+    # Фото- и аудирование-домашки (волна hw-media): явный тип и вложения.
+    # kind пустой = старые записи: тип вычисляем по составу, как раньше
+    # (homework_kind). assets — json [{type: image|audio, path, name}].
+    ("homework", "kind", "TEXT DEFAULT ''"),
+    ("homework", "assets", "TEXT DEFAULT '[]'"),
+    # Вопросы аудирования: json [{q, a?}] — без a автопроверки нет
+    ("homework", "payload", "TEXT DEFAULT ''"),
 ]
 
 
@@ -1368,11 +1375,11 @@ def delete_student_account(student_id):
 
 def create_homework(tutor_id, title, words, student_id=None, group_id=None,
                     due_date=None, task_text="", reading_text="", game="",
-                    taskset_id=None, folder=""):
+                    taskset_id=None, folder="", kind="", assets=None, payload=""):
     cur = conn().execute(
         "INSERT INTO homework (tutor_id, student_id, group_id, title, words, due_date,"
-        " created_at, task_text, reading_text, game, taskset_id, folder)"
-        " VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+        " created_at, task_text, reading_text, game, taskset_id, folder, kind, assets, payload)"
+        " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
         (
             tutor_id,
             student_id,
@@ -1388,6 +1395,11 @@ def create_homework(tutor_id, title, words, student_id=None, group_id=None,
             # Длина как у папок в словаре ученика (sync_student режет до 30):
             # иначе папка из домашки не совпала бы с папкой, заведённой руками.
             str(folder or "").strip()[:30],
+            # Явный тип (photo/listening) — у старых домашек пусто, там тип
+            # вычисляется по составу (см. homework_kind)
+            str(kind or "")[:16],
+            json.dumps((assets or [])[:8], ensure_ascii=False),
+            str(payload or "")[:4000],
         ),
     )
     conn().commit()
@@ -1403,8 +1415,14 @@ def homework_kind(hw):
     photo   — только текст задания или чтение вслух: сдаётся фото или
               записью чтения, смотреть на вкладке «Фото тетрадей».
     Слова главнее всего: если они есть, домашка словарная, что бы ещё
-    к ней ни было приложено."""
+    к ней ни было приложено.
+
+    Явный kind (photo/listening, волна hw-media) главнее вычисления:
+    фото-домашка без слов и аудирование не угадываются из состава."""
     keys = hw.keys()
+    explicit = (hw["kind"] if "kind" in keys else "") or ""
+    if explicit in ("photo", "listening"):
+        return explicit
     if json.loads(hw["words"] or "[]"):
         return "words"
     game = (hw["game"] if "game" in keys else "") or ""
@@ -1615,6 +1633,10 @@ def clean_task_results(raw, prev):
             "at": max(at, str(old.get("at") or "")),
             "tries": max(_as_int(v.get("tries"), 1, 1, 100000), _as_int(old.get("tries"), 0, 0, 100000)),
         }
+        # Текстовые ответы аудирования (волна hw-media): репетитор читает
+        # их в карточке домашки. Храним как есть — очки за них не считаем.
+        if isinstance(v.get("answers"), list):
+            out[str(k)]["answers"] = [str(a)[:600] for a in v["answers"][:10]]
     if len(out) > TASK_RESULTS_KEEP:
         # старые ключи меньше — домашки нумеруются по возрастанию
         for k in sorted(out, key=lambda x: int(x))[:len(out) - TASK_RESULTS_KEEP]:
@@ -1872,7 +1894,9 @@ def student_public(row, homework=None, detail=False):
                     done += 1
             # Для заданий-упражнений (свой набор, грамматика, словообразование)
             # «сдал» — это результат из task_results, а не слова: слов у них нет.
-            res = results.get(str(hw["id"])) if kind == "task" else None
+            # Аудирование (волна hw-media) сдаётся так же — текстовыми
+            # ответами, поэтому результат достаём и для него.
+            res = results.get(str(hw["id"])) if kind in ("task", "listening") else None
             tasks.append({
                 "id": hw["id"],
                 "title": hw["title"],
@@ -1883,7 +1907,11 @@ def student_public(row, homework=None, detail=False):
                 "result": ({"correct": res.get("correct", 0), "total": res.get("total", 0),
                             "at": res.get("at"), "tries": res.get("tries", 1),
                             "first": res.get("first"), "secs": res.get("secs", 0),
-                            "rushed": bool(res.get("rushed"))} if res else None),
+                            "rushed": bool(res.get("rushed")),
+                            # Ответы аудирования: репетитор читает их в карточке
+                            # домашки рядом с автосчётом (он только там, где задан
+                            # правильный ответ).
+                            "answers": res.get("answers") or []} if res else None),
                 "dueDate": hw["due_date"],
                 "createdAt": hw["created_at"],
             })
@@ -1997,6 +2025,47 @@ def photo_path(file_name: str):
         return None
     full = os.path.normpath(os.path.join(PHOTO_DIR, safe))
     if not full.startswith(PHOTO_DIR + os.sep) or not os.path.isfile(full):
+        return None
+    return full
+
+
+# Вложения репетитора к домашкам (фото заданий, аудио для аудирования) —
+# отдельная папка рядом с фото учеников: свои права, свой потолок и своё
+# назначение (ученические фото — на проверку, репетиторские — в задание).
+ASSET_DIR = os.path.join(os.path.dirname(os.path.abspath(DB_PATH)), "assets")
+
+ASSET_IMAGE_EXTS = ("jpg", "png", "webp")
+ASSET_AUDIO_EXTS = ("mp3", "m4a", "wav", "ogg")
+
+
+def save_asset_file(data: bytes, ext: str) -> str:
+    """Файл вложения домашки под случайным именем, как save_photo_file."""
+    os.makedirs(ASSET_DIR, exist_ok=True)
+    try:
+        os.chmod(ASSET_DIR, 0o700)
+    except OSError:
+        pass
+    ext = str(ext or "").lower()
+    if ext not in ASSET_IMAGE_EXTS + ASSET_AUDIO_EXTS:
+        ext = "bin"
+    name = "%s.%s" % (secrets.token_hex(16), ext)
+    path = os.path.join(ASSET_DIR, name)
+    with open(path, "wb") as f:
+        f.write(data)
+    try:
+        os.chmod(path, 0o600)
+    except OSError:
+        pass
+    return name
+
+
+def asset_path(file_name: str):
+    """Путь к вложению по имени — с той же защитой от «..», что photo_path."""
+    safe = os.path.basename(str(file_name or ""))
+    if not safe or safe.startswith("."):
+        return None
+    full = os.path.normpath(os.path.join(ASSET_DIR, safe))
+    if not full.startswith(ASSET_DIR + os.sep) or not os.path.isfile(full):
         return None
     return full
 

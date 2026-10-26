@@ -830,3 +830,56 @@
   font-size: var(--text-caption); font-weight: 800; color: var(--accent-dark);
   background: var(--accent-soft); border-radius: 20px; padding: 2px 10px;
 }
+
+/* Чип аудирования (hw-media): счёт автопроверки + разворачиваемые ответы
+   ученика. Сам чип — summary, чтобы ответы не раздували строку чипов. */
+details.hw-chip-listen { display: block; padding: 0; background: none; }
+details.hw-chip-listen summary {
+  display: inline-block; cursor: pointer; list-style: none;
+  background: var(--accent-soft); color: var(--accent-dark);
+  font-size: var(--text-caption); font-weight: 800; border-radius: 20px; padding: 4px 11px;
+}
+details.hw-chip-listen.hw-chip-done summary { color: var(--green); }
+.hw-answers {
+  margin: 6px 0 4px; padding-left: 22px;
+  font-size: var(--text-caption); font-weight: 600; color: var(--ink);
+}
+.hw-answers li { margin-bottom: 2px; }
+
+/* ===== Фото- и аудирование-домашки (hw-media) =====
+   Зона прикрепления, превью вложений и строки вопросов аудирования.
+   Плитки вида домашки — те же .game-tile, что у «Чем тренировать». */
+.hw-attach-zone {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 12px; border: 2px dashed var(--line); border-radius: var(--radius-btn, 12px);
+  transition: border-color var(--dur-fast, .15s) var(--ease, ease);
+}
+.hw-attach-zone.dragover { border-color: var(--accent); background: var(--accent-soft); }
+.hw-attach-previews {
+  display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px;
+}
+.hw-attach-thumb { position: relative; width: 88px; }
+.hw-attach-thumb img {
+  width: 88px; height: 88px; object-fit: cover; display: block;
+  border-radius: 10px; border: var(--border-w, 1px) solid var(--line);
+}
+.hw-attach-thumb audio { width: 220px; }
+.hw-attach-del {
+  position: absolute; top: -8px; right: -8px; width: 24px; height: 24px;
+  border-radius: 50%; border: 0; cursor: pointer;
+  background: var(--ink, #333); color: var(--surface, #fff);
+  font-size: 13px; line-height: 1; font-weight: 800;
+}
+.hw-attach-name {
+  font-size: 11px; font-weight: 600; color: var(--muted);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 88px;
+}
+/* Вкладки «свой файл / текст → озвучка» — те же chip, что фильтры слов */
+.hw-pick-controls .chip.active {
+  background: var(--accent); color: var(--on-accent, #fff);
+  border-color: var(--accent);
+}
+.hw-listen-q { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; flex-wrap: wrap; }
+.hw-listen-q .q-num { font-weight: 900; color: var(--accent-dark); min-width: 18px; }
+.hw-listen-q input[type="text"] { flex: 1 1 180px; min-width: 0; }
+.hw-listen-q .q-del { flex: none; }

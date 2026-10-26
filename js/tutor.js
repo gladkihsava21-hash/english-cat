@@ -385,6 +385,21 @@ function hwChip(h) {
       ${iconInline("personal", 15)} ${esc(h.title)}: ${r ? `${r.correct}/${r.total}${r.rushed ? " ⚡" : ""}` : "—"}
     </span>`;
   }
+  // Аудирование (hw-media): сдаётся текстовыми ответами. В чипе — счёт
+  // автопроверки (только по вопросам с заданным правильным ответом),
+  // сами ответы — разворачиваются под чипом: их репетитор читает глазами.
+  if (h.kind === "listening") {
+    const r = h.result;
+    const head = `${iconInline("listening", 15)} ${esc(h.title)}: ${r ? `${r.correct}/${r.total}` : "—"}`;
+    if (r && r.answers && r.answers.length) {
+      return `<details class="hw-chip hw-chip-listen ${r && !r.rushed ? "hw-chip-done" : ""}">
+        <summary>${head} <span class="muted-small">ответы</span></summary>
+        <ol class="hw-answers">${r.answers.map(a =>
+          `<li>${a ? esc(a) : "<i>—</i>"}</li>`).join("")}</ol>
+      </details>`;
+    }
+    return `<span class="hw-chip">${head}</span>`;
+  }
   return `<span class="hw-chip ${h.done >= h.total ? "hw-chip-done" : ""}">
     ${iconInline("book", 15)} ${esc(h.title)}: ${h.done}/${h.total}
   </span>`;
@@ -398,9 +413,10 @@ function renderStudents() {
     const w = s.words || {};
     const pct = w.total ? Math.round((w.learned / w.total) * 100) : 0;
     // Словарные домашки — с прогрессом по словам; задания-упражнения —
-    // с результатом подхода. Фото-домашки в чипах не показываем: у них
-    // нет цифры, они смотрятся на вкладке «Фото тетрадей».
-    const hw = (s.homework || []).filter(h => h.total || h.kind === "task");
+    // с результатом подхода; аудирование — со счётом и ответами в чипе.
+    // Фото-домашки в чипах не показываем: у них нет цифры, они смотрятся
+    // на вкладке «Фото тетрадей».
+    const hw = (s.homework || []).filter(h => h.total || h.kind === "task" || h.kind === "listening");
     return `
       <div class="card stu-card">
         <div class="stu-main">
@@ -581,9 +597,9 @@ async function openStudent(id) {
         <p class="week-digest-text">${esc(s.weekDigest.text)}</p>
       </div>` : ""}
 
-    ${s.homework && s.homework.filter(h => h.total || h.kind === "task").length ? `
+    ${s.homework && s.homework.filter(h => h.total || h.kind === "task" || h.kind === "listening").length ? `
       <p class="stat-label" style="margin-top:18px">Домашки</p>
-      <div class="stu-hw">${s.homework.filter(h => h.total || h.kind === "task").map(h => hwChip(h)).join("")}</div>` : ""}
+      <div class="stu-hw">${s.homework.filter(h => h.total || h.kind === "task" || h.kind === "listening").map(h => hwChip(h)).join("")}</div>` : ""}
 
     ${s.weak && s.weak.length ? `
       <p class="stat-label" style="margin-top:18px">Проблемные слова</p>
@@ -1318,6 +1334,295 @@ $("hw-custom").addEventListener("submit", e => {
   $("hw-own-ru").value = "";
 });
 
+// ===== Фото- и аудирование-домашки (hw-media) =====
+//
+// Репетитор прикрепляет задание картинками (1–4 фото) или собирает
+// аудирование: аудио (свой файл ИЛИ текст → серверная озвучка) плюс
+// 1–5 вопросов. Файл едет на сервер сразу при прикреплении
+// (/api/tutor/upload-asset), в домашку уходят только имена файлов:
+// кнопка «Выдать» тогда не таскает мегабайты второй раз, а сервер
+// проверяет, что такие файлы правда лежат в папке вложений.
+let hwPhotos = [];        // [{type:"image", path, name, previewUrl}]
+let hwListenAsset = null; // {type:"audio", path, name}
+let hwListenUrl = "";     // objectURL превью-плеера (локальный или с сервера)
+
+function hwKind() {
+  const t = document.querySelector("#hw-kind-grid .game-tile.picked");
+  return t ? t.dataset.kind : "";
+}
+
+function syncHwKind() {
+  const k = hwKind();
+  const show = (id, on) => { const el = $(id); if (el) el.classList.toggle("hidden", !on); };
+  show("hw-photo-row", k === "photo");
+  show("hw-listen-block", k === "listening");
+  // Слова, игра, папка и чтение вслух — инструменты словарной домашки;
+  // в фото и аудировании они не участвуют и только путают форму.
+  show("hw-words-block", k === "");
+  show("hw-game-row", k === "");
+  show("hw-folder-row", k === "");
+  // Строка новой папки особая: её видимостью в обычном виде управляет
+  // syncHwFolderNew (показывает только при выборе «новая папка»), поэтому
+  // здесь мы её только ПРЯЧЕМ в медиа-видах, а возвращаем через родную
+  // логику, иначе она всплывала бы всегда.
+  if (k !== "") show("hw-folder-new-row", false);
+  else if (typeof syncHwFolderNew === "function") syncHwFolderNew();
+  show("hw-reading-row", k === "");
+  show("hw-task-row", k !== "listening");
+  const lbl = $("hw-task-label");
+  // В фото-домашке текст — единственное пояснение к снимкам, он обязателен.
+  if (lbl) lbl.textContent = k === "photo" ? "Задание текстом" : "Задание текстом (необязательно)";
+  const hint = $("hw-kind-hint");
+  if (hint) hint.textContent = k === "photo"
+    ? "ученик увидит фото и текст, выполнит задание в тетради и сможет прислать её снимок на проверку"
+    : k === "listening"
+    ? "ученик слушает аудио и отвечает на вопросы — ответы придут вам в карточку домашки"
+    : "";
+  if (k === "listening" && $("hw-listen-qs") && !$("hw-listen-qs").children.length) addHwListenQ();
+}
+
+document.querySelectorAll("#hw-kind-grid .game-tile").forEach(t => {
+  t.addEventListener("click", () => {
+    document.querySelectorAll("#hw-kind-grid .game-tile").forEach(x => {
+      const on = x === t;
+      x.classList.toggle("picked", on);
+      x.setAttribute("aria-checked", String(on));
+      x.tabIndex = on ? 0 : -1;
+    });
+    syncHwKind();
+  });
+});
+
+function resetHwKind() {
+  const first = document.querySelector('#hw-kind-grid .game-tile[data-kind=""]');
+  if (first) first.click();
+}
+
+// Файл → dataURL → сервер. Формат и размер проверяет и сервер; на клиенте
+// дублируем только размер, чтобы не гонять десятимегабайтный отказ.
+function uploadHwAsset(kind, file) {
+  const limit = kind === "image" ? 8 * 1024 * 1024 : 10 * 1024 * 1024;
+  if (file.size > limit) {
+    return Promise.reject(new Error(
+      kind === "image" ? "Фото больше 8 МБ — сожмите или снимите экран." :
+                         "Аудио больше 10 МБ — выберите файл покороче."));
+  }
+  return new Promise((resolve, reject) => {
+    const rd = new FileReader();
+    rd.onload = async () => {
+      try {
+        const res = await api("/api/tutor/upload-asset", {
+          token: token(), kind, image: rd.result, name: file.name || "",
+        });
+        if (!res.ok) throw new Error(res.error || "Не получилось загрузить.");
+        resolve(res.asset);
+      } catch (e) { reject(e); }
+    };
+    rd.onerror = () => reject(new Error("Файл не прочитался."));
+    rd.readAsDataURL(file);
+  });
+}
+
+function hwMsgErr(text) {
+  const msg = $("hw-msg");
+  msg.className = "type-feedback err";
+  msg.textContent = text;
+}
+
+// --- фото-домашка ---
+function renderHwPhotoPreviews() {
+  const box = $("hw-photo-previews");
+  if (!box) return;
+  box.innerHTML = "";
+  hwPhotos.forEach((a, i) => {
+    const d = document.createElement("div");
+    d.className = "hw-attach-thumb";
+    d.innerHTML = `<img src="${a.previewUrl}" alt="${esc(a.name || "фото задания")}">`
+                + `<button type="button" class="hw-attach-del" title="Убрать">✕</button>`
+                + `<div class="hw-attach-name">${esc(a.name || "")}</div>`;
+    d.querySelector(".hw-attach-del").addEventListener("click", () => {
+      URL.revokeObjectURL(hwPhotos[i].previewUrl);
+      hwPhotos.splice(i, 1);
+      renderHwPhotoPreviews();
+    });
+    box.appendChild(d);
+  });
+}
+
+async function addHwPhotos(files) {
+  const imgs = [...files].filter(f => /^image\/(jpeg|png|webp)$/.test(f.type));
+  if (!imgs.length) return;
+  for (const f of imgs) {
+    if (hwPhotos.length >= 4) { hwMsgErr("Не больше четырёх фото — ученику хватит."); break; }
+    try {
+      const asset = await uploadHwAsset("image", f);
+      hwPhotos.push({ type: "image", path: asset.path, name: asset.name || f.name,
+                      previewUrl: URL.createObjectURL(f) });
+    } catch (e) { hwMsgErr(e.message); }
+  }
+  renderHwPhotoPreviews();
+}
+
+$("hw-photo-add").addEventListener("click", () => $("hw-photo-file").click());
+$("hw-photo-file").addEventListener("change", e => {
+  addHwPhotos(e.target.files);
+  e.target.value = "";  // тот же файл второй раз тоже должен сработать
+});
+// Вставка из буфера: скриншот задания чаще всего уже в Ctrl+C.
+$("tab-homework").addEventListener("paste", e => {
+  if (hwKind() !== "photo") return;
+  const files = e.clipboardData && e.clipboardData.files;
+  if (files && files.length) { e.preventDefault(); addHwPhotos(files); }
+});
+// Перетаскивание на карточку формы — цель крупнее узкой кнопки.
+const hwFormCard = document.querySelector("#tab-homework .hw-form");
+if (hwFormCard) {
+  hwFormCard.addEventListener("dragover", e => {
+    if (hwKind() !== "photo") return;
+    e.preventDefault();
+    const z = $("hw-photo-drop");
+    if (z) z.classList.add("dragover");
+  });
+  hwFormCard.addEventListener("dragleave", () => {
+    const z = $("hw-photo-drop");
+    if (z) z.classList.remove("dragover");
+  });
+  hwFormCard.addEventListener("drop", e => {
+    if (hwKind() !== "photo") return;
+    e.preventDefault();
+    const z = $("hw-photo-drop");
+    if (z) z.classList.remove("dragover");
+    if (e.dataTransfer && e.dataTransfer.files.length) addHwPhotos(e.dataTransfer.files);
+  });
+}
+
+// --- аудирование ---
+function renderHwListenPreview() {
+  const box = $("hw-listen-preview");
+  if (!box) return;
+  box.innerHTML = "";
+  if (!hwListenAsset) return;
+  const d = document.createElement("div");
+  d.className = "hw-attach-thumb";
+  d.style.width = "auto";
+  d.innerHTML = `<audio controls src="${hwListenUrl}"></audio>`
+              + `<button type="button" class="hw-attach-del" title="Убрать">✕</button>`
+              + `<div class="hw-attach-name" style="max-width:220px">${esc(hwListenAsset.name || "аудио")}</div>`;
+  d.querySelector(".hw-attach-del").addEventListener("click", () => {
+    hwListenAsset = null;
+    if (hwListenUrl) URL.revokeObjectURL(hwListenUrl);
+    hwListenUrl = "";
+    renderHwListenPreview();
+  });
+  box.appendChild(d);
+}
+
+function setHwListenAsset(asset, url) {
+  if (hwListenUrl) URL.revokeObjectURL(hwListenUrl);
+  hwListenAsset = asset;
+  hwListenUrl = url;
+  renderHwListenPreview();
+}
+
+$("hw-listen-add").addEventListener("click", () => $("hw-listen-file").click());
+$("hw-listen-file").addEventListener("change", async e => {
+  const f = e.target.files && e.target.files[0];
+  e.target.value = "";
+  if (!f) return;
+  try {
+    const asset = await uploadHwAsset("audio", f);
+    setHwListenAsset({ type: "audio", path: asset.path, name: asset.name || f.name },
+                     URL.createObjectURL(f));
+  } catch (err) { hwMsgErr(err.message); }
+});
+
+// Вкладки «свой файл / текст → озвучка»: один источник аудио, два пути к нему.
+$("hw-listen-tab-file").addEventListener("click", () => {
+  $("hw-listen-tab-file").classList.add("active");
+  $("hw-listen-tab-text").classList.remove("active");
+  $("hw-listen-file-row").classList.remove("hidden");
+  $("hw-listen-text-row").classList.add("hidden");
+});
+$("hw-listen-tab-text").addEventListener("click", () => {
+  $("hw-listen-tab-text").classList.add("active");
+  $("hw-listen-tab-file").classList.remove("active");
+  $("hw-listen-text-row").classList.remove("hidden");
+  $("hw-listen-file-row").classList.add("hidden");
+});
+
+$("hw-listen-tts").addEventListener("click", async () => {
+  const text = $("hw-listen-text").value.trim();
+  if (!text) { hwMsgErr("Напишите текст для озвучки."); return; }
+  const btn = $("hw-listen-tts");
+  btn.disabled = true;
+  btn.textContent = "Озвучиваю…";
+  try {
+    const res = await api("/api/tutor/tts-asset", { token: token(), text });
+    if (!res.ok) throw new Error(res.error === "no_tts"
+      ? "Озвучка сейчас недоступна — прикрепите свой файл." :
+        (res.error || "Не получилось озвучить."));
+    // Превью до выдачи: репетитор слышит ровно то, что услышит ученик.
+    const url = await fetchAssetUrl(res.asset.path);
+    setHwListenAsset(res.asset, url);
+  } catch (err) { hwMsgErr(err.message); }
+  btn.disabled = false;
+  btn.textContent = "Озвучить текст";
+});
+
+// Файл с сервера двоичным POST'ом (API не раздаёт GET'ом) — отдаём плееру
+// как objectURL. Тот же приём у ученика на экране домашки.
+async function fetchAssetUrl(name) {
+  const res = await fetch("/api/asset", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token: token(), name }),
+  });
+  if (!res.ok) return "";
+  return URL.createObjectURL(await res.blob());
+}
+
+function addHwListenQ() {
+  const box = $("hw-listen-qs");
+  if (!box || box.children.length >= 5) return;
+  const row = document.createElement("div");
+  row.className = "hw-listen-q";
+  row.innerHTML = `<span class="q-num">${box.children.length + 1}.</span>`
+    + `<input type="text" class="q-text" maxlength="300" placeholder="Вопрос">`
+    + `<input type="text" class="q-answer" maxlength="200" placeholder="правильный ответ (необязательно)">`
+    + `<button type="button" class="link-btn q-del" title="Убрать вопрос">✕</button>`;
+  row.querySelector(".q-del").addEventListener("click", () => {
+    row.remove();
+    [...box.children].forEach((r, i) => {
+      r.querySelector(".q-num").textContent = (i + 1) + ".";
+    });
+  });
+  box.appendChild(row);
+}
+
+$("hw-listen-q-add").addEventListener("click", () => {
+  if ($("hw-listen-qs").children.length >= 5) { hwMsgErr("Пять вопросов — потолок одного аудирования."); return; }
+  addHwListenQ();
+});
+
+function hwListenQuestions() {
+  return [...document.querySelectorAll("#hw-listen-qs .hw-listen-q")]
+    .map(row => ({
+      q: row.querySelector(".q-text").value.trim(),
+      a: row.querySelector(".q-answer").value.trim(),
+    }))
+    .filter(x => x.q);
+}
+
+function resetHwMediaForms() {
+  hwPhotos.forEach(a => URL.revokeObjectURL(a.previewUrl));
+  hwPhotos = [];
+  setHwListenAsset(null, "");
+  renderHwPhotoPreviews();
+  if ($("hw-listen-qs")) $("hw-listen-qs").innerHTML = "";
+  if ($("hw-listen-text")) $("hw-listen-text").value = "";
+  resetHwKind();
+}
+
 $("hw-send").addEventListener("click", async () => {
   const msg = $("hw-msg");
   const game = $("hw-game") ? $("hw-game").value : "";
@@ -1333,7 +1638,37 @@ $("hw-send").addEventListener("click", async () => {
     msg.textContent = "Выберите набор — или соберите его на вкладке «Свои задания».";
     return;
   }
-  if (!picked.length && !taskText && !readingText && !exerciseOnly) {
+  // Фото- и аудирование-домашки (hw-media): свой состав вместо слов.
+  // Клиентская проверка дублирует серверную — без неё репетитор узнавал
+  // бы о пустой форме только после круга на сервер.
+  const kind = hwKind();
+  let questions = null;
+  if (kind === "photo") {
+    if (!hwPhotos.length) {
+      msg.className = "type-feedback err";
+      msg.textContent = "Прикрепите хотя бы одно фото задания.";
+      return;
+    }
+    if (!taskText) {
+      msg.className = "type-feedback err";
+      msg.textContent = "Напишите текст задания («сделай упр. 3 на фото»).";
+      return;
+    }
+  }
+  if (kind === "listening") {
+    if (!hwListenAsset) {
+      msg.className = "type-feedback err";
+      msg.textContent = "Загрузите аудио или озвучьте текст.";
+      return;
+    }
+    questions = hwListenQuestions();
+    if (!questions.length) {
+      msg.className = "type-feedback err";
+      msg.textContent = "Добавьте хотя бы один вопрос.";
+      return;
+    }
+  }
+  if (!picked.length && !taskText && !readingText && !exerciseOnly && !kind) {
     msg.className = "type-feedback err";
     msg.textContent = "Выберите слова, напишите задание текстом или выберите упражнение со своими заданиями.";
     return;
@@ -1351,6 +1686,11 @@ $("hw-send").addEventListener("click", async () => {
     tasksetId,
     words: picked,
     folder: hwFolderValue(),
+    // Вид и вложения медиа-домашек; в обычной — пустые, сервер игнорирует.
+    kind,
+    assets: kind === "photo" ? hwPhotos.map(({ type, path, name }) => ({ type, path, name }))
+          : kind === "listening" ? [hwListenAsset] : [],
+    questions: questions || [],
   });
   if (!res.ok) {
     msg.className = "type-feedback err";
@@ -1359,7 +1699,9 @@ $("hw-send").addEventListener("click", async () => {
   }
   msg.className = "type-feedback ok";
   const who = $("hw-student").selectedOptions[0].textContent;
-  const what = picked.length
+  const what = kind === "photo" ? "Фото-домашка"
+    : kind === "listening" ? "Аудирование"
+    : picked.length
     ? `Домашка из ${picked.length} слов`
     : game === "custom" ? "Своё задание"
     : game === "grammar" ? "Грамматика"
@@ -1377,6 +1719,9 @@ $("hw-send").addEventListener("click", async () => {
     .forEach(id => { const el = $(id); if (el) el.value = ""; });
   // Папку тоже сбрасываем: она относилась к той домашке, а не к следующей
   if ($("hw-folder")) { $("hw-folder").value = ""; syncHwFolderNew(); }
+  // И медиа-подформы: вложения и вопросы — от той домашки, не от следующей.
+  // Заодно возвращает переключатель вида на «Обычную».
+  resetHwMediaForms();
   renderWordPicker();
   renderPicked();
   loadStudents();
