@@ -584,12 +584,28 @@ function drawObject(o) {
   }
 
   if (o.kind === "rect" || o.kind === "ellipse") {
+    // Заливка/обводка/прозрачность как в Holst (методист): fill = цвет
+    // заливки (пусто — без неё), stroke = толщина обводки px (нет — как
+    // раньше от size), opacity 0.2–1. Поля опциональны: старые доски без
+    // них выглядят ровно так же.
+    ctx.save();
+    if (o.opacity != null && +o.opacity < 1)
+      ctx.globalAlpha = Math.max(0.2, Math.min(1, +o.opacity || 1));
+    const shapePath = () => {
+      ctx.beginPath();
+      if (o.kind === "rect") roundRect(o.x, o.y, o.w, o.h, 8);
+      else ctx.ellipse(o.x + o.w / 2, o.y + o.h / 2, Math.abs(o.w / 2), Math.abs(o.h / 2), 0, 0, 7);
+    };
+    if (o.fill) {
+      ctx.fillStyle = cssColor(o.fill);
+      shapePath();
+      ctx.fill();
+    }
     ctx.strokeStyle = color;
-    ctx.lineWidth = o.size;
-    ctx.beginPath();
-    if (o.kind === "rect") roundRect(o.x, o.y, o.w, o.h, 8);
-    else ctx.ellipse(o.x + o.w / 2, o.y + o.h / 2, Math.abs(o.w / 2), Math.abs(o.h / 2), 0, 0, 7);
+    ctx.lineWidth = o.stroke || o.size;
+    shapePath();
     ctx.stroke();
+    ctx.restore();
     // Текст внутри фигуры (волна 6): по центру, перенос по ширине фигуры,
     // разметка форматирования — та же, что у текстового объекта
     if (o.text) drawShapeText(o);
@@ -2189,6 +2205,7 @@ function noteHeight(text, w) {
 const noteManualH = new Set();
 
 let editing = null;
+let editingWasEmpty = true;   // был ли объект пуст при открытии редактора (страховка пустого «Готово»)
 /* Поле растёт по содержимому до ~40% экрана, дальше — скролл: упражнение
    на 30 строк перестало быть мучением в трёхрядной textarea (волна 5). */
 function autoGrowEditor() {
@@ -2201,6 +2218,12 @@ function autoGrowEditor() {
 }
 function openEditor(o) {
   editing = o;
+  // Страховка от потери текста (видео методиста: поле редактора оказалось
+  // пустым — причину так и не воспроизвели, вероятный виновник — браузерное
+  // расширение-спелчекер). Пустое «Готово» удаляет объект, только если он
+  // создан ПУСТЫМ в этой же сессии редактора («создал, передумал»). Объект
+  // с уже существующим текстом пустым «Готово» не удаляется никогда.
+  editingWasEmpty = !String(o.kind === "frame" ? (o.title || "") : (o.text || "")).trim();
   const box = $("bd-editor"), input = $("bd-editor-input");
   box.hidden = false;
   // У фрейма редактируем заголовок, у остальных — текст
@@ -2231,7 +2254,10 @@ $("bd-editor-ok").addEventListener("click", () => {
   } else if (editing.kind === "rect" || editing.kind === "ellipse") {
     // Текст внутри фигуры: пустой — просто без текста, фигура остаётся
     put({ ...BD.objects.get(editing.id), text });
-  } else if (!text) remove(editing.id, false);
+  } else if (!text) {
+    if (editingWasEmpty) remove(editing.id, false);
+    else toast("Стёр весь текст — объект оставил как был (удалить можно корзиной)");
+  }
   else {
     const o = { ...BD.objects.get(editing.id), text };
     // Стикер подгоняем под текст, если его размер не выбирали руками
@@ -2682,10 +2708,26 @@ function updateMiniPanel() {
     sd.querySelectorAll("button").forEach(b =>
       b.classList.toggle("on", +b.dataset.sides === (single.sides || 6)));
   }
+  // Фигуры/фрейм — вторая строка стилей (как в Holst): заливка, обводка,
+  // прозрачность. Только одиночное незалоченное выделение.
+  const st2 = $("bd-mp-style2");
+  const shapeFor = single && !single.locked
+    && (single.kind === "rect" || single.kind === "ellipse");
+  st2.hidden = !shapeFor;
+  if (shapeFor) {
+    st2.querySelectorAll(".bd-mp-fill").forEach(b =>
+      b.classList.toggle("on", (b.dataset.fill || "") === (single.fill || "")));
+    st2.querySelectorAll("[data-stroke]").forEach(b =>
+      b.classList.toggle("on", +b.dataset.stroke === (single.stroke || 0)));
+    st2.querySelectorAll("[data-opacity]").forEach(b =>
+      b.classList.toggle("on", +b.dataset.opacity === Math.round((single.opacity ?? 1) * 100)));
+  }
   // Позиция: над рамкой по центру; вверху нет места — под рамкой
   const sx = uni.x * BD.view.k + BD.view.x + (uni.w * BD.view.k) / 2;
   const sy = uni.y * BD.view.k + BD.view.y;
-  const plateH = 40;
+  // Высоту меряем реальную: у фигур панель двухстрочная, константа налезала
+  // бы на объект. offsetHeight честен только когда панель уже показана.
+  const plateH = p.offsetHeight || 40;
   const top = sy - 14 - plateH;
   p.style.left = Math.max(plateH, Math.min(innerWidth - plateH, sx)) + "px";
   p.style.transform = "translateX(-50%)";
@@ -2750,6 +2792,71 @@ $("bd-mp-roll").addEventListener("click", () => {
   if (ids.length !== 1) return;
   rollDice(BD.objects.get(ids[0]));
 });
+
+// Стили фигур (как в Holst): вторая строка мини-панели — заливка,
+// толщина обводки, прозрачность. Строим кнопки один раз.
+{
+  const st2 = $("bd-mp-style2");
+  const applyStyle = (patch) => {
+    const ids = selIds();
+    if (ids.length !== 1) return;
+    const o = BD.objects.get(ids[0]);
+    if (!o || o.locked) return;
+    put({ ...o, ...patch });
+    // put не меняет ключ панели — сбрасываем, чтобы подсветка чипов
+    // обновилась на ближайшей отрисовке
+    minipanelKey = "";
+  };
+  const lbl = (t) => {
+    const s = document.createElement("span");
+    s.className = "bd-mp-lbl";
+    s.textContent = t;
+    st2.appendChild(s);
+  };
+  lbl("Заливка");
+  const noFill = document.createElement("button");
+  noFill.className = "bd-mp-fill bd-mp-nofill";
+  noFill.dataset.fill = "";
+  noFill.title = "Без заливки";
+  noFill.addEventListener("click", () => applyStyle({ fill: "" }));
+  st2.appendChild(noFill);
+  NOTE_COLORS.forEach(name => {
+    const b = document.createElement("button");
+    b.className = "bd-mp-fill";
+    b.dataset.fill = name;
+    b.style.background = cssColor(name);
+    b.title = "Заливка: " + name;
+    b.addEventListener("click", () => applyStyle({ fill: name }));
+    st2.appendChild(b);
+  });
+  lbl("Обводка");
+  const auto = document.createElement("button");
+  auto.className = "bd-btn bd-mp-chip";
+  auto.dataset.stroke = "0";
+  auto.textContent = "Авто";
+  auto.title = "Толщина как у линии рисования";
+  auto.addEventListener("click", () => applyStyle({ stroke: 0 }));
+  st2.appendChild(auto);
+  [1, 2, 3, 5, 8].forEach(n => {
+    const b = document.createElement("button");
+    b.className = "bd-btn bd-mp-chip";
+    b.dataset.stroke = n;
+    b.textContent = n;
+    b.title = "Обводка " + n + " px";
+    b.addEventListener("click", () => applyStyle({ stroke: n }));
+    st2.appendChild(b);
+  });
+  lbl("Прозрачность");
+  [100, 70, 40].forEach(n => {
+    const b = document.createElement("button");
+    b.className = "bd-btn bd-mp-chip";
+    b.dataset.opacity = n;
+    b.textContent = n + "%";
+    b.title = "Непрозрачность " + n + "%";
+    b.addEventListener("click", () => applyStyle({ opacity: n / 100 }));
+    st2.appendChild(b);
+  });
+}
 
 /* Форматирование ВСЕГО текста объекта из мини-панели (волна 6): каждая
    непустая строка оборачивается маркером (разметка построчная — один
@@ -3235,12 +3342,15 @@ function ensureEmojiPicker() {
   tabs.querySelector(".bd-emoji-tab").classList.add("on");
   emojiPickerCat = EMOJI_CATEGORIES[0].id;
   el.querySelector(".bd-emoji-search").addEventListener("input", fillEmojiGrid);
-  // Клик мимо и Esc закрывают — как у любого всплывающего меню доски
+  // Клик мимо и Esc закрывают — как у любого всплывающего меню доски.
+  // Колбэк при этом сбрасываем: «открыл штамп и передумал» не должно
+  // оставлять вооружённый выбор до следующего открытия.
+  const closePicker = () => { el.hidden = true; emojiPickerPick = null; };
   document.addEventListener("pointerdown", e => {
-    if (!el.hidden && !el.contains(e.target)) el.hidden = true;
+    if (!el.hidden && !el.contains(e.target)) closePicker();
   });
   document.addEventListener("keydown", e => {
-    if (e.key === "Escape" && !el.hidden) el.hidden = true;
+    if (e.key === "Escape" && !el.hidden) closePicker();
   });
   function fillEmojiGrid() {
     const grid = el.querySelector(".bd-emoji-grid");
@@ -3285,8 +3395,12 @@ function openEmojiPicker(anchor, onPick) {
   emojiPickerPick = onPick;
   el.hidden = false;
   el._fill();
-  // позиция рядом с кнопкой, не выезжая за экран
-  const r = anchor.getBoundingClientRect();
+  // позиция рядом с кнопкой, не выезжая за экран. Принимаем и готовый
+  // rect: кнопки «ещё…»/«Выбрать эмодзи…» живут в меню, которое прячется
+  // ДО открытия пикера — у скрытого элемента rect нулевой, и пикер
+  // вскакивал в левый верхний угол (видео методиста).
+  const r = anchor && typeof anchor.getBoundingClientRect === "function"
+    ? anchor.getBoundingClientRect() : anchor;
   const w = Math.min(340, innerWidth - 16);
   el.style.width = w + "px";
   el.style.left = Math.max(8, Math.min(innerWidth - w - 8, r.left)) + "px";
@@ -3317,8 +3431,11 @@ $("bd-editor-emoji").addEventListener("click", e => {
 
 /* Реакция из полного пикера: та же логика, что у быстрых семи выше. */
 $("bd-react-more").addEventListener("click", e => {
+  // rect снимаем ДО скрытия меню: после hide у кнопки он нулевой,
+  // и пикер уезжал бы в левый верхний угол
+  const r = e.currentTarget.getBoundingClientRect();
   $("bd-react-menu").hidden = true;
-  openEmojiPicker(e.currentTarget, ch => {
+  openEmojiPicker(r, ch => {
     const pt = toWorld(innerWidth / 2 + (Math.random() * 120 - 60), innerHeight - 60);
     pushReact(ch, pt, BD.me || "me");
     reactCmd = { emoji: ch, x: pt.x, y: pt.y };
@@ -3338,8 +3455,9 @@ function armEmojiStamp(ch) {
   toast(`Кликни по доске — поставлю ${ch}. Esc — отмена.`);
 }
 $("bd-stamp-open").addEventListener("click", e => {
+  const r = e.currentTarget.getBoundingClientRect();
   $("bd-react-menu").hidden = true;
-  openEmojiPicker(e.currentTarget, armEmojiStamp);
+  openEmojiPicker(r, armEmojiStamp);
 });
 
 /* ---------- таймер урока ----------

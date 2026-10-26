@@ -841,6 +841,24 @@
 .bd-minicolor:hover { border-color: var(--ink); }
 .bd-minisep { width: 1px; align-self: stretch; background: var(--line-soft); margin: 2px 2px; }
 .bd-minipanel .bd-btn { padding: 6px 9px; min-height: 0; font-size: 13px; }
+/* Вторая строка мини-панели — стили фигур (заливка/обводка/прозрачность) */
+.bd-minipanel { flex-wrap: wrap; max-width: min(92vw, 560px); border-radius: 16px; }
+.bd-mp-style2 {
+  flex-basis: 100%; display: flex; gap: 5px; align-items: center;
+  padding-top: 4px; border-top: 1px dashed var(--line-soft);
+}
+.bd-mp-style2[hidden] { display: none; }
+.bd-mp-style2 .bd-mp-lbl { font-size: 11px; color: var(--muted); margin: 0 2px; }
+.bd-mp-fill {
+  width: 18px; height: 18px; border-radius: 5px; cursor: pointer; padding: 0;
+  border: 2px solid var(--line-soft);
+}
+.bd-mp-fill:hover, .bd-mp-fill.on { border-color: var(--ink); }
+.bd-mp-fill.bd-mp-nofill {
+  background: linear-gradient(to top right, transparent 44%, #d33 46%, #d33 54%, transparent 56%);
+}
+.bd-mp-chip { padding: 3px 8px; min-height: 0; font-size: 12px; }
+.bd-mp-chip.on { background: var(--ink); color: var(--surface); border-color: var(--ink); }
 /* Книжки в панели */
 .bd-book-row { display: flex; gap: 6px; align-items: stretch; }
 .bd-book-row .bd-book-add { flex: 1; min-width: 0; }

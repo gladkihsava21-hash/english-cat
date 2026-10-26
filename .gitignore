@@ -18,3 +18,4 @@ backups/
 # собранные приложения — артефакты сборки, не исходники
 macapp/Savely.app/
 winapp/bin/
+tmp-*

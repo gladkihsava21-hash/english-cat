@@ -301,5 +301,33 @@ db.conn().commit()
 r = db.board_sync(bid, [], [], 0, T)
 ok("roll" not in r, "бросок старше 10 с не отдаётся")
 
+print("\n12. Стили фигур: fill/stroke/opacity едут через sync, мусор зажимается")
+rc = {"id": "rect-1", "kind": "rect", "x": 50, "y": 50, "w": 200, "h": 120,
+      "color": "ink", "size": 3, "fill": "note3", "stroke": 5, "opacity": 0.7}
+db.board_sync(bid, [rc], [], 0, T)
+r = db.board_sync(bid, [], [], 0, S)
+objs = {o["id"]: o for o in r["objects"]}
+got = objs.get("rect-1", {})
+ok(got.get("fill") == "note3" and got.get("stroke") == 5 and got.get("opacity") == 0.7,
+   "стили фигуры доехали: fill=%s stroke=%s opacity=%s" % (got.get("fill"),
+                                                           got.get("stroke"), got.get("opacity")))
+# мусор: прозрачность 0 (невидимая фигура) и обводка в километр — зажимаются
+db.board_sync(bid, [dict(rc, id="rect-2", opacity=0, stroke=9999,
+                         fill="x" * 100)], [], 0, T)
+r = db.board_sync(bid, [], [], 0, S)
+objs = {o["id"]: o for o in r["objects"]}
+got = objs.get("rect-2", {})
+ok(got.get("opacity") == 0.2 and got.get("stroke") == 12 and len(got.get("fill", "")) <= 24,
+   "мусор зажат: %s" % got)
+# старый объект без новых полей проходит и получает дефолты
+rc3 = {k: v for k, v in rc.items() if k not in ("fill", "stroke", "opacity")}
+rc3["id"] = "rect-3"
+db.board_sync(bid, [rc3], [], 0, T)
+r = db.board_sync(bid, [], [], 0, S)
+objs = {o["id"]: o for o in r["objects"]}
+got = objs.get("rect-3", {})
+ok(got.get("fill") == "" and got.get("stroke") == 0 and got.get("opacity") == 1,
+   "старая фигура без полей: дефолты fill='' stroke=0 opacity=1: %s" % got)
+
 print("\n" + ("ПРОВАЛЕНО: %d" % fails if fails else "всё держится"))
 sys.exit(1 if fails else 0)

@@ -1358,6 +1358,60 @@ function spoint(w, type, wx, wy, extra = {}) {
        "пустой текст — фигура осталась без подписи, не удалена");
   }
 
+  console.log("\n31. Стили фигур в мини-панели; эмодзи-пикер позиционируется по rect");
+  {
+    const w = makeBoard();
+    await tick(150);
+    w.eval(`BD.objects.set("r2", { id: "r2", kind: "rect", x: 700, y: 300, w: 240, h: 140,
+             color: "ink", size: 3, rev: 1 });`);
+    tool(w, "select");
+    point(w, "pointerdown", 780, 350);
+    point(w, "pointerup", 780, 350);
+    await tick(60);
+    const st2 = w.document.getElementById("bd-mp-style2");
+    ok(!st2.hidden, "у фигуры вторая строка стилей видна");
+    const fillChip = st2.querySelectorAll(".bd-mp-fill")[1];
+    fillChip.click();
+    await tick(30);
+    ok(byId(w, "r2").fill === fillChip.dataset.fill && fillChip.dataset.fill !== "",
+       "заливка применилась: " + byId(w, "r2").fill);
+    st2.querySelector('[data-stroke="5"]').click();
+    await tick(30);
+    ok(byId(w, "r2").stroke === 5, "обводка 5 px: " + byId(w, "r2").stroke);
+    st2.querySelector('[data-opacity="40"]').click();
+    await tick(30);
+    ok(byId(w, "r2").opacity === 0.4, "прозрачность 40%: " + byId(w, "r2").opacity);
+    // подсветка чипов обновилась после put (ключ панели сброшен)
+    await tick(60);
+    ok(st2.querySelector('[data-opacity="40"]').classList.contains("on"),
+       "чип 40% подсвечен после применения");
+    w.eval("drawObject(BD.objects.get('r2'))");   // отрисовка со стилями не падает
+    ok(true, "фигура со стилями отрисовалась");
+    // у стикера строки стилей нет
+    w.eval(`BD.objects.set("n9", { id: "n9", kind: "note", x: 100, y: 100, w: 180, h: 120,
+             color: "note", size: 3, rev: 2, text: "стикер" });`);
+    point(w, "pointerdown", 150, 150);
+    point(w, "pointerup", 150, 150);
+    await tick(60);
+    ok(st2.hidden, "у стикера строки стилей нет");
+    // пикер по готовому rect (меню реакций скрыто — якоря нет, rect снят заранее)
+    let picked = "";
+    w.eval(`openEmojiPicker({ left: 200, top: 100, right: 240, bottom: 130 },
+             ch => { window.__picked = ch; })`);
+    const picker = w.document.querySelector(".bd-emoji-picker");
+    ok(!picker.hidden && picker.style.left === "200px" && picker.style.top === "138px",
+       "пикер у кнопки: left=" + picker.style.left + " top=" + picker.style.top);
+    // клик мимо закрывает и сбрасывает колбэк
+    w.eval(`document.dispatchEvent(new window.PointerEvent("pointerdown", { bubbles: true }))`);
+    ok(picker.hidden, "клик мимо закрыл пикер");
+    w.eval(`openEmojiPicker({ left: 200, top: 100, right: 240, bottom: 130 },
+             ch => { window.__picked = ch; })`);
+    const btn = picker.querySelector(".bd-emoji-grid [data-ch]");
+    btn.click();
+    ok(w.eval("window.__picked") === btn.dataset.ch && picker.hidden,
+       "выбор дошёл, пикер закрылся: " + w.eval("window.__picked"));
+  }
+
   console.log(fails ? `\nПРОВАЛЕНО: ${fails}` : "\nВсё зелено");
   process.exit(fails ? 1 : 0);
 })();
