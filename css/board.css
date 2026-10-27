@@ -845,6 +845,7 @@
 .bd-minipanel { flex-wrap: wrap; max-width: min(92vw, 560px); border-radius: 16px; }
 .bd-mp-style2 {
   flex-basis: 100%; display: flex; gap: 5px; align-items: center;
+  flex-wrap: wrap; row-gap: 4px;   /* без wrap чипы «Прозрачность» вылезали за край панели */
   padding-top: 4px; border-top: 1px dashed var(--line-soft);
 }
 .bd-mp-style2[hidden] { display: none; }

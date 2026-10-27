@@ -1394,6 +1394,27 @@ function spoint(w, type, wx, wy, extra = {}) {
     point(w, "pointerup", 150, 150);
     await tick(60);
     ok(st2.hidden, "у стикера строки стилей нет");
+    // панель у края экрана: зажимается по ПОЛОВИНЕ своей ширины, не по 40px
+    w.eval(`BD.view = { x: 0, y: 0, k: 1 };
+            BD.objects.set("edge", { id: "edge", kind: "rect", x: 10, y: 300, w: 100, h: 80,
+             color: "ink", size: 3, rev: 3 });`);
+    point(w, "pointerdown", 40, 330);
+    point(w, "pointerup", 40, 330);
+    await tick(60);
+    const mp = w.document.getElementById("bd-minipanel");
+    // в jsdom offsetWidth = 0 → запасная ширина 320 → левый зажим 168
+    ok(!mp.hidden && parseInt(mp.style.left, 10) >= 168,
+       "панель не уезжает за левый край: left=" + mp.style.left);
+    // и по вертикали зажата в экран: объект глубоко под нижним краем
+    w.eval(`BD.objects.set("deep", { id: "deep", kind: "rect", x: 400, y: 5000, w: 100, h: 80,
+             color: "ink", size: 3, rev: 4 });
+            BD.view.y = -4600;   // докрутили доски до объекта`);
+    point(w, "pointerdown", 440, 430);
+    point(w, "pointerup", 440, 430);
+    await tick(60);
+    const topPx = parseInt(mp.style.top, 10);
+    ok(!mp.hidden && topPx >= 8 && topPx <= 728,
+       "панель зажата по вертикали: top=" + mp.style.top);
     // пикер по готовому rect (меню реакций скрыто — якоря нет, rect снят заранее)
     let picked = "";
     w.eval(`openEmojiPicker({ left: 200, top: 100, right: 240, bottom: 130 },

@@ -2725,13 +2725,22 @@ function updateMiniPanel() {
   // Позиция: над рамкой по центру; вверху нет места — под рамкой
   const sx = uni.x * BD.view.k + BD.view.x + (uni.w * BD.view.k) / 2;
   const sy = uni.y * BD.view.k + BD.view.y;
-  // Высоту меряем реальную: у фигур панель двухстрочная, константа налезала
-  // бы на объект. offsetHeight честен только когда панель уже показана.
+  // Размеры меряем реальные: у фигур панель двухстрочная и широкая.
+  // Горизонтальный зажим — на ПОЛОВИНУ ШИРИНЫ панели: раньше был plateH
+  // (40 px), и двухстрочная панель уезжала половиной за левый край
+  // (видео методиста: «Заливка» обрезана). offsetWidth честен только
+  // когда панель уже показана.
+  const plateW = p.offsetWidth || 320;
   const plateH = p.offsetHeight || 40;
-  const top = sy - 14 - plateH;
-  p.style.left = Math.max(plateH, Math.min(innerWidth - plateH, sx)) + "px";
+  p.style.left = Math.max(plateW / 2 + 8, Math.min(innerWidth - plateW / 2 - 8, sx)) + "px";
   p.style.transform = "translateX(-50%)";
-  p.style.top = (top > 64 ? top : sy + uni.h * BD.view.k + 14) + "px";
+  let top = sy - 14 - plateH;
+  if (top <= 64) top = sy + uni.h * BD.view.k + 14;
+  // Вертикальный зажим в экран: при зуме 300%+ объект больше вьюпорта,
+  // и «под рамкой» это за сотни пикселей за экраном — панель терялась
+  // или ложилась на сам объект
+  top = Math.max(8, Math.min(innerHeight - plateH - 8, top));
+  p.style.top = top + "px";
 }
 document.querySelectorAll(".bd-minicolor").forEach(b => {
   b.addEventListener("click", () => {
