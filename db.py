@@ -1832,6 +1832,11 @@ def student_public(row, homework=None, detail=False):
     data = {
         "id": row["id"],
         "name": row["name"],
+        # Токен ученика: оба потребителя student_public — эндпоинты самого
+        # репетитора (его ученики), так что это не утечка. Нужен для
+        # магия-ссылки на доску: ученик заходит с нового устройства по
+        # ссылке, не диктуя личный код (кейс методиста с iPad).
+        "token": row["token"],
         "groupId": row["group_id"] if "group_id" in keys else None,
         "level": row["level"],
         "levelForced": (row["level_forced"] if "level_forced" in keys else "") or "",

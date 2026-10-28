@@ -1529,6 +1529,44 @@ function spoint(w, type, wx, wy, extra = {}) {
     ok(!box.classList.contains("bd-editor--inline"), "класс инлайна снят при закрытии");
   }
 
+  console.log("\n34. Магия-ссылка ?st=: вход на доску без кода с нового устройства");
+  {
+    // Стенд ученика, но URL — магия-ссылка, а localStorage пуст (новый iPad)
+    const html = fs.readFileSync(path.join(ROOT, "board.html"), "utf8")
+      .replace(/<script[^>]*src="[^"]*"[^>]*><\/script>/g, "");
+    const dom = new JSDOM(html, { runScripts: "dangerously", pretendToBeVisual: true,
+      url: "http://localhost:4210/board.html?st=magic-margo" });
+    const w = dom.window;
+    w.HTMLCanvasElement.prototype.getContext = () => new Proxy({}, {
+      get: (_, name) => (name === "measureText" ? () => ({ width: 10 }) : (...a) => undefined),
+      set: () => true,
+    });
+    w.BD_API_TIMEOUT_MS = 400;
+    w.fetch = (url, opts) => Promise.resolve({ ok: true, json: () => Promise.resolve(
+      String(url).includes("/api/student/board")
+        ? (JSON.parse(opts.body).token === "magic-margo"
+            ? { ok: true, hasTutor: true, board: { id: 33, title: "Урок 28 октября" } }
+            : { ok: false, error: "unknown_student" })
+        : { ok: true, rev: 1, objects: [], deleted: [], me: "s13",
+            title: "Урок 28 октября", shared: 1, invited: 13 }) });
+    w.navigator.serviceWorker = undefined;
+    ["js/icons.js", "js/util.js", "js/images.js", "js/word-photos.js", "js/emoji-data.js", "js/board.js"]
+      .forEach(f => {
+        const s = w.document.createElement("script");
+        s.textContent = fs.readFileSync(path.join(ROOT, f), "utf8");
+        w.document.head.appendChild(s);
+      });
+    await tick(300);
+    ok(w.localStorage.getItem("savelyStudentToken") === "magic-margo",
+       "токен из ссылки сохранён в сессию");
+    ok(!String(w.location.search).includes("st="),
+       "токен спрятан из адресной строки: " + w.location.search);
+    ok(w.eval("BD.boardId") === 33 && w.eval("BD.role") === "student",
+       "ученик на доске 33 без ввода кода: boardId=" + w.eval("BD.boardId"));
+    ok(w.document.getElementById("bd-name").textContent === "Урок 28 октября",
+       "название доски получено");
+  }
+
   console.log(fails ? `\nПРОВАЛЕНО: ${fails}` : "\nВсё зелено");
   process.exit(fails ? 1 : 0);
 })();

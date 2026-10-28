@@ -4562,10 +4562,16 @@ $("bd-share").addEventListener("click", async () => {
   const rows = [];
   rows.push(`<button data-share="all" class="${shareState.shared && !shareState.invited ? "on" : ""}">Позвать всех</button>`);
   BD.students.forEach(s => {
-    rows.push(`<button data-share="${s.id}" class="${shareState.invited === s.id ? "on" : ""}">${esc(s.name)}</button>`);
+    rows.push(`<span class="bd-share-row">
+      <button data-share="${s.id}" class="${shareState.invited === s.id ? "on" : ""}">${esc(s.name)}</button>
+      <button data-link="${s.id}" title="Ссылка для ${esc(s.name)} — вход на доску с любого устройства без кода"
+              aria-label="Скопировать ссылку для ${esc(s.name)}">🔗</button>
+    </span>`);
   });
   if (!BD.students.length) rows.push(`<p class="bd-hint">Учеников пока нет.</p>`);
   if (shareState.shared) rows.push(`<button data-share="off" class="danger">Закрыть доску</button>`);
+  rows.push(`<p class="bd-hint">🔗 — ссылка-приглашение: ученик заходит
+    на доску с любого устройства сразу, без ввода кода.</p>`);
   menu.innerHTML = rows.join("");
   menu.hidden = false;
   menu.querySelectorAll("[data-share]").forEach(b => {
@@ -4574,6 +4580,21 @@ $("bd-share").addEventListener("click", async () => {
       if (v === "off") setShare(false, null);
       else if (v === "all") setShare(true, null);
       else setShare(true, Number(v));
+    });
+  });
+  menu.querySelectorAll("[data-link]").forEach(b => {
+    b.addEventListener("click", async () => {
+      const s = BD.students.find(x => x.id === Number(b.dataset.link));
+      if (!s || !s.token) return;
+      // Доска открывается у ученика и так по его сессии; ссылка нужна
+      // именно для НОВОГО устройства — токен в ней и есть ключ.
+      const url = `${location.origin}/board.html?st=${encodeURIComponent(s.token)}`;
+      try {
+        await navigator.clipboard.writeText(url);
+        toast(`Ссылка для «${s.name}» скопирована — отправь ученику.`);
+      } catch (e) {
+        toast("Не скопировалось, вот ссылка: " + url, 6000);
+      }
     });
   });
 });
@@ -4829,6 +4850,17 @@ async function boot() {
   addEventListener("resize", fitCanvas);
 
   const params = new URLSearchParams(location.search);
+  // Магия-ссылка на доску: ?st=<токен ученика>. Репетитор копирует её из
+  // меню «Открыть ученику» и шлёт ученику — тот заходит с ЛЮБОГО устройства
+  // без личного кода (кейс: ученик с iPad не мог войти, код никто не
+  // записывает). Токен сразу прячем из адресной строки: ссылка — это
+  // пароль, в истории/скриншоте ей не место.
+  const magicToken = params.get("st");
+  if (magicToken) {
+    localStorage.setItem("savelyStudentToken", magicToken);
+    params.delete("st");
+    history.replaceState(null, "", "board.html" + (params.toString() ? "?" + params : ""));
+  }
   const tutorToken = localStorage.getItem("savelyTutorToken") || "";
   const studentToken = localStorage.getItem("savelyStudentToken") || "";
 

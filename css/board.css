@@ -844,6 +844,10 @@
 }
 .bd-scrreq-row { display: flex; gap: 8px; }
 .bd-scrreq-row .bd-btn { flex: 1; text-align: center; }
+/* Строка ученика в меню «Открыть ученику»: имя + копия магия-ссылки */
+.bd-share-row { display: flex; gap: 4px; align-items: stretch; }
+.bd-share-row [data-share] { flex: 1; }
+.bd-share-row [data-link] { flex: 0 0 auto; padding: 6px 8px; }
 
 /* Мини-панель над выделенным (Miro-style) */
 .bd-minipanel {
