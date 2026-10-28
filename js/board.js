@@ -1795,16 +1795,20 @@ canvas.addEventListener("pointermove", e => {
       const k = Math.max(nw / Math.max(1, b.w), nh / Math.max(1, b.h));
       BD.objects.set(o.id, { ...o, x: b.x, y: b.y,
                              w: Math.max(4, b.w * k), h: Math.max(4, b.h * k) });
-    } else if (o.kind === "text" || o.kind === "emoji") {
-      // Текст и эмодзи за угол растягиваются КЕГЛЕМ (как в Miro). Кегль
-      // считаем от ИСХОДНОГО на каждый мув («не скачет»). Потолка нет —
-      // тянул и растёт хоть на всю доску; пол задаёт textLH (кегль 8).
+    } else if (o.kind === "text" || o.kind === "emoji" || o.kind === "note") {
+      // Текст, эмодзи и СТИКЕР за угол растягиваются КЕГЛЕМ (как в Miro).
+      // Кегль считаем от ИСХОДНОГО на каждый мув («не скачет»). Потолка
+      // нет; пол задаёт textLH (кегль 8). У стикера рамка идёт за рукой,
+      // как потянули, а кегль — пропорционально (видео методиста: рамка
+      // росла, текст нет — ветка стикера сюда не доходила).
       const k = Math.max(nw / Math.max(1, b.w), nh / Math.max(1, b.h));
       const size = Math.max(1.4, (resizing.orig.size || 3) * k);
       if (o.kind === "emoji") {
         // У эмодзи кегль — это и есть размер: рамка квадратная под глиф
         const lh = textLH(size);
         BD.objects.set(o.id, { ...o, size, w: lh * 1.2, h: lh * 1.2 });
+      } else if (o.kind === "note") {
+        BD.objects.set(o.id, { ...o, size, x: b.x, y: b.y, w: nw, h: nh });
       } else {
         BD.objects.set(o.id, { ...o, size,
           h: textHeight(o.text || "", o.w || 460, textLH(size)) });
