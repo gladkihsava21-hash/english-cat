@@ -329,5 +329,41 @@ got = objs.get("rect-3", {})
 ok(got.get("fill") == "" and got.get("stroke") == 0 and got.get("opacity") == 1,
    "старая фигура без полей: дефолты fill='' stroke=0 opacity=1: %s" % got)
 
+print("\n13. «Скрыть от ученика»: ученику не отдаём, править/скрывать/удалять — нельзя")
+hd = {"id": "hide-1", "kind": "rect", "x": 10, "y": 10, "w": 100, "h": 60,
+      "color": "ink", "size": 3, "hide": 1}
+db.board_sync(bid, [hd], [], 0, T)
+r = db.board_sync(bid, [], [], 0, S)
+ids_s = [o["id"] for o in r["objects"]]
+ok("hide-1" not in ids_s and "hide-1" in r.get("hidden", []),
+   "ученик скрытое не получил, id в списке hidden: %s" % r.get("hidden"))
+r = db.board_sync(bid, [], [], 0, T)
+objs_t = {o["id"]: o for o in r["objects"]}
+ok(objs_t.get("hide-1", {}).get("hide") == 1, "репетитор скрытое видит: %s" % objs_t.get("hide-1"))
+# ученик пытается подвинуть скрытое — отклоняем
+db.board_sync(bid, [dict(hd, x=999, hide=1)], [], 0, S)
+r = db.board_sync(bid, [], [], 0, T)
+objs_t = {o["id"]: o for o in r["objects"]}
+ok(objs_t["hide-1"]["x"] == 10.0, "правка скрытого учеником отклонена: x=%s" % objs_t["hide-1"]["x"])
+# ученик пытается скрыть СВОЙ объект — отклоняем
+nt = {"id": "s-note-1", "kind": "note", "x": 5, "y": 5, "w": 100, "h": 100,
+      "color": "note", "size": 3, "text": "ученическая"}
+db.board_sync(bid, [nt], [], 0, S)
+db.board_sync(bid, [dict(nt, hide=1)], [], 0, S)
+r = db.board_sync(bid, [], [], 0, S)
+objs_s = {o["id"]: o for o in r["objects"]}
+ok(objs_s.get("s-note-1", {}).get("hide") == 0, "ученик не может скрывать: hide=%s" % objs_s.get("s-note-1", {}).get("hide"))
+# ученик пытается удалить скрытое — отклоняем
+db.board_sync(bid, [], ["hide-1"], 0, S)
+r = db.board_sync(bid, [], [], 0, T)
+objs_t = {o["id"]: o for o in r["objects"]}
+ok(objs_t.get("hide-1", {}).get("kind") == "rect", "удаление скрытого учеником отклонено")
+# репетитор возвращает объект — ученик его снова получает
+db.board_sync(bid, [dict(hd, hide=0)], [], 0, T)
+r = db.board_sync(bid, [], [], 0, S)
+objs_s = {o["id"]: o for o in r["objects"]}
+ok(objs_s.get("hide-1", {}).get("hide") == 0 and "hide-1" not in r.get("hidden", []),
+   "после «показать» ученик объект получил")
+
 print("\n" + ("ПРОВАЛЕНО: %d" % fails if fails else "всё держится"))
 sys.exit(1 if fails else 0)

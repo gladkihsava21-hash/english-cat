@@ -2801,6 +2801,10 @@ def _clean_board_object(o):
         # раньше чистильщик сохранял его только у картинки и книги,
         # и закрепление остального не переживало синхронизацию.
         "locked": 1 if o.get("locked") else 0,
+        # «Скрыто от ученика»: объект виден только репетитору (ответы,
+        # заготовки). Учится на доске ученик его вообще не получает —
+        # фильтр в board_sync, здесь просто пропускаем поле.
+        "hide": 1 if o.get("hide") else 0,
     }
     if kind in ("note", "text", "word", "task", "emoji", "rect", "ellipse"):
         # У emoji text — это сам символ (🐱): без сохранения штамп
@@ -3086,6 +3090,13 @@ def board_sync(board_id, changes, deletes, since, author, laser="skip", follow="
                 continue
             if o.get("locked"):
                 continue
+            # «Скрыто от ученика» — право учителя, как и замок: ученик
+            # не может ни править скрытый объект (он его и не видит,
+            # но защита от прямой отправки), ни ставить/снимать скрытие.
+            if (existing or {}).get("hide"):
+                continue
+            if o.get("hide"):
+                continue
         # Лимит считаем по ЖИВЫМ объектам, а не по всем записям.
         #
         # Удалённое не исчезает: остаётся надгробие kind="gone", по нему
@@ -3117,8 +3128,10 @@ def board_sync(board_id, changes, deletes, since, author, laser="skip", follow="
         key = str(oid)[:40]
         if key in data:
             # Залоченное ученик и удалить не может — та же защита,
-            # что у изменений выше
-            if author.startswith("s") and (data[key] or {}).get("locked"):
+            # что у изменений выше. Скрытое — тоже: он его не видит,
+            # но от прямой отправки страхуемся.
+            if author.startswith("s") and ((data[key] or {}).get("locked")
+                                           or (data[key] or {}).get("hide")):
                 continue
             rev += 1
             # Удалённое помним как «надгробие»: иначе второй клиент,
@@ -3141,6 +3154,12 @@ def board_sync(board_id, changes, deletes, since, author, laser="skip", follow="
         "deleted": [o["id"] for o in fresh if o.get("kind") == "gone"],
         "full": int(since or 0) == 0,
     }
+    if author.startswith("s"):
+        # «Скрыто от ученика»: такие объекты ученику не отдаём вовсе,
+        # а их id шлём отдельным списком — клиент выбрасывает локальные
+        # копии (объект мог быть виден до того, как учитель скрыл).
+        out["hidden"] = [o["id"] for o in out["objects"] if o.get("hide")]
+        out["objects"] = [o for o in out["objects"] if not o.get("hide")]
     # Чужой лазерный след, свежий (~2 с — как раз жизнь хвоста): отдаём
     # только второй стороне — автор видит свой локально. Свежая строка с
     # полями нужна, потому что laser-апдейт шёл уже после чтения row.

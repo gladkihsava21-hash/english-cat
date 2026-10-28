@@ -161,6 +161,23 @@ function draw(w = innerWidth, h = innerHeight) {
     // Пустые окаменелости не рисуем (см. isEmptyText): на доске не должно
     // быть безымянных квадратов от «создал и передумал».
     if (isEmptyText(o)) continue;
+    // «Скрыто от ученика»: ученик объект вообще не получает (фильтр на
+    // сервере), репетитор видит его призрачным и с бейджем — чтобы
+    // помнить, что ЭТО ученику не видно, и мог двигать/возвращать.
+    if (o.hide) {
+      ctx.save();
+      ctx.globalAlpha = 0.35;
+      drawObject(o);
+      ctx.restore();
+      const b = bounds(o);
+      if (b) {
+        ctx.font = `${14 / BD.view.k}px sans-serif`;
+        ctx.textBaseline = "bottom";
+        ctx.fillStyle = cssColor("ink-soft");
+        ctx.fillText("🙈", b.x, b.y - 4 / BD.view.k);
+      }
+      continue;
+    }
     drawObject(o);
   }
   if (BD.selectedSet.size > 1) {
@@ -1373,6 +1390,12 @@ async function syncNow() {
       changed = true;
     });
     (res.deleted || []).forEach(id => {
+      if (BD.objects.delete(id)) changed = true;
+    });
+    // «Скрыто от ученика»: сервер такие объекты ученику не отдаёт,
+    // а id присылает отдельно — выбрасываем локальные копии (объект
+    // мог быть виден, а учитель только что нажал «скрыть»).
+    (res.hidden || []).forEach(id => {
       if (BD.objects.delete(id)) changed = true;
     });
     if (changed) paint();
@@ -2626,6 +2649,36 @@ function duplicateSelection() {
   setSelection(copies);
 }
 
+/* Копипаст объектов (Ctrl+C / Ctrl+V), как в Miro/Holst. Буфер свой,
+   в памяти страницы: в системный JSON не пишем — он занят картинками
+   и текстом (вставка картинок на Ctrl+V живёт в обработчике paste).
+   Повторные вставки едут по диагонали, копии не липнут друг на друга. */
+let objClipboard = [];
+let pasteSerial = 0;
+function copySelection() {
+  const ids = selIds().filter(id => {
+    const o = BD.objects.get(id);
+    return o && !isService(o) && !o.locked;
+  });
+  if (!ids.length) return;
+  objClipboard = ids.map(id => JSON.parse(JSON.stringify(BD.objects.get(id))));
+  pasteSerial = 0;
+  toast("Скопировано: " + objClipboard.length + ". Вставка — Ctrl+V.");
+}
+function pasteClipboardObjects() {
+  if (!objClipboard.length) return;
+  pasteSerial += 1;
+  const d = 24 * pasteSerial;
+  const copies = objClipboard.map(src => {
+    const copy = { ...JSON.parse(JSON.stringify(src)), id: uid(), rev: 0, locked: 0 };
+    if (copy.pts) copy.pts = copy.pts.map(v => v + d);
+    else { copy.x = (+copy.x || 0) + d; copy.y = (+copy.y || 0) + d; }
+    put(copy);
+    return copy.id;
+  });
+  setSelection(copies);
+}
+
 /* Удаление выделенного (Delete и кнопка мини-панели): залоченное не
    трогаем и один раз объясняем почему. */
 function deleteSelection() {
@@ -2692,6 +2745,14 @@ function updateMiniPanel() {
   });
   p.hidden = false;
   $("bd-mp-lock").hidden = BD.role !== "tutor";
+  // «Скрыть от ученика» — тоже право учителя; подсвечиваем, когда
+  // выделенное уже скрыто (single- и мультивыделение: показываем «on»,
+  // если скрыто ВСЁ выделенное)
+  $("bd-mp-hide").hidden = BD.role !== "tutor";
+  if (BD.role === "tutor") {
+    $("bd-mp-hide").classList.toggle("on",
+      ids.every(id => BD.objects.get(id).hide));
+  }
   // «Переименовать» — только у одиночного фрейма: заголовок есть только у него
   const single = ids.length === 1 ? BD.objects.get(ids[0]) : null;
   $("bd-mp-rename").hidden = !(single && single.kind === "frame" && !single.locked);
@@ -2899,6 +2960,19 @@ $("bd-mp-lock").addEventListener("click", () => {
   });
   toast(target ? "Закреплено." : "Откреплено.");
 });
+$("bd-mp-hide").addEventListener("click", () => {
+  // «Скрыть от ученика» группой: если хоть один видим — скрыть всё,
+  // иначе вернуть. Залоченное не трогаем (как у остальных правок).
+  const ids = selIds();
+  const target = ids.map(id => BD.objects.get(id)).some(o => o && !o.hide) ? 1 : 0;
+  ids.forEach(id => {
+    const o = BD.objects.get(id);
+    if (o && !o.locked) put({ ...o, hide: target });
+  });
+  minipanelKey = "";   // ключ панели не меняется — сбрасываем ради подсветки
+  toast(target ? "Скрыто от ученика — видите только вы (🙈 над объектом)."
+               : "Снова видно ученику.");
+});
 
 document.addEventListener("keydown", e => {
   if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
@@ -2915,6 +2989,12 @@ document.addEventListener("keydown", e => {
   // В мультивыделении дублируется вся группа и выделяются копии.
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "d") {
     if (selIds().length) { e.preventDefault(); duplicateSelection(); }
+    return;
+  }
+  // Ctrl/Cmd+C — копия выделенного в свой буфер (как в Holst); вставка —
+  // в обработчике paste, чтобы не ломать Ctrl+V картинок.
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "c") {
+    if (selIds().length) { e.preventDefault(); copySelection(); }
     return;
   }
   const map = { v: "select", p: "pen", m: "marker", e: "eraser", s: "note", n: "note",
@@ -3468,6 +3548,11 @@ $("bd-stamp-open").addEventListener("click", e => {
   $("bd-react-menu").hidden = true;
   openEmojiPicker(r, armEmojiStamp);
 });
+// Кнопка в доке: тот же штамп, но на видном месте (методист не находила
+// его в меню реакций и решила, что смайлы «только летают»)
+$("bd-emoji-tool").addEventListener("click", e => {
+  openEmojiPicker(e.currentTarget, armEmojiStamp);
+});
 
 /* ---------- таймер урока ----------
    Ставит репетитор (пресеты или своё число), команда едет тем же sync,
@@ -3867,7 +3952,10 @@ document.addEventListener("paste", e => {
   if (!e.clipboardData) return;
   if (editing) return;                       // в поле текста вставляется текст
   const item = [...e.clipboardData.items].find(x => x.type.startsWith("image/"));
-  if (item) { e.preventDefault(); addImageFile(item.getAsFile()); }
+  if (item) { e.preventDefault(); addImageFile(item.getAsFile()); return; }
+  // Картинки нет — возможно, свои объекты с доски (Ctrl+C): вставляем
+  // их. Системный буфер при этом не трогаем — буфер в памяти страницы.
+  if (objClipboard.length) { e.preventDefault(); pasteClipboardObjects(); }
 });
 canvas.addEventListener("dragover", e => e.preventDefault());
 canvas.addEventListener("drop", e => {

@@ -1433,6 +1433,65 @@ function spoint(w, type, wx, wy, extra = {}) {
        "выбор дошёл, пикер закрылся: " + w.eval("window.__picked"));
   }
 
+  console.log("\n32. Эмодзи-штамп из дока; «скрыть от ученика»; Ctrl+C/Ctrl+V");
+  {
+    const w = makeBoard();
+    await tick(150);
+    // кнопка 😀 в доке открывает пикер (методист не находила штамп в меню)
+    w.document.getElementById("bd-emoji-tool").click();
+    const picker = w.document.querySelector(".bd-emoji-picker");
+    ok(!picker.hidden, "кнопка 😀 в доке открыла пикер");
+    picker.querySelector(".bd-emoji-grid [data-ch]").click();
+    ok(bd(w).pendingEmoji !== "" && bd(w).tool === "emoji",
+       "штамп вооружён: " + bd(w).pendingEmoji);
+    point(w, "pointerdown", 300, 300);
+    point(w, "pointerup", 300, 300);
+    await tick(30);
+    ok(objects(w).some(o => o.kind === "emoji"), "эмодзи-объект поставлен кликом");
+    // «скрыть от ученика»: кнопка у репетитора видна и тогглит hide
+    w.eval(`BD.objects.set("h1", { id: "h1", kind: "rect", x: 500, y: 300, w: 200, h: 100,
+             color: "ink", size: 3, rev: 5 });`);
+    tool(w, "select");
+    point(w, "pointerdown", 560, 340);
+    point(w, "pointerup", 560, 340);
+    await tick(60);
+    const hb = w.document.getElementById("bd-mp-hide");
+    ok(!hb.hidden, "у репетитора кнопка «скрыть от ученика» видна");
+    hb.click();
+    await tick(30);
+    ok(byId(w, "h1").hide === 1, "объект скрыт: hide=" + byId(w, "h1").hide);
+    w.eval("draw(BD.objects.get('h1') && innerWidth, innerHeight)");  // призрачный рендер не падает
+    ok(true, "скрытый объект отрисовался призраком");
+    await tick(60);
+    ok(hb.classList.contains("on"), "кнопка подсвечена — объект скрыт");
+    hb.click();
+    await tick(30);
+    ok(byId(w, "h1").hide === 0, "повторный клик вернул объект ученику");
+    // Ctrl+C / Ctrl+V: клон со сдвигом, новый id, выделяется копия
+    w.eval(`document.dispatchEvent(new window.KeyboardEvent("keydown",
+             { key: "c", ctrlKey: true, bubbles: true, cancelable: true }))`);
+    ok(w.eval("objClipboard.length") === 1, "Ctrl+C скопировал объект в буфер");
+    w.eval("pasteClipboardObjects()");
+    const pasted = objects(w).find(o => o.kind === "rect" && o.id !== "h1");
+    ok(!!pasted && pasted.x === byId(w, "h1").x + 24 && pasted.id !== "h1",
+       "Ctrl+V вставил клон со сдвигом: id=" + (pasted && pasted.id) + " x=" + (pasted && pasted.x));
+    ok(w.eval("selIds()")[0] === pasted.id, "выделяется вставленная копия");
+    w.eval("pasteClipboardObjects()");
+    ok(objects(w).filter(o => o.kind === "rect").length === 3,
+       "повторная вставка — ещё клон дальше по диагонали");
+  }
+  {
+    // ученику кнопки «скрыть» нет вообще
+    const sw = makeStudentBoard();
+    await tick(150);
+    sw.eval(`BD.objects.set("x1", { id: "x1", kind: "note", x: 100, y: 100, w: 150, h: 100,
+              color: "note", size: 3, rev: 1, text: "стикер" });`);
+    point(sw, "pointerdown", 150, 140);
+    point(sw, "pointerup", 150, 140);
+    await tick(60);
+    ok(sw.document.getElementById("bd-mp-hide").hidden, "у ученика кнопки «скрыть» нет");
+  }
+
   console.log(fails ? `\nПРОВАЛЕНО: ${fails}` : "\nВсё зелено");
   process.exit(fails ? 1 : 0);
 })();
