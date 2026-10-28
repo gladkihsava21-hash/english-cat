@@ -10,7 +10,7 @@
        подмножества браузер возьмёт сам, если встретит редкую букву. -->
   <link rel="preload" href="css/fonts/nunito-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="css/fonts/inter-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="css/fonts.css?v=336">
+  <link rel="stylesheet" href="css/fonts.css?v=337">
   <!-- Тему ставим ДО первой отрисовки, отдельным крошечным скриптом.
        Всё остальное грузится с defer, а defer выполняется после разбора
        страницы — то есть уже после того, как браузер её покажет. Если
@@ -26,15 +26,15 @@
       document.documentElement.dataset.theme = t;
     } catch (e) { /* приватный режим — просто останется дневная */ }
   </script>
-  <link rel="stylesheet" href="css/tokens.css?v=336">
-  <link rel="stylesheet" href="css/style.css?v=336">
-  <link rel="stylesheet" href="css/savely.css?v=336">
-  <link rel="stylesheet" href="css/motion.css?v=336">
-<link rel="stylesheet" href="css/a11y.css?v=336">
-  <link rel="stylesheet" href="css/games.css?v=336">
-  <link rel="stylesheet" href="css/cat.css?v=336">
-  <link rel="stylesheet" href="css/account.css?v=336">
-  <link rel="stylesheet" href="css/polish.css?v=336">
+  <link rel="stylesheet" href="css/tokens.css?v=337">
+  <link rel="stylesheet" href="css/style.css?v=337">
+  <link rel="stylesheet" href="css/savely.css?v=337">
+  <link rel="stylesheet" href="css/motion.css?v=337">
+<link rel="stylesheet" href="css/a11y.css?v=337">
+  <link rel="stylesheet" href="css/games.css?v=337">
+  <link rel="stylesheet" href="css/cat.css?v=337">
+  <link rel="stylesheet" href="css/account.css?v=337">
+  <link rel="stylesheet" href="css/polish.css?v=337">
   <!-- Ссылку на сайт репетитор кидает ученикам в чат — это единственный
        канал раздачи. Без этих тегов она приходила туда голым адресом,
        без картинки и описания, то есть выглядела как спам. -->
@@ -176,7 +176,7 @@
       <div class="intro-video" id="intro-video" data-v="331">
         <button type="button" class="intro-play" id="intro-play"
                 aria-label="Посмотреть, как заниматься. Видео, минута">
-          <img src="video/tour-poster.jpg?v=336" alt="" width="1280" height="720" loading="lazy">
+          <img src="video/tour-poster.jpg?v=337" alt="" width="1280" height="720" loading="lazy">
           <span class="intro-play-mark" aria-hidden="true"></span>
           <span class="intro-play-label">Как это работает · 1 минута</span>
         </button>
@@ -862,13 +862,13 @@
     <a href="https://t.me/KOTSAVELII" target="_blank" rel="noopener">@KOTSAVELII</a></p>
 </footer>
 
-<script defer src="js/theme.js?v=336"></script>
-<script defer src="js/i18n.js?v=336"></script>
-<script defer src="js/icons.js?v=336"></script>
-<script defer src="js/cat.js?v=336"></script>
-<script defer src="js/motion.js?v=336"></script>
-<script defer src="js/util.js?v=336"></script>
-<script defer src="js/levels.js?v=336"></script>
+<script defer src="js/theme.js?v=337"></script>
+<script defer src="js/i18n.js?v=337"></script>
+<script defer src="js/icons.js?v=337"></script>
+<script defer src="js/cat.js?v=337"></script>
+<script defer src="js/motion.js?v=337"></script>
+<script defer src="js/util.js?v=337"></script>
+<script defer src="js/levels.js?v=337"></script>
 <!-- Словаря здесь НЕТ намеренно, и он больше не один файл.
      js/words.js разрезан по уровням (tools/split-words.py): целиком это
      2,1 МБ, 690 КБ сжатыми, и на слабом мобильном они ехали больше
@@ -879,26 +879,26 @@
 <!-- js/phrases.js здесь НЕТ намеренно: 150 КБ ради трёх упражнений
      из двадцати семи и одного раздела словаря. Подгружается по месту,
      через ensurePhrases() — см. js/exercises.js и js/app.js. -->
-<script defer src="js/srs.js?v=336"></script>
-<script defer src="js/images.js?v=336"></script>
-<script defer src="js/word-photos.js?v=336"></script>
+<script defer src="js/srs.js?v=337"></script>
+<script defer src="js/images.js?v=337"></script>
+<script defer src="js/word-photos.js?v=337"></script>
 <!-- Слова, озвученные живыми носителями (Wikimedia Commons):
      speak() в exercises.js играет запись вместо синтеза. -->
-<script defer src="js/word-audio.js?v=336"></script>
+<script defer src="js/word-audio.js?v=337"></script>
 <!-- Подсказки первого входа (coachmarks) — одна функция на обе роли -->
-<script defer src="js/coach.js?v=336"></script>
-<script defer src="js/app.js?v=336"></script>
-<script defer src="js/achievements.js?v=336"></script>
-<script defer src="js/exercises.js?v=336"></script>
-<script defer src="js/games.js?v=336"></script>
-<script defer src="js/voice.js?v=336"></script>
-<script defer src="js/sync.js?v=336"></script>
-  <script defer src="js/reading.js?v=336"></script>
-  <script defer src="js/photo.js?v=336"></script>
+<script defer src="js/coach.js?v=337"></script>
+<script defer src="js/app.js?v=337"></script>
+<script defer src="js/achievements.js?v=337"></script>
+<script defer src="js/exercises.js?v=337"></script>
+<script defer src="js/games.js?v=337"></script>
+<script defer src="js/voice.js?v=337"></script>
+<script defer src="js/sync.js?v=337"></script>
+  <script defer src="js/reading.js?v=337"></script>
+  <script defer src="js/photo.js?v=337"></script>
   <!-- После sync.js: профиль ходит на сервер через api() оттуда -->
-  <script defer src="js/account.js?v=336"></script>
+  <script defer src="js/account.js?v=337"></script>
   <!-- Порядок не важен: account.js зовёт хелперы только при отрисовке профиля -->
-  <script defer src="js/pwa-install.js?v=336"></script>
+  <script defer src="js/pwa-install.js?v=337"></script>
 <script>
   // офлайн-режим: сайт открывается без интернета и ставится на телефон
   if ("serviceWorker" in navigator && location.protocol !== "file:") {
