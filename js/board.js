@@ -753,7 +753,11 @@ function drawObject(o) {
     roundRect(o.x, o.y, o.w, o.h, 10);
     ctx.fill();
     ctx.stroke();
-    drawText(o.text || "", o.x + 12, o.y + 12, o.w - 24, 19, cssColor("ink"), "600");
+    // Кегль стикера — из size (19 px при дефолтной тройке): раньше был
+    // зашит намертво в 19, и A−/A+ и растягивание за угол визуально не
+    // делали ничего — ровно жалоба методиста «текст нельзя увеличить».
+    drawText(o.text || "", o.x + 12, o.y + 12, o.w - 24,
+             noteFontPx(o.size), cssColor("ink"), "600");
     return;
   }
 
@@ -2197,6 +2201,9 @@ canvas.addEventListener("touchend", () => { pinch = null; }, { passive: true });
    а стикер вырос бы под текст, которого нет. */
 const NOTE_LH = 19, NOTE_PAD = 12;
 const NOTE_MIN_H = 120, NOTE_MAX_H = 320, NOTE_TEXT_LIMIT = 600;
+/* Кегль стикера из его size: 19 px при тройке (как было всегда), дальше
+   пропорционально. Пол 10 — меньше уже пыль. */
+const noteFontPx = size => Math.max(10, NOTE_LH * (size || 3) / 3);
 
 /* Размер текстового объекта: size — не толщина (ей текст не рисуется),
  * а кегль: высота строки = size × 6 в разумных пределах 12–96 px.
@@ -2216,13 +2223,14 @@ function textHeight(text, w, lh) {
   return Math.max(lh, lines.length * lh);
 }
 
-function noteHeight(text, w) {
+function noteHeight(text, w, size) {
   ctx.save();
   // и здесь общая раскладка: стикер рендерится тем же drawText
+  const lh = noteFontPx(size);
   const lines = layoutRichText(String(text).slice(0, NOTE_TEXT_LIMIT),
-    w - NOTE_PAD * 2, NOTE_LH * 0.86, "600");
+    w - NOTE_PAD * 2, lh * 0.86, "600");
   ctx.restore();
-  return Math.max(NOTE_MIN_H, Math.min(NOTE_MAX_H, lines.length * NOTE_LH + NOTE_PAD * 2));
+  return Math.max(NOTE_MIN_H, Math.min(NOTE_MAX_H, lines.length * lh + NOTE_PAD * 2));
 }
 
 /* Высота, выбранная руками за уголок, важнее автороста: человек сам
@@ -2243,6 +2251,36 @@ function autoGrowEditor() {
   input.style.height = Math.min(max, Math.max(72, need)) + "px";
   input.style.overflowY = need > max ? "auto" : "hidden";
 }
+/* Инлайн-редактор, как в Miro/Holst: поле лежит ПРЯМО НА объекте, с его
+   кеглем, а не окном по центру экрана («текст ввода странный» — жалоба
+   методиста). Позиция и шрифт пересчитываются на каждой отрисовке, чтобы
+   поле ехало за объектом при панораме/зуме во время печати. */
+function positionEditorInline(o) {
+  const box = $("bd-editor"), input = $("bd-editor-input");
+  const b = bounds(o);
+  if (!b) return;
+  const k = BD.view.k;
+  const sx = b.x * k + BD.view.x, sy = b.y * k + BD.view.y;
+  const wpx = Math.max(240, b.w * k + (o.kind === "note" ? 24 : 0));
+  // Кегль поля = кеглю объекта на экране: печатаешь — видишь ровно то,
+  // что будет на доске
+  let px = 17;
+  if (o.kind === "text") px = textLH(o.size) * 0.86 * k;
+  else if (o.kind === "note") px = noteFontPx(o.size) * 0.86 * k;
+  else if (o.kind === "frame") px = 15 * k;
+  else if (o.kind === "rect" || o.kind === "ellipse") px = textLH(o.size || 3) * 0.86 * k;
+  input.style.fontSize = Math.max(13, Math.min(96, px)) + "px";
+  box.classList.add("bd-editor--inline");
+  box.style.left = Math.max(8, Math.min(innerWidth - wpx - 8, sx - (o.kind === "note" ? 12 : 0))) + "px";
+  box.style.top = Math.max(8, Math.min(innerHeight - 120, sy - (o.kind === "note" ? 12 : 0))) + "px";
+  box.style.width = wpx + "px";
+  input.style.minHeight = Math.max(44, Math.min(innerHeight * 0.4, b.h * k)) + "px";
+}
+function closeEditorBox() {
+  const box = $("bd-editor");
+  box.classList.remove("bd-editor--inline");
+  box.hidden = true;
+}
 function openEditor(o) {
   editing = o;
   // Страховка от потери текста (видео методиста: поле редактора оказалось
@@ -2259,6 +2297,7 @@ function openEditor(o) {
   // Подсказка разметки — только для текстов: заголовку фрейма она не нужна
   $("bd-editor-hint").hidden = o.kind === "frame";
   $("bd-editor-fmt").hidden = o.kind === "frame";
+  positionEditorInline(o);
   autoGrowEditor();
   // Фокус — после того, как браузер закончит обрабатывать нажатие:
   // синхронный focus() внутри pointerdown он тут же и отбирает
@@ -2288,13 +2327,13 @@ $("bd-editor-ok").addEventListener("click", () => {
   else {
     const o = { ...BD.objects.get(editing.id), text };
     // Стикер подгоняем под текст, если его размер не выбирали руками
-    if (o.kind === "note" && !noteManualH.has(o.id)) o.h = noteHeight(text, o.w);
+    if (o.kind === "note" && !noteManualH.has(o.id)) o.h = noteHeight(text, o.w, o.size);
     // У текстового объекта высота следует за кеглем и переносами: иначе
     // рамка выделения и хит-тест врут после смены текста или размера
     if (o.kind === "text") o.h = textHeight(text, o.w || 460, textLH(o.size));
     put(o);
   }
-  $("bd-editor").hidden = true;
+  closeEditorBox();
   editing = null;
   // И тут назад в «Выделить» — та же логика, что у фигур в finishStroke:
   // написал текст — и дальше по доске, а не новый текст на каждый клик.
@@ -2306,8 +2345,21 @@ $("bd-editor-cancel").addEventListener("click", () => {
   // заголовка — нормальный объект, он остаётся
   if (editing && editing.kind !== "frame"
       && !(BD.objects.get(editing.id) || {}).text) remove(editing.id, false);
-  $("bd-editor").hidden = true;
+  closeEditorBox();
   editing = null;
+});
+// Клик мимо поля — «Готово» (как в Miro: ушёл из поля — текст принят).
+// С паузой: фокус может уходить на свои же кнопки форматирования и в
+// эмодзи-пикер — их blur-коммит не должен рубить.
+$("bd-editor-input").addEventListener("blur", () => {
+  if (!editing) return;
+  setTimeout(() => {
+    if (!editing) return;
+    const ae = document.activeElement;
+    if (ae && ($("bd-editor").contains(ae)
+               || (emojiPickerEl && emojiPickerEl.contains(ae)))) return;
+    $("bd-editor-ok").click();
+  }, 160);
 });
 $("bd-editor-input").addEventListener("keydown", e => {
   if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) $("bd-editor-ok").click();
@@ -4861,7 +4913,12 @@ async function boot() {
   // а строка состояния честно говорит, что происходит.
   setState("подключаюсь…");
   paint();
-  requestAnimationFrame(function loop() { draw(); requestAnimationFrame(loop); });
+  requestAnimationFrame(function loop() {
+    draw();
+    // Инлайн-редактор едет за объектом при панораме/зуме во время печати
+    if (editing) positionEditorInline(editing);
+    requestAnimationFrame(loop);
+  });
 
   await syncNow();
   // Окаменелости (пустые тексты/стикеры прошлых сессий) выметаем сразу

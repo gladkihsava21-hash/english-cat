@@ -1494,6 +1494,41 @@ function spoint(w, type, wx, wy, extra = {}) {
     ok(sw.document.getElementById("bd-mp-hide").hidden, "у ученика кнопки «скрыть» нет");
   }
 
+  console.log("\n33. Кегль стикера из size; инлайн-редактор поверх объекта (Miro)");
+  {
+    const w = makeBoard();
+    await tick(150);
+    // noteFontPx: 19px при тройке, пропорционально дальше, пол 10
+    ok(w.eval("noteFontPx(3)") === 19 && w.eval("noteFontPx(6)") === 38
+       && w.eval("noteFontPx(0.5)") === 10, "кегль стикера из size: 19/38/10");
+    // стикер с size 6 выше по высоте, чем с size 3
+    const h3 = w.eval(`noteHeight("строка1\\nстрока2\\nстрока3", 200, 3)`);
+    const h6 = w.eval(`noteHeight("строка1\\nстрока2\\nстрока3", 200, 6)`);
+    ok(h6 > h3, "высота стикера следует за кеглем: " + h3 + " → " + h6);
+    // инлайн-редактор: дабл-клик — поле НА объекте, с его кеглем
+    w.eval(`BD.objects.set("ni", { id: "ni", kind: "note", x: 400, y: 300, w: 200, h: 120,
+             color: "note", size: 3, rev: 1, text: "старый текст" });`);
+    tool(w, "select");
+    point(w, "pointerdown", 460, 340, { detail: 2 });
+    await tick(30);
+    const box = w.document.getElementById("bd-editor");
+    ok(!box.hidden && box.classList.contains("bd-editor--inline"),
+       "редактор инлайн на объекте");
+    const left = parseInt(box.style.left, 10), top = parseInt(box.style.top, 10);
+    ok(Math.abs(left - (400 - 12)) < 40 && Math.abs(top - (300 - 12)) < 40,
+       "поле поверх объекта: " + box.style.left + "," + box.style.top);
+    const fs = parseFloat(w.document.getElementById("bd-editor-input").style.fontSize);
+    ok(fs > 14 && fs < 20, "кегль поля под объект: " + fs);
+    // blur — коммит (как в Miro: ушёл из поля — текст принят)
+    const inp = w.document.getElementById("bd-editor-input");
+    inp.value = "новый текст";
+    inp.blur();
+    await tick(300);
+    ok(box.hidden && byId(w, "ni").text === "новый текст",
+       "blur закоммитил текст: " + byId(w, "ni").text);
+    ok(!box.classList.contains("bd-editor--inline"), "класс инлайна снят при закрытии");
+  }
+
   console.log(fails ? `\nПРОВАЛЕНО: ${fails}` : "\nВсё зелено");
   process.exit(fails ? 1 : 0);
 })();

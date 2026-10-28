@@ -412,6 +412,26 @@
 }
 .bd-editor-row { display: flex; gap: 8px; justify-content: flex-end; }
 
+/* Инлайн-редактор (как в Miro/Holst): поле прямо на объекте, без окна
+   по центру. Рамка тонкая, фон бумаги, кегль задаёт скрипт под объект. */
+.bd-editor--inline {
+  transform: none;
+  width: auto;             /* ширину ставит positionEditorInline */
+  padding: 8px; gap: 6px;
+  border-radius: 8px;
+  box-shadow: 0 6px 18px rgba(0,0,0,.14);
+  border: 1.5px solid var(--accent-line, var(--line-control));
+}
+.bd-editor--inline textarea {
+  border: 0; background: transparent;
+  padding: 2px; min-height: 44px;
+  line-height: 1.16;       /* как у drawText: lh ≈ px / 0.86 */
+}
+.bd-editor--inline textarea:focus { outline: none; }
+.bd-editor--inline .bd-editor-hint { display: none; }
+.bd-editor--inline .bd-editor-row { justify-content: flex-start; }
+.bd-editor--inline .bd-editor-row .bd-btn { padding: 4px 8px; font-size: 12px; min-height: 0; }
+
 /* ---------- сообщение ---------- */
 .bd-toast {
   position: fixed;
