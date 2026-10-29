@@ -23,6 +23,25 @@ async function api(path, body) {
 
 function token() { return localStorage.getItem(TOKEN_KEY) || ""; }
 
+/** Короткое всплывающее сообщение (в board.js такое же): точечный ответ
+ *  на действие — «ссылка скопирована», «доска открыта». Элемент создаётся
+ *  по месту, отдельной разметки не надо. */
+function toast(text, ms = 3200) {
+  let t = document.getElementById("tutor-toast");
+  if (!t) {
+    t = document.createElement("p");
+    t.id = "tutor-toast";
+    t.style.cssText = "position:fixed;left:50%;top:16px;transform:translateX(-50%);"
+      + "background:#24302A;color:#fff;padding:10px 16px;border-radius:10px;"
+      + "z-index:90;font-size:14px;box-shadow:0 8px 22px rgba(0,0,0,.25);max-width:92vw;margin:0";
+    document.body.appendChild(t);
+  }
+  t.textContent = text;
+  t.hidden = false;
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => { t.hidden = true; }, ms);
+}
+
 /** Постоянный идентификатор устройства.
  *  Нужен ровно для одного: бесплатный период выдаётся один раз на
  *  устройство. Раньше триал заканчивался — заводилась новая почта, и он
@@ -462,6 +481,7 @@ function renderStudents() {
 
         <div class="stu-actions">
           <button class="btn btn-ghost btn-small" data-open="${s.id}">Открыть карточку</button>
+          <button class="btn btn-ghost btn-small" data-board-share="${s.id}">На доску</button>
           <button class="link-btn stu-del" data-del="${s.id}">удалить ученика</button>
         </div>
       </div>`;
@@ -470,6 +490,10 @@ function renderStudents() {
   list.querySelectorAll("[data-open]").forEach(btn => {
     btn.addEventListener("click", () => openStudent(Number(btn.dataset.open)));
   });
+  list.querySelectorAll("[data-board-share]").forEach(btn => {
+    btn.addEventListener("click", () => openBoardSharePicker(Number(btn.dataset.boardShare)));
+  });
+  renderInviteJoined();
 
   list.querySelectorAll("[data-group-for]").forEach(sel => {
     sel.addEventListener("change", async () => {
@@ -1138,6 +1162,86 @@ $("copy-link").addEventListener("click", () => {
     setTimeout(() => ($("copy-link").textContent = "Скопировать ссылку"), 2000);
   }).catch(() => document.execCommand("copy"));
 });
+
+/* Пересоздание ссылки: новый код, старый мёртв сразу (сервер ищет
+   репетитора ПО КОДУ — значения уже нет). Пришедшие раньше ученики
+   остаются: связь хранится на них, не на коде. */
+$("invite-rotate").addEventListener("click", async () => {
+  if (!confirm("Пересоздать ссылку? Старая перестанет работать сразу.")) return;
+  const res = await api("/api/tutor/invite/rotate", { token: token() });
+  if (!res.ok) { toast(res.error || "Не получилось пересоздать."); return; }
+  tutor.inviteCode = res.inviteCode;
+  renderInvite();
+  toast("Новая ссылка готова, старая отключена.");
+});
+
+/* Кто уже пришёл по ссылке — статус приглашения глазами. */
+function renderInviteJoined() {
+  const box = $("invite-joined");
+  if (!box) return;
+  if (!students.length) { box.classList.add("hidden"); box.innerHTML = ""; return; }
+  box.classList.remove("hidden");
+  const names = students.map(s => esc(s.name)).join(", ");
+  box.innerHTML = `<p class="muted-small">По вашей ссылке уже занимаются:
+    <b>${students.length}</b> — ${names}.</p>`;
+}
+
+/* «На доску» из карточки ученика: выбираем доску репетитора, открываем
+   её ученику и копируем магия-ссылку — один жест вместо похода на доску
+   (шаг 8 сценария P0). Доступ пишется в базу (action=share), ссылка —
+   та же ?st=, что на самой доске. */
+let boardShareMenu = null;
+async function openBoardSharePicker(studentId) {
+  const s = students.find(x => x.id === studentId);
+  if (!s) return;
+  const res = await api("/api/board/list", { token: token() });
+  if (!res.ok) { toast(res.error || "Не удалось получить список досок."); return; }
+  if (!res.boards.length) {
+    toast("Досок пока нет — создайте её на вкладке «Уроки».");
+    return;
+  }
+  if (!boardShareMenu) {
+    boardShareMenu = document.createElement("div");
+    boardShareMenu.id = "board-share-menu";
+    boardShareMenu.style.cssText = "position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);"
+      + "background:var(--surface,#fff);border:1px solid var(--line-control,#d8ddd9);border-radius:14px;"
+      + "padding:14px;z-index:80;box-shadow:0 20px 50px rgba(0,0,0,.25);display:flex;flex-direction:column;gap:6px;min-width:280px;max-width:92vw";
+    document.body.appendChild(boardShareMenu);
+    document.addEventListener("pointerdown", e => {
+      if (boardShareMenu.hidden !== false && !boardShareMenu.contains(e.target)) {
+        boardShareMenu.style.display = "none";
+      }
+    });
+  }
+  boardShareMenu.innerHTML = `<b style="font-size:15px">Какую доску открыть для «${esc(s.name)}»?</b>`
+    + res.boards.map(b => `<button class="btn btn-ghost btn-small" data-bid="${b.id}">
+        ${esc(b.title)}${b.shared && b.invited === s.id ? " · уже открыта" : ""}</button>`).join("")
+    + `<button class="link-btn" data-x>закрыть</button>`;
+  boardShareMenu.style.display = "flex";
+  boardShareMenu.querySelector("[data-x]").addEventListener("click", () => {
+    boardShareMenu.style.display = "none";
+  });
+  boardShareMenu.querySelectorAll("[data-bid]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const boardId = Number(btn.dataset.bid);
+      const r = await api("/api/board/update", {
+        token: token(), boardId, action: "share", shared: true, studentId,
+      });
+      if (!r.ok) { toast(r.error || "Не получилось открыть доску."); return; }
+      boardShareMenu.style.display = "none";
+      // Магия-ссылка ученику на новое устройство — та же, что даёт доска
+      const url = `${location.origin}/board.html?st=${encodeURIComponent(s.token)}`;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        try {
+          await navigator.clipboard.writeText(url);
+          toast(`Доска открыта для «${s.name}». Ссылка скопирована — отправьте ученику.`, 4200);
+          return;
+        } catch (e) { /* ниже общий вариант */ }
+      }
+      toast(`Доска открыта для «${s.name}». Ссылка: ${url}`, 9000);
+    });
+  });
+}
 
 // ===== Домашка =====
 function fillStudentSelect() {

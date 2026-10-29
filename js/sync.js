@@ -59,7 +59,15 @@ async function initInvite() {
       </div></div>`;
     document.getElementById("adopt-yes").addEventListener("click", async () => {
       const res = await api("/api/student/adopt", { token: studentToken(), code });
-      if (!res.ok) { box.innerHTML = `<p class="muted-small">${esc(res.error || "Не получилось.")}</p>`; return; }
+      if (!res.ok) {
+        // unknown_student — машинный код «сессия протухла»: человеку
+        // показываем, что делать, а не английское слово (шаг 12 чек-листа)
+        const msg = res.error === "unknown_student"
+          ? "Сначала войди в свой аккаунт — вкладка «Вход» или личный код, а потом открой ссылку ещё раз."
+          : (res.error || "Не получилось.");
+        box.innerHTML = `<p class="muted-small">${esc(msg)}</p>`;
+        return;
+      }
       localStorage.setItem(TUTOR_NAME_KEY, res.tutorName || "");
       location.href = location.pathname;   // убираем ?join= и перерисовываемся
     });

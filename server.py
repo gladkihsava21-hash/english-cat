@@ -416,6 +416,7 @@ _HIT_LIMITS = {
     "/api/tutor/lesson/open": (30, 300),
     "/api/tutor/taskset/save": (60, 600),
     "/api/tutor/reset/send": (5, 900),
+    "/api/tutor/invite/rotate": (10, 600),
     # Проверка кода: перебрать шесть цифр — миллион вариантов, но пробовать
     # их надо где-то, и здесь. Счётчик попыток на сам код тоже есть.
     "/api/tutor/reset/check": (10, 600),
@@ -1160,6 +1161,17 @@ class Api:
         return {"ok": True, "token": row["token"], "tutor": db.tutor_public(row),
                 "needVerify": not db.is_verified(row),
                 "access": db.access_state(row)}
+
+    @staticmethod
+    def tutor_invite_rotate(h, p):
+        """Пересоздать ссылку приглашения: старая мгновенно перестаёт
+        работать (код — единственное, что в ней проверяется). Сценарий
+        «ссылка ушла не туда» из чек-листа владельца."""
+        tutor, err = verified_tutor(p)
+        if err:
+            return err
+        code = db.rotate_invite_code(tutor["id"])
+        return {"ok": True, "inviteCode": code}
 
     @staticmethod
     def tutor_students(h, p):
@@ -3440,6 +3452,7 @@ ROUTES = {
     "/api/tutor/register": Api.tutor_register,
     "/api/tutor/login": Api.tutor_login,
     "/api/tutor/students": Api.tutor_students,
+    "/api/tutor/invite/rotate": Api.tutor_invite_rotate,
     "/api/tutor/student": Api.tutor_student_detail,
     "/api/tutor/add-word": Api.tutor_add_word,
     "/api/tutor/delete-word": Api.tutor_delete_word,

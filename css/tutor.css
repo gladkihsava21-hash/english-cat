@@ -883,3 +883,7 @@ details.hw-chip-listen.hw-chip-done summary { color: var(--green); }
 .hw-listen-q .q-num { font-weight: 900; color: var(--accent-dark); min-width: 18px; }
 .hw-listen-q input[type="text"] { flex: 1 1 180px; min-width: 0; }
 .hw-listen-q .q-del { flex: none; }
+
+/* Ссылка-приглашение: ротация и статус пришедших */
+.invite-actions-row { display: flex; gap: 10px; align-items: center; margin: 8px 0; }
+.invite-joined { margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--line-soft, #e3e8e4); }

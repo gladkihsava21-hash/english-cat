@@ -701,6 +701,23 @@ def new_invite_code():
     return "".join(secrets.choice(alphabet) for _ in range(6))
 
 
+def rotate_invite_code(tutor_id):
+    """Новый код приглашения вместо старого.
+
+    Старый код умирает сам собой: /api/join ищет репетитора ПО КОДУ,
+    а значение в базе уже другое. Ссылку «отключить» отдельной кнопкой
+    не делаем — пересоздание и есть отключение старой (проверяется тестом
+    P0: старый код после ротации даёт «не нашёлся»).
+    Ученики, пришедшие раньше, никуда не деваются — связь с репетитором
+    хранится на них, а не на коде."""
+    code = new_invite_code()
+    while conn().execute("SELECT 1 FROM tutors WHERE invite_code=?", (code,)).fetchone():
+        code = new_invite_code()
+    conn().execute("UPDATE tutors SET invite_code=? WHERE id=?", (code, tutor_id))
+    conn().commit()
+    return code
+
+
 # ---------- репетиторы ----------
 
 def device_used_trial(device_id):

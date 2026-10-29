@@ -636,6 +636,14 @@
           <button class="btn btn-primary" id="copy-link">Скопировать ссылку</button>
         </div>
         <p class="muted-small">Код приглашения: <b id="invite-code"></b></p>
+        <div class="invite-actions-row">
+          <button class="btn btn-ghost btn-small" id="invite-rotate">Пересоздать ссылку</button>
+          <span class="muted-small">старая сразу перестанет работать,
+            пришедшие ученики никуда не денутся</span>
+        </div>
+        <!-- Кто уже пришёл по ссылке: статус приглашения глазами, а не
+             «наверное работает». Список тот же, что во вкладке «Ученики». -->
+        <div id="invite-joined" class="invite-joined hidden"></div>
 
         <!-- QR на ту же ссылку. На занятии это быстрее любого чата:
              показали с экрана — ученики навели телефоны и уже внутри.
