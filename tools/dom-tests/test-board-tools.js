@@ -1567,6 +1567,30 @@ function spoint(w, type, wx, wy, extra = {}) {
        "название доски получено");
   }
 
+  console.log("\n35. Позвать ученика одним нажатием: доска открыта + ссылка скопирована");
+  {
+    const w = makeBoard();
+    await tick(150);
+    w.eval(`BD.students = [{ id: 13, name: "Марго", token: "tok-margo" }];
+            BD.boardId = 33;`);
+    w.document.getElementById("bd-share").click();
+    await tick(60);
+    const menu = w.document.getElementById("bd-share-menu");
+    ok(!menu.hidden, "меню «Открыть ученику» открылось");
+    const btn = menu.querySelector('[data-share="13"]');
+    ok(!!btn, "в меню есть ученица Марго");
+    btn.click();
+    await tick(60);
+    ok(w.eval("shareState.invited") === 13 && w.eval("shareState.shared") === true,
+       "одно нажатие открыло доску Марго: invited=" + w.eval("shareState.invited"));
+    const toastEl = w.document.getElementById("bd-toast");
+    // В jsdom нет clipboard API — сработает запасной тост с самой ссылкой
+    ok(!toastEl.hidden && toastEl.textContent.includes("board.html?st=tok-margo"),
+       "тост несёт магия-ссылку: " + toastEl.textContent.slice(0, 80));
+    // 🔗 — повторное копирование тоже на месте
+    ok(!!menu.querySelector('[data-link="13"]'), "кнопка 🔗 для повторной копии есть");
+  }
+
   console.log(fails ? `\nПРОВАЛЕНО: ${fails}` : "\nВсё зелено");
   process.exit(fails ? 1 : 0);
 })();

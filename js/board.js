@@ -4539,7 +4539,7 @@ function renderShareState(shared, invited) {
   $("bd-share").classList.toggle("on", shareState.shared);
 }
 
-async function setShare(shared, studentId) {
+async function setShare(shared, studentId, quiet) {
   const res = await api("/api/board/update", {
     token: BD.token, boardId: BD.boardId, action: "share",
     shared, studentId: studentId || null,
@@ -4547,11 +4547,15 @@ async function setShare(shared, studentId) {
   if (!res.ok) { toast(res.error || "Не получилось."); return; }
   renderShareState(shared, studentId);
   $("bd-live").hidden = !shared;
-  if (!shared) toast("Доступ закрыт.");
-  else if (studentId) {
-    const s = BD.students.find(x => x.id === studentId);
-    toast("Доска открыта: " + (s ? s.name : "ученик") + " увидит её на главной.");
-  } else toast("Доска открыта всем вашим ученикам.");
+  // quiet: тост покажет сам вызвавший (у «позвать одним нажатием» свой,
+  // со ссылкой — два тоста подряд затирали друг друга)
+  if (!quiet) {
+    if (!shared) toast("Доступ закрыт.");
+    else if (studentId) {
+      const s = BD.students.find(x => x.id === studentId);
+      toast("Доска открыта: " + (s ? s.name : "ученик") + " увидит её на главной.");
+    } else toast("Доска открыта всем вашим ученикам.");
+  }
   $("bd-share-menu").hidden = true;
 }
 
@@ -4570,16 +4574,36 @@ $("bd-share").addEventListener("click", async () => {
   });
   if (!BD.students.length) rows.push(`<p class="bd-hint">Учеников пока нет.</p>`);
   if (shareState.shared) rows.push(`<button data-share="off" class="danger">Закрыть доску</button>`);
-  rows.push(`<p class="bd-hint">🔗 — ссылка-приглашение: ученик заходит
-    на доску с любого устройства сразу, без ввода кода.</p>`);
+  rows.push(`<p class="bd-hint">Нажми на ученика — доска откроется ему,
+    а ссылка сама скопируется: отправь её любым способом. По ней ученик
+    заходит с любого устройства без кода. 🔗 — скопировать ссылку ещё раз.</p>`);
   menu.innerHTML = rows.join("");
   menu.hidden = false;
   menu.querySelectorAll("[data-share]").forEach(b => {
-    b.addEventListener("click", () => {
+    b.addEventListener("click", async () => {
       const v = b.dataset.share;
-      if (v === "off") setShare(false, null);
-      else if (v === "all") setShare(true, null);
-      else setShare(true, Number(v));
+      if (v === "off") { setShare(false, null); return; }
+      if (v === "all") { setShare(true, null); return; }
+      // Одно нажатие делает всё: доска открыта ученику И магия-ссылка
+      // уже в буфере — репетитору осталось переслать её ученику.
+      // Никаких «а где ссылка» и «что дальше» (просьба владельца).
+      const id = Number(v);
+      setShare(true, id, true);
+      const s = BD.students.find(x => x.id === id);
+      if (s && s.token) {
+        const url = `${location.origin}/board.html?st=${encodeURIComponent(s.token)}`;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          try {
+            await navigator.clipboard.writeText(url);
+            toast(`Доска открыта для «${s.name}». Ссылка скопирована — просто отправь её ученику.`, 4200);
+          } catch (e) {
+            toast(`Доска открыта для «${s.name}». Ссылка: ${url}`, 8000);
+          }
+        } else {
+          // Старое устройство без clipboard API: показываем ссылку текстом
+          toast(`Доска открыта для «${s.name}». Ссылка: ${url}`, 8000);
+        }
+      }
     });
   });
   menu.querySelectorAll("[data-link]").forEach(b => {
