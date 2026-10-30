@@ -3658,6 +3658,13 @@ function pickShape(tool) {
 }
 $("bd-shapes").addEventListener("click", () => {
   const m = $("bd-shapes-menu");
+  if (m.hidden) {
+    // Вылет вбок от кнопки (как тултип у «Маркера»). Меню fixed: док со
+    // скроллом абсолютное меню за своим краем обрезал — оно было невидимо.
+    const r = $("bd-shapes").getBoundingClientRect();
+    m.style.left = (r.right + 8) + "px";
+    m.style.top = Math.max(8, Math.min(innerHeight - 280, r.top - 30)) + "px";
+  }
   m.hidden = !m.hidden;
 });
 $("bd-shapes-menu").querySelectorAll("[data-shape]").forEach(b => {

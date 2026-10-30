@@ -733,8 +733,13 @@
 .bd-share-menu button.on { background: var(--accent-soft); color: var(--accent); font-weight: 700; }
 .bd-share-menu button.danger { color: var(--bd-red); }
 .bd-share-menu .bd-hint { margin: 4px 8px; }
-/* Меню фигур из левого дока: открывается вправо от кнопки, а не вниз */
-.bd-shapes-menu { left: calc(100% + 8px); right: auto; top: 0; min-width: 200px; }
+/* Меню фигур из левого дока: вылетает вбок от кнопки, как тултип.
+   position: fixed с координатами из JS — внутри дока (overflow-y:auto)
+   абсолютное меню вправо ОБРЕЗАЛОСЬ и было невидимым (баг владельца). */
+.bd-shapes-menu {
+  position: fixed; z-index: 55;
+  min-width: 200px; max-height: 70vh; overflow-y: auto;
+}
 .bd-shapes-menu .bd-kbd {
   float: right; opacity: .55; font-size: 11px;
   border: 1px solid var(--line-soft); border-radius: 4px; padding: 0 4px;
