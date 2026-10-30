@@ -3109,7 +3109,10 @@ document.addEventListener("keydown", e => {
     return;
   }
   if (map[key]) {
-    document.querySelector(`.bd-tool[data-tool="${map[key]}"]`).click();
+    // Кнопки инструментов могут отсутствовать при смешанном кэше (новый
+    // HTML + старый JS у пользователя): null-клик ронял весь keydown.
+    const btn = document.querySelector(`.bd-tool[data-tool="${map[key]}"]`);
+    if (btn) btn.click();
   }
   if (key === "w") $("bd-words").click();
   if ((e.ctrlKey || e.metaKey) && key === "z") { e.preventDefault(); e.shiftKey ? doRedo() : doUndo(); }
