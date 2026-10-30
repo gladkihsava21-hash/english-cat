@@ -365,5 +365,22 @@ objs_s = {o["id"]: o for o in r["objects"]}
 ok(objs_s.get("hide-1", {}).get("hide") == 0 and "hide-1" not in r.get("hidden", []),
    "после «показать» ученик объект получил")
 
+print("\n14. Новые фигуры (ромб/треугольник) и «без обводки» (stroke -1)")
+for kind in ("diamond", "triangle"):
+    sh = {"id": "sh-%s" % kind, "kind": kind, "x": 0, "y": 0, "w": 100, "h": 80,
+          "color": "ink", "size": 3, "fill": "note2", "stroke": -1, "opacity": 0.7}
+    db.board_sync(bid, [sh], [], 0, T)
+    r = db.board_sync(bid, [], [], 0, S)
+    objs = {o["id"]: o for o in r["objects"]}
+    got = objs.get("sh-%s" % kind, {})
+    ok(got.get("kind") == kind and got.get("stroke") == -1 and got.get("fill") == "note2",
+       "%s доехал со стилями: %s" % (kind, got))
+# мусорная обводка ниже -1 зажимается в -1, выше 12 — в 12
+db.board_sync(bid, [{"id": "sh-x", "kind": "diamond", "x": 0, "y": 0, "w": 10, "h": 10,
+                     "color": "ink", "size": 3, "stroke": -99}], [], 0, T)
+r = db.board_sync(bid, [], [], 0, S)
+objs = {o["id"]: o for o in r["objects"]}
+ok(objs.get("sh-x", {}).get("stroke") == -1, "stroke -99 зажат в -1: %s" % objs.get("sh-x", {}).get("stroke"))
+
 print("\n" + ("ПРОВАЛЕНО: %d" % fails if fails else "всё держится"))
 sys.exit(1 if fails else 0)

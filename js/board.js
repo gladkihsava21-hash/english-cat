@@ -600,28 +600,48 @@ function drawObject(o) {
     return;
   }
 
-  if (o.kind === "rect" || o.kind === "ellipse") {
+  if (o.kind === "rect" || o.kind === "ellipse"
+      || o.kind === "diamond" || o.kind === "triangle") {
     // Заливка/обводка/прозрачность как в Holst (методист): fill = цвет
     // заливки (пусто — без неё), stroke = толщина обводки px (нет — как
-    // раньше от size), opacity 0.2–1. Поля опциональны: старые доски без
-    // них выглядят ровно так же.
+    // раньше от size; -1 — «без обводки» вовсе), opacity 0.2–1.
+    // Поля опциональны: старые доски без них выглядят ровно так же.
     ctx.save();
     if (o.opacity != null && +o.opacity < 1)
       ctx.globalAlpha = Math.max(0.2, Math.min(1, +o.opacity || 1));
     const shapePath = () => {
       ctx.beginPath();
       if (o.kind === "rect") roundRect(o.x, o.y, o.w, o.h, 8);
-      else ctx.ellipse(o.x + o.w / 2, o.y + o.h / 2, Math.abs(o.w / 2), Math.abs(o.h / 2), 0, 0, 7);
+      else if (o.kind === "ellipse")
+        ctx.ellipse(o.x + o.w / 2, o.y + o.h / 2, Math.abs(o.w / 2), Math.abs(o.h / 2), 0, 0, 7);
+      else if (o.kind === "diamond") {
+        // Ромб: вершины по серединам сторон рамки
+        ctx.moveTo(o.x + o.w / 2, o.y);
+        ctx.lineTo(o.x + o.w, o.y + o.h / 2);
+        ctx.lineTo(o.x + o.w / 2, o.y + o.h);
+        ctx.lineTo(o.x, o.y + o.h / 2);
+        ctx.closePath();
+      } else {
+        // Треугольник: вершина сверху по центру, основание снизу
+        ctx.moveTo(o.x + o.w / 2, o.y);
+        ctx.lineTo(o.x + o.w, o.y + o.h);
+        ctx.lineTo(o.x, o.y + o.h);
+        ctx.closePath();
+      }
     };
     if (o.fill) {
       ctx.fillStyle = cssColor(o.fill);
       shapePath();
       ctx.fill();
     }
-    ctx.strokeStyle = color;
-    ctx.lineWidth = o.stroke || o.size;
-    shapePath();
-    ctx.stroke();
+    if (o.stroke !== -1) {
+      // stroke -1 — «без обводки» (просьба методиста: у фигуры нельзя
+      // было убрать рамку); 0/нет — толщина от size, как раньше
+      ctx.strokeStyle = color;
+      ctx.lineWidth = o.stroke || o.size;
+      shapePath();
+      ctx.stroke();
+    }
     ctx.restore();
     // Текст внутри фигуры (волна 6): по центру, перенос по ширине фигуры,
     // разметка форматирования — та же, что у текстового объекта
@@ -1092,7 +1112,8 @@ const isEmptyText = o => (o.kind === "note" || o.kind === "text")
  *  движением руки посреди урока (жалоба владельца) — потеря, которую на
  *  ходу не восстановишь: книгу надо снова искать и листать до страницы.
  *  Убрать их всё равно можно — выделить и нажать Delete, то есть намеренно. */
-const ERASABLE = ["pen", "marker", "rect", "ellipse", "arrow", "line", "text", "note"];
+const ERASABLE = ["pen", "marker", "rect", "ellipse", "diamond", "triangle",
+                  "arrow", "line", "text", "note"];
 /* note в списке осознанно: стикер — это написанное от руки, а не положенное
    содержимое вроде картинки или книги. Владелец водил по стикеру ластиком
    и получал молчание — читалось как «ластик не работает» (видео 23.09). */
@@ -1586,7 +1607,9 @@ canvas.addEventListener("pointerdown", e => {
       // Дабл-клик по фигуре — текст ВНУТРИ неё (волна 6, как в Miro).
       if (((hit.kind === "note" || hit.kind === "text") && (e.detail === 2 || isDouble))
           || (hit.kind === "frame" && (e.detail === 2 || isDouble))
-          || ((hit.kind === "rect" || hit.kind === "ellipse") && (e.detail === 2 || isDouble))) {
+          || ((hit.kind === "rect" || hit.kind === "ellipse"
+              || hit.kind === "diamond" || hit.kind === "triangle")
+             && (e.detail === 2 || isDouble))) {
         e.preventDefault();
         if (hit.locked) toast("Закреплено — сначала сними замок у рамки.");
         else openEditor(hit);
@@ -1685,7 +1708,8 @@ canvas.addEventListener("pointerdown", e => {
     // новый текст поверх фигуры.
     const hit = hitTest(w.x, w.y);
     if (hit && (hit.kind === "note" || hit.kind === "text"
-        || ((hit.kind === "rect" || hit.kind === "ellipse") && hit.text)) && !hit.locked) {
+        || ((hit.kind === "rect" || hit.kind === "ellipse"
+            || hit.kind === "diamond" || hit.kind === "triangle") && hit.text)) && !hit.locked) {
       e.preventDefault();
       BD.selected = hit.id;
       openEditor(hit);
@@ -2051,7 +2075,7 @@ function finishStroke() {
   if ((o.kind === "pen" || o.kind === "marker") && (o.pts || []).length < 4) {
     BD.objects.delete(o.id); paint(); return;      // случайный тычок
   }
-  if (["rect", "ellipse", "arrow", "line", "frame"].includes(o.kind)
+  if (["rect", "ellipse", "diamond", "triangle", "arrow", "line", "frame"].includes(o.kind)
       && Math.abs(o.w) < 4 && Math.abs(o.h) < 4) {
     BD.objects.delete(o.id); paint(); return;
   }
@@ -2068,7 +2092,7 @@ function finishStroke() {
   // так доска и покрывалась случайными следами (видео владельца 23.09).
   // Ручку и маркер НЕ трогаем: подчеркнуть несколько слов подряд —
   // нормальный сценарий, и липкий инструмент там честнее.
-  if (["rect", "ellipse", "arrow", "line", "frame"].includes(o.kind)) {
+  if (["rect", "ellipse", "diamond", "triangle", "arrow", "line", "frame"].includes(o.kind)) {
     const sel = document.querySelector('.bd-tool[data-tool="select"]');
     if (sel) sel.click();
   }
@@ -2268,7 +2292,8 @@ function positionEditorInline(o) {
   if (o.kind === "text") px = textLH(o.size) * 0.86 * k;
   else if (o.kind === "note") px = noteFontPx(o.size) * 0.86 * k;
   else if (o.kind === "frame") px = 15 * k;
-  else if (o.kind === "rect" || o.kind === "ellipse") px = textLH(o.size || 3) * 0.86 * k;
+  else if (o.kind === "rect" || o.kind === "ellipse"
+           || o.kind === "diamond" || o.kind === "triangle") px = textLH(o.size || 3) * 0.86 * k;
   input.style.fontSize = Math.max(13, Math.min(96, px)) + "px";
   box.classList.add("bd-editor--inline");
   box.style.left = Math.max(8, Math.min(innerWidth - wpx - 8, sx - (o.kind === "note" ? 12 : 0))) + "px";
@@ -2317,7 +2342,8 @@ $("bd-editor-ok").addEventListener("click", () => {
   // У фрейма пустой заголовок — это нормально, объект не удаляем
   if (editing.kind === "frame") {
     put({ ...BD.objects.get(editing.id), title: text || "Фрейм" });
-  } else if (editing.kind === "rect" || editing.kind === "ellipse") {
+  } else if (editing.kind === "rect" || editing.kind === "ellipse"
+             || editing.kind === "diamond" || editing.kind === "triangle") {
     // Текст внутри фигуры: пустой — просто без текста, фигура остаётся
     put({ ...BD.objects.get(editing.id), text });
   } else if (!text) {
@@ -2829,7 +2855,8 @@ function updateMiniPanel() {
   // прозрачность. Только одиночное незалоченное выделение.
   const st2 = $("bd-mp-style2");
   const shapeFor = single && !single.locked
-    && (single.kind === "rect" || single.kind === "ellipse");
+    && (single.kind === "rect" || single.kind === "ellipse"
+        || single.kind === "diamond" || single.kind === "triangle");
   st2.hidden = !shapeFor;
   if (shapeFor) {
     st2.querySelectorAll(".bd-mp-fill").forEach(b =>
@@ -2956,6 +2983,13 @@ $("bd-mp-roll").addEventListener("click", () => {
     st2.appendChild(b);
   });
   lbl("Обводка");
+  const noStroke = document.createElement("button");
+  noStroke.className = "bd-btn bd-mp-chip";
+  noStroke.dataset.stroke = "-1";
+  noStroke.textContent = "нет";
+  noStroke.title = "Без обводки";
+  noStroke.addEventListener("click", () => applyStyle({ stroke: -1 }));
+  st2.appendChild(noStroke);
   const auto = document.createElement("button");
   auto.className = "bd-btn bd-mp-chip";
   auto.dataset.stroke = "0";
@@ -3054,9 +3088,13 @@ document.addEventListener("keydown", e => {
     return;
   }
   const map = { v: "select", p: "pen", m: "marker", e: "eraser", s: "note", n: "note",
-                t: "text", r: "rect", o: "ellipse", a: "arrow", l: "laser", f: "frame",
-                d: "dice" };
+                t: "text", l: "laser", f: "frame", d: "dice" };
   const key = e.key.toLowerCase();
+  // Фигуры живут в меню одной кнопки: R/O/A выбирают через pickShape,
+  // отдельных кнопок у них больше нет (объединение как в Holst)
+  if (key === "r") { pickShape("rect"); return; }
+  if (key === "o") { pickShape("ellipse"); return; }
+  if (key === "a") { pickShape("arrow"); return; }
   // Escape из лазера или штампа — обратно в выделение: инструмент без
   // рисования иначе неочевидно чем выключить, а точка/эмодзи под курсором
   // так и висели бы.
@@ -3603,6 +3641,33 @@ $("bd-stamp-open").addEventListener("click", e => {
   const r = e.currentTarget.getBoundingClientRect();
   $("bd-react-menu").hidden = true;
   openEmojiPicker(r, armEmojiStamp);
+});
+
+/* Фигуры одной кнопкой с выбором (как в Holst): меню с прямоугольником,
+   овалом, ромбом, треугольником и стрелкой. Кнопка светится активной,
+   пока текущий инструмент — любая фигура. Клавиши R/O/A выбирают
+   фигуру через тот же pickShape (см. keydown). */
+const SHAPE_TOOLS = ["rect", "ellipse", "diamond", "triangle", "arrow"];
+function pickShape(tool) {
+  BD.tool = tool;
+  document.querySelectorAll(".bd-tool[data-tool]").forEach(x => x.classList.remove("active"));
+  $("bd-shapes").classList.add("active");
+  $("bd-shapes-menu").hidden = true;
+  canvas.style.cursor = "crosshair";
+  syncStyleBar();
+}
+$("bd-shapes").addEventListener("click", () => {
+  const m = $("bd-shapes-menu");
+  m.hidden = !m.hidden;
+});
+$("bd-shapes-menu").querySelectorAll("[data-shape]").forEach(b => {
+  b.addEventListener("click", () => pickShape(b.dataset.shape));
+});
+document.addEventListener("pointerdown", e => {
+  const m = $("bd-shapes-menu");
+  if (!m.hidden && !m.contains(e.target) && e.target !== $("bd-shapes")) {
+    m.hidden = true;
+  }
 });
 // Кнопка в доке: тот же штамп, но на видном месте (методист не находила
 // его в меню реакций и решила, что смайлы «только летают»)

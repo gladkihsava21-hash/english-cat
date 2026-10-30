@@ -1591,6 +1591,71 @@ function spoint(w, type, wx, wy, extra = {}) {
     ok(!!menu.querySelector('[data-link="13"]'), "кнопка 🔗 для повторной копии есть");
   }
 
+  console.log("\n36. Фигуры одной кнопкой (Holst): ромб/треугольник, «без обводки»");
+  {
+    const w = makeBoard();
+    await tick(150);
+    // кнопка «Фигуры» открывает меню со всеми пятью
+    const shapesBtn = w.document.getElementById("bd-shapes");
+    ok(!!shapesBtn, "кнопка «Фигуры» в доке есть");
+    ok(!w.document.querySelector('.bd-tool[data-tool="rect"]')
+       && !w.document.querySelector('.bd-tool[data-tool="ellipse"]'),
+       "отдельных кнопок rect/ellipse больше нет — объединены");
+    shapesBtn.click();
+    const smenu = w.document.getElementById("bd-shapes-menu");
+    ok(!smenu.hidden && smenu.querySelectorAll("[data-shape]").length === 5,
+       "меню с пятью фигурами");
+    // ромб: выбор из меню, драг — объект на доске
+    smenu.querySelector('[data-shape="diamond"]').click();
+    ok(bd(w).tool === "diamond" && shapesBtn.classList.contains("active"),
+       "инструмент «ромб» активен");
+    ok(smenu.hidden, "меню закрылось после выбора");
+    point(w, "pointerdown", 200, 200);
+    point(w, "pointermove", 340, 300);
+    point(w, "pointerup", 340, 300);
+    const dm = objects(w).find(o => o.kind === "diamond");
+    ok(!!dm, "ромб нарисован драгом");
+    w.eval("drawObject(BD.objects.get('" + dm.id + "'))");
+    ok(true, "ромб отрисовался");
+    // после разового действия — назад в «Выделить»
+    ok(bd(w).tool === "select", "после фигуры — обратно в «Выделить»");
+    // треугольник тем же путём
+    shapesBtn.click();
+    w.document.getElementById("bd-shapes-menu").querySelector('[data-shape="triangle"]').click();
+    point(w, "pointerdown", 420, 200);
+    point(w, "pointermove", 540, 320);
+    point(w, "pointerup", 540, 320);
+    ok(objects(w).some(o => o.kind === "triangle"), "треугольник нарисован");
+    // клавиша R выбирает прямоугольник через то же меню
+    w.eval(`document.dispatchEvent(new window.KeyboardEvent("keydown",
+             { key: "r", bubbles: true, cancelable: true }))`);
+    ok(bd(w).tool === "rect", "клавиша R — прямоугольник");
+    // «без обводки»: чип «нет» ставит stroke −1, отрисовка не падает
+    point(w, "pointerdown", 600, 200);
+    point(w, "pointermove", 700, 300);
+    point(w, "pointerup", 700, 300);
+    const rc = objects(w).find(o => o.kind === "rect");
+    tool(w, "select");
+    point(w, "pointerdown", 650, 245);
+    point(w, "pointerup", 650, 245);
+    await tick(60);
+    const st2 = w.document.getElementById("bd-mp-style2");
+    const noStroke = st2 && st2.querySelector('[data-stroke="-1"]');
+    ok(!st2.hidden && !!noStroke, "чип «нет» у обводки есть");
+    noStroke.click();
+    await tick(30);
+    ok(byId(w, rc.id).stroke === -1, "обводка убрана: stroke=" + byId(w, rc.id).stroke);
+    w.eval("drawObject(BD.objects.get('" + rc.id + "'))");
+    ok(true, "фигура без обводки отрисовалась");
+    // чип подсвечен как активный
+    await tick(60);
+    ok(noStroke.classList.contains("on"), "чип «нет» подсвечен");
+    // вернуть «Авто»
+    st2.querySelector('[data-stroke="0"]').click();
+    await tick(30);
+    ok(byId(w, rc.id).stroke === 0, "обводка возвращена в «Авто»");
+  }
+
   console.log(fails ? `\nПРОВАЛЕНО: ${fails}` : "\nВсё зелено");
   process.exit(fails ? 1 : 0);
 })();

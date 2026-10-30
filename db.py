@@ -2792,6 +2792,7 @@ def _clean_board_object(o):
     # которое видел только он сам. Форма у него ровно как у "pen"
     # (точки, цвет, толщина), отдельной обработки не требует.
     if not oid or kind not in ("pen", "marker", "line", "arrow", "rect", "ellipse",
+                               "diamond", "triangle",
                                "note", "text", "word", "image", "ping", "bg",
                                "task", "book", "frame", "emoji", "dice"):
         return None
@@ -2828,7 +2829,8 @@ def _clean_board_object(o):
         # фильтр в board_sync, здесь просто пропускаем поле.
         "hide": 1 if o.get("hide") else 0,
     }
-    if kind in ("note", "text", "word", "task", "emoji", "rect", "ellipse"):
+    if kind in ("note", "text", "word", "task", "emoji", "rect", "ellipse",
+                "diamond", "triangle"):
         # У emoji text — это сам символ (🐱): без сохранения штамп
         # превращался бы в пустой квадрат. Пустотная чистка ниже его не
         # трогает нарочно: она про забытые пустые тексты, а эмодзи без
@@ -2853,12 +2855,13 @@ def _clean_board_object(o):
         # над рамкой. Без этой строки переименование жило бы только до
         # первой синхронизации.
         out["title"] = str(o.get("title", ""))[:120]
-    if kind in ("rect", "ellipse"):
+    if kind in ("rect", "ellipse", "diamond", "triangle"):
         # Стили фигур (как в Holst): заливка, толщина обводки, прозрачность.
-        # fill = "" — без заливки; stroke = 0 — «авто» (толщина size);
-        # opacity зажата в 0.2–1, чтобы фигуру нельзя было «потерять».
+        # fill = "" — без заливки; stroke = 0 — «авто» (толщина size),
+        # stroke = -1 — «без обводки» вовсе; opacity зажата в 0.2–1,
+        # чтобы фигуру нельзя было «потерять».
         out["fill"] = str(o.get("fill", ""))[:24]
-        out["stroke"] = max(0, min(12, int(num(o.get("stroke", 0), 0, 12))))
+        out["stroke"] = max(-1, min(12, int(num(o.get("stroke", 0), -1, 12))))
         out["opacity"] = max(0.2, min(1, num(o.get("opacity", 1), 0.2, 1)))
     if kind == "dice":
         # Кубик: стандартные грани из списка, значение в их пределах —
