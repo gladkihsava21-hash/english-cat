@@ -150,13 +150,20 @@ function draw(w = innerWidth, h = innerHeight) {
   ctx.translate(BD.view.x, BD.view.y);
   ctx.scale(BD.view.k, BD.view.k);
 
-  // Порядок один и тот же у обоих участников — по версии объекта,
-  // иначе у репетитора стикер сверху, а у ученика под линией.
-  // Исключение — фреймы: они подложка и лежат ПОД всем содержимым
-  // (над фоном), независимо от версии (как в Miro).
-  const byRev = [...BD.objects.values()].sort((a, b) => (a.rev || 0) - (b.rev || 0));
-  const list = byRev.filter(o => o.kind === "frame")
-    .concat(byRev.filter(o => o.kind !== "frame"));
+  // Порядок один и тот же у обоих участников — иначе у репетитора стикер
+  // сверху, а у ученика под линией. Ключ слоя: явный z (кнопки «на
+  // передний/задний план»), а где его нет — версия объекта; картинки без
+  // явного z опускаются на миллиард вниз — текст на фото всегда на
+  // переднем плане (решение владельца). Явный z сильнее этого дефолта:
+  // «на задний план» честно кладёт объект под картинку.
+  // Фреймы — подложка ПОД всем содержимым (как в Miro), независимо от z.
+  const zKey = o => (o.z != null ? +o.z || 0
+    : (o.rev || 0) - (o.kind === "image" ? 1e9 : 0));
+  const asc = (a, b) => zKey(a) - zKey(b);
+  const byRev = [...BD.objects.values()];
+  const frames = byRev.filter(o => o.kind === "frame").sort(asc);
+  const rest = byRev.filter(o => o.kind !== "frame").sort(asc);
+  const list = frames.concat(rest);
   for (const o of list) {
     // Пустые окаменелости не рисуем (см. isEmptyText): на доске не должно
     // быть безымянных квадратов от «создал и передумал».
@@ -1120,8 +1127,14 @@ const ERASABLE = ["pen", "marker", "rect", "ellipse", "diamond", "triangle",
 const erasable = o => ERASABLE.includes(o.kind);
 
 function hitTest(wx, wy) {
-  // Сверху вниз: последним нарисованное ловится первым — так и ожидают
-  const list = [...BD.objects.values()].sort((a, b) => (b.rev || 0) - (a.rev || 0));
+  // Сверху вниз: нарисованное позже ловится первым — тот же порядок, что в
+  // draw(): всё по z/rev (картинки без z — на миллиард ниже), фреймы внизу.
+  const zKey = o => (o.z != null ? +o.z || 0
+    : (o.rev || 0) - (o.kind === "image" ? 1e9 : 0));
+  const desc = (a, b) => zKey(b) - zKey(a);
+  const all = [...BD.objects.values()];
+  const list = all.filter(o => o.kind !== "frame").sort(desc)
+    .concat(all.filter(o => o.kind === "frame").sort(desc));
   for (const o of list) {
     if (isService(o)) continue;
     // Невидимое (пустая окаменелость) не может быть попаданием — иначе
@@ -2913,6 +2926,25 @@ function mpResize(d) {
 $("bd-mp-minus").addEventListener("click", () => mpResize(-2));
 $("bd-mp-plus").addEventListener("click", () => mpResize(2));
 $("bd-mp-dup").addEventListener("click", duplicateSelection);
+/* Слой объекта: «на передний план» — z больше всех, «на задний» —
+   меньше всех (кроме фона: служебный, и постоянных слоёв фреймов и
+   картинок). z едет через sync, порядок одинаков у обеих сторон. */
+function reorderSelection(toFront) {
+  const all = [...BD.objects.values()].filter(o => o.kind !== "bg");
+  if (!all.length) return;
+  // Тот же ключ, что у отрисовки: картинки без z — на миллиард ниже,
+  // поэтому «на задний план» опустит объект и под картинку.
+  const zs = all.map(o => (o.z != null ? +o.z || 0
+    : (o.rev || 0) - (o.kind === "image" ? 1e9 : 0)));
+  const target = toFront ? Math.max(...zs) + 1 : Math.min(...zs) - 1;
+  selIds().forEach(id => {
+    const o = BD.objects.get(id);
+    if (o && !o.locked && o.kind !== "bg") put({ ...o, z: target });
+  });
+  toast(toFront ? "Поднял на передний план." : "Опустил на задний план.");
+}
+$("bd-mp-front").addEventListener("click", () => reorderSelection(true));
+$("bd-mp-back").addEventListener("click", () => reorderSelection(false));
 $("bd-mp-del").addEventListener("click", deleteSelection);
 $("bd-mp-rename").addEventListener("click", () => {
   // Тот же редактор заголовка, что и по дабл-клику по фрейму

@@ -382,5 +382,19 @@ r = db.board_sync(bid, [], [], 0, S)
 objs = {o["id"]: o for o in r["objects"]}
 ok(objs.get("sh-x", {}).get("stroke") == -1, "stroke -99 зажат в -1: %s" % objs.get("sh-x", {}).get("stroke"))
 
+print("\n15. Слой z едет через sync и зажимается рамками")
+db.board_sync(bid, [{"id": "z-1", "kind": "note", "x": 1, "y": 1, "w": 10, "h": 10,
+                     "color": "note", "size": 3, "text": "слой", "z": -999999990}], [], 0, T)
+r = db.board_sync(bid, [], [], 0, S)
+objs = {o["id"]: o for o in r["objects"]}
+ok(objs.get("z-1", {}).get("z") == -999999990.0, "z доехал: %s" % objs.get("z-1", {}).get("z"))
+db.board_sync(bid, [{"id": "z-2", "kind": "note", "x": 1, "y": 1, "w": 10, "h": 10,
+                     "color": "note", "size": 3, "text": "слой2", "z": 10**12}], [], 0, T)
+r = db.board_sync(bid, [], [], 0, S)
+objs = {o["id"]: o for o in r["objects"]}
+ok(objs.get("z-2", {}).get("z") == 2_000_000_000.0, "z зажат рамкой: %s" % objs.get("z-2", {}).get("z"))
+# объект без z поля z не получает — ключ порядка остаётся rev
+ok("z" not in objs.get("rect-3", {}), "у старого объекта z не появляется")
+
 print("\n" + ("ПРОВАЛЕНО: %d" % fails if fails else "всё держится"))
 sys.exit(1 if fails else 0)

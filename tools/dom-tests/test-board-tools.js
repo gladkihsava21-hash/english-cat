@@ -1658,6 +1658,44 @@ function spoint(w, type, wx, wy, extra = {}) {
     ok(byId(w, rc.id).stroke === 0, "обводка возвращена в «Авто»");
   }
 
+  console.log("\n37. Слои: картинка под всеми, «на передний/задний план»");
+  {
+    const w = makeBoard();
+    await tick(150);
+    // картинка НОВЕЕ стикера (rev больше), но бьётся в хит-тесте позже неё:
+    // слой картинок — под остальными (решение владельца: текст на фото сверху)
+    w.eval(`BD.objects.set("im1", { id: "im1", kind: "image", x: 100, y: 100, w: 200, h: 150,
+             color: "ink", size: 3, rev: 9, src: "data:image/png;base64,x" });
+            BD.objects.set("nt1", { id: "nt1", kind: "note", x: 120, y: 120, w: 150, h: 100,
+             color: "note", size: 3, rev: 2, text: "поверх" });`);
+    ok(w.eval("hitTest(150, 150).id") === "nt1",
+       "текст ловится ПОВЕРХ картинки, хотя картинка новее");
+    // выделить стикер → «на задний план» → теперь он под картинкой
+    tool(w, "select");
+    point(w, "pointerdown", 150, 150);
+    point(w, "pointerup", 150, 150);
+    await tick(60);
+    w.document.getElementById("bd-mp-back").click();
+    await tick(30);
+    const zs = w.eval("JSON.stringify([...BD.objects.values()].map(o => [o.id, o.z ?? null]))");
+    ok(byId(w, "nt1").z != null && byId(w, "nt1").z < 2,
+       "стикер ушёл на задний план: z=" + byId(w, "nt1").z + " (" + zs + ")");
+    ok(w.eval("hitTest(150, 150).id") === "im1",
+       "теперь сверху картинка (стикер под ней)");
+    // «на передний план» — z больше всех (выделяем стикер программно:
+    // кликом его уже не достать — он под картинкой, это и проверяем)
+    w.eval(`setSelection(["nt1"])`);
+    await tick(60);
+    w.document.getElementById("bd-mp-front").click();
+    await tick(30);
+    const maxOther = w.eval(`Math.max(...[...BD.objects.values()]
+      .filter(o => o.id !== "nt1").map(o => (o.z != null ? +o.z || 0
+        : (o.rev || 0) - (o.kind === "image" ? 1e9 : 0))))`);
+    ok(byId(w, "nt1").z > maxOther,
+       "стикер поднят выше всех: z=" + byId(w, "nt1").z + " > " + maxOther);
+    ok(w.eval("hitTest(150, 150).id") === "nt1", "и снова ловится первым");
+  }
+
   console.log(fails ? `\nПРОВАЛЕНО: ${fails}` : "\nВсё зелено");
   process.exit(fails ? 1 : 0);
 })();
