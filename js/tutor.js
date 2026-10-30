@@ -493,7 +493,6 @@ function renderStudents() {
   list.querySelectorAll("[data-board-share]").forEach(btn => {
     btn.addEventListener("click", () => openBoardSharePicker(Number(btn.dataset.boardShare)));
   });
-  renderInviteJoined();
 
   list.querySelectorAll("[data-group-for]").forEach(sel => {
     sel.addEventListener("change", async () => {
@@ -1162,29 +1161,6 @@ $("copy-link").addEventListener("click", () => {
     setTimeout(() => ($("copy-link").textContent = "Скопировать ссылку"), 2000);
   }).catch(() => document.execCommand("copy"));
 });
-
-/* Пересоздание ссылки: новый код, старый мёртв сразу (сервер ищет
-   репетитора ПО КОДУ — значения уже нет). Пришедшие раньше ученики
-   остаются: связь хранится на них, не на коде. */
-$("invite-rotate").addEventListener("click", async () => {
-  if (!confirm("Пересоздать ссылку? Старая перестанет работать сразу.")) return;
-  const res = await api("/api/tutor/invite/rotate", { token: token() });
-  if (!res.ok) { toast(res.error || "Не получилось пересоздать."); return; }
-  tutor.inviteCode = res.inviteCode;
-  renderInvite();
-  toast("Новая ссылка готова, старая отключена.");
-});
-
-/* Кто уже пришёл по ссылке — статус приглашения глазами. */
-function renderInviteJoined() {
-  const box = $("invite-joined");
-  if (!box) return;
-  if (!students.length) { box.classList.add("hidden"); box.innerHTML = ""; return; }
-  box.classList.remove("hidden");
-  const names = students.map(s => esc(s.name)).join(", ");
-  box.innerHTML = `<p class="muted-small">По вашей ссылке уже занимаются:
-    <b>${students.length}</b> — ${names}.</p>`;
-}
 
 /* «На доску» из карточки ученика: выбираем доску репетитора, открываем
    её ученику и копируем магия-ссылку — один жест вместо похода на доску

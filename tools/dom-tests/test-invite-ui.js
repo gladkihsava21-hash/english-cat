@@ -76,20 +76,11 @@ const settle = async () => { for (let i = 0; i < 10; i++) await tick(); };
   const urlInput = doc.getElementById("invite-url");
   ok(urlInput && urlInput.value.includes("?join=ABC123"),
      "ссылка собрана с кодом: " + (urlInput && urlInput.value));
-  const rotate = doc.getElementById("invite-rotate");
-  ok(!!rotate, "кнопка «Пересоздать ссылку» есть");
-  const joined = doc.getElementById("invite-joined");
-  ok(joined && !joined.classList.contains("hidden")
-     && joined.textContent.includes("Марго"),
-     "статус приглашения: кто пришёл — " + (joined && joined.textContent.trim().slice(0, 60)));
-
-  console.log("— пересоздание");
-  rotate.click();
-  await settle();
-  ok(calls.some(c => c.path === "/api/tutor/invite/rotate"),
-     "ушёл запрос ротации");
-  ok(urlInput.value.includes("?join=NEW777"),
-     "поле ссылки обновилось: " + urlInput.value);
+  // Решение владельца 30.10: раздел ссылки — как было, без пересоздания
+  ok(!doc.getElementById("invite-rotate"), "кнопки пересоздания нет (возврат)");
+  ok(!doc.getElementById("invite-joined")
+     || doc.getElementById("invite-joined").classList.contains("hidden"),
+     "блок «кто пришёл» скрыт (возврат)");
 
   console.log("— «На доску» из карточки ученика");
   const shareBtn = doc.querySelector('[data-board-share="5"]');
