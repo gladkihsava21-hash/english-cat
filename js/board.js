@@ -3664,8 +3664,15 @@ $("bd-shapes").addEventListener("click", () => {
   if (m.hidden) {
     // Вылет вбок от кнопки (как тултип у «Маркера»). Меню fixed: док со
     // скроллом абсолютное меню за своим краем обрезал — оно было невидимо.
+    // Крайний случай — узкое окно (видео/скрин владельца): если справа не
+    // влезает целиком, прижимаем меню к правому краю экрана (поверх дока,
+    // z-index выше), но ПОЛНОСТЬЮ на экране — обрезанный «Прям… Овал…»
+    // выглядел как «вообще не работает».
     const r = $("bd-shapes").getBoundingClientRect();
-    m.style.left = (r.right + 8) + "px";
+    const mw = 210;
+    let left = r.right + 8;
+    if (left + mw > innerWidth - 8) left = Math.max(8, innerWidth - mw - 8);
+    m.style.left = left + "px";
     m.style.top = Math.max(8, Math.min(innerHeight - 280, r.top - 30)) + "px";
   }
   m.hidden = !m.hidden;
