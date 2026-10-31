@@ -1606,7 +1606,10 @@ function spoint(w, type, wx, wy, extra = {}) {
     ok(!smenu.hidden && smenu.querySelectorAll("[data-shape]").length === 5,
        "меню с пятью фигурами");
     ok(smenu.style.left !== "" && smenu.style.top !== "",
-       "меню позиционируется fixed у кнопки (не режется доком): " + smenu.style.left + "," + smenu.style.top);
+       "окно позиционируется fixed (не режется доком): " + smenu.style.left + "," + smenu.style.top);
+    ok(smenu.classList.contains("bd-shapes-panel")
+       && !!smenu.querySelector(".bd-shapes-grid"),
+       "это отдельное окно-панель с сеткой плиток");
     // ромб: выбор из меню, драг — объект на доске
     smenu.querySelector('[data-shape="diamond"]').click();
     ok(bd(w).tool === "diamond" && shapesBtn.classList.contains("active"),

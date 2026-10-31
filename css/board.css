@@ -733,16 +733,32 @@
 .bd-share-menu button.on { background: var(--accent-soft); color: var(--accent); font-weight: 700; }
 .bd-share-menu button.danger { color: var(--bd-red); }
 .bd-share-menu .bd-hint { margin: 4px 8px; }
-/* Меню фигур из левого дока: вылетает вбок от кнопки, как тултип.
-   position: fixed с координатами из JS — внутри дока (overflow-y:auto)
-   абсолютное меню вправо ОБРЕЗАЛОСЬ и было невидимым (баг владельца). */
-.bd-shapes-menu {
+/* Окно фигур — отдельная панель с крупными плитками (как библиотека
+   у Holst), а не узкая менюшка у края экрана. fixed, координаты из JS. */
+.bd-shapes-panel {
   position: fixed; z-index: 55;
-  min-width: 200px; max-height: 70vh; overflow-y: auto;
+  background: var(--bd-panel, var(--surface));
+  border: 1px solid var(--border); border-radius: 14px;
+  padding: 12px; box-shadow: 0 16px 40px rgba(0, 0, 0, .22);
+  max-width: calc(100vw - 16px);
 }
-.bd-shapes-menu .bd-kbd {
-  float: right; opacity: .55; font-size: 11px;
+.bd-shapes-title { font-size: 13px; font-weight: 700; color: var(--ink-soft); margin: 0 2px 8px; }
+.bd-shapes-grid { display: grid; grid-template-columns: repeat(2, minmax(120px, 1fr)); gap: 6px; }
+.bd-shapes-grid button {
+  display: flex; align-items: center; gap: 8px;
+  border: 1px solid var(--line-soft); background: var(--paper); color: var(--ink);
+  font: inherit; font-size: 14px; cursor: pointer;
+  padding: 10px 12px; border-radius: 10px; text-align: left;
+}
+.bd-shapes-grid button:hover { background: var(--accent-soft); border-color: var(--accent-line); }
+.bd-shapes-grid .bd-sh-ic { font-size: 20px; width: 24px; text-align: center; }
+.bd-shapes-grid .bd-kbd {
+  margin-left: auto; opacity: .55; font-size: 11px;
   border: 1px solid var(--line-soft); border-radius: 4px; padding: 0 4px;
+}
+/* Узкое окно (телефон): одна колонка во всю ширину панели */
+@media (max-width: 480px) {
+  .bd-shapes-grid { grid-template-columns: 1fr; }
 }
 
 /* Плашка таймера: сверху по центру, ПОД шапкой (не перекрывает её). */
