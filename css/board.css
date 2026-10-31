@@ -740,7 +740,7 @@
   background: var(--bd-panel, var(--surface));
   border: 1px solid var(--border); border-radius: 14px;
   padding: 12px; box-shadow: 0 16px 40px rgba(0, 0, 0, .22);
-  max-width: calc(100vw - 16px);
+  max-width: calc(100vw - 16px); overflow-y: auto;
 }
 .bd-shapes-title { font-size: 13px; font-weight: 700; color: var(--ink-soft); margin: 0 2px 8px; }
 .bd-shapes-grid { display: grid; grid-template-columns: repeat(2, minmax(120px, 1fr)); gap: 6px; }

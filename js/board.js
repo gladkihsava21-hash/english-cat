@@ -3694,23 +3694,19 @@ function pickShape(tool) {
 $("bd-shapes").addEventListener("click", () => {
   const m = $("bd-shapes-menu");
   if (m.hidden) {
-    // Отдельное окно выбора фигур. На десктопе — справа от кнопки дока;
-    // на узком экране — по центру: краевые менюшки обрезались и
-    // выглядели сломанными (несколько скринов владельца).
+    // Позиционирование ОДИН-В-ОДИН как у эмодзи-пикера (владелец: «сделай
+    // как эмодзи» — он у него идеален): ширина по экрану, левый край под
+    // кнопкой, зажат в вьюпорт с двух сторон, сверху или снизу — куда
+    // влезает. Краевых уезжаний за экран больше нет.
     const r = $("bd-shapes").getBoundingClientRect();
-    const mw = Math.min(320, innerWidth - 16);
-    if (innerWidth < 560) {
-      m.style.left = "50%";
-      m.style.transform = "translateX(-50%)";
-      m.style.top = Math.max(8, Math.min(innerHeight - 320, r.top - 120)) + "px";
-    } else {
-      m.style.transform = "";
-      let left = r.right + 8;
-      if (left + mw > innerWidth - 8) left = Math.max(8, innerWidth - mw - 8);
-      m.style.left = left + "px";
-      m.style.top = Math.max(8, Math.min(innerHeight - 320, r.top - 60)) + "px";
-    }
+    const mw = Math.min(340, innerWidth - 16);
+    const mh = Math.min(340, innerHeight - 16);
     m.style.width = mw + "px";
+    m.style.maxHeight = mh + "px";
+    m.style.transform = "";
+    m.style.left = Math.max(8, Math.min(innerWidth - mw - 8, r.left)) + "px";
+    const below = r.bottom + 8 + mh <= innerHeight;
+    m.style.top = (below ? r.bottom + 8 : Math.max(8, r.top - mh - 8)) + "px";
   }
   m.hidden = !m.hidden;
 });
